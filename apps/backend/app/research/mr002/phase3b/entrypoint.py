@@ -43,6 +43,11 @@ REFERENCE_PREFIX = "reference"
 # silently add an override object and the fetcher would obediently consume it.
 REFERENCE_MANIFEST_SHA256 = "fc8e91e9bc78faa6936dc68b82414a6a0a500f0c41c4d303419a2157a7ce7d35"
 
+# The governed privilege transition. Fixed here, never supplied at runtime: a caller-chosen ARN
+# would let the caller decide which identity reads the sealed store.
+VALIDATION_READER_ROLE_ARN = "arn:aws:iam::219024422756:role/mr002-validation-reader"
+READER_SESSION_NAME = "mr002-p3b-validation-v1"
+
 DRY, EXECUTE = "dry", "execute"
 
 
@@ -71,19 +76,62 @@ def _load_bound(path: str, expected_sha256: str) -> dict:
     return json.loads(raw.decode("utf-8"))
 
 
-def s3_reader(region: str = "us-east-1") -> S3PinnedReader:
-    """Construct the real reader. Deliberately builds no client until the first read.
+class ReaderAssumptionRefused(Exception):
+    """The governed reader identity could not be assumed. No S3 client is built, nothing is read."""
 
-    A reader that connects eagerly invites a probe before PRE_ACCESS_READY, which is exactly the
-    event the whole sequence exists to prevent.
+
+def s3_reader(region: str = "us-east-1", *, boto3_module: Any = None) -> S3PinnedReader:
+    """Construct the real reader: lazy, and via the governed privilege transition.
+
+    The host role holds an explicit Deny on the sealed bucket and must keep it. The only sanctioned
+    path to a validation object is to assume ``mr002-validation-reader``, so the S3 client is built
+    ONLY from the temporary credentials that assumption returns. There is deliberately no ambient
+    fallback: if the assumption fails, the run refuses before any S3 call rather than quietly
+    retrying as the host role, which would either be denied or - far worse - succeed for the wrong
+    identity and make the privilege crossing unauditable.
+
+    Still lazy. Nothing here calls STS until the first read, so a dry run reaches PRE_ACCESS_READY
+    with no STS call, no reader credentials and no S3 client.
+
+    The role ARN is a module constant, not a parameter: a runtime-supplied ARN would let the caller
+    choose which identity reads the sealed store.
     """
 
-    def factory():  # pragma: no cover - exercised only by the governed run
-        import boto3
+    def factory():
+        b3 = boto3_module
+        if b3 is None:  # pragma: no cover - the real path, exercised only by the governed run
+            import boto3 as b3
+        sts = b3.client("sts", region_name=region)
+        try:
+            assumed = sts.assume_role(
+                RoleArn=VALIDATION_READER_ROLE_ARN, RoleSessionName=READER_SESSION_NAME
+            )
+        except Exception as exc:
+            raise ReaderAssumptionRefused(
+                f"could not assume {VALIDATION_READER_ROLE_ARN}: {exc}. Refusing before any S3 "
+                "call; there is no ambient-credential fallback."
+            ) from exc
+        creds = (assumed or {}).get("Credentials") or {}
+        missing = [
+            k for k in ("AccessKeyId", "SecretAccessKey", "SessionToken") if not creds.get(k)
+        ]
+        if missing:
+            raise ReaderAssumptionRefused(
+                f"assumption returned no usable credentials (missing {missing}); refusing rather "
+                "than falling back to the host role"
+            )
+        return b3.client(
+            "s3",
+            region_name=region,
+            aws_access_key_id=creds["AccessKeyId"],
+            aws_secret_access_key=creds["SecretAccessKey"],
+            aws_session_token=creds["SessionToken"],
+        )
 
-        return boto3.client("s3", region_name=region)
-
-    return S3PinnedReader(factory)
+    reader = S3PinnedReader(factory)
+    reader.assumed_role_arn = VALIDATION_READER_ROLE_ARN
+    reader.reader_session_name = READER_SESSION_NAME
+    return reader
 
 
 def _reference_keys(reference_manifest: dict) -> set[str]:
