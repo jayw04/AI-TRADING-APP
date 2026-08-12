@@ -1,0 +1,115 @@
+{
+ "artifact_kind": "PROVENANCE_EVIDENCE",
+ "boundary": "Zero-data. No AWS call, no sealed object, no credential. Grants nothing.",
+ "consequence": "The validation window would be produced by byte-identical economic code to the development window. R-PROD is SATISFIABLE and currently SATISFIED; the RunSpecification must bind these fifteen identities explicitly so that any later drift refuses the run.",
+ "cross_check": "models.py hashes to efc26d3ae7301cc45c782ab0174693f62d31cf9cc5289a4ec876d39bbc18666f at the Phase 2B commit, which is exactly the value the frozen ValidationRunSpecification binds as SignalDecisionRecord_model_module_sha256. The frozen binding therefore came from the Phase 2B run, which independently corroborates this anchor.",
+ "date": "2026-08-12",
+ "drift": [],
+ "grants": "NOTHING. Evidence only.",
+ "modules": {
+  "calendar.py": {
+   "current_sha256": "567044c06672f03cc655ac412b666a3195bcf8f96cf01a9575078ffe91cdc7dc",
+   "identical": true,
+   "phase2b_sha256": "567044c06672f03cc655ac412b666a3195bcf8f96cf01a9575078ffe91cdc7dc",
+   "role": "registered session calendar"
+  },
+  "constants.py": {
+   "current_sha256": "c1661e4ae720ae292243a6159b78c464d3b84c3e8d8f41acc2e71980b2c4499b",
+   "identical": true,
+   "phase2b_sha256": "c1661e4ae720ae292243a6159b78c464d3b84c3e8d8f41acc2e71980b2c4499b",
+   "role": "frozen numerical mechanics"
+  },
+  "eligibility.py": {
+   "current_sha256": "b88ce8977f8d929bc6ff8140c2ea67fba1a447a150eafe82d6ed8715da5fea54",
+   "identical": true,
+   "phase2b_sha256": "b88ce8977f8d929bc6ff8140c2ea67fba1a447a150eafe82d6ed8715da5fea54",
+   "role": "eligibility transformations"
+  },
+  "identities.py": {
+   "current_sha256": "019a800f9cc43c6873430d3acbf061bbfa206bb8c33d8fb0466064f274cde62b",
+   "identical": true,
+   "phase2b_sha256": "019a800f9cc43c6873430d3acbf061bbfa206bb8c33d8fb0466064f274cde62b",
+   "role": "canonical identity hashing"
+  },
+  "liquidity.py": {
+   "current_sha256": "a51c0e0d57d806249806ecbbfd0bacb8ee60d2708a8b4f86a43f0e1cb7a41648",
+   "identical": true,
+   "phase2b_sha256": "a51c0e0d57d806249806ecbbfd0bacb8ee60d2708a8b4f86a43f0e1cb7a41648",
+   "role": "volatility / liquidity inputs (ADV)"
+  },
+  "models.py": {
+   "current_sha256": "efc26d3ae7301cc45c782ab0174693f62d31cf9cc5289a4ec876d39bbc18666f",
+   "identical": true,
+   "phase2b_sha256": "efc26d3ae7301cc45c782ab0174693f62d31cf9cc5289a4ec876d39bbc18666f",
+   "role": "record models and the immutability seam"
+  },
+  "normalization.py": {
+   "current_sha256": "3d6be8242c27b50840184b68016b10ec72169ae43cde28c6495c5e5bab750eaf",
+   "identical": true,
+   "phase2b_sha256": "3d6be8242c27b50840184b68016b10ec72169ae43cde28c6495c5e5bab750eaf",
+   "role": "z-score"
+  },
+  "producer.py": {
+   "current_sha256": "0005244fb2100f8d9b7c4c6a9dcb7069505c50b26c962f4d928d25acb3da2bad",
+   "identical": true,
+   "phase2b_sha256": "0005244fb2100f8d9b7c4c6a9dcb7069505c50b26c962f4d928d25acb3da2bad",
+   "role": "decision emission"
+  },
+  "refusals.py": {
+   "current_sha256": "f37432037e5a441469db4886f23d260023f6024dcf47927ec71f001b41745cff",
+   "identical": true,
+   "phase2b_sha256": "f37432037e5a441469db4886f23d260023f6024dcf47927ec71f001b41745cff",
+   "role": "governed refusal codes"
+  },
+  "residuals.py": {
+   "current_sha256": "0a9147cec5478d2c861ee81642b7499942cd9dbfc413be606d2fb3ba1d29c7ca",
+   "identical": true,
+   "phase2b_sha256": "0a9147cec5478d2c861ee81642b7499942cd9dbfc413be606d2fb3ba1d29c7ca",
+   "role": "residual calculation"
+  },
+  "returns.py": {
+   "current_sha256": "b231197e35d827d351a987077959011d33e69d5b3d1bbd8a0773a848a26fa5c8",
+   "identical": true,
+   "phase2b_sha256": "b231197e35d827d351a987077959011d33e69d5b3d1bbd8a0773a848a26fa5c8",
+   "role": "return construction"
+  },
+  "sector_factor.py": {
+   "current_sha256": "fbd9c8d9743a35de28265d068022007ca85118b23da32ad0286b9a969970807a",
+   "identical": true,
+   "phase2b_sha256": "fbd9c8d9743a35de28265d068022007ca85118b23da32ad0286b9a969970807a",
+   "role": "sector factor construction"
+  },
+  "sector_pit.py": {
+   "current_sha256": "5b581ab503ec734c25b47876dd1878e8e0d0aab0d0c070d74a5f6705bf2e10d4",
+   "identical": true,
+   "phase2b_sha256": "5b581ab503ec734c25b47876dd1878e8e0d0aab0d0c070d74a5f6705bf2e10d4",
+   "role": "point-in-time sector resolution"
+  },
+  "security_identity.py": {
+   "current_sha256": "3aef443508baa4bf1139afd362cfc482e217bdfdd902d48650ddb1f2fb44cc10",
+   "identical": true,
+   "phase2b_sha256": "3aef443508baa4bf1139afd362cfc482e217bdfdd902d48650ddb1f2fb44cc10",
+   "role": "security identity resolution"
+  },
+  "stock_regression.py": {
+   "current_sha256": "4c1bffcc8a3ec6d22f710cd7f1c42fcdf0154cfad5e6aaea633796b761cca455",
+   "identical": true,
+   "phase2b_sha256": "4c1bffcc8a3ec6d22f710cd7f1c42fcdf0154cfad5e6aaea633796b761cca455",
+   "role": "OLS / regression"
+  }
+ },
+ "modules_compared": 15,
+ "phase2b_anchor": {
+  "artifact": "docs/review/mr002/spq1/phase2b/2b2/MR002_SPQ1_Phase2B_2B2_RunManifest_v1.0.json",
+  "commit": "1cc98f55b71c5fa9751f4c7ea3df79f585804158",
+  "method": "the commit that first introduced the 2B-2 run manifest; module blobs read from the git object store at that commit",
+  "subject": "impl(mr-002): SPQ-1 Phase 2B-2 \u2014 full development run + deterministic replay COMPLETE (all gates pass); collision rule enforced"
+ },
+ "record_identity_sha256": "489bc6021efce41da8cb24fec4a391f99771259c865fe75ee05db24aa6c63d04",
+ "record_type": "MR002_Phase3B_ProducerIdentityContinuity",
+ "requirement": "R-PROD (owner ruling 2026-08-12)",
+ "requirement_text": "The mounted Phase 3B execution layer must bind the core SPQ-1 producer modules to the exact development-run source identities before freeze; zero unadjudicated drift permitted.",
+ "verdict": "CONTINUOUS - zero drift",
+ "version": "1.0",
+ "why_reconstruction_was_necessary": "MR002_SPQ1_Phase2B_2B2_InputIdentityManifest_v1.0.governed_code_identities binds only three identities - collision_rule_module_identity, full_run_runner_identity and phase2b_orchestration_code_identity_frozen. None of them covers the modules that compute the regressions, residuals, z-scores, eligibility or decision emission. The provenance is therefore reconstructed from the committed source commit that carried the 2B-2 run, exactly as the owner directed, rather than asserted from the working tree."
+}
