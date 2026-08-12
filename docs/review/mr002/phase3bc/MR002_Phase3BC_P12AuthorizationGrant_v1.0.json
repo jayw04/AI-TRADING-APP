@@ -1,0 +1,95 @@
+{
+ "artifact_kind": "RUNTIME_INSTANCE",
+ "authorization_time_utc": "2026-08-12T01:28:16Z",
+ "bound_prerequisite_anchor_sha256": "2b8f792081d6285e1a7619a6faa362d0502fa728a46333eb5c23e48a81e6a06d",
+ "bound_submission": "MR002_Phase3BC_ExecutionAuthorizationRequest_v2.0.json",
+ "bound_submission_identity_sha256": "4c984a4b015bb6825df1f57f549dde6bfc22a2b55ec6e0fed609157b3e1eb3f6",
+ "credential_release_mechanism": "SR-GRANT-1: editing the mr002-validation-reader trust policy from the unassumable placeholder to the qualified host role IS the credential release. It occurs ONLY after a successful CAS.",
+ "d3_disposition": "GRANTED",
+ "does_not_authorize": [
+  "OOS access",
+  "changing Config A/B/C or evaluator logic",
+  "changing the runtime image or Linux dependency lock",
+  "replacing the qualified host without requalification and a P10 refresh",
+  "altering P6-P11 evidence",
+  "changing metric roles, bootstrap rules, DSR design, costs, or execution endpoints",
+  "product integration",
+  "Phase 4 / OOS execution"
+ ],
+ "execution_rule": "The validation opening must NOT be spent on a control test. The first use of the released reader is the governed Phase 3B execution path itself - no exploratory query, manual inspection, sample read, schema check, or 'quick verification' against sealed validation objects beforehand.",
+ "expected_state_at_grant": {
+  "_rev": 0,
+  "validation_authorization": false
+ },
+ "governed_evaluator_index": "sha256:194efbdf96ee11c19f3554dcf1b1097958cdc347bcdc1637504b441237432f51",
+ "governed_runtime": "the frozen Phase 3C runtime identity recorded in MR002_Phase3CHostFreeze_v1.0.json and bound by P10",
+ "grant": "GRANTED",
+ "grant_identity_sha256": "440e96e15bda2f8c4eaf991ce8e45190392607bb16bc3ff803f0e6bdac9137f5",
+ "granted_by": "Jay Wang (owner)",
+ "host_binding_rule": "P12 binds the IAM ROLE identity, never the EC2 instance id. SR-HOST-1 separately binds the actual execution host.",
+ "oos_prohibition": "EXPLICIT. OOS access is NOT authorized by this grant and the OOS partition remains under DENY throughout Phase 3B/3C. OOS requires its own separate later authorization.",
+ "ordering_rule": "This record is written and durable BEFORE the CAS and BEFORE any trust-policy edit. A released credential without a recorded grant is an integrity failure.",
+ "preconditions_verified_immediately_before_grant": [
+  {
+   "detail": "observed=False",
+   "precondition": "validation_authorization == false",
+   "status": "PASS"
+  },
+  {
+   "detail": "observed=0",
+   "precondition": "_rev == 0",
+   "status": "PASS"
+  },
+  {
+   "detail": "recomputed=2b8f792081d6285e1a7619a6faa362d0502fa728a46333eb5c23e48a81e6a06d",
+   "precondition": "prerequisite anchor == 2b8f7920...",
+   "status": "PASS"
+  },
+  {
+   "detail": "observed=4c984a4b015bb6825df1f57f...",
+   "precondition": "submission identity == 4c984a4b...",
+   "status": "PASS"
+  },
+  {
+   "detail": "unsatisfied=none",
+   "precondition": "P6-P11 == SATISFIED",
+   "status": "PASS"
+  },
+  {
+   "detail": "verdict=PASS, conditions=12",
+   "precondition": "WP-F == accepted PASS",
+   "status": "PASS"
+  },
+  {
+   "detail": "frozen instance=i-00c1034f7026db45e; live role=arn:aws:iam::219024422756:role/mr002-phase3c-run-host",
+   "precondition": "qualified host identity unchanged (SR-HOST-1)",
+   "status": "PASS"
+  },
+  {
+   "detail": "P10 binds=sha256:194efbdf96ee11c19...",
+   "precondition": "governed evaluator index == sha256:194efbdf...",
+   "status": "PASS"
+  },
+  {
+   "detail": "named principal=['arn:aws:iam::219024422756:role/mr002-phase3c-run-host-NOT-YET-PROVISIONED']",
+   "precondition": "reader trust still holds the unassumable placeholder",
+   "status": "PASS"
+  },
+  {
+   "detail": "successful validation reads=0",
+   "precondition": "validation opening still unconsumed",
+   "status": "PASS"
+  },
+  {
+   "detail": "reader=explicitDeny, ordinary=explicitDeny",
+   "precondition": "OOS DENY still in force",
+   "status": "PASS"
+  }
+ ],
+ "qualified_host_role_arn": "arn:aws:iam::219024422756:role/mr002-phase3c-run-host",
+ "record_type": "MR002_Phase3BC_P12AuthorizationGrant",
+ "rejected_anchor_sha256": "088d700bb1b3000a707ab58ca880bf6c71319587284161b373064927b6abc7d6",
+ "rejected_anchor_status": "PERMANENTLY STALE FOR THIS GRANT",
+ "scope": "VALIDATION ONLY - one transition into authorized validation execution",
+ "version": "1.0"
+}

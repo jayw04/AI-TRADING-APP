@@ -78,12 +78,37 @@ def status_of(report, cid):
 # ---------------------------------------------------------------------------
 
 
-def test_the_current_program_state_passes_every_condition():
+def _pre_grant_state(tmp_path, monkeypatch):
+    """WP-F is a PRE-GRANT instrument. After P12 the real state is true/_rev 1, so the
+    pre-grant fixture restores the state C10 was written to assert."""
+    st = copy.deepcopy(W._load(W.AUTH_STATE))
+    st["validation_authorization"] = False
+    st["_rev"] = 0
+    p = tmp_path / "pre_grant_state.json"
+    p.write_text(json.dumps(st), encoding="utf-8")
+    monkeypatch.setattr(W, "AUTH_STATE", p)
+
+
+def test_the_program_state_passes_every_condition_pre_grant(tmp_path, monkeypatch):
+    """The evidence-bearing run was executed against pre-grant state and passed 12/12."""
+    _pre_grant_state(tmp_path, monkeypatch)
     report = W.run(StubResolver())
     failures = [f for f in report["findings"] if f["status"] != "PASS"]
     assert not failures, json.dumps(failures, indent=1)
     assert report["verdict"] == "PASS"
     assert report["conditions_evaluated"] == 12
+
+
+def test_wp_f_FAILS_once_the_grant_has_been_made():
+    """A grant-readiness verifier must not certify an ALREADY-AUTHORIZED program.
+
+    After P12 the durable state is true/_rev 1, so C10 must fail and the overall
+    verdict must not be PASS. Were this to keep passing, WP-F could be re-run to
+    manufacture fresh 'readiness' for a program that has already spent its grant.
+    """
+    report = W.run(StubResolver())
+    assert status_of(report, "C10") == "FAIL"
+    assert report["verdict"] == "FAIL"
 
 
 def test_the_run_grants_nothing():

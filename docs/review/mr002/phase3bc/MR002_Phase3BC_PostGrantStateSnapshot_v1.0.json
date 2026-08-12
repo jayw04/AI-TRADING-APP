@@ -1,0 +1,50 @@
+{
+ "artifact_kind": "RUNTIME_INSTANCE",
+ "cas_rev": 1,
+ "cloudtrail_event_for_the_trust_policy_change": {
+  "event_id": "24079a96-9c8d-4e98-b7d3-32f486e16d33",
+  "event_name": "UpdateAssumeRolePolicy",
+  "event_time": "2026-08-11T20:28:16-05:00 (2026-08-12T01:28:16Z)",
+  "note": "The SR-GRANT-1 credential release is independently attested by CloudTrail, not only by this record. Management events index with a short delay, which is why this field was added after the initial snapshot was written.",
+  "role": "mr002-validation-reader"
+ },
+ "execution_rule_restated": "Do NOT spend the opening on a control test. The first use of the released reader is the governed Phase 3B execution path.",
+ "governed_evaluator_index": "sha256:194efbdf96ee11c19f3554dcf1b1097958cdc347bcdc1637504b441237432f51",
+ "grant_event_identity_sha256": "440e96e15bda2f8c4eaf991ce8e45190392607bb16bc3ff803f0e6bdac9137f5",
+ "method": "IAM policy simulation and control-state inspection ONLY. K4 remains binding: no live HeadObject or GetObject was issued against any sealed object.",
+ "oos_deny_still_active": true,
+ "oos_simulation_decision": "explicitDeny",
+ "prerequisite_anchor_sha256": "2b8f792081d6285e1a7619a6faa362d0502fa728a46333eb5c23e48a81e6a06d",
+ "produced_at_utc": "2026-08-12T01:28:16Z",
+ "qualified_host_instance": "i-00c1034f7026db45e (frozen under SR-HOST-1)",
+ "qualified_host_role": "arn:aws:iam::219024422756:role/mr002-phase3c-run-host",
+ "record_type": "MR002_Phase3BC_PostGrantStateSnapshot",
+ "rejected_anchor_sha256": "088d700bb1b3000a707ab58ca880bf6c71319587284161b373064927b6abc7d6",
+ "snapshot_identity_sha256": "bfd6df84254ec9283c705a69ed9b25a8d522d93a8297d25d296ef207308cce4c",
+ "trust_policy": {
+  "now_assumable_by": "arn:aws:iam::219024422756:role/mr002-phase3c-run-host",
+  "placeholder_removed": true,
+  "trust_policy_document": {
+   "Statement": [
+    {
+     "Action": "sts:AssumeRole",
+     "Condition": {
+      "StringEquals": {
+       "aws:PrincipalArn": "arn:aws:iam::219024422756:role/mr002-phase3c-run-host"
+      }
+     },
+     "Effect": "Allow",
+     "Principal": {
+      "AWS": "arn:aws:iam::219024422756:root"
+     },
+     "Sid": "AssumableOnlyByTheQualifiedPhase3CRunHost"
+    }
+   ],
+   "Version": "2012-10-17"
+  },
+  "trust_policy_sha256": "cdc4759777c1f427c0737413f80f6a9ba69816bb466fabee16ab9f9b38e1ee5a"
+ },
+ "validation_authorization": true,
+ "validation_opening": "GRANTED BUT UNSPENT - reserved for the governed Phase 3B run",
+ "version": "1.0"
+}

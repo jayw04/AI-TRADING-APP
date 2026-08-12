@@ -1,20 +1,29 @@
 {
- "_rev": 0,
+ "_rev": 1,
  "adjudication_sha256": "16013d70bd4c41a9ba77150b6a839b85ba0c48974ca55558aa7f24c7298d8889",
  "bound_identities": {
-  "authorization_request_sha256": "3329630ac1ce4e63c05376b59f4de11630c119871729200786f0726e47bc367a",
+  "authorization_request_sha256": "4c984a4b015bb6825df1f57f549dde6bfc22a2b55ec6e0fed609157b3e1eb3f6",
   "governing_preregistration_sha256": "b2a042d4cf8e4d36a70d7e087c3d0e8efc1076e3ee96db7d6c2dc7583129af9c",
+  "p12_grant_identity_sha256": "440e96e15bda2f8c4eaf991ce8e45190392607bb16bc3ff803f0e6bdac9137f5",
+  "p12_grant_record": "MR002_Phase3BC_P12AuthorizationGrant_v1.0.json",
   "phase3a_final_correction_commit": "f7319de951b6fd7b84112ad2b207d61376399ac1",
-  "prerequisite_digest": "088d700bb1b3000a707ab58ca880bf6c71319587284161b373064927b6abc7d6",
+  "prerequisite_digest": "2b8f792081d6285e1a7619a6faa362d0502fa728a46333eb5c23e48a81e6a06d",
   "prerequisite_digest_definition": "sha256 of the ascii JSON object {prerequisite_id: status} sorted by key, taken from the adjudicated register",
+  "prerequisite_digest_note": "Rebound at P12 to the fresh anchor. The previously adjudicated digest 088d700bb1b3000a707ab58ca880bf6c71319587284161b373064927b6abc7d6 is PERMANENTLY STALE for this grant.",
   "prerequisite_register_sha256": "0bc80e78cc1ede2ca7dfbed61500cda4e81e310220de3416fc46df6b8efd0ccc",
   "publication_manifest_sha256": "00582f5985938a89a8a31f7f7d591c16e3d888a1bca7ae3d4155a0a6e1a42c6d",
   "reference_commit": "ea437ce9355650ab907079fea10243db5599a1a7"
  },
- "boundary": "validation_authorization is false; this record grants nothing",
+ "boundary": "validation_authorization is TRUE. This grants ONE validation execution against the bound contract. OOS remains under DENY and requires separate authorization.",
+ "granted_at_utc": "2026-08-12T01:28:16Z",
  "note": "a stale digest is a FEATURE: when prerequisites are produced under D2 the register changes, so the CAS must be re-anchored by a NEW adjudicated D3 submission rather than silently satisfied against this one",
+ "previous_state": {
+  "_rev": 0,
+  "prerequisite_digest": "088d700bb1b3000a707ab58ca880bf6c71319587284161b373064927b6abc7d6",
+  "validation_authorization": false
+ },
  "record_type": "MR002_Phase3BC_ValidationAuthorizationState",
- "state_established_by": "owner adjudication 2026-07-22 (D3 DENIED WITHOUT PREJUDICE)",
+ "state_established_by": "owner adjudication 2026-08-11 - D3 GRANTED, P12 AUTHORIZED (was: owner adjudication 2026-07-22 (D3 DENIED WITHOUT PREJUDICE))",
  "transition_rule": {
   "additional_precondition": "a closed grant-readiness verification run satisfying D3 conditions C1-C10, re-verified against the THEN-current tree",
   "durability": "the grant event must be durably recorded BEFORE any credential release or partition access; a released credential without a recorded grant is an integrity failure",
@@ -32,6 +41,6 @@
   "operation": "COMPARE_AND_SET",
   "to": true
  },
- "validation_authorization": false,
+ "validation_authorization": true,
  "version": "1.0"
 }

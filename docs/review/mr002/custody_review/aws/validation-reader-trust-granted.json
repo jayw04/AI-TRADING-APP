@@ -1,0 +1,18 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "AssumableOnlyByTheQualifiedPhase3CRunHost",
+      "Effect": "Allow",
+      "Principal": {
+        "AWS": "arn:aws:iam::219024422756:root"
+      },
+      "Action": "sts:AssumeRole",
+      "Condition": {
+        "StringEquals": {
+          "aws:PrincipalArn": "arn:aws:iam::219024422756:role/mr002-phase3c-run-host"
+        }
+      }
+    }
+  ]
+}
