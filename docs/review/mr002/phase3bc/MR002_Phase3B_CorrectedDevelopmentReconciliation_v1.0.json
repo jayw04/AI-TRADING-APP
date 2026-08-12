@@ -1,0 +1,143 @@
+{
+ "artifact_kind": "CONFORMITY_RECONCILIATION",
+ "boundary": "DEVELOPMENT ONLY, 2013-01-02..2019-10-02. Historical Phase 2B shard outcomes, the anchors table and the registered session list. No price, return, residual, z-score or performance. No sealed object, no credential; the validation opening remains UNSPENT.",
+ "controls_evaluated_on": "the EXECUTION open t+1, matching the frozen cooling wording",
+ "corrects_my_earlier_report": "I previously concluded a full corrected replay was REQUIRED because selection is cross-sectional. That is true of Phase 3C, not of the Phase 2B stage this reconciliation covers. Checking it before spending the run is why this is a derivation.",
+ "date": "2026-08-12",
+ "grants": "NOTHING. Evidence only.",
+ "method": "EXACT DERIVATION, not a producer replay",
+ "record_identity_note": "Record identities necessarily change for EVERY unit under the correction, because the eligibility evidence trail gains two rules and eligibility_evidence_identity hashes that trail. Structural reconciliation therefore compares DISPOSITIONS and CODES, never record identities.",
+ "record_identity_sha256": "5904e04b24bab2320cd773e82d8803870d0188ec4408cc0cf88c0ab7913d70bc",
+ "record_type": "MR002_Phase3B_CorrectedDevelopmentReconciliation",
+ "results": {
+  "attribution": {
+   "post_release_cooling": 17408,
+   "stale_anchor_blackout": 118722
+  },
+  "corrected_outcome_counts": {
+   "INELIGIBLE|None": 80914,
+   "INTEGRITY_STOP|None": 100798,
+   "REFUSED_CODE_OR_DATA_IDENTITY|None": 26746,
+   "SIGNAL_DECISION_RECORD_EMITTED|ELIGIBLE": 505412,
+   "SIGNAL_DECISION_RECORD_EMITTED|INELIGIBLE": 136130
+  },
+  "deciding_rule_taken_over_from_rank5": 0,
+  "historical_outcome_counts": {
+   "INELIGIBLE|None": 80914,
+   "INTEGRITY_STOP|None": 100798,
+   "REFUSED_CODE_OR_DATA_IDENTITY|None": 26746,
+   "SIGNAL_DECISION_RECORD_EMITTED|ELIGIBLE": 641542
+  },
+  "historically_emitted_eligible": 641542,
+  "now_ineligible_under_the_frozen_controls": 136130,
+  "sample_changed_units": [
+   {
+    "decision_session": 185,
+    "reason": "stale_anchor_blackout",
+    "symbol": "ABT"
+   },
+   {
+    "decision_session": 185,
+    "reason": "post_release_cooling",
+    "symbol": "ACN"
+   },
+   {
+    "decision_session": 185,
+    "reason": "stale_anchor_blackout",
+    "symbol": "AXP"
+   },
+   {
+    "decision_session": 185,
+    "reason": "stale_anchor_blackout",
+    "symbol": "BAX"
+   },
+   {
+    "decision_session": 185,
+    "reason": "stale_anchor_blackout",
+    "symbol": "BHI"
+   },
+   {
+    "decision_session": 185,
+    "reason": "stale_anchor_blackout",
+    "symbol": "COF"
+   },
+   {
+    "decision_session": 185,
+    "reason": "stale_anchor_blackout",
+    "symbol": "COST"
+   },
+   {
+    "decision_session": 185,
+    "reason": "stale_anchor_blackout",
+    "symbol": "DHR"
+   },
+   {
+    "decision_session": 185,
+    "reason": "stale_anchor_blackout",
+    "symbol": "EBAY"
+   },
+   {
+    "decision_session": 185,
+    "reason": "stale_anchor_blackout",
+    "symbol": "FITB"
+   },
+   {
+    "decision_session": 185,
+    "reason": "stale_anchor_blackout",
+    "symbol": "GE"
+   },
+   {
+    "decision_session": 185,
+    "reason": "stale_anchor_blackout",
+    "symbol": "GS"
+   },
+   {
+    "decision_session": 185,
+    "reason": "stale_anchor_blackout",
+    "symbol": "IBM"
+   },
+   {
+    "decision_session": 185,
+    "reason": "stale_anchor_blackout",
+    "symbol": "INTC"
+   },
+   {
+    "decision_session": 185,
+    "reason": "stale_anchor_blackout",
+    "symbol": "ISRG"
+   },
+   {
+    "decision_session": 185,
+    "reason": "stale_anchor_blackout",
+    "symbol": "JNJ"
+   },
+   {
+    "decision_session": 185,
+    "reason": "stale_anchor_blackout",
+    "symbol": "KEY"
+   },
+   {
+    "decision_session": 185,
+    "reason": "stale_anchor_blackout",
+    "symbol": "KMI"
+   },
+   {
+    "decision_session": 185,
+    "reason": "stale_anchor_blackout",
+    "symbol": "KO"
+   },
+   {
+    "decision_session": 185,
+    "reason": "stale_anchor_blackout",
+    "symbol": "MSFT"
+   }
+  ],
+  "sessions": 1700,
+  "share_of_historically_eligible_removed": 0.212192,
+  "units_examined": 850000,
+  "units_flagged_no_prior_anchor": 19082,
+  "units_unchanged": 713870
+ },
+ "version": "1.0",
+ "why_derivation_is_exact": "Phase 2B production is per-unit: produce_decision consumes one security's data and its own step-9 comment reads 'no z/percentile/gap'. The decile selection lives in mr002_valoos_construction._select_side, which is Phase-3C portfolio construction and is not performed by the Phase 2B stage. The two controls sit at frozen precedence rank 4, so they can only turn an ELIGIBLE unit INELIGIBLE or take over as the deciding rule from a rank-5 refusal; they can never reverse a rank<=3 refusal or an integrity stop."
+}
