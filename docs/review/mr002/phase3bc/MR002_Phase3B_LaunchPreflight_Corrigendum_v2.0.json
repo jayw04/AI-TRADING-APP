@@ -1,0 +1,50 @@
+{
+ "architectural_consequence": {
+  "effect_on_runspecification": "The Phase 3B RunSpecification must CITE and VERIFY the existing mapping - assert Z_ENTRY equals the v0.3 gate table and that the module reproduces its bound image digest - rather than construct a mapping. There is nothing to build.",
+  "no_new_selection": "No configuration is selected, added, or altered by this record. The values are the frozen v0.3 values and the code implementing them predates this work.",
+  "seam": "Config-dependent economics live INSIDE the bound evaluator image (Z_ENTRY + selection); per-security record production lives OUTSIDE it (the SPQ-1 producer and enrichment). This is a clean and already-implemented seam, and it strengthens the Option A execution-boundary recommendation."
+ },
+ "artifact_kind": "CORRECTION",
+ "boundary": "Zero-data. No AWS call, no sealed object, no credential, no image change. validation_authorization remains true at _rev 1; the opening remains UNSPENT.",
+ "corrected_claim": {
+  "as_issued_in_corrigendum_v1": [
+   "Nothing binds these values to an EXECUTABLE configuration identity with a hash.",
+   "configuration_id is an opaque caller-supplied string in both the SPQ-1 producer and the evaluator; mr002_valoos_candidates.validate_candidate only checks that a record's configuration_id equals the one passed in - no code maps 'B' to z_entry 2.00.",
+   "Therefore the Phase 3B RunSpecification must CREATE that binding."
+  ],
+  "corrected_status": "RESOLVED_AND_ALREADY_EXECUTABLE_INSIDE_THE_BOUND_IMAGE",
+  "correction": "WRONG on the evaluator side. mr002_valoos_portfolio_identity.py - one of the bound image modules - defines Z_ENTRY = {'A': 1.75, 'B': 2.00, 'C': 2.25} with the comment 'PR-20 A/B/C differ ONLY in Z_entry'. mr002_valoos_candidates.validate_candidate REFUSES a configuration_id absent from that mapping. mr002_valoos_construction.build_intended_target resolves z_entry = Z_ENTRY[config] and _select_side applies the frozen rule: bottom/top 10% of the side-eligible z pool AND |z| >= Z_entry. test_increment3 asserts the mapping literally. The mapping is folded into the portfolio-identity constants hash, so it is already part of a computed identity.",
+  "what_was_right": "configuration_id IS an inert pass-through in the SPQ-1 producer - it is carried onto the SignalDecisionRecord and into candidate_id but influences no computation there. That is correct by design, not a defect: selection is a portfolio-construction step, not a signal-production step."
+ },
+ "corrects": {
+  "commit": "88c11d0",
+  "identity_sha256": "c392589988a0665aec505efe0415e89d22fe16d56c4c798058935333f0c4b1d4",
+  "record": "MR002_Phase3B_LaunchPreflight_Corrigendum_v1.0.json"
+ },
+ "date": "2026-08-12",
+ "effect_on_the_register_verdict": "NONE. The STOP stands on independent grounds: no Phase 3B entry point, no sealed-store reader, a producer hard-bound to DEVELOPMENT, zero emitters for the six deliverables, and the unreconciled output and input-source contracts. Config A/B/C is now fully resolved and is no longer a Phase 3B work item at all.",
+ "record_identity_sha256": "ab5598f9f6707a54b71dd67cd95f4d2cca0c3b5d9c8927994326ddf2ddce7043",
+ "record_type": "MR002_Phase3B_LaunchPreflightCorrigendum",
+ "repeat_error_analysis": {
+  "control": "Before reporting that something is absent, resolve every pointer out of the file or record examined - imports, cross-references, named authorities - and hash or read the target. An absence claim is only as good as the closure of its search.",
+  "occurrence_1": "Preregistration v1.0.4 names the v0.3 gate table as the governing authority instead of restating it. I read the pointer as an absence.",
+  "occurrence_2": "mr002_valoos_candidates.py imports Z_ENTRY from mr002_valoos_portfolio_identity on line 15. I searched the file's own contents for a mapping, found none, and reported an absence without following the import.",
+  "pattern": "Reported an absence after stopping at a pointer instead of following it."
+ },
+ "supersedes": "MR002_Phase3B_LaunchPreflight_Corrigendum_v1.0.json (identity c392589988a0...) - ONLY for its 'what_remains_true_and_unchanged' section. That record is NOT edited and remains the history of the first correction.",
+ "verification": {
+  "agrees_with_v03_gate_table": true,
+  "bound_image_digest": "85da4da622d9ff5b92c13388c365b8813629983337073744112d00ebb2de8547",
+  "digest_matches": true,
+  "in_bound_image": true,
+  "module": "mr002_valoos_portfolio_identity.py",
+  "module_count_in_image": 21,
+  "parsed_mapping": {
+   "A": 1.75,
+   "B": 2.0,
+   "C": 2.25
+  },
+  "recomputed_digest": "85da4da622d9ff5b92c13388c365b8813629983337073744112d00ebb2de8547"
+ },
+ "version": "2.0"
+}
