@@ -48,6 +48,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.db.enums import TERMINAL_ORDER_STATUSES, OrderSide
 from app.db.models.fill import Fill
 from app.db.models.order import Order
+from app.db.models.symbol import Symbol
 from app.risk.risk_effect import (
     AccountSnapshot,
     SnapshotOpenOrder,
@@ -164,7 +165,7 @@ async def fetch_snapshot(
     # "2" sorts before every ISO timestamp, which silently marks every settled account stale.
     broker_cursor = max((_event_time(o) for o in broker_orders), default="") or None
     observed_cursor = await _observed_cursor(session, account_id)
-    observed_inflight_cursor = await _observed_inflight_cursor(session, account_id)
+    observed_inflight_by_symbol = await _observed_inflight_by_symbol(session, account_id)
 
     return AccountSnapshot(
         account_id=account_id,
@@ -174,7 +175,7 @@ async def fetch_snapshot(
         equity=_dec(acct.get("equity")),
         broker_cursor=broker_cursor,
         observed_cursor=observed_cursor,
-        observed_inflight_cursor=observed_inflight_cursor,
+        observed_inflight_by_symbol=observed_inflight_by_symbol,
         complete=True,
         reserved_reducing_qty=reserved_reducing_qty or {},
         absorbed_reserved_fill_qty=absorbed_reserved_fill_qty or {},
@@ -222,8 +223,10 @@ async def _observed_cursor(session: AsyncSession, account_id: int) -> str | None
     return max(stamps) if stamps else None
 
 
-async def _observed_inflight_cursor(session: AsyncSession, account_id: int) -> str | None:
-    """The newest broker-side event we have persisted that could STILL BE IN FLIGHT.
+async def _observed_inflight_by_symbol(
+    session: AsyncSession, account_id: int
+) -> dict[str, str]:
+    """Newest broker-side event we have persisted that could STILL BE IN FLIGHT, PER SYMBOL.
 
     Used only when the broker read contains no open orders at all, where there is no broker
     timestamp to compare against. The question there is not "is this read behind us" but
@@ -236,26 +239,47 @@ async def _observed_inflight_cursor(session: AsyncSession, account_id: int) -> s
     against. Without this distinction an account that is flat of open orders but has ever
     filled can never be classified again, which blocks the risk-REDUCING path exactly when a
     locked account needs it (2026-07-27 incident).
+
+    **Keyed by symbol, not collapsed to one account-wide stamp.** An account-wide scalar meant
+    one unresolved local row — the documented "trade-updates flap leaves an order stuck
+    SUBMITTED" mode — permanently blocked risk-reducing exits in EVERY symbol on the account.
+    That is the same shape of permanent trap this module exists to remove, only narrower, and
+    it bites hardest on a multi-symbol emergency exit (account 1 held four). Callers decide
+    which key is relevant; see ``AccountSnapshot.is_causally_complete``.
     """
-    newest_fill = (
+    fills = (
         await session.execute(
-            select(func.max(Fill.filled_at))
+            select(Symbol.ticker, func.max(Fill.filled_at))
+            .select_from(Fill)
             .join(Order, Order.id == Fill.order_id)
+            .join(Symbol, Symbol.id == Order.symbol_id)
             .where(
                 Order.account_id == account_id,
                 Order.status.notin_(TERMINAL_ORDER_STATUSES),
             )
+            .group_by(Symbol.ticker)
         )
-    ).scalar_one_or_none()
+    ).all()
 
-    newest_order = (
+    orders = (
         await session.execute(
-            select(func.max(Order.updated_at)).where(
+            select(Symbol.ticker, func.max(Order.updated_at))
+            .select_from(Order)
+            .join(Symbol, Symbol.id == Order.symbol_id)
+            .where(
                 Order.account_id == account_id,
                 Order.status.notin_(TERMINAL_ORDER_STATUSES),
             )
+            .group_by(Symbol.ticker)
         )
-    ).scalar_one_or_none()
+    ).all()
 
-    stamps = [str(s) for s in (newest_fill, newest_order) if s is not None]
-    return max(stamps) if stamps else None
+    out: dict[str, str] = {}
+    for ticker, stamp in list(fills) + list(orders):
+        if ticker is None or stamp is None:
+            continue
+        key = str(ticker).upper()
+        val = str(stamp)
+        if key not in out or val > out[key]:
+            out[key] = val
+    return out

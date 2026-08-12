@@ -286,7 +286,7 @@ async def test_old_terminal_fills_do_not_permanently_stale_a_settled_account(
     ad = _adapter([{"symbol": "AAPL", "qty": "500", "side": "long", "current_price": "100"}])
     snap = await _fetch(session_factory, ad)
 
-    assert snap.observed_inflight_cursor is None  # nothing is actually in flight
+    assert snap.observed_inflight_by_symbol == {}  # nothing is actually in flight
     ok, why = snap.is_causally_complete()
     assert ok is True and why is None
 
@@ -309,10 +309,18 @@ async def test_broker_flat_but_a_local_order_is_in_flight_is_stale(session_facto
     snap = await _fetch(session_factory, ad)
 
     assert snap.broker_cursor is None
-    assert snap.observed_inflight_cursor is not None
+    assert snap.observed_inflight_by_symbol.get("AAPL") is not None
+    # account-wide question (anything that is not a proven same-symbol reduction)
     ok, why = snap.is_causally_complete()
     assert ok is False
     assert why is RiskEffectReason.SNAPSHOT_STALE
+    # and SAME-SYMBOL reductions stay blocked too: that position is genuinely ambiguous
+    ok, why = snap.is_causally_complete(reducing_candidate_symbol="AAPL")
+    assert ok is False
+    assert why is RiskEffectReason.SNAPSHOT_STALE
+    # ...but an UNRELATED symbol is not made ambiguous by AAPL's stuck row
+    ok, why = snap.is_causally_complete(reducing_candidate_symbol="MSFT")
+    assert ok is True and why is None
 
 
 async def test_open_broker_order_without_a_usable_stamp_is_incomplete(session_factory, acct):
