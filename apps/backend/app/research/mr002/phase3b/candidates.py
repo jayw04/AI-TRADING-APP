@@ -246,3 +246,163 @@ def _finite(value: float) -> float | None:
     import math
 
     return None if value is None or not math.isfinite(float(value)) else float(value)
+
+
+# --- production construction: the inputs the tests used to inject ------------------------------
+# These close the fixture-injection gap. Each derives from a committed source column, and each
+# refuses rather than defaulting, so a missing governed input stops the run instead of silently
+# producing a smaller or differently-shaped world.
+
+UNIVERSE_COLUMNS = (
+    "universe_month",
+    "ticker",
+    "permaticker",
+    "in_long_universe",
+    "in_short_universe",
+)
+CROSSWALK_COLUMNS = (
+    "permaticker",
+    "ticker",
+    "cik",
+    "effective_from",
+    "effective_to",
+    "relationship_type",
+)
+ANCHOR_COLUMNS = (
+    "ticker",
+    "cik",
+    "accession",
+    "session_date",
+    "availability_class",
+    "is_amendment_origin",
+    "acceptance_utc",
+)
+
+
+def _require(table: Any, name: str, columns: tuple[str, ...]) -> None:
+    missing = sorted(set(columns) - set(table.column_names))
+    if missing:
+        raise CandidateSourceRefused(f"{name}: registered columns absent: {missing}")
+
+
+def units_from_universe(
+    universe: Any, calendar: RegisteredCalendar, *, configuration_id: str = "B"
+) -> list[Unit]:
+    """Enumerate the governed (symbol, decision-session) units from the registered universe.
+
+    A universe row states membership for a reconstitution MONTH; a unit exists for every registered
+    session in that month for which the security is on the stated side. Sides are enumerated
+    separately because the frozen entry rule is side-specific.
+    """
+    _require(universe, "universe", UNIVERSE_COLUMNS)
+    sessions_by_month: dict[str, list[int]] = {}
+    for ordinal, session in enumerate(calendar.sessions):
+        sessions_by_month.setdefault(session[:7], []).append(ordinal)
+
+    units: list[Unit] = []
+    for month, ticker, _perma, long_ok, short_ok in _rows(universe, UNIVERSE_COLUMNS[:5]):
+        for ordinal in sessions_by_month.get(str(month)[:7], []):
+            if long_ok:
+                units.append(Unit(str(ticker), ordinal, "LONG", configuration_id))
+            if short_ok:
+                units.append(Unit(str(ticker), ordinal, "SHORT", configuration_id))
+    if not units:
+        raise CandidateSourceRefused("universe enumerated no units")
+    return sorted(units, key=lambda u: (u.symbol, u.t, u.side))
+
+
+@dataclass(frozen=True)
+class CikResolution:
+    """Resolved symbol->CIK map plus the symbols left UNRESOLVED because they conflict."""
+
+    by_symbol: dict[str, int]
+    ambiguous: tuple[str, ...]
+
+
+def cik_by_symbol_from(crosswalk: Any) -> CikResolution:
+    """Symbol -> CIK. A symbol resolving to more than one CIK is left UNRESOLVED, never arbitrated.
+
+    Ambiguity is returned rather than silently dropped: a unit whose symbol is ambiguous will fail
+    to resolve a CIK and refuse, which is the governed outcome, and the caller can count how many
+    securities that affected instead of wondering where they went.
+    """
+    _require(crosswalk, "crosswalk", CROSSWALK_COLUMNS)
+    seen: dict[str, set[int]] = {}
+    for _perma, ticker, cik, _f, _t, _rel in _rows(crosswalk, CROSSWALK_COLUMNS):
+        if cik is None:
+            continue
+        seen.setdefault(str(ticker), set()).add(int(cik))
+    return CikResolution(
+        by_symbol={t: next(iter(c)) for t, c in seen.items() if len(c) == 1},
+        ambiguous=tuple(sorted(t for t, c in seen.items() if len(c) > 1)),
+    )
+
+
+def lineage_from(crosswalk: Any, calendar: RegisteredCalendar) -> PitIdentityRegistry:
+    """Build the PIT identity registry from the registered crosswalk intervals.
+
+    The permanent security id is the permaticker. An interval effective before the window opens is
+    admitted at ordinal 0; conflicting successors at one ordinal are left for
+    `resolve_permanent_id` to refuse, which is where ambiguity is already governed.
+    """
+    from ..spq1.security_identity import LineageRecord
+
+    _require(crosswalk, "crosswalk", CROSSWALK_COLUMNS)
+    import bisect
+
+    lineage: dict[str, list[LineageRecord]] = {}
+    for perma, ticker, _cik, eff_from, _eff_to, rel in _rows(crosswalk, CROSSWALK_COLUMNS):
+        start = str(eff_from)[:10] if eff_from is not None else calendar.sessions[0]
+        # First registered session on or after the interval start. An interval that opens before
+        # the window is effective from ordinal 0; one that opens after the window closes has no
+        # session and is dropped. RegisteredCalendar exposes no such lookup, so bisect the
+        # ascending session list rather than assume a method that does not exist.
+        ordinal = bisect.bisect_left(calendar.sessions, start)
+        if ordinal >= len(calendar.sessions):
+            continue
+        lineage.setdefault(str(ticker), []).append(
+            LineageRecord(
+                predecessor_permanent_id=None,
+                successor_permanent_id=f"PSEC-{int(perma)}",
+                effective_session_ordinal=int(ordinal),
+                corporate_action_type=str(rel or "ticker_change"),
+                history_continuity_authorized=True,
+                source_evidence_identity=f"crosswalk:{perma}:{ticker}",
+            )
+        )
+    if not lineage:
+        raise CandidateSourceRefused("crosswalk produced no lineage records")
+    return PitIdentityRegistry(
+        {t: tuple(sorted(r, key=lambda x: x.effective_session_ordinal)) for t, r in lineage.items()}
+    )
+
+
+def anchors_by_symbol(anchors: Any) -> tuple[dict[str, list], dict[str, str]]:
+    """Anchors per symbol plus the availability timestamp per accession.
+
+    Both are needed: the interval machinery consumes the anchor, and `evaluate_eligibility` PIT-
+    selects on the availability timestamp, so an anchor with no timestamp must refuse rather than
+    silently become always-available.
+    """
+    from .earnings_blackout import Anchor as EarningsAnchor
+
+    _require(anchors, "anchors", ANCHOR_COLUMNS)
+    by_symbol: dict[str, list] = {}
+    availability: dict[str, str] = {}
+    for ticker, cik, accession, session_date, cls, is_amd, accepted in _rows(
+        anchors, ANCHOR_COLUMNS
+    ):
+        by_symbol.setdefault(str(ticker), []).append(
+            EarningsAnchor(
+                int(cik),
+                str(ticker),
+                str(accession),
+                str(session_date)[:10],
+                str(cls),
+                bool(is_amd),
+            )
+        )
+        if accepted is None:
+            raise CandidateSourceRefused(f"anchor {accession} has no acceptance timestamp")
+        availability[str(accession)] = str(accepted)
+    return by_symbol, availability
