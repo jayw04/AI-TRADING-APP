@@ -246,7 +246,7 @@ def completeness_gate() -> dict:
     # expected and is not an orphan. Excluded deliberately, not silently.
     orphan_codes = sorted(codes - referenced - {"EXECUTION_ENRICHMENT_SUCCESS"})
 
-    # census categories carrying no code, and codes carrying no category
+    # R-A3: PRICE_CONFLICT receives its own explicit census category rather than the catch-all.
     CATEGORY_FOR_CODE = {
         "EXECUTION_ENRICHMENT_SUCCESS": "successful enrichment",
         "EXECUTION_ENRICHMENT_STOP:NO_OFFICIAL_OPEN": "no-open",
@@ -255,80 +255,94 @@ def completeness_gate() -> dict:
         "EXECUTION_ENRICHMENT_STOP:CORPORATE_ACTION_UNRESOLVED": "corporate-action transition",
         "EXECUTION_ENRICHMENT_STOP:IDENTITY_CONFLICT": "identity conflict",
         "EXECUTION_ENRICHMENT_STOP:SOURCE_MISSING": "missing source",
+        "EXECUTION_ENRICHMENT_STOP:PRICE_CONFLICT": "price conflict",   # R-A3, added
         "INTEGRITY_STOP:FUTURE_INFORMATION_DETECTED": "future-information stop",
     }
-    codes_without_category = sorted(codes - set(CATEGORY_FOR_CODE))
-    categories_without_code = sorted(set(categories) - set(CATEGORY_FOR_CODE.values()))
+    # R-A2: registered but with no frozen trigger. Reserved deliberately, expected count zero.
+    RESERVED_CODES = {"EXECUTION_ENRICHMENT_STOP:SOURCE_MISSING"}
 
+    codes_without_category = sorted(codes - set(CATEGORY_FOR_CODE))
+    unexplained_orphans = sorted(set(orphan_codes) - RESERVED_CODES)
+
+    # A-1 is resolved by the registered construction, not by a vendor column. The gate now tests
+    # what actually matters: is the conditional DECIDABLE from governed inputs?
+    a1 = json.load(open(os.path.join(_HERE, "MR002_Phase3B_A1_PriceBasisEvidence_v1.0.json"),
+                        encoding="ascii"))
+    a1f1 = json.load(open(os.path.join(_HERE, "MR002_Phase3B_A1F1_ActionsSplitBasis_v1.0.json"),
+                          encoding="ascii"))
+    construction_registered = a1["outcome"] == "UNIQUE_OPERATIONALIZATION_PROVEN"
+    precondition_discharged = a1f1["status"] == "PASS"
     price_columns = [c["name"] for c in p9["schema_identity"]["tables"]["prices"]]
-    adjusted_open_present = any("open" in c and "adj" in c for c in price_columns)
+    inputs_present = ("open" in price_columns and "close" in price_columns)
+
+    conditional_decidability = {
+        "dividend_or_distribution": {
+            "condition": "is a registered adjusted open constructible for t+1?",
+            "decided_by": "presence of a resolvable ACTIONS dividend value at t+1; the registered "
+                          "construction supplies the adjusted open as (open_t+1 + distribution)",
+            "branch_true": "EXECUTION_ENRICHMENT_SUCCESS",
+            "branch_false": "EXECUTION_ENRICHMENT_STOP:CORPORATE_ACTION_UNRESOLVED",
+            "decidable": construction_registered and precondition_discharged and inputs_present,
+        },
+        "split_close_t_to_open_t1": {
+            "condition": "is a registered adjusted open constructible across the split?",
+            "decided_by": "open and close are consistently split-adjusted (owner-verified vendor "
+                          "evidence, 2026-07-11), so a split between close t and open t+1 is "
+                          "neutralised by the shared back-adjusted basis",
+            "branch_true": "EXECUTION_ENRICHMENT_SUCCESS",
+            "branch_false": "EXECUTION_ENRICHMENT_STOP:CORPORATE_ACTION_UNRESOLVED",
+            "decidable": construction_registered and inputs_present,
+        },
+    }
+    undecidable = sorted(k for k, v in conditional_decidability.items() if not v["decidable"])
 
     findings = []
     if unmapped_cases:
-        findings.append({"id": "A-0", "blocking": True,
+        findings.append({"id": "G-1", "blocking": True,
                          "detail": f"edge cases with no registry code: {unmapped_cases}"})
-    if not adjusted_open_present:
-        findings.append({
-            "id": "A-1", "blocking": True,
-            "title": "'registered adjusted open' is undefined in the sealed data",
-            "detail": (
-                "Two registered edge cases resolve conditionally on a 'registered adjusted open' "
-                "(dividend_or_distribution: 'registered adjusted open OR "
-                "CORPORATE_ACTION_UNRESOLVED'; split_close_t_to_open_t1: "
-                "'CORPORATE_ACTION_UNRESOLVED unless a registered adjusted open resolves it'). The "
-                f"sealed prices table carries {price_columns} - an adjusted CLOSE (closeadj) and a "
-                "raw open, and NO adjusted open column. The v0.3 gap filter is likewise specified "
-                "over |AdjOpen_t+1 / AdjClose_t - 1| >= 6%, so it names the same missing quantity."),
-            "consequences": [
-                "Reading the condition as unsatisfiable makes both cases collapse to an "
-                "unconditional EXECUTION_ENRICHMENT_STOP:CORPORATE_ACTION_UNRESOLVED. That is "
-                "determinate but economically severe: every ex-dividend date in the validation "
-                "window would stop the affected candidate, and dividends are common across ~500 "
-                "names over 775 sessions.",
-                "Reading it as a derivation (for example applying the closeadj/close factor to the "
-                "raw open) requires choosing WHICH session's factor applies across an ex-date "
-                "boundary - precisely the quantity these two edge cases exist to govern. The "
-                "frozen contract specifies no such derivation.",
-            ],
-            "why_it_blocks": "Both readings are choices about research economics, not "
-                             "implementation details. Choosing either during implementation is the "
-                             "invention the owner prohibited.",
-        })
-    if orphan_codes:
-        findings.append({
-            "id": "A-2", "blocking": True,
-            "title": "registry code with no triggering condition",
-            "detail": (f"registry codes referenced by no registered edge case: {orphan_codes}. "
-                       "The census nevertheless carries a category for it, so a run has a bucket it "
-                       "can never fill by any specified rule."),
-        })
+    if not construction_registered:
+        findings.append({"id": "G-2", "blocking": True,
+                         "detail": "the gap construction is not proven uniquely registered"})
+    if not precondition_discharged:
+        findings.append({"id": "G-3", "blocking": True,
+                         "detail": "the A1-F1 ACTIONS split-basis precondition is not discharged"})
+    if undecidable:
+        findings.append({"id": "G-4", "blocking": True,
+                         "detail": f"conditional cases whose condition is not decidable from "
+                                   f"governed inputs: {undecidable}"})
+    if unexplained_orphans:
+        findings.append({"id": "G-5", "blocking": True,
+                         "detail": f"registry codes with neither a trigger nor a reservation "
+                                   f"ruling: {unexplained_orphans}"})
     if codes_without_category:
-        findings.append({
-            "id": "A-3", "blocking": True,
-            "title": "registry code with no dedicated census category",
-            "detail": (
-                f"{codes_without_category} has no census category of its own. It is the target of "
-                "four of the fourteen registered edge cases - the single most common stop - and the "
-                "only remaining bucket is the catch-all 'other registered disposition'. Routing the "
-                "most frequent disposition into a category named 'other' is a mapping choice the "
-                "frozen text does not state."),
-        })
+        findings.append({"id": "G-6", "blocking": True,
+                         "detail": f"registry codes with no census category: {codes_without_category}"})
 
     return {
         "gate": "every frozen edge case determines exactly one permitted "
-                "(schema output, registry disposition) pair",
+                "(schema output, registry disposition) pair; conditional cases must be DECIDABLE "
+                "from governed inputs with each branch single-valued",
         "verdict": "FAIL" if findings else "PASS",
         "edge_cases_examined": len(cases),
         "registry_codes_examined": len(codes),
-        "census_categories_examined": len(categories),
+        "census_categories_examined": len(categories) + 1,
         "single_valued_cases": len(cases) - len(conditional) - len(unmapped_cases),
         "conditional_cases": conditional,
+        "conditional_decidability": conditional_decidability,
         "unmapped_cases": unmapped_cases,
         "orphan_codes": orphan_codes,
+        "reserved_codes_expected_count_zero": sorted(RESERVED_CODES),
+        "unexplained_orphans": unexplained_orphans,
         "codes_without_census_category": codes_without_category,
-        "census_categories_without_code": categories_without_code,
+        "census_category_for_code": CATEGORY_FOR_CODE,
         "sealed_prices_columns": price_columns,
-        "adjusted_open_column_present": adjusted_open_present,
+        "a1_resolution": {
+            "outcome": a1["outcome"],
+            "identity": a1.get("record_identity_sha256"),
+            "formula": a1["the_registered_operationalization"]["formula"],
+            "precondition_a1f1_status": a1f1["status"],
+            "precondition_identity": a1f1.get("record_identity_sha256"),
+        },
         "findings": findings,
     }
 
@@ -342,13 +356,96 @@ def build() -> dict:
         "record_type": "MR002_Phase3B_RunSpecification",
         "version": "1.0",
         "artifact_kind": "EXECUTION_CONTRACT",
-        "status": "DRAFT_BLOCKED_ON_COMPLETENESS_GATE",
+        "status": "FROZEN" if gate["verdict"] == "PASS" else "DRAFT_BLOCKED_ON_COMPLETENESS_GATE",
         "status_reason": (
-            "U-1, U-2 and U-3 are RESOLVED by owner ruling 2026-08-12 and recorded below as R-U1, "
-            "R-U2 and R-U3. The specification still does not freeze: the owner-required "
-            "completeness gate - every frozen edge case determining exactly one permitted "
-            "(schema output, registry disposition) pair - FAILS. See completeness_gate."
+            "U-1/U-2/U-3 resolved by owner ruling as R-U1/R-U2/R-U3; A-1/A-2/A-3 resolved as "
+            "R-A1/R-A2/R-A3; R-PROD proven. The owner-required completeness gate PASSES, so the "
+            "specification freezes. One BUILD requirement remains outstanding and is recorded as "
+            "such rather than as a specification gap: A1-F2, the SPQ-1 enricher's nonconformance "
+            "with the registered economic-gap formula."
+            if gate["verdict"] == "PASS" else
+            "The owner-required completeness gate FAILS; the specification does not freeze."
         ),
+        "owner_resolutions_a_series": {
+            "R-A1": {
+                "ruling": (
+                    "The gap-filter operationalization is UNIQUE and already registered. "
+                    "TradingWorkbench_MR002_PreRegistration_v0.4.md registers, under 'Price-series "
+                    "policy (V3, verified)': economic_gap_t+1 = (open_t+1 + "
+                    "known_cash_distribution_t+1) / close_t - 1, entry cancelled at the t+1 open if "
+                    "|economic_gap_t+1| >= 6%. Split-adjusted open/close; distribution from ACTIONS."
+                ),
+                "authority": (
+                    "v0.4 is named in the signed v1.0 FROZEN authority chain as 'v0.4 "
+                    "(build-authorizing)'; v1.0 states strategy rules are closed since v0.3 and "
+                    "describes itself as freezing the data layer v0.4 required."
+                ),
+                "no_derivation_authorized": (
+                    "No alternative adjusted-open convention may be derived or substituted. The "
+                    "registered construction is the only permitted one."
+                ),
+                "precondition_discharged": (
+                    "A1-F1: ACTIONS dividend values confirmed on the same split basis as the SEP "
+                    "close, on development data only, by two independent legs. The formula may be "
+                    "applied as written."
+                ),
+                "evidence": ["MR002_Phase3B_A1_PriceBasisEvidence_v1.0.json",
+                             "MR002_Phase3B_A1F1_ActionsSplitBasis_v1.0.json"],
+            },
+            "R-A2": {
+                "ruling": (
+                    "EXECUTION_ENRICHMENT_STOP:SOURCE_MISSING remains a REGISTERED RESERVED code "
+                    "with no frozen trigger and EXPECTED COUNT ZERO. No trigger is invented to "
+                    "populate the registry."
+                ),
+                "census_treatment": "the 'missing source' category is emitted with count 0; the "
+                                    "completeness gate treats the absence of a trigger as "
+                                    "INTENTIONAL rather than orphaned.",
+                "if_it_ever_fires": "a non-zero count would mean an unregistered condition occurred "
+                                    "and is an integrity event requiring adjudication, not a "
+                                    "silently populated bucket.",
+            },
+            "R-A3": {
+                "ruling": (
+                    "EXECUTION_ENRICHMENT_STOP:PRICE_CONFLICT receives its OWN explicit census "
+                    "category, 'price conflict', mapped one-to-one. It is not routed into 'other "
+                    "registered disposition'."
+                ),
+                "rationale": "it is the target of four of the fourteen registered edge cases - the "
+                             "single most common stop - and burying the most frequent disposition "
+                             "in a catch-all would degrade diagnosis.",
+                "scope": "reporting taxonomy only; no economics change. 'other registered "
+                         "disposition' is preserved for genuinely residual registered codes.",
+            },
+            "R-PROD": {
+                "ruling": "the mounted layer binds the core SPQ-1 producer modules to the exact "
+                          "development-run source identities; zero unadjudicated drift permitted.",
+                "status": "SATISFIED",
+                "evidence": "MR002_Phase3B_ProducerIdentityContinuity_v1.0.json - 15/15 modules "
+                            "byte-identical to Phase 2B commit 1cc98f5, zero drift",
+            },
+        },
+        "build_requirements_outstanding": [
+            {
+                "id": "A1-F2",
+                "class": "IMPLEMENTATION NONCONFORMANCE - build requirement, not a specification "
+                         "gap",
+                "detail": (
+                    "apps/backend/app/research/mr002/spq1/execution_enrichment.py computes "
+                    "abs(price / distribution_adjusted_close_t - 1.0): no distribution term in the "
+                    "numerator, an already-distribution-adjusted close in the denominator, and no "
+                    "cash-distribution parameter. It does not implement the registered formula."
+                ),
+                "required": (
+                    "The Phase 3B layer MUST implement economic_gap_t+1 = (open_t+1 + "
+                    "known_cash_distribution_t+1) / close_t - 1 with |economic_gap| >= 6% "
+                    "cancelling, on split-adjusted open/close with the ACTIONS distribution. "
+                    "apps/backend/app/research/mr002/execution.py already implements it correctly "
+                    "and is the reference."
+                ),
+                "prohibited": "amending the frozen contract to match the existing code.",
+            },
+        ],
         "owner_resolutions": {
             "R-U3": {
                 "ruling": (
