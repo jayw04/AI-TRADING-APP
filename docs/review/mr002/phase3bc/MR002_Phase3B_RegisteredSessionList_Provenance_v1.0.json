@@ -1,0 +1,31 @@
+{
+ "authority": {
+  "artifact": "docs/review/mr002/phase3bc/MR002_ValidationStructuralManifest_v1.0.json",
+  "declared_end": "2023-02-16",
+  "declared_start": "2019-10-03",
+  "expected_sessions": 850,
+  "field": "all_window_sessions.validation.session_list_sha256",
+  "registered_sha256": "d9966a3a4fb78d3a1e6083988ddaa211d09a08cd942226b771402ef4979f9a62"
+ },
+ "boundary": "Zero-data. No AWS call, no sealed object, no credential. Opening UNSPENT.",
+ "derived_not_chosen": "P9 committed this list. This artifact reproduces it and refuses on any mismatch; it selects nothing.",
+ "record_identity_sha256": "d11d3561e0b814d3a2fc5e5baeeb3fb76274dbf647cbb4ae177d9c21ad45dbdc",
+ "record_type": "MR002_Phase3B_RegisteredSessionList_Provenance",
+ "reproduction": {
+  "construction": "'|'.join(sessions) then sha256 - identical to the P9 construction",
+  "first_session": "2019-10-03",
+  "last_session": "2023-02-16",
+  "observed_sessions": 850,
+  "observed_sha256": "d9966a3a4fb78d3a1e6083988ddaa211d09a08cd942226b771402ef4979f9a62",
+  "reproduces_p9_commitment": true
+ },
+ "source_of_dates": {
+  "column": "date",
+  "note": "the registered research calendar spanning 2013-01-02..2026-07-10 - the same source P9 hashed. NOT the sealed validation partition: no sealed object is opened, so a missing sealed price row cannot redefine the research calendar.",
+  "sha256": "24e5153cc0ebed77c7b422562e5a8ebfa147aad3019b27035b5314aaaacfad5a",
+  "snapshot": "apps/backend/data/mr002_research.duckdb",
+  "table": "prices"
+ },
+ "version": "1.0",
+ "window": "validation"
+}
