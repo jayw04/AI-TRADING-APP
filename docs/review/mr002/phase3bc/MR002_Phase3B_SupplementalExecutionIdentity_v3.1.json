@@ -1,0 +1,368 @@
+{
+ "artifact_kind": "IDENTITY_SUPPLEMENT",
+ "authorization": {
+  "_rev": 1,
+  "caveat": "being file-based, its authority rests on Git history rather than an atomic store",
+  "explicitly_not": "this is NOT a live AWS authorization store; no DynamoDB or other AWS-resident authorization state exists",
+  "store": "Git-tracked compare-and-set state file docs/review/mr002/phase3bc/MR002_Phase3BC_ValidationAuthorizationState_v1.0.json, written by scripts/mr002_custody/p12_authorization.py",
+  "validation_authorization": true
+ },
+ "boundary": "Zero-data. No AWS call, no sealed object, no credential, no published_at. The single validation opening remains UNSPENT.",
+ "frozen_research_rules_unchanged": {
+  "configuration_set": [
+   "A",
+   "B",
+   "C"
+  ],
+  "dsr_trials_N": 5,
+  "evaluator_logic": "UNCHANGED - 21/21 image modules untouched",
+  "research_identity": "UNCHANGED",
+  "statement": "This package creates an EXECUTION identity. The earnings controls and input identities it adds implement frozen-contract semantics that development left unimplemented or unregistered; no economic rule, parameter, gate or trial changed."
+ },
+ "grant_compatibility": {
+  "conclusion": "every identity P12 binds is unchanged; this supplement closes the execution identity the grant does not name",
+  "file_backed_reverified": {
+   "dependency_lockfile_sha256": {
+    "path": "docs/review/mr002/evaluator/MR002_LinuxDependencyLock_v1.1.json",
+    "sha256": "bb38b685d15f78b705fff2681b76807f2277b02f7af5788e4c320951121c7ebd",
+    "unchanged": true
+   },
+   "numeric_runtime_manifest_sha256": {
+    "path": "docs/review/mr002/phase3bc/MR002_NumericRuntimeIdentityManifest_RuntimeInstance_v1.0.json",
+    "sha256": "8e5e39471c0d96c5cd6916e7c316bc74fa320336c7e0106515ede11f479c1ed0",
+    "unchanged": true
+   }
+  },
+  "host_role_unchanged": "no IAM edit; the sealed Deny remains and was proven by POLICY SIMULATION, never by a live denial probe",
+  "image_unchanged": "no image was built or pushed; the bound digest resolved on the host",
+  "p12_bound_identities": {
+   "dependency_lockfile_sha256": "bb38b685d15f78b705fff2681b76807f2277b02f7af5788e4c320951121c7ebd",
+   "evaluator_image_index": "sha256:194efbdf96ee11c19f3554dcf1b1097958cdc347bcdc1637504b441237432f51",
+   "frozen_host": "i-00c1034f7026db45e",
+   "numeric_runtime_manifest_sha256": "8e5e39471c0d96c5cd6916e7c316bc74fa320336c7e0106515ede11f479c1ed0",
+   "qualified_host_role_arn": "arn:aws:iam::219024422756:role/mr002-phase3c-run-host"
+  }
+ },
+ "grants": "NOTHING. This artifact asks the owner for a decision.",
+ "input_identity_registration": {
+  "artifact": "docs/review/mr002/phase3bc/MR002_Phase3B_ValidationInputIdentityRegistration_v1.0.json",
+  "closes": "the seven InputIdentityRegistry slots Phase 2B left as opaque development labels",
+  "construction": "slot_identity = H(source_object_identity || interpretation_identity)",
+  "no_sealed_read": "source identities come from the registered upload and P11 commitments; no sealed object was opened",
+  "phase2b_disposition": "PHASE2B_INPUT_IDENTITY_PLACEHOLDERS - NONTRANSFERABLE",
+  "sha256": "1bdcbcfa00ac61fb26d03d05306da34f743aea8cd5a8744c7a5f008346f0af92"
+ },
+ "known_limitation": {
+  "consequence": "manifest-to-mount agreement is established by construction (the manifest is generated from an observation of the same mount) rather than enforced at run time",
+  "finding": "execution manifest observed_identities.execution_closure_sha256 is RECORDED but not REFERENCED by any runtime module",
+  "mitigation_applied": "the manifest was regenerated from a fresh observation of the exact v3.1 mount, and the entrypoint blob at the pushed checkpoint reproduces the observed closure hash",
+  "not_fixed_here": "enforcing it would change runner.py and therefore the executing closure, which exceeds the two changes authorized for v3.1"
+ },
+ "pre_validation_checkpoint": {
+  "branch": "research/mr002-preregistration",
+  "commit": "b30cb16ba05d101cd903b158412d0cd62059ebfb",
+  "read_from": "git object store; the working tree is NOT consulted",
+  "remote_head_matches": true,
+  "subject": "evidence(mr-002): v3.1 dry gate \u2014 PRE_ACCESS_READY with the STS path present, unexercised"
+ },
+ "privilege_transition": {
+  "ambient_fallback": "none - assumption failure refuses before any S3 client is built",
+  "arn_binding": "module constant; s3_reader takes no role_arn parameter, so a caller cannot choose which identity reads the sealed store",
+  "host_direct_sealed_access": "explicit Deny, retained permanently",
+  "iam_latch_state_at_submission": "CLOSED - host->assume reader is explicitDeny; releasing it is a distinct owner-authorized event",
+  "laziness": "no STS call until the first read, proven under --network none with AWS_EC2_METADATA_DISABLED=true",
+  "reader_role_arn": "arn:aws:iam::219024422756:role/mr002-validation-reader",
+  "session_name": "mr002-p3b-validation-v1",
+  "topology": "qualified host role -> assume ONLY the governed reader role -> validation-scoped S3 with OOS denied"
+ },
+ "purpose": "Bind the Phase 3B execution package that reached PRE_ACCESS_READY under the real host and container topology, so the granted opening becomes spendable.",
+ "qualification_result": {
+  "artifact_kind": "QUALIFICATION_EVIDENCE",
+  "boundary": "No reader assumed, no --mode execute, no host-role change, no sealed or OOS object opened, no published_at stamped. The single validation opening remains UNSPENT.",
+  "closure": {
+   "entrypoint_blob_sha256_prefix": "ec2de16639913148",
+   "files": 41,
+   "mounted_code_equals_pushed_code": true,
+   "runtime_audit": {
+    "drift": 0,
+    "runtime_modules_observed": 40,
+    "unpredicted": 0
+   },
+   "set_equality_proven": true
+  },
+  "code_checkpoint": "d88813b72193c60803e3da581be0915fc8604d02",
+  "disposition": "PASS",
+  "exit_code": 0,
+  "guard_ledger": [],
+  "host_instance_id": "i-00c1034f7026db45e",
+  "iam_latch": {
+   "host_assume_reader": "explicitDeny",
+   "host_sealed_s3": "explicitDeny",
+   "method": "IAM policy simulation only; no live AssumeRole probe and no live denial probe",
+   "reader_oos": "explicitDeny",
+   "reader_reference": "allowed",
+   "reader_validation": "allowed",
+   "state_during_qualification": "CLOSED"
+  },
+  "image": "sha256:194efbdf96ee11c19f3554dcf1b1097958cdc347bcdc1637504b441237432f51",
+  "known_limitation": {
+   "consequence": "manifest-to-mount agreement is established by construction (the manifest is generated from an observation of the same mount) rather than enforced at run time",
+   "finding": "execution manifest observed_identities.execution_closure_sha256 is RECORDED but not REFERENCED by any runtime module",
+   "mitigation_applied": "the manifest was regenerated from a fresh observation of the exact v3.1 mount, and the entrypoint blob at the pushed checkpoint reproduces the observed closure hash",
+   "not_fixed_here": "enforcing it would change runner.py and therefore the executing closure, which exceeds the two changes authorized for v3.1"
+  },
+  "negative_control": {
+   "meaning": "any STS call or credential lookup would have FAILED LOUDLY rather than passing silently; the gate passed, so none occurred",
+   "method": "the container ran with --network none AND AWS_EC2_METADATA_DISABLED=true"
+  },
+  "opening_consumed": false,
+  "output_root_after_run": "/opt/mr002/out absent - wrote nothing",
+  "package": "v3.1 - the governed privilege transition present but NOT exercised",
+  "pinned_input_count": 8,
+  "reader_binding": {
+   "ambient_fallback": "none - assumption failure refuses before any S3 client is built",
+   "arn_is_a_module_constant": true,
+   "session_name": "mr002-p3b-validation-v1",
+   "will_assume": "arn:aws:iam::219024422756:role/mr002-validation-reader"
+  },
+  "reader_credentials_obtained": false,
+  "record_type": "MR002_Phase3B_PreAccessReadyEvidence",
+  "result": "PRE_ACCESS_READY_REACHED",
+  "s3_client_constructed": false,
+  "sealed_reads": [],
+  "state": "S7_PRE_ACCESS_READY",
+  "sts_called": false,
+  "version": "1.1"
+ },
+ "record_identity_sha256": "2f6b7048078399023aaf0c2c84976c3b9c2c7893946d994cfcb3ce3979f4f143",
+ "record_type": "MR002_Phase3B_SupplementalExecutionIdentity",
+ "status": "SUBMITTED_FOR_ADJUDICATION",
+ "supersession": {
+  "no_opening_under_either": "No sealed opening occurred under v1.0 or v2.0. Neither was ever executed against AWS: no credential assumed, no host started under them, no GetObject issued.",
+  "v1.0": {
+   "identity": "a2f2ff32b3a10a25814f76c5cb2f0abc6741931dbe282fd36dc77eb2e61add2e",
+   "status": "SUPERSEDED_EXECUTIONALLY_INCOMPLETE",
+   "why": "no entry point, no production reader, fixture-assembled world, both frozen earnings controls absent"
+  },
+  "v2.0": {
+   "identity": "a013a80cede76aab03517809232720201610d845b0df4fb5d0a827302861aeda",
+   "status": "SUPERSEDED_EXECUTION_IDENTITY_INCOMPLETE",
+   "why": "closure defined by a hand-maintained list: 35 bound and 35 imported but not the same 35, leaving spq1/__init__.py unbound while it supplied PHASE0_CENSUS_SHA256, PHASE0_OWNER_RULINGS_SHA256, PHASE0_SCHEMA_SHA256 and PRODUCER_CODE_VERSION into GOVERNING_IDENTITIES and thus every record"
+  },
+  "v3.0": {
+   "identity": "73123895f947b19353f84a32505cf2e43b8236d23c792fe6adc2d33980b88333",
+   "status": "ACCEPTED_THROUGH_PRE_ACCESS_READY, NOT EXECUTION-SPENDABLE",
+   "why": "its s3_reader built an ambient-credential S3 client with no STS path, so the first read would have been attempted as the qualified host role - which holds an explicit Deny on the sealed bucket and must keep it. The package reached S7 faithfully and could not cross it."
+  }
+ },
+ "the_ask": {
+  "decision_requested": "Adjudicate whether this exact package is authorized to consume the granted validation opening.",
+  "explicitly_not_requested": [
+   "OOS access",
+   "a second validation opening",
+   "any parameter or gate change",
+   "re-issuance of the P12 grant",
+   "performance interpretation"
+  ]
+ },
+ "three_rosters": {
+  "executing": {
+   "derivation": "mechanically derived transitive import closure from the real entry point; NOT a hand-maintained list",
+   "digest_source": "git blob bytes - core.autocrlf=true makes worktree bytes a different and non-executing identity",
+   "file_count": 41,
+   "files": {
+    "app/__init__.py": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "app/research/__init__.py": "ced96b0efddea52ce59e22ad82b3e727b1ec5bf465fe7cd73efe8617c1f88e04",
+    "app/research/mr002/__init__.py": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "app/research/mr002/phase3b/__init__.py": "524ac026cf9b09ca39d16329e1ab029101b5829494614300e63db0bd8ba2e483",
+    "app/research/mr002/phase3b/admissibility.py": "90452074a03b350acc7943952e1d5f1a9d713aaca0563bb36b50e82544b2dcb0",
+    "app/research/mr002/phase3b/assembly.py": "65855d63341eb3ea44ba940769f8166dfcd537d77d6cabfc5bb09287eec8ceb4",
+    "app/research/mr002/phase3b/candidates.py": "070ccf09e60f42b27d11a86ed10331c5e5afbf165238d7cb479d8c86ad31d113",
+    "app/research/mr002/phase3b/census.py": "97ab08236529bc98d2bcfabdc27d7fadec1c93a488f89f8abc5888b83a4cea12",
+    "app/research/mr002/phase3b/closure.py": "1025cdc41920d047324a26688405fa800add846573ad5382cdc2e3cd30c56dc6",
+    "app/research/mr002/phase3b/deps.py": "2db485db14689befd6497a96a6bd81da9f9b30cbfa77c7f40c0cbe1f73d3f3e5",
+    "app/research/mr002/phase3b/earnings_blackout.py": "f6c3af481edda0ba64512bc7ab9b0b9d287bd2ea2b0cb0a72a9f52e453c1cabe",
+    "app/research/mr002/phase3b/enrichment.py": "c3c4726e81432ab500c95792c333c368a16372c2446f6d900fabf558bb9ccfa3",
+    "app/research/mr002/phase3b/entrypoint.py": "ec2de166399131487a3650fd10a775ee1238f7df9980b0ec5e07e84389bbc3d1",
+    "app/research/mr002/phase3b/gap.py": "bc5763c0aceb349ea42990446efb0668d45c99ba0d6149f4da58b5a7123752b9",
+    "app/research/mr002/phase3b/guard.py": "36a562b02c5535a40dc85102a25942d32a8b075727f2ad30843daf8873c63ac4",
+    "app/research/mr002/phase3b/parquet.py": "d6612f341f706c98bcf834a331c7709ab5d2d1f1e83af27c20c394dbe8945527",
+    "app/research/mr002/phase3b/publish.py": "8721cd351cf61c0d26f7bbd06e2c1aa205df13c068f9813b7e747efc7e01135f",
+    "app/research/mr002/phase3b/readers.py": "690cc3f61c423e360b96fed779db19e3d2170f4a719421dadddbfd129835bf48",
+    "app/research/mr002/phase3b/roster.py": "ef7bb91e1b02a81bb3d930f6a60d27b74a637545889fa7d8c94bae4e8b3a87f7",
+    "app/research/mr002/phase3b/runner.py": "b68442796a8a326d00aeaa277b94a907b74e16f561f334dac55ac3741f7cb48a",
+    "app/research/mr002/phase3b/states.py": "3e07a92f0dfe4404fea50e2c1e5f9fd67fe4be89fa86ab9413ac70b7ec08e667",
+    "app/research/mr002/spq1/__init__.py": "d1f326b44ba6fc6bf9aacb3e3b779a08610ad4ae07a5d13d78e68bcd97c1eb6f",
+    "app/research/mr002/spq1/adapters/__init__.py": "055c3e5c67491c3153644d7a5ffae0110c90a06de2f6645ad5a4e3d97bf60f50",
+    "app/research/mr002/spq1/calendar.py": "567044c06672f03cc655ac412b666a3195bcf8f96cf01a9575078ffe91cdc7dc",
+    "app/research/mr002/spq1/constants.py": "c1661e4ae720ae292243a6159b78c464d3b84c3e8d8f41acc2e71980b2c4499b",
+    "app/research/mr002/spq1/eligibility.py": "b88ce8977f8d929bc6ff8140c2ea67fba1a447a150eafe82d6ed8715da5fea54",
+    "app/research/mr002/spq1/identities.py": "019a800f9cc43c6873430d3acbf061bbfa206bb8c33d8fb0466064f274cde62b",
+    "app/research/mr002/spq1/liquidity.py": "a51c0e0d57d806249806ecbbfd0bacb8ee60d2708a8b4f86a43f0e1cb7a41648",
+    "app/research/mr002/spq1/models.py": "efc26d3ae7301cc45c782ab0174693f62d31cf9cc5289a4ec876d39bbc18666f",
+    "app/research/mr002/spq1/normalization.py": "3d6be8242c27b50840184b68016b10ec72169ae43cde28c6495c5e5bab750eaf",
+    "app/research/mr002/spq1/phase2b/__init__.py": "0344cdcac1dfe1c66a13ef7c23d90085a3d1b6c71d237c6d1d30d88d3332a12e",
+    "app/research/mr002/spq1/phase2b/cutoff.py": "5aa9c5fe042e6bef308ffd10876e84466f269e57a5d04754a6052b3e72c2a88f",
+    "app/research/mr002/spq1/phase2b/sic_sector.py": "651b25bcccd11655ceaac19707daf0f6a28732cc93abdd00a1461c053f3a7a78",
+    "app/research/mr002/spq1/producer.py": "0005244fb2100f8d9b7c4c6a9dcb7069505c50b26c962f4d928d25acb3da2bad",
+    "app/research/mr002/spq1/refusals.py": "f37432037e5a441469db4886f23d260023f6024dcf47927ec71f001b41745cff",
+    "app/research/mr002/spq1/residuals.py": "0a9147cec5478d2c861ee81642b7499942cd9dbfc413be606d2fb3ba1d29c7ca",
+    "app/research/mr002/spq1/returns.py": "b231197e35d827d351a987077959011d33e69d5b3d1bbd8a0773a848a26fa5c8",
+    "app/research/mr002/spq1/sector_factor.py": "fbd9c8d9743a35de28265d068022007ca85118b23da32ad0286b9a969970807a",
+    "app/research/mr002/spq1/sector_pit.py": "5b581ab503ec734c25b47876dd1878e8e0d0aab0d0c070d74a5f6705bf2e10d4",
+    "app/research/mr002/spq1/security_identity.py": "3aef443508baa4bf1139afd362cfc482e217bdfdd902d48650ddb1f2fb44cc10",
+    "app/research/mr002/spq1/stock_regression.py": "4c1bffcc8a3ec6d22f710cd7f1c42fcdf0154cfad5e6aaea633796b761cca455"
+   },
+   "identity_carrying_initializer": {
+    "path": "app/research/mr002/spq1/__init__.py",
+    "sha256": "d1f326b44ba6fc6bf9aacb3e3b779a08610ad4ae07a5d13d78e68bcd97c1eb6f",
+    "why_it_matters": "defines PHASE0_CENSUS_SHA256, PHASE0_OWNER_RULINGS_SHA256, PHASE0_SCHEMA_SHA256 and PRODUCER_CODE_VERSION, which identities.py imports into GOVERNING_IDENTITIES and thus into every record"
+   },
+   "package_initializers_bound": [
+    "app/__init__.py",
+    "app/research/__init__.py",
+    "app/research/mr002/__init__.py",
+    "app/research/mr002/phase3b/__init__.py",
+    "app/research/mr002/spq1/__init__.py",
+    "app/research/mr002/spq1/adapters/__init__.py",
+    "app/research/mr002/spq1/phase2b/__init__.py"
+   ],
+   "proof": "set equality, never count - a binding with the right count and wrong members refuses; verified in-image at PRE_ACCESS_READY",
+   "roster_kind": "EXECUTING"
+  },
+  "external_dependency": {
+   "installed_file_count": 2919,
+   "inventory_sha256": "7c50b2ab743faa23dd4b940c89ff716f940cf130de3ed946bb833e1e75db655c",
+   "manifest": "docs/review/mr002/phase3bc/MR002_Phase3B_ExecutionDependencyBundle_v1.1.json",
+   "manifest_sha256": "7b739ab9bc9b8953d9f7c26c6fe09cf1836c4a488fe83ac3a8dd35d08ff4b077",
+   "p10_invariance": {
+    "after": {
+     "numpy": [
+      "/usr/local/lib/python3.13/site-packages/numpy/__init__.py",
+      "2.2.6"
+     ],
+     "pandas": [
+      "/usr/local/lib/python3.13/site-packages/pandas/__init__.py",
+      "3.0.5"
+     ],
+     "scipy": [
+      "/usr/local/lib/python3.13/site-packages/scipy/__init__.py",
+      "1.18.0"
+     ]
+    },
+    "before": {
+     "numpy": [
+      "/usr/local/lib/python3.13/site-packages/numpy/__init__.py",
+      "2.2.6"
+     ],
+     "pandas": [
+      "/usr/local/lib/python3.13/site-packages/pandas/__init__.py",
+      "3.0.5"
+     ],
+     "scipy": [
+      "/usr/local/lib/python3.13/site-packages/scipy/__init__.py",
+      "1.18.0"
+     ]
+    },
+    "bundle_packages_resolved_from_bundle": {
+     "boto3": true,
+     "pyarrow": true
+    },
+    "meaning": "Python, NumPy, SciPy and pandas are byte-identical either side of the activation, and numpy still resolves from the image site-packages",
+    "numpy_resolved_from": "/usr/local/lib/python3.13/site-packages/numpy/__init__.py",
+    "packages": [
+     "numpy",
+     "scipy",
+     "pandas"
+    ],
+    "unchanged": true
+   },
+   "record_identity": "61bd7d98a107edd38e677fb2d9a7fb8d46cf3691579c6c1905a81b748a50c241",
+   "resolution_authority": "resolved and installed INSIDE the bound image on the qualified host; a resolution performed anywhere else is not the resolution that executes",
+   "roster_kind": "EXTERNAL_DEPENDENCY",
+   "supersedes": {
+    "defect": "pyarrow pinned as manylinux_2_17 sha b6953f01... resolved on Windows; the bound image (Debian glibc 2.36) resolves manylinux_2_28 sha 97c8dc98... A wheel that would never execute cannot be the bound identity.",
+    "file_sha256": "759f1888c54f0f9496fbd474056ed17d7f68662940cb419d4f424c0633de2212",
+    "manifest": "MR002_Phase3B_ExecutionDependencyBundle_v1.0.json",
+    "record_identity_sha256": "02701a0a1085723f74b7d7e9803e78220ee72169b5254c840303fd499cb6bdf5",
+    "retained_as": "evidence of what a non-container resolution produces",
+    "status": "SUPERSEDED_NON_CONTAINER_RESOLUTION",
+    "unaffected": "the other five wheels matched the in-image resolution exactly"
+   },
+   "wheels": {
+    "boto3-1.43.70-py3-none-any.whl": "b9399cce51bec9552e61a6b85015c42dea68752e79c00a7005d84eaf7ee15fef",
+    "botocore-1.43.70-py3-none-any.whl": "95bc23a6472f8876349ae334b526e66006f6cf3c87bf39d3e9f057dc8c2eb85f",
+    "jmespath-1.1.0-py3-none-any.whl": "a5663118de4908c91729bea0acadca56526eb2698e83de10cd116ae0f4e97c64",
+    "pyarrow-20.0.0-cp313-cp313-manylinux_2_28_x86_64.whl": "97c8dc984ed09cb07d618d57d8d4b67a5100a30c3818c2fb0b04599f0da2de7b",
+    "s3transfer-0.19.2-py3-none-any.whl": "d8168eccca828cbb2cd573675333f3bddd254313a9c42494b84c76b539e8ba25",
+    "urllib3-2.7.0-py3-none-any.whl": "9fb4c81ebbb1ce9531cce37674bbc6f1360472bc18ca9a553ede278ef7276897"
+   }
+  },
+  "governing_only": {
+   "counts": {
+    "evidence": 6,
+    "governing": 16,
+    "inputs": 7,
+    "qualification_code": 17
+   },
+   "execution_inputs": {
+    "docs/review/mr002/phase3bc/MR002_Phase3B_ExecutionConfiguration_v1.0.json": "6f7b78e86b2358606082825eb1e6d6f6a5f04412fb978ac5ec446b050ce7849d",
+    "docs/review/mr002/phase3bc/MR002_Phase3B_ExecutionManifest_v1.0.json": "dc9558fa2bbdb3daeda0d7f60b01edfeff2ba26a51b32047321148cd8ca6be17",
+    "docs/review/mr002/phase3bc/MR002_Phase3B_ReferenceManifest_v1.0.json": "fc8e91e9bc78faa6936dc68b82414a6a0a500f0c41c4d303419a2157a7ce7d35",
+    "docs/review/mr002/phase3bc/MR002_Phase3B_RegisteredSessionList_Provenance_v1.0.json": "ac401d47e094ef97b8d4216e0a9302eef31d55bf34d6cdbf5b10427eed1c9665",
+    "docs/review/mr002/phase3bc/MR002_Phase3B_RegisteredSessionList_validation_v1.0.json": "66d080fed90ff5efb23c04de7e2172da18fdc72fb77dddd49ba80d520e698978",
+    "docs/review/mr002/phase3bc/MR002_Phase3B_ValidationInputIdentityRegistration_v1.0.json": "1bdcbcfa00ac61fb26d03d05306da34f743aea8cd5a8744c7a5f008346f0af92",
+    "docs/review/mr002/phase3bc/MR002_Phase3B_ValidationInputIdentityRegistry_v1.0.json": "bcf1c1ec0e0e03ecb1d7f9b84600b4472656a3c439f60108fbdcdb679627188a"
+   },
+   "governing_records": {
+    "docs/review/mr002/phase3bc/MR002_Phase3BC_P12AuthorizationGrant_v1.0.json": "1aef7bcb5eeebadc92ea9dee525b43244cd14d160e37f43b0edab7fd45addbf9",
+    "docs/review/mr002/phase3bc/MR002_Phase3BC_RuntimePrerequisiteRegister_v1.3.json": "a41543a8ae40c947f263a96d78427e79052fbaa7da2733b9dbadb6891cbbd9c5",
+    "docs/review/mr002/phase3bc/MR002_Phase3BC_ValidationAuthorizationState_v1.0.json": "702354acdfe109c633e5deb3e3bde2fb8c608a715f496502e31dc9f4c5c6b10b",
+    "docs/review/mr002/phase3bc/MR002_Phase3B_A1F1_ActionsSplitBasis_v1.0.json": "ec1d48efad8ee793af00a782d73ce7ff73b49586972dcdc7c855ba3df1d67976",
+    "docs/review/mr002/phase3bc/MR002_Phase3B_A1_PriceBasisEvidence_v1.0.json": "f60529a85b5ffd6721caad59ab9176c79d5c3b02be43ce35b77f89bbf7cdde3c",
+    "docs/review/mr002/phase3bc/MR002_Phase3B_CorrectedDevelopmentReconciliation_v1.0.json": "acbcd63deb4efa3bada68c75fcbed7be57bbbe48bf905968bd46c2f67c03fea2",
+    "docs/review/mr002/phase3bc/MR002_Phase3B_EarningsControlStructuralCensus_v1.0.json": "4e776ebe97e06b011d7c96d0e85dba883496f9eb1f5a94f81e5b9fe33c47e0fd",
+    "docs/review/mr002/phase3bc/MR002_Phase3B_ExecutionBoundaryClarification_v1.0.json": "e07f7b666d37c035c1c1ac1caef62890b36b7b1b355f593509a3974e5a0f3889",
+    "docs/review/mr002/phase3bc/MR002_Phase3B_ExecutionBoundary_EvidenceMemo_v1.0.md": "dc04fafe26f5255c8f5d613ca415ff220108f426fe85596c4505b678f1f96a81",
+    "docs/review/mr002/phase3bc/MR002_Phase3B_ProducerIdentityContinuity_v1.0.json": "19372ab7c7b3476887d1cbbfa1a9fb8078148ef54af5cc7f318010333750ccdc",
+    "docs/review/mr002/phase3bc/MR002_Phase3B_RunSpecification_v1.0.json": "b515e29ec7a25fb98c6725c5bb366d6e11dd3038ceda3f80f27d0738552984af",
+    "docs/review/mr002/phase3bc/MR002_Phase3B_SupplementalExecutionIdentity_v1.0.json": "6c0d0b6cf579025d7ba482b2664e1f6ac6be5ca88c5157174abb9053ba461cae",
+    "docs/review/mr002/phase3bc/MR002_Phase3B_SupplementalExecutionIdentity_v2.0.json": "cbf2865f42eaf0b66351b17ab6e4a415ad485683d5ea883b0fdc1f4d2f33788d",
+    "docs/review/mr002/phase3bc/MR002_Phase3B_SupplementalExecutionIdentity_v3.0.json": "dbe8cfb90dd634460b0556fdb7cb78110f1a64e23b2412897d07761bd61be7af",
+    "docs/review/mr002/phase3bc/MR002_SealedStoreUploadManifest_v1.0.json": "b16bc89f3fdbdeec3c59e9fa03e237c1d845f0c0fee440b923abb0c5fba2cc15",
+    "docs/review/mr002/phase3bc/MR002_ValidationStructuralManifest_v1.0.json": "6b81a319f53d7b1a9ccf45c8f363ca6761909898d5b1e2c9921beb367f518e19"
+   },
+   "note": "bound for provenance; no run imports these",
+   "qualification_code": {
+    "apps/backend/tests/research/phase3b/__init__.py": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "apps/backend/tests/research/phase3b/fixtures_producer.py": "d4d3517cc8d1acf5824ae201bbdc35499666a27ff23ba2eaa156892d42a358ed",
+    "apps/backend/tests/research/phase3b/mutation_check_a1f2.py": "1487f5a295fbd03e0a5fbea268e862d3e4fef55136898ab73fc01b28c10bb976",
+    "apps/backend/tests/research/phase3b/mutation_check_assembly.py": "b72ab89cf735b978869da6fb38bd10519e925fb55013306387665bea96edd54a",
+    "apps/backend/tests/research/phase3b/test_phase3b_candidate_equivalence.py": "aea5bd2ef8836fd8d8af40739e9f84774ab146233b25a8252db56b85a5007c0c",
+    "apps/backend/tests/research/phase3b/test_phase3b_closure.py": "4204621dadcd69ee2ee5aa4362068aa8fbe52e49f6aadf549b9dbbf83c0936e6",
+    "apps/backend/tests/research/phase3b/test_phase3b_deps.py": "4ea935b07d23bb6562d3a28de4225675fd705060794f5463cbb70fee6e735abc",
+    "apps/backend/tests/research/phase3b/test_phase3b_earnings_blackout.py": "a01f9b7a8e73a8ccfd5d4990268fa0cc2227c3c5f0fe88ffbe38a4577127bff7",
+    "apps/backend/tests/research/phase3b/test_phase3b_end_to_end.py": "ddfef975207377efcfac41b890b40b7a494b9c2121dcede6642ecda39efa9a34",
+    "apps/backend/tests/research/phase3b/test_phase3b_entrypoint_qualification.py": "ae8ca2f406aaf7ad815c3e25b0f34abeead28613a1980b38fb276b74fce35ef3",
+    "apps/backend/tests/research/phase3b/test_phase3b_parquet.py": "b23adab9622eed2a08071a8ed07a101166153955ec1b19397d0079c3cf107427",
+    "apps/backend/tests/research/phase3b/test_phase3b_producer_equivalence.py": "f477732deff7fb8b9a18b82a9fc57e015e9a488b4546970a1f96243373021de6",
+    "apps/backend/tests/research/phase3b/test_phase3b_production_construction.py": "f8b308954a7c7d35d9bd8530de9c7b7b97c3153b993d357526e607977233871e",
+    "apps/backend/tests/research/phase3b/test_phase3b_published_at_lifecycle.py": "2cf0a7a273030c174834ba1d77e4d2eb56e57771991a730d9740b234110327a1",
+    "apps/backend/tests/research/phase3b/test_phase3b_reader_assumption.py": "aaa0484fcbe9fb5c807131ba09ed4f3ae06add15d7a3618821bf7e822382f50c",
+    "apps/backend/tests/research/phase3b/test_phase3b_real_adapter_e2e.py": "1c008ee0cebc25ed078d9d0e7d1d1a75ccfecb96fa0e34590a7d2b599abf5d1f",
+    "apps/backend/tests/research/phase3b/test_phase3b_synthetic_qualification.py": "61577916f413283547ee692e1674273a165ac651b45bf0abeaa774f43151b639"
+   },
+   "qualification_evidence": {
+    "docs/review/mr002/phase3bc/MR002_Phase3B_ExecutionDependencyBundle_v1.0.json": "759f1888c54f0f9496fbd474056ed17d7f68662940cb419d4f424c0633de2212",
+    "docs/review/mr002/phase3bc/MR002_Phase3B_ExecutionDependencyBundle_v1.1.json": "7b739ab9bc9b8953d9f7c26c6fe09cf1836c4a488fe83ac3a8dd35d08ff4b077",
+    "docs/review/mr002/phase3bc/MR002_Phase3B_LiveMaterializationObservation_v1.0.json": "43db0c9aad48aeb5d49178e9b2010b499f417125eea5da439d1195298965162b",
+    "docs/review/mr002/phase3bc/MR002_Phase3B_LiveMaterializationObservation_v1.1.json": "a318067bfd7c8ebe6f69697b14cc8f15286e69e257b6be335dae886f90087813",
+    "docs/review/mr002/phase3bc/MR002_Phase3B_PreAccessReadyEvidence_v1.0.json": "5a6fddc9f9bf3c83e0c31d25b44cab74553d604c29e5323f12e85f0ee327d291",
+    "docs/review/mr002/phase3bc/MR002_Phase3B_PreAccessReadyEvidence_v1.1.json": "91502a635367989aaad7d31fccd5a61cb3ba5240031959ba5c251fc6e704450e"
+   },
+   "roster_kind": "GOVERNING_ONLY"
+  },
+  "why": "conflating them produced a false closure once: 35 bound and 35 imported, not the same 35"
+ },
+ "version": "3.1"
+}
