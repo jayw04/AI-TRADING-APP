@@ -1,0 +1,158 @@
+{
+ "artifact": "MR002_P7AccessEventDefinition_Adjudication_v1.0",
+ "binding_constraints": [
+  {
+   "constraint": "The two 2026-08-11T22:55:52Z denied probes remain in P7/P8 PERMANENTLY. Do not relabel, delete, or suppress them.",
+   "id": "K1"
+  },
+  {
+   "constraint": "This amendment is a PROSPECTIVE CLARIFICATION of event classification. It is NOT a retroactive deletion of evidence.",
+   "id": "K2"
+  },
+  {
+   "constraint": "'Access event' for P7 means a request that actually obtains partition or object content, or otherwise OPENS the governed partition. Denied attempts remain logged separately as attempted-access / control events.",
+   "id": "K3"
+  },
+  {
+   "constraint": "WP-F and all future controls must NEVER prove DENY by live HeadObject/GetObject probes against sealed objects. Use policy simulation or already-recorded control state.",
+   "id": "K4"
+  }
+ ],
+ "blocked": "WP-F authorization was held for this single adjudication (owner ruling 2026-08-11). With this record RATIFIED, that hold is discharged; WP-F authorization is a separate owner act and is NOT granted by this record.",
+ "boundary": "This record adjudicates a definition. It authorizes NOTHING. WP-F remains NOT AUTHORIZED until a separate owner authorization record exists, and WP-F is still NOT_BUILT. validation_authorization remains false at _rev 0; OOS remains under DENY; the validation reader remains unassumable; the single validation opening remains UNCONSUMED.",
+ "candidate_rulings": {
+  "option_1": {
+   "effect": "P7 remains SATISFIED. The definition is amended PROSPECTIVELY so that a refused request is an access ATTEMPT and does not consume the gate, while the full attempts remain retained in P7/P8.",
+   "label": "ACCESS_ATTEMPT / CONTROL_PROBE, not a validation_access_event",
+   "requires": "explicit prospective amendment; not silent application",
+   "supported_by": "E1, E2, E3, E4 - all pre-existing and frozen"
+  },
+  "option_2": {
+   "effect": "P7 is recorded as nonconformant, followed by a separate decision on whether the prerequisite is recoverable without invalidating the sealed validation program.",
+   "label": "P7 nonconformance",
+   "note": "On the evidence this reading is available but is not the better reading of the contract taken as a whole, because it renders E1's 'authorized (bool)' field inoperative.",
+   "supported_by": "C2 - the register's undefined wording read strictly and in isolation"
+  }
+ },
+ "contract_evidence": {
+  "counter_evidence_and_limitations": [
+   {
+    "id": "C1",
+    "point": "A search of the Phase-3A control artifacts and prereg v1.0.4 found NO clause equating a mere request or attempt with an 'access event'. Absence of a contrary clause is weaker than an affirmative definition, and is reported as such."
+   },
+   {
+    "id": "C2",
+    "point": "The prerequisite register's satisfaction_criterion states 'validation_access_events_before_authorization = 0' WITHOUT defining 'access event'. Read in isolation, that wording is genuinely ambiguous and can support the stricter reading. The definition has to come from the Phase-3A specification the register instantiates - which is where E1-E4 live."
+   },
+   {
+    "id": "C3",
+    "point": "No frozen artifact uses the terms 'attempt', 'denied' or 'probe' as a named category at the STORE level. The category exists at the EVALUATOR level (E3). Adopting it store-side is an extension by analogy, which is why it requires an explicit prospective amendment rather than silent application."
+   }
+  ],
+  "instruction": "The owner directed that the ACCESS_ATTEMPT reading be adopted ONLY if the original Phase-3A definitions already support distinguishing an attempted or denied API call from an actual partition access, and that the distinction must NOT be invented now to preserve a PASS. What follows is the frozen language, quoted, all of it pre-dating the incident.",
+  "supports_the_distinction": [
+   {
+    "id": "E1",
+    "quote": "record_fields includes 'authorized (bool)' and 'authorization_event_ref'",
+    "source": "docs/review/mr002/phase3a/SealedPartitionAccessHistory_v1.0.json",
+    "weight": "STRONG - structural",
+    "why": "P7's own frozen schema provides a per-row AUTHORIZED boolean. If every logged request counted toward the gate, that field would be dead weight: the criterion would reduce to 'row count = 0' and no row could ever coexist with a satisfied gate. The schema therefore anticipates rows that are recorded and NOT authorized."
+   },
+   {
+    "id": "E2",
+    "quote": "content: 'METADATA ONLY + proof of zero unauthorized access (NO partition values)'",
+    "source": "docs/review/mr002/phase3a/SealedPartitionAccessHistory_v1.0.json",
+    "weight": "STRONG",
+    "why": "What must be zero is unauthorized ACCESS. The record is expected to carry the metadata of events; the excluded thing is access itself."
+   },
+   {
+    "id": "E3",
+    "quote": "'every attempt - permitted or blocked - is recorded in a hash-chained opened-object ledger, so a refusal is evidence rather than a silence'; and sealed_reads = sum(1 for e in permitted if e['partition'] in SEALED_PARTITIONS); sealed_reads_zero = counts['sealed_reads'] == 0",
+    "source": "docs/review/mr002/evaluator/mr002_valoos_access_boundary.py (Increment 4, Phase-3A era)",
+    "weight": "STRONG - the program's own frozen implementation",
+    "why": "The bound evaluator ALREADY draws exactly this line. Blocked attempts are recorded as evidence, and only PERMITTED reads count toward the sealed-read gate. Adopting the same rule for the store-level history is consistency with the frozen contract, not a new carve-out."
+   },
+   {
+    "id": "E4",
+    "quote": "SealedStoreAccessLog: 'whether ANYTHING opened the partition across program history'",
+    "source": "docs/review/mr002/phase3a/MR002_Phase3A_SealedPartitionControlSpecification_v1.0.json",
+    "weight": "MODERATE",
+    "why": "The store-level record is defined around whether anything OPENED the partition. A refused request opened nothing."
+   },
+   {
+    "id": "E5",
+    "source": "control spec access_events: 'CloudTrail S3 GetObject data events'; prereg v1.0.4 first_access_proof: 'earliest CloudTrail GetObject event'; oos_unread_proof: 'audited ABSENCE of OOS GetObject events'",
+    "weight": "WEAK - do not rest the ruling on this",
+    "why": "The frozen text names GetObject, and these two events are HeadObject. This is flagged as WEAK deliberately: 'GetObject' most plausibly reads as shorthand for object-read data events, and resting a PASS on the literal eventName would be lawyering rather than interpretation."
+   }
+  ]
+ },
+ "date": "2026-08-11",
+ "disposition": "Option 1 - RATIFIED. P7 remains SATISFIED. The validation opening remains UNCONSUMED. The denied probes are retained as recorded control-attempt events, and the classification rule is clarified PROSPECTIVELY.",
+ "does_not_generalize": "This ruling does NOT generalize into 'denied calls are harmless'. Denied requests remain governance-relevant events. They may indicate operator error or an attempted boundary violation and must be surfaced as such. They simply do not count as a successful partition access for P7 / opening-consumption purposes.",
+ "finding": {
+  "cause": "Step-9 host precondition checks confirmed the sealed-partition boundary by ATTEMPTING reads instead of using policy simulation. Every other DENY in this program was proven by simulation. The attempts were avoidable and are recorded as an error of method, not presented as a designed control test.",
+  "consequences_established_by_evidence": {
+   "credential_released": false,
+   "object_data_returned": "NONE - both requests were refused by the bucket policy",
+   "partition_state": "validation CLOSED, OOS under DENY",
+   "reader_role_assumable": false,
+   "successful_reads_of_either_sealed_partition": 0,
+   "validation_opening_consumed": false
+  },
+  "events": [
+   {
+    "error_code": "AccessDenied",
+    "event_time_utc": "2026-08-11T22:55:52Z",
+    "key": "validation/prices.parquet",
+    "operation": "HeadObject",
+    "partition": "validation",
+    "principal": "arn:aws:sts::219024422756:assumed-role/mr002-phase3c-run-host/i-00c1034f7026db45e"
+   },
+   {
+    "error_code": "AccessDenied",
+    "event_time_utc": "2026-08-11T22:55:52Z",
+    "key": "oos/prices.parquet",
+    "operation": "HeadObject",
+    "partition": "oos",
+    "principal": "arn:aws:sts::219024422756:assumed-role/mr002-phase3c-run-host/i-00c1034f7026db45e"
+   }
+  ],
+  "evidence_handling": {
+   "cas_anchor_left_stale": true,
+   "chain": "42 events, hash chain verifies",
+   "events_retained_permanently": true,
+   "incomplete_first_regeneration_never_committed": "The first regeneration ran before CloudTrail had delivered the events and was therefore incomplete. It was discarded and never entered git history: exactly one commit (79c6b68) touches v1.1, and it carries the complete 42-row record. Verified by git log.",
+   "p6_p9_p11_not_regenerated_to_tidy_the_record": true,
+   "p7_p8_reissued_at_v1_1_with_the_attempts_visible": true,
+   "p7_v1_0_retained_unedited_as_superseded": true
+  }
+ },
+ "governing_distinction": "A denied request attempt is an auditable access-control event, but it is NOT a partition access/opening event when no object content or partition value is returned and the request is refused by the enforced boundary.",
+ "prepared_by": "research (Claude), at owner instruction",
+ "question": "P7's governing criterion is 'validation_access_events_before_authorization = 0 AND oos_access_events_before_validation = 0'. Two pre-authorization DENIED object requests now exist in CloudTrail. Does a denied request constitute an 'access event' for P7 consumption purposes? The distinction between 'zero successful reads' and 'zero access events' is load-bearing and must be settled explicitly.",
+ "ratification_rationale_owner": "Ratified WITH the prospective clarification precisely BECAUSE C2/C3 leave enough ambiguity that this must not be treated as an implicit interpretation.",
+ "ratified_by": "Jay Wang (owner)",
+ "ratified_on": "2026-08-11",
+ "record_identity_sha256": "2f4cc13f28ed87bc344d1babb1cb653271e65755a8e930d10fbde435caa98b16",
+ "record_type": "MR002_P7AccessEventDefinition_Adjudication",
+ "research_assessment": {
+  "conclusion": "The distinction between a denied ATTEMPT and an ACCESS is pre-existing in the frozen contract and was not invented to preserve a PASS. The decisive items are E1 (P7's own schema carries a per-row 'authorized' boolean, which only has meaning if unauthorized rows can exist alongside a satisfied gate) and E3 (the bound evaluator already counts only PERMITTED reads toward its sealed-read gate while recording blocked attempts as evidence).",
+  "recommendation": "Option 1, with the prospective amendment recorded explicitly.",
+  "stated_against_interest": "The events were caused by a research-side method error, and this assessment favours the reading under which that error does not void a prerequisite. It is offered with the weakest supporting limb (E5) explicitly marked as weak and the strongest counter-argument (C2) stated rather than omitted. The ruling is the owner's."
+ },
+ "ruling_made_by": "OWNER",
+ "status": "RATIFIED",
+ "version": "1.0",
+ "wp_f_preconditions_stated_by_the_owner_for_a_future_authorization": [
+  "validation_authorization = false",
+  "_rev = 0",
+  "reader role still unassumable",
+  "validation opening still unconsumed",
+  "OOS DENY still active",
+  "current prerequisite state = register v1.2; the 088d700b anchor explicitly REJECTED as stale",
+  "WP-F runs C1-C10 plus C-R7",
+  "no credential release, no trust-policy edit, no validation/OOS read during WP-F",
+  "WP-F MUST NOT repeat this error: any DENY check in WP-F's own logic must use policy simulation or recorded control state, never a live HeadObject/GetObject against a sealed object. This is to be asserted by test, in the same way the custody tooling asserts it."
+ ]
+}
