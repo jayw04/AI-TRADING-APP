@@ -1,0 +1,72 @@
+{
+ "artifact_kind": "EVIDENCE_RECORD",
+ "boundary": "Zero-data. No AWS call, no sealed object, no credential, no image change. validation_authorization remains true at _rev 1; the opening remains UNSPENT.",
+ "corrections_to_my_own_earlier_findings": [
+  "I first reported that the frozen contract nowhere states the price-series basis. WRONG - v0.3 SS4 states it for all four uses.",
+  "I then reported that the operationalization admitted multiple plausible formulas. ALSO WRONG - v0.4 registers exactly one, and an implementation of it already exists.",
+  "Both errors shared a cause: searching the governing documents for the term I expected instead of reading them. Reading v0.4 in full is what surfaced the registered formula."
+ ],
+ "date": "2026-08-12",
+ "findings_to_discharge_before_freeze": [
+  {
+   "character": "A DATA-SEMANTICS VERIFICATION, not an economic choice: does the ACTIONS dividend value share the split basis of the SEP close it is added to? It is dischargeable on the DEVELOPMENT partition, which is unsealed, and needs no validation access.",
+   "detail": "v0.4 conditions the formula on the ACTIONS dividend split basis being 'confirmed at Implementation Freeze BEFORE the formula is applied'. The 2026-07-11 review separately directed 'Add the ACTIONS dividend-value basis check to Implementation Freeze'. No evidence of that confirmation was found.",
+   "id": "A1-F1",
+   "severity": "UNDISCHARGED PRECONDITION",
+   "title": "The ACTIONS dividend split-basis confirmation appears never to have been performed"
+  },
+  {
+   "consequence": "The two constructions differ whenever a distribution occurs, and the second mixes adjustment bases - the precise defect freeze blocker V3 exists to prevent. The contract governs: the Phase 3B layer must implement the registered formula. The frozen contract is NOT amended to match the code.",
+   "detail": "apps/backend/app/research/mr002/execution.py implements the registered formula exactly: (open_next + cash_distribution) / close_prev - 1.0. The SPQ-1 enricher bound into the Phase 3B path instead computes 'abs(price / distribution_adjusted_close_t - 1.0)' - no distribution term in the numerator, and an already-distribution-adjusted close in the denominator. It carries no cash distribution parameter at all.",
+   "hierarchy_applied": "frozen price-series policy -> authoritative dataset field semantics -> implementation. Never implementation -> inferred policy.",
+   "id": "A1-F2",
+   "severity": "IMPLEMENTATION NONCONFORMANCE",
+   "title": "The SPQ-1 enricher does not implement the registered economic gap"
+  }
+ ],
+ "four_series_mapping_resolved": {
+  "dollar-volume ranking": "close x volume (owner-approved 2026-07-11 as the consistently split-adjusted pair; closeunadj x volume was REJECTED as mixing adjustment bases)",
+  "execution fills at the open": "open / close (split-adjusted, non-dividend-adjusted)",
+  "gap filter": "CONSTRUCTED: (open + ACTIONS distribution) / close - 1",
+  "note": "The gap series is the one registered use with no dedicated vendor column - it is constructed, which is exactly why v0.4 had to register the construction.",
+  "signal returns": "closeadj (total-return adjusted)"
+ },
+ "grants": "NOTHING. Evidence only.",
+ "implication_for_the_grant": "Because the operationalization is UNIQUE and already registered, this is an execution-contract clarification rather than the selection of a new convention. No research economics change, so the supplemental execution-identity adjudication remains sufficient and the preregistration/authorization chain does not require reassessment on this ground.",
+ "outcome": "UNIQUE_OPERATIONALIZATION_PROVEN",
+ "provenance_of_the_formula": "Directed by the owner in the 2026-07-11 V0.3/V1-V4 review: 'The four-series policy is correct, but register the exact gap formula... Confirm the exact vendor field semantics before adopting the formula.' v0.4 carried it into the preregistration.",
+ "question": "Given the registered price-series policy and the authoritative field semantics, is there exactly one way to construct the gap-filter numerator and denominator without introducing an additional economic choice?",
+ "record_identity_sha256": "5d82d2acdb1a6df46a56b5666739a36aa64ef9dc01ecb67f9a2819b3a64e3b86",
+ "record_type": "MR002_Phase3B_A1_PriceBasisEvidence",
+ "the_registered_operationalization": {
+  "fields": {
+   "close_t": "split-adjusted close",
+   "known_cash_distribution_t+1": "ACTIONS dividend value",
+   "open_t+1": "split-adjusted open"
+  },
+  "formula": "economic_gap_t+1 = (open_t+1 + known_cash_distribution_t+1) / close_t - 1",
+  "gate": "entry cancelled at the t+1 open if |economic_gap_t+1| >= 6%",
+  "registered_as": "Price-series policy (V3, verified)",
+  "registered_in": "docs/implementation/TradingWorkbench_MR002_PreRegistration_v0.4.md",
+  "verbatim_qualifier_from_v04": "(split-adjusted fields; the distribution term uses ACTIONS dividend values, whose split basis is confirmed at Implementation Freeze before the formula is applied - SS7)"
+ },
+ "verification": {
+  "formula_registered_in_v04": true,
+  "hashes": {
+   "apps/backend/app/research/mr002/execution.py": "988fb59a24609efd8d7ff4db4ac468ed0002ab9bfb3c4c82926a602b4646a3b7",
+   "apps/backend/app/research/mr002/spq1/execution_enrichment.py": "da6a730daea287332b51fe98d8a5d4a2580c37d8c0dab915ac64214883cdba05",
+   "docs/implementation/TradingWorkbench_MR002_PreRegistration_v0.3.md": "1007db8204ad3dff544483614ed40f5fce1573e4dd61b9f6a1cd79d5902bdc59",
+   "docs/implementation/TradingWorkbench_MR002_PreRegistration_v0.4.md": "280ad80ef28e8531f02044313f5ce3809504bc0e835fba5664a6bd88fdb71124",
+   "docs/implementation/evidence/mr_002/MR002_OwnerReview_v0.3_and_V1V4_Decision_2026-07-11.md": "5a4485a83ac334d49fdf09e9b3094a2ed39417d8c595b157acc9a57df69a19dd",
+   "docs/review/mr002/governing_sources/TradingWorkbench_MR002_PreRegistration_v1.0_FROZEN.md": "70108c11f5817158261d17feccc2f8be0519fdc424745eb97ec0fdfbc8cf25fc"
+  },
+  "spq1_gap_expression": "abs(price / distribution_adjusted_close_t - 1.0)",
+  "spq1_implementation_uses_the_distribution_term": false,
+  "stage3_implementation_conformant": true,
+  "v04_labels_it_V3_verified": true,
+  "v04_named_in_the_signed_v10_authority_chain": true,
+  "v10_states_strategy_rules_closed_since_v03": true
+ },
+ "version": "1.0",
+ "why_this_is_governing_and_not_a_superseded_draft": "The signed v1.0 FROZEN document names the authority chain explicitly - 'owner proposal -> reviews 1-2 -> v0.3 (S1-S4) -> v0.4 (build-authorizing) -> v0.5-v0.6 -> v0.7-v0.9 -> V1/V2 validation -> predecessor-remedy countersign' - so v0.4 is a member of the chain, not a discarded draft. v1.0 further states 'Strategy rules are unchanged and closed since v0.3' and describes itself as freezing the DATA layer that v0.4 required. The economic-gap formula is therefore a live registered rule."
+}
