@@ -17,7 +17,7 @@ import sys
 _HERE = os.path.dirname(os.path.abspath(__file__))
 _BACKEND = os.path.abspath(os.path.join(_HERE, "..", "..", ".."))
 GAP = os.path.join(_BACKEND, "app", "research", "mr002", "phase3b", "gap.py")
-SUITE = "tests/research/phase3b/test_phase3b_synthetic_qualification.py"
+SUITE = "tests/research/phase3b"  # both suites, so the check covers the whole layer
 
 REGISTERED = "    return (open_t_plus_1 + known_cash_distribution_t_plus_1) / close_t - 1.0"
 LEGACY = "    return open_t_plus_1 / close_t - 1.0  # A1-F2 DEFECT, injected by the mutation check"
