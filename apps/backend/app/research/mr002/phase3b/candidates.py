@@ -25,6 +25,7 @@ from ..spq1.producer import ProductionRequest, produce_decision
 from ..spq1.refusals import SignalRefusal
 from ..spq1.security_identity import PitIdentityRegistry
 from . import assembly as ASM
+from . import parquet as PQ
 from .enrichment import ExecutionFacts
 
 PROGRAM_ID = "MR-002"
@@ -133,6 +134,12 @@ class ProducerCandidateSource:
     observed_identities: dict[str, str]
     spy_ticker: str = "SPY"
     eligibility_checks_by_symbol: dict[str, list[ExclusionCheck]] | None = None
+    # P9-shaped commitments. The adapter owns the table contract, so it decodes the governed bytes
+    # itself rather than trusting a caller to have decoded them correctly.
+    structural_manifest: dict | None = None
+    reference_manifest: dict | None = None
+    window_prefix: str = "validation"
+    reference_prefix: str = "reference"
 
     refusals: list[tuple[str, int, str]] = field(default_factory=list)
 
@@ -142,7 +149,7 @@ class ProducerCandidateSource:
         A governed refusal is recorded and the unit is dropped - it never becomes a candidate - so
         the enrichment census counts only records the producer actually emitted.
         """
-        tables = payloads["tables"]
+        tables = self._decode(payloads)
         sic_map = sic_map_from(tables["sic_mapping"])
         sic_obs = sic_observations_by_cik(tables["sic_observations"])
         etf_by_sector = {r.research_sector: r.sector_etf for r in sic_map}
@@ -164,6 +171,24 @@ class ProducerCandidateSource:
                 continue
             out.append((record, self._facts(unit, prices, distributions, actions)))
         return out
+
+    def _decode(self, payloads: dict[str, Any]) -> dict[str, Any]:
+        """Decode the governed bytes against the precommitted structural manifests.
+
+        Accepts already-decoded tables only when no manifest is supplied, which is the qualification
+        path for suites that build tables directly; the governed run always supplies manifests, so
+        the decode control is never skipped where it matters.
+        """
+        if self.structural_manifest is None:
+            if "tables" not in payloads:
+                raise CandidateSourceRefused("no structural manifest and no decoded tables")
+            return payloads["tables"]
+        tables = PQ.decode_all(payloads, self.structural_manifest, prefix=self.window_prefix)
+        if self.reference_manifest is not None:
+            tables.update(
+                PQ.decode_all(payloads, self.reference_manifest, prefix=self.reference_prefix)
+            )
+        return tables
 
     def _produce(self, unit: Unit, market: Any, series: dict, sic_map: list, sic_obs: dict) -> Any:
         close_t_iso = et_close_cutoff_iso(self.calendar.sessions[unit.t])

@@ -193,6 +193,13 @@ class Phase3BRunner:
             outcome.history = list(self.sequence.history)
             if self.sequence.opening_consumed:
                 outcome.publication = self._publish_run(outcome)
+                # S11 is reached by PUBLISHING, not by succeeding: a refused run that published its
+                # terminal disposition is just as published as a passing one, and the state must
+                # say so or the sequence has a terminal state nothing ever enters.
+                if self.sequence.state == S.S10_ENRICHED:
+                    self.sequence.advance(S.S11_PUBLISHED)
+                outcome.state = self.sequence.state
+                outcome.history = list(self.sequence.history)
         return outcome
 
     def _publish_deliverables(self, records: list, adjudications: list) -> dict[str, str]:
