@@ -1,0 +1,178 @@
+{
+ "artifact_kind": "EXECUTION_INPUT_BINDING",
+ "authority": {
+  "column_order": "docs/review/mr002/phase3bc/MR002_ValidationStructuralManifest_v1.0.json -> schema_identity.tables",
+  "objects_and_identities": "docs/review/mr002/phase3bc/MR002_Phase3BC_RuntimePrerequisiteRegister_v1.3.json -> reference_layer.tables"
+ },
+ "boundary": "Reference objects are interval-valid registries: not part of any sealed partition and not under the OOS DENY. Zero-data. No AWS call, no sealed object, no credential.",
+ "consumers": {
+  "crosswalk": "candidates.cik_by_symbol_from and candidates.lineage_from - CIK resolution and PIT security lineage",
+  "sic_mapping": "candidates.sic_map_from - registered SIC range to research sector and sector proxy, with effective dates"
+ },
+ "derived_not_chosen": "every value is a one-hop projection of the P11 reference registration and the P9 registered column order. The generator selects nothing.",
+ "objects": {
+  "reference/crosswalk.parquet": {
+   "content_sha256": "3a8bebf2aa03c403de125a6bbb567e4b2ff03f37ac22716b9e67be64a9701916",
+   "row_count": 1068,
+   "sha256": "c75fe1b1362c4a6243358a1b6d68c6c5896f0823a7efe234ed0db5244dce3b16",
+   "version_id": "ux3JpvSp7lSneFcMHhxRZ_Tp6_gx60eK"
+  },
+  "reference/sic_mapping.parquet": {
+   "content_sha256": "b7d8283023b88489534fdc8ebfbec100470410adb3d7056a603bf87fbcef7cea",
+   "row_count": 110,
+   "sha256": "292c36a82896169f5420932af4351a822452f3a909df69b8306e3e48d2d62035",
+   "version_id": "_wAa1EJ0wECpUcd4DH7KhrYsYl765kWL"
+  }
+ },
+ "prefix": "reference",
+ "record_identity_sha256": "22166af451536b3c2f027addccfbbc5b18d7b6f1892bf4f64faa84f2d21860d9",
+ "record_type": "MR002_Phase3B_ReferenceManifest",
+ "reference_scope": {
+  "classification": "reference-scope clarification, NOT a research-semantic change",
+  "disposition_of_excluded": "The two override tables remain GOVERNED reference artifacts. They are not de-registered, not deleted, and may be used by other MR-002 analysis paths. They are simply not part of Phase 3B execution semantics, and Phase 3B does not activate override semantics.",
+  "fetch_rule": "the entry point fetches EXACTLY the objects this manifest declares - never every object sharing the reference/ prefix. Sharing a prefix is not a reason to fetch.",
+  "invariant": "fetched == decoded == consumed == manifest_consumed_set",
+  "phase3b_consumed_reference_set": [
+   "crosswalk",
+   "sic_mapping"
+  ],
+  "registered_not_consumed": {
+   "predecessor_overrides": {
+    "consequence_if_consumed": "Phase 3B would apply override semantics the development window never applied, breaking R-PROD continuity",
+    "evidence_consumer": "app/research/mr002/dataset.py::sector_resolver - splits CIK intervals at the countersigned predecessor event date",
+    "evidence_non_consumer": "app/research/mr002/spq1/adapters/identity_adapter.py::load_identity_registry - Phase 2B reads `crosswalk` RAW",
+    "reason": "not part of Phase 2B production semantics",
+    "status": "REGISTERED_NOT_CONSUMED"
+   },
+   "security_sector_overrides": {
+    "consequence_if_consumed": "Phase 3B would resolve sectors differently from development",
+    "evidence_consumer": "app/research/mr002/dataset.py::sector_resolver - passed into SectorResolver",
+    "evidence_non_consumer": "app/research/mr002/spq1/phase2b/orchestrator.py::_guarded_load_sic_map - Phase 2B reads `sic_mapping` RAW",
+    "reason": "not part of Phase 2B production semantics",
+    "status": "REGISTERED_NOT_CONSUMED"
+   }
+  },
+  "registered_reference_universe": [
+   "crosswalk",
+   "predecessor_overrides",
+   "security_sector_overrides",
+   "sic_mapping"
+  ],
+  "subset_rule": "consumed set is a strict subset of the registered universe; every exclusion is named with its reason and evidence"
+ },
+ "schema_identity": {
+  "tables": {
+   "crosswalk": [
+    {
+     "name": "permaticker",
+     "type": "BIGINT"
+    },
+    {
+     "name": "ticker",
+     "type": "VARCHAR"
+    },
+    {
+     "name": "cik",
+     "type": "BIGINT"
+    },
+    {
+     "name": "effective_from",
+     "type": "DATE"
+    },
+    {
+     "name": "effective_to",
+     "type": "DATE"
+    },
+    {
+     "name": "relationship_type",
+     "type": "VARCHAR"
+    },
+    {
+     "name": "source",
+     "type": "VARCHAR"
+    },
+    {
+     "name": "source_record_id",
+     "type": "VARCHAR"
+    },
+    {
+     "name": "confidence",
+     "type": "VARCHAR"
+    },
+    {
+     "name": "mapping_rationale",
+     "type": "VARCHAR"
+    },
+    {
+     "name": "review_status",
+     "type": "VARCHAR"
+    }
+   ],
+   "sic_mapping": [
+    {
+     "name": "sic_start",
+     "type": "VARCHAR"
+    },
+    {
+     "name": "sic_end",
+     "type": "VARCHAR"
+    },
+    {
+     "name": "effective_from",
+     "type": "DATE"
+    },
+    {
+     "name": "effective_to",
+     "type": "DATE"
+    },
+    {
+     "name": "research_sector",
+     "type": "VARCHAR"
+    },
+    {
+     "name": "sector_etf",
+     "type": "VARCHAR"
+    },
+    {
+     "name": "mapping_rationale",
+     "type": "VARCHAR"
+    },
+    {
+     "name": "mapping_confidence",
+     "type": "VARCHAR"
+    },
+    {
+     "name": "mapping_specificity",
+     "type": "VARCHAR"
+    },
+    {
+     "name": "review_status",
+     "type": "VARCHAR"
+    },
+    {
+     "name": "reviewer",
+     "type": "VARCHAR"
+    },
+    {
+     "name": "review_date",
+     "type": "DATE"
+    },
+    {
+     "name": "source_reference",
+     "type": "VARCHAR"
+    }
+   ]
+  }
+ },
+ "sealed": false,
+ "structure": {
+  "crosswalk": {
+   "row_count": 1068
+  },
+  "sic_mapping": {
+   "row_count": 110
+  }
+ },
+ "version": "1.0",
+ "window": "validation"
+}

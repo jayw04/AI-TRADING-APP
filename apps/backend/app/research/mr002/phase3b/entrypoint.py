@@ -18,6 +18,7 @@ Two modes:
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import os
 import sys
@@ -35,6 +36,12 @@ from .runner import Phase3BRunner
 
 REQUIRED_TABLES = ("prices", "etf_prices", "actions", "sic_observations", "universe", "anchors")
 REQUIRED_REFERENCE = ("sic_mapping", "crosswalk")
+REFERENCE_PREFIX = "reference"
+
+# The reference manifest is hash-bound here, inside the mounted layer whose own identity Supplement
+# v3 binds. Without this, "fetch whatever the manifest declares" would let a later manifest edit
+# silently add an override object and the fetcher would obediently consume it.
+REFERENCE_MANIFEST_SHA256 = "fc8e91e9bc78faa6936dc68b82414a6a0a500f0c41c4d303419a2157a7ce7d35"
 
 DRY, EXECUTE = "dry", "execute"
 
@@ -48,6 +55,20 @@ def _load(path: str) -> dict:
         raise EntrypointRefused(f"required input absent: {path}")
     with open(path, encoding="utf-8") as fh:
         return json.load(fh)
+
+
+def _load_bound(path: str, expected_sha256: str) -> dict:
+    """Load a file whose exact bytes are bound, so an edited manifest cannot be substituted."""
+    if not os.path.exists(path):
+        raise EntrypointRefused(f"required input absent: {path}")
+    with open(path, "rb") as fh:
+        raw = fh.read()
+    actual = hashlib.sha256(raw).hexdigest()
+    if actual != expected_sha256:
+        raise EntrypointRefused(
+            f"{os.path.basename(path)} is not the bound artifact: {actual} != {expected_sha256}"
+        )
+    return json.loads(raw.decode("utf-8"))
 
 
 def s3_reader(region: str = "us-east-1") -> S3PinnedReader:
@@ -65,19 +86,57 @@ def s3_reader(region: str = "us-east-1") -> S3PinnedReader:
     return S3PinnedReader(factory)
 
 
-def pinned_inputs(upload_manifest: dict, prefixes: tuple[str, ...]) -> list[PinnedObject]:
-    """Every governed object, addressed by bucket, key, VersionId and SHA-256."""
+def _reference_keys(reference_manifest: dict) -> set[str]:
+    """Exactly the reference objects the manifest declares - never everything sharing the prefix.
+
+    The reference layer registers four objects; Phase 3B consumes two. Sharing a prefix is not a
+    reason to fetch: pulling the two override tables in would ADD an execution dependency the
+    development window never had, because Phase 2B reads `sic_mapping` and `crosswalk` raw.
+    """
+    declared = reference_manifest.get("objects") or {}
+    if not declared:
+        raise EntrypointRefused("reference manifest declares no objects")
+    keys = set(declared)
+    stray = sorted(k for k in keys if k.split("/", 1)[0] != REFERENCE_PREFIX)
+    if stray:
+        raise EntrypointRefused(f"reference manifest names non-reference objects: {stray}")
+    committed = set(reference_manifest.get("structure") or {})
+    named = {k.split("/", 1)[-1].removesuffix(".parquet") for k in keys}
+    if named != committed:
+        raise EntrypointRefused(
+            f"reference manifest is internally inconsistent: objects {sorted(named)} != committed "
+            f"structure {sorted(committed)}"
+        )
+    return keys
+
+
+def pinned_inputs(
+    upload_manifest: dict, *, window: str, reference_manifest: dict
+) -> list[PinnedObject]:
+    """Every governed object, addressed by bucket, key, VersionId and SHA-256.
+
+    Window objects come from the window prefix. Reference objects come from the reference
+    MANIFEST, not the reference prefix, so the fetched set equals the decoded set equals the
+    consumed set.
+    """
     objects = upload_manifest.get("objects") or {}
     bucket = upload_manifest.get("bucket")
     if not bucket:
         raise EntrypointRefused("upload manifest names no bucket")
+
+    wanted = {k for k in objects if k.split("/", 1)[0] == window} | _reference_keys(
+        reference_manifest
+    )
+    missing = sorted(wanted - set(objects))
+    if missing:
+        raise EntrypointRefused(f"declared inputs absent from the upload manifest: {missing}")
+
     out = [
-        PinnedObject(bucket, key, meta["version_id"], meta["sha256"])
-        for key, meta in sorted(objects.items())
-        if key.split("/", 1)[0] in prefixes
+        PinnedObject(bucket, key, objects[key]["version_id"], objects[key]["sha256"])
+        for key in sorted(wanted)
     ]
     if not out:
-        raise EntrypointRefused(f"no pinned objects under {prefixes}")
+        raise EntrypointRefused(f"no pinned objects for window {window!r}")
     return out
 
 
@@ -111,7 +170,7 @@ def build_runner(
         reference_manifest=reference_manifest,
         window_prefix=WINDOW,
     )
-    inputs = pinned_inputs(upload_manifest, (WINDOW, "reference"))
+    inputs = pinned_inputs(upload_manifest, window=WINDOW, reference_manifest=reference_manifest)
     return Phase3BRunner(
         reader=reader,
         candidate_source=source,
@@ -158,7 +217,7 @@ def main(argv: list[str] | None = None) -> int:
         sessions=_load(args.sessions),
         upload_manifest=_load(args.upload_manifest),
         structural_manifest=_load(args.structural_manifest),
-        reference_manifest=_load(args.reference_manifest),
+        reference_manifest=_load_bound(args.reference_manifest, REFERENCE_MANIFEST_SHA256),
         observed_identities=config["observed_identities"],
         runtime_facts=config["runtime_facts"],
         expected_runtime_facts=config["expected_runtime_facts"],

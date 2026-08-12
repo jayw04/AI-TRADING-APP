@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import hashlib
 import io
+import json
 import os
 
 import pytest
@@ -171,6 +172,13 @@ def _manifest(tables: dict, names: tuple[str, ...]) -> dict:
     return {"schema_identity": {"tables": schema}, "structure": structure}
 
 
+def _reference_manifest(tables: dict, names: tuple[str, ...]) -> dict:
+    """A reference manifest now DECLARES its objects; the entry point fetches exactly those."""
+    m = _manifest(tables, names)
+    m["objects"] = {f"reference/{n}.parquet": {"declared_by": "reference manifest"} for n in names}
+    return m
+
+
 def _world(tmp_path, omit: str | None = None):
     tables = _tables()
     root = tmp_path / "fixtures"
@@ -217,7 +225,9 @@ def _runner(tmp_path, *, omit: str | None = None, out="out"):
         sessions=list(F.SESSIONS),
         upload_manifest=upload,
         structural_manifest=_manifest(tables, tuple(n for n in WINDOW_TABLES if n != omit)),
-        reference_manifest=_manifest(tables, tuple(n for n in REFERENCE_TABLES if n != omit)),
+        reference_manifest=_reference_manifest(
+            tables, tuple(n for n in REFERENCE_TABLES if n != omit)
+        ),
         **CONFIG,
     )
 
@@ -377,3 +387,84 @@ def test_the_run_is_not_vacuous_and_the_controls_actually_removed_units(tmp_path
     assert source.refusals, "no unit was refused; the controls cannot be firing"
     codes = {c for _s, _t, c in source.refusals}
     assert any("INELIGIBLE" in c for c in codes), f"no eligibility refusal among {codes}"
+
+
+# --- reference scope: fetched == decoded == consumed == manifest set -------------------------
+
+OVERRIDES = ("predecessor_overrides", "security_sector_overrides")
+
+
+def test_registered_override_objects_are_not_fetched_merely_for_sharing_the_prefix(tmp_path):
+    """The reference layer registers four objects; Phase 3B consumes two.
+
+    Fetching the overrides would ADD an execution dependency the development window never had:
+    Phase 2B reads sic_mapping and crosswalk RAW. Sharing a prefix is not a reason to fetch.
+    """
+    tables, _, upload = _world(tmp_path)
+    for name in OVERRIDES:  # registered in the upload manifest, absent from the reference manifest
+        upload["objects"][f"reference/{name}.parquet"] = {"version_id": "v", "sha256": "0" * 64}
+
+    ref = _reference_manifest(tables, REFERENCE_TABLES)
+    keys = {o.key for o in EP.pinned_inputs(upload, window="validation", reference_manifest=ref)}
+
+    fetched_reference = {k for k in keys if k.startswith("reference/")}
+    assert fetched_reference == set(ref["objects"]), fetched_reference
+    for name in OVERRIDES:
+        assert f"reference/{name}.parquet" not in keys, f"{name} was fetched by prefix"
+
+
+def test_fetched_reference_set_equals_the_committed_structure():
+    """fetched == decoded: decode_all consumes exactly `structure`, so the sets must agree."""
+    tables = _tables()
+    ref = _reference_manifest(tables, REFERENCE_TABLES)
+    named = {k.split("/", 1)[-1].removesuffix(".parquet") for k in ref["objects"]}
+    assert named == set(ref["structure"]) == set(REFERENCE_TABLES)
+
+
+def test_a_reference_manifest_naming_a_validation_object_is_refused(tmp_path):
+    tables, _, upload = _world(tmp_path)
+    ref = _reference_manifest(tables, REFERENCE_TABLES)
+    ref["objects"]["validation/prices.parquet"] = {}
+    with pytest.raises(EP.EntrypointRefused, match="non-reference objects"):
+        EP.pinned_inputs(upload, window="validation", reference_manifest=ref)
+
+
+def test_an_internally_inconsistent_reference_manifest_is_refused(tmp_path):
+    """Objects and committed structure must agree, or fetched != decoded."""
+    tables, _, upload = _world(tmp_path)
+    ref = _reference_manifest(tables, REFERENCE_TABLES)
+    ref["objects"]["reference/predecessor_overrides.parquet"] = {}
+    with pytest.raises(EP.EntrypointRefused, match="internally inconsistent"):
+        EP.pinned_inputs(upload, window="validation", reference_manifest=ref)
+
+
+def test_a_declared_object_absent_from_the_upload_manifest_is_refused(tmp_path):
+    tables, _, upload = _world(tmp_path)
+    ref = _reference_manifest(tables, REFERENCE_TABLES)
+    upload["objects"].pop("reference/crosswalk.parquet")
+    with pytest.raises(EP.EntrypointRefused, match="absent from the upload manifest"):
+        EP.pinned_inputs(upload, window="validation", reference_manifest=ref)
+
+
+def test_the_reference_manifest_is_hash_bound_so_an_edit_cannot_be_substituted(tmp_path):
+    """Without this, 'fetch whatever the manifest declares' would obey an edited manifest."""
+    p = tmp_path / "ref.json"
+    p.write_text(json.dumps({"objects": {"reference/sic_mapping.parquet": {}}}))
+    with pytest.raises(EP.EntrypointRefused, match="is not the bound artifact"):
+        EP._load_bound(str(p), "f" * 64)
+
+
+def test_the_bound_reference_manifest_identity_matches_the_generated_artifact():
+    """The constant in the entry point must be the identity of the real generated manifest."""
+    here = os.path.abspath(__file__)
+    repo = here
+    for _ in range(6):  # phase3b -> research -> tests -> backend -> apps -> repo root
+        repo = os.path.dirname(repo)
+    artifact = os.path.join(
+        repo, "docs", "review", "mr002", "phase3bc", "MR002_Phase3B_ReferenceManifest_v1.0.json"
+    )
+    # NOT skipped when absent: a guard that silently skips is a vacuous pass, and this one exists
+    # to prove the pinned constant is the identity of the REAL generated manifest.
+    assert os.path.exists(artifact), f"reference manifest artifact not found at {artifact}"
+    with open(artifact, "rb") as fh:
+        assert hashlib.sha256(fh.read()).hexdigest() == EP.REFERENCE_MANIFEST_SHA256
