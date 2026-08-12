@@ -11,26 +11,41 @@ reduction that has, in reality, already happened.
 
 So:
 
-* ``broker_cursor``  — the newest broker-side event in THIS snapshot (Alpaca's own timestamps).
-* ``observed_cursor``— the newest broker-side event we have ALREADY persisted locally.
+* ``broker_cursor``  — the **broker-read cursor**: newest broker-side event in THIS snapshot,
+  stamped by the broker (Alpaca's own timestamps), or ``None`` when the read carried no events.
+* ``observed_cursor``— the **locally observed execution cursor**: newest broker-side event we
+  have ALREADY persisted.
 
-Both are broker-issued timestamps, so they are comparable without trusting our own clock. If
-``broker_cursor < observed_cursor`` the read is behind us: ``INDETERMINATE`` → ``FAIL_CLOSED``.
+If ``broker_cursor < observed_cursor`` the read is behind us: ``INDETERMINATE`` →
+``FAIL_CLOSED``.
+
+⚠ **These two are NOT guaranteed to share a clock**, and this module must not claim they do.
+``broker_cursor`` is broker-stamped throughout, but ``observed_cursor`` is a ``max()`` over
+``fills.filled_at`` (the broker's stamp) **and** ``orders.updated_at`` (ours), so the value that
+wins can be locally stamped. Comparing them lexically is therefore a practical ordering test
+that assumes roughly-synchronised clocks — not the clock-independent causality proof an earlier
+version of this docstring asserted. Normalising the two into distinct, non-comparable cursor
+domains is tracked in **#631**; it is deliberately out of scope here.
 
 A broker read containing **no order events** has no timestamp to offer. That is the normal
 state of a settled account — positions held, nothing in flight — and it is NOT evidence of
 staleness. Never substitute a non-temporal identifier (an account id) for the missing stamp:
-it is not a point in time, and it makes every settled account permanently stale. The four
-states the gate must distinguish:
+it is not a point in time, and it makes every settled account permanently stale. The states the
+gate must distinguish:
 
-===========================  ==========================  =====================
-broker open orders           local in-flight orders      verdict
-===========================  ==========================  =====================
-none                         none                        causally complete
-none                         present                     ``SNAPSHOT_STALE``
-present, no usable stamp     —                           ``SNAPSHOT_INCOMPLETE``
-stamped, < observed_cursor   —                           ``SNAPSHOT_STALE``
-===========================  ==========================  =====================
+===========================  ================================  =====================
+broker open orders           local in-flight orders            verdict
+===========================  ================================  =====================
+none                         none                              causally complete
+none                         present, SAME symbol              ``SNAPSHOT_STALE``
+none                         present, other symbol only        depends — see below
+present, no usable stamp     —                                 ``SNAPSHOT_INCOMPLETE``
+stamped, < observed_cursor   —                                 ``SNAPSHOT_STALE``
+===========================  ================================  =====================
+
+The "other symbol only" row resolves to *causally complete* **only** for an order already proven
+to reduce an existing position in its own symbol without crossing zero, and to ``SNAPSHOT_STALE``
+for everything else. See ``AccountSnapshot.is_causally_complete``.
 
 A cached positions object is never sufficient here, regardless of nominal age. This module
 always performs a live broker read, initiated for the decision at hand.
@@ -197,10 +212,14 @@ async def _fill_is_known_locally(session: AsyncSession, broker_order_id: str) ->
 
 
 async def _observed_cursor(session: AsyncSession, account_id: int) -> str | None:
-    """The newest BROKER-side event we have already persisted.
+    """The locally observed execution cursor: newest broker-side event we have already persisted.
 
-    The snapshot must be at or beyond this. Uses broker-issued timestamps (``fills.filled_at``
-    is the broker's own stamp), so the comparison never depends on our clock.
+    The snapshot must be at or beyond this.
+
+    ⚠ **Mixed provenance.** This is a ``max()`` over ``fills.filled_at`` — the broker's own stamp —
+    and ``orders.updated_at``, which is ours. Whichever is larger wins, so the returned value is
+    not reliably broker-issued and the comparison against ``broker_cursor`` is not clock-independent.
+    Stated plainly because an earlier docstring claimed the opposite; see the module header and #631.
     """
     newest_fill = (
         await session.execute(

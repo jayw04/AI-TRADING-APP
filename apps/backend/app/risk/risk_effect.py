@@ -129,8 +129,11 @@ class AccountSnapshot:
     # a non-temporal identifier: an account id is not a point in time, and comparing one against
     # a timestamp silently makes every settled account look stale.
     broker_cursor: str | None
-    # Highest broker event we have already observed locally. The snapshot must be >= this.
-    # Used ONLY when `broker_cursor` exists, i.e. when there is something to compare against.
+    # Locally observed execution cursor: highest broker event we have already persisted. The
+    # snapshot must be >= this. Used ONLY when `broker_cursor` exists, i.e. when there is
+    # something to compare against.
+    # ⚠ MIXED PROVENANCE — a max() over a broker stamp (fills.filled_at) and a local one
+    # (orders.updated_at), so this does NOT share a guaranteed clock with `broker_cursor`. See #631.
     observed_cursor: str | None = None
     # Highest broker event we have observed locally that could STILL BE IN FLIGHT (an event on
     # a non-terminal order), KEYED BY SYMBOL. Used when the broker read shows no open orders at
@@ -187,11 +190,16 @@ class AccountSnapshot:
     ) -> tuple[bool, RiskEffectReason | None]:
         """The § A check, stated as the four states it actually has to distinguish.
 
-        Both cursors are broker-issued timestamps, so the comparison never trusts our clock.
-        But a broker read that contains NO order events has no timestamp to offer, and the
-        absence of one is not itself evidence of staleness — it is the normal state of a
-        settled account holding positions and nothing in flight. That case is decided on
-        whether the two sides AGREE that nothing is in flight, not on a timestamp.
+        ``broker_cursor`` is the broker-read cursor; ``observed_cursor`` is the locally observed
+        execution cursor. ⚠ They are NOT guaranteed to share a clock — ``observed_cursor`` is a
+        ``max()`` over a broker stamp and a local one — so comparing them is a practical ordering
+        test under roughly-synchronised clocks, not a clock-independent proof. Typed,
+        non-comparable cursor domains are tracked in #631 and out of scope here.
+
+        A broker read that contains NO order events has no timestamp to offer, and the absence of
+        one is not itself evidence of staleness — it is the normal state of a settled account
+        holding positions and nothing in flight. That case is decided on whether the two sides
+        AGREE that nothing is in flight, not on a timestamp.
 
         ``reducing_candidate_symbol`` narrows ONLY that last question, and ONLY for an order
         the caller has already shown to be a non-crossing reduction of an existing position in
