@@ -203,7 +203,6 @@ CONFIG = {
     "runtime_facts": {"python": "3.13.14"},
     "expected_runtime_facts": {"python": "3.13.14"},
     "contract_identities": {"ExecutionEnrichmentSchema": "5b2480c1"},
-    "published_at": "2026-08-12T00:00:00Z",
     "identities": {
         "code_identity": "roster",
         "runtime_identity": "p10",

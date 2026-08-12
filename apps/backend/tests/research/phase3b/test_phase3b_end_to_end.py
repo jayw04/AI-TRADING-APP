@@ -154,7 +154,7 @@ def _runner(tmp_path, *, source=None, out_name="out", reader=None):
         expected_config_mapping=dict(CONFIG),
         runtime_facts=dict(RUNTIME),
         expected_runtime_facts=dict(RUNTIME),
-        published_at="2026-08-12T00:00:00Z",
+        clock=lambda: "2026-08-12T00:00:00Z",
         identities=dict(IDENTITIES),
     )
 

@@ -18,6 +18,8 @@ import hashlib
 import json
 import os
 import stat
+from collections.abc import Callable
+from datetime import UTC, datetime
 from typing import Any
 
 PASS = "PASS"
@@ -97,6 +99,10 @@ def publish_deliverable(root: str, name: str, payload: Any) -> str:
     return sha
 
 
+def _utc_now() -> str:
+    return datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
 def publish_run(
     root: str,
     *,
@@ -104,12 +110,29 @@ def publish_run(
     disposition: str,
     exit_code: int,
     identities: dict,
-    published_at: str,
     deliverable_hashes: dict[str, str],
     stderr_text: str = "",
+    clock: Callable[[], str] | None = None,
 ) -> dict:
-    """Write the report and its no-overwrite publication record, certifying the deliverables."""
+    """Write the report and its no-overwrite publication record, certifying the deliverables.
+
+    `published_at` is STAMPED HERE, at the durable publication transition, and is not an input to
+    the run. The frozen contract could not have known it prospectively, so it is publication
+    metadata rather than a research configuration parameter: nothing in signal, eligibility,
+    enrichment, admissibility, selection, configuration identity or authorization identity may
+    depend on it.
+
+    A retry after durable publication must not mint a second timestamp for the same publication
+    event, so an existing publication record refuses rather than restamps.
+    """
     verify_exit_agreement(disposition, exit_code)
+    already = os.path.join(root, PUBLICATION)
+    if os.path.exists(already):
+        raise PublicationRefused(
+            f"already_durably_published:{PUBLICATION}. A retry must reuse the published artifact; "
+            "restamping would mint a second published_at for one publication event."
+        )
+    published_at = (clock or _utc_now)()
     for key in ("code_identity", "runtime_identity", "governing_identity"):
         if not identities.get(key):
             raise PublicationRefused(f"identity_absent:{key}")

@@ -152,7 +152,6 @@ def build_runner(
     runtime_facts: dict[str, str],
     expected_runtime_facts: dict[str, str],
     contract_identities: dict[str, str],
-    published_at: str,
     identities: dict[str, str],
     config_mapping: dict[str, float],
 ) -> Phase3BRunner:
@@ -184,7 +183,6 @@ def build_runner(
         expected_config_mapping=dict(config_mapping),
         runtime_facts=dict(runtime_facts),
         expected_runtime_facts=dict(expected_runtime_facts),
-        published_at=published_at,
         identities=dict(identities),
     )
 
@@ -222,7 +220,6 @@ def main(argv: list[str] | None = None) -> int:
         runtime_facts=config["runtime_facts"],
         expected_runtime_facts=config["expected_runtime_facts"],
         contract_identities=config["contract_identities"],
-        published_at=config["published_at"],
         identities=config["identities"],
         config_mapping=config["config_mapping"],
     )

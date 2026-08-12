@@ -188,7 +188,7 @@ def _runner(tmp_path, *, units=None, out_name="out", source=None):
         expected_config_mapping={"A": 1.75, "B": 2.00, "C": 2.25},
         runtime_facts={"python": "3.13.14"},
         expected_runtime_facts={"python": "3.13.14"},
-        published_at="2026-08-12T00:00:00Z",
+        clock=lambda: "2026-08-12T00:00:00Z",
         identities={
             "code_identity": "roster",
             "runtime_identity": "p10",

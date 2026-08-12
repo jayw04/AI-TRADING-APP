@@ -11,6 +11,7 @@ restart costs nothing; after S9 the opening is spent and the runner refuses to r
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import Any, Protocol
 
@@ -68,9 +69,12 @@ class Phase3BRunner:
     expected_config_mapping: dict[str, float]
     runtime_facts: dict[str, str]
     expected_runtime_facts: dict[str, str]
-    published_at: str
     identities: dict[str, str]
     staged_open_prefix_payloads: dict[str, bytes] = field(default_factory=dict)
+    # Injected only so a test can make publication deterministic. There is NO published_at input:
+    # the publisher stamps it at the durable publication transition, so the run reaches
+    # PRE_ACCESS_READY with no such value in existence.
+    clock: Callable[[], str] | None = None
 
     def __post_init__(self) -> None:
         self.sequence = S.LaunchSequence()
@@ -262,7 +266,7 @@ class Phase3BRunner:
             disposition=outcome.disposition,
             exit_code=outcome.exit_code,
             identities=self.identities,
-            published_at=self.published_at,
+            clock=self.clock,
             deliverable_hashes=outcome.deliverable_hashes,
             stderr_text=outcome.error or "",
         )
