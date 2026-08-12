@@ -57,6 +57,9 @@ CONTRACT_SOURCES = {
         "record_identity_sha256"),
     "reference_manifest": (f"{GOV}/MR002_Phase3B_ReferenceManifest_v1.0.json",
                            "record_identity_sha256"),
+    "validation_input_identity_registration": (
+        f"{GOV}/MR002_Phase3B_ValidationInputIdentityRegistration_v1.0.json",
+        "record_identity_sha256"),
     "registered_session_list": (
         f"{GOV}/MR002_Phase3B_RegisteredSessionList_Provenance_v1.0.json",
         "record_identity_sha256"),
@@ -65,6 +68,18 @@ CONTRACT_SOURCES = {
 AUTH_STATE = f"{GOV}/MR002_Phase3BC_ValidationAuthorizationState_v1.0.json"
 STRUCTURAL = f"{GOV}/MR002_ValidationStructuralManifest_v1.0.json"
 UPLOAD = f"{GOV}/MR002_SealedStoreUploadManifest_v1.0.json"
+# The twelve-slot input identity registry. Phase 2B left seven slots as opaque development labels;
+# this artifact registers them as deterministic identities derived from already-frozen sources.
+INPUT_IDENTITY_REGISTRY = f"{GOV}/MR002_Phase3B_ValidationInputIdentityRegistry_v1.0.json"
+INPUT_IDENTITY_REGISTRATION = (
+    f"{GOV}/MR002_Phase3B_ValidationInputIdentityRegistration_v1.0.json"
+)
+REQUIRED_SLOTS = (
+    "spy_total_return_series", "sector_etf_source_series", "sector_etf_proxy_mapping_table",
+    "price_return_adjustment_policy", "pit_sector_source", "pit_identity_registry",
+    "eligibility_evidence_sources",
+)
+FORBIDDEN_PREFIXES = ("dev-", "val-", "obs-", "id-", "test-")
 
 # The frozen configuration mapping and where it is implemented. Cited, never constructed.
 CONFIG_MAPPING = {"A": 1.75, "B": 2.00, "C": 2.25}
@@ -158,7 +173,23 @@ def observed_identities(observation: dict) -> tuple[dict, dict]:
             raise ManifestRefused(f"{key}: upload manifest has no sha256")
         inputs[key] = meta["sha256"]
 
+    registry, _ = _read(INPUT_IDENTITY_REGISTRY)
+    missing = [k for k in REQUIRED_SLOTS if not registry.get(k)]
+    if missing:
+        raise ManifestRefused(f"input identity registry lacks {missing}")
+    opaque = sorted(
+        k for k, v in registry.items()
+        if k != "price_return_adjustment_policy"
+        and any(str(v).startswith(pfx) for pfx in FORBIDDEN_PREFIXES)
+    )
+    if opaque:
+        raise ManifestRefused(
+            f"refusing opaque input identity labels {opaque}; Phase 2B placeholders are "
+            "NONTRANSFERABLE and invented val-* labels are no better"
+        )
+
     values = {
+        **registry,
         "execution_closure_sha256": hashlib.sha256(
             _canonical(dict(sorted(closure.items())))
         ).hexdigest(),
@@ -180,6 +211,10 @@ def observed_identities(observation: dict) -> tuple[dict, dict]:
             "field": "dependency_bundle.wheels",
         },
         "sealed_input_sha256": {"artifact": UPLOAD, "field": "objects"},
+        **{
+            slot: {"artifact": INPUT_IDENTITY_REGISTRATION, "field": f"slots.{slot}.identity"}
+            for slot in REQUIRED_SLOTS
+        },
     }
     return values, provenance
 

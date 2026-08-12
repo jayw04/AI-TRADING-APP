@@ -1,0 +1,259 @@
+{
+ "artifact_kind": "INPUT_IDENTITY_REGISTRATION",
+ "boundary": "Zero-data. No AWS call, no sealed object, no credential.",
+ "commit": "336c2053df0e560ef58bb41b27493cbfdf4b6de7",
+ "construction_rule": "slot_identity = H(source_object_identity || interpretation_identity). Source alone would give two different extraction rules over the same object the same identity.",
+ "no_sealed_read": "source identities come from the registered upload and P11 commitments, so no sealed object is opened and the single validation opening remains UNSPENT",
+ "phase2b_disposition": {
+  "continuity_preserved": "each slot's MEANING is unchanged; only the identity quality improves, so this is not an economic change",
+  "evidence": "app/research/mr002/spq1/phase2b/orchestrator.py::_OBS_IDS",
+  "finding": "labels, not registered content identities; they established neither reproducibility nor a transferable validation identity",
+  "status": "PHASE2B_INPUT_IDENTITY_PLACEHOLDERS - NONTRANSFERABLE",
+  "values": {
+   "eligibility_evidence_sources": "dev-earn",
+   "pit_identity_registry": "dev-cross",
+   "pit_sector_source": "dev-sic",
+   "sector_etf_proxy_mapping_table": "dev-map",
+   "sector_etf_source_series": "dev-sec",
+   "spy_total_return_series": "dev-spy"
+  }
+ },
+ "purpose": "Register the seven InputIdentityRegistry slots Phase 2B left as opaque development labels, as deterministic identities derived from already-frozen validation sources and frozen interpretation rules.",
+ "record_identity_sha256": "8578707bc94084c7ed30c9f30b3a001c47b6144c0fcafb9c03639424f779ca56",
+ "record_type": "MR002_Phase3B_ValidationInputIdentityRegistration",
+ "registry": {
+  "eligibility_evidence_sources": "d2b3e01846e603c172d78f8130ea295836ce852cf859f94ee4df1cf412773f0e",
+  "pit_identity_registry": "b711c4d77d7a6bea2c7a51a17098cba992b0cf1b904130f3c052a4249d689ed3",
+  "pit_sector_source": "61e55b4dc167a653fe9d5a9b33f7d1a7c25e4a3bd26f0d4bcd95d06f0fd6bd4c",
+  "price_return_adjustment_policy": "v3",
+  "sector_etf_proxy_mapping_table": "e2bf0d41445e4f4cb93f6a18dd43256b70647f1ec811536bd4059f0b25a37a79",
+  "sector_etf_source_series": "b51daaf30b6d139269299c487cf880242cd4c7a2aaf82c3baa4481d452f42229",
+  "spy_total_return_series": "503ff556afdf942ac8d25af0ee3a8eed97b357cbcf57f57633aa017d6001367a"
+ },
+ "registry_identity_sha256": "fbfa655f00e89b56689cd859563d0d985151fede907a91b15b41c8da734bb853",
+ "slots": {
+  "eligibility_evidence_sources": {
+   "constituents": {
+    "interpretation_identity": "a2953da0ba12f3ca1473190cf58ad08434024081d2b8c68afd7bc6144990ab46",
+    "source_identities": [
+     "68d5132fb39edb5c1c42d41d85ba5f2d955845aaa059de4edf0acd757589e2f1",
+     "f369f9f6601a281b7fbe6faace8ccb14e95a5d5b020a97bd869ba57512c6b857"
+    ]
+   },
+   "construction": "sha256(compact_json({sources: sorted[source_sha256], interpretation: interpretation_identity}))",
+   "enumeration": {
+    "closure_rule": "zero missing, zero extra - the identity covers exactly the sources capable of changing the eligibility evidence trail",
+    "excluded_with_reason": {
+     "actions / etf_prices": "feed the execution seam and the factor series",
+     "crosswalk": "feeds security lineage, not the eligibility trail",
+     "liquidity / prices": "liquidity.py raises typed REFUSALS, not ExclusionChecks; precedence rank 5 has no producer in the executing closure",
+     "sic_observations / sic_mapping": "feed the sector factor regression and the PIT sector assignment, not the eligibility trail"
+    },
+    "method": "mechanical: every module constructing an ExclusionCheck was located, and each mapped to the governed source it reads",
+    "population_determining": {
+     "mechanism": "universe decides which (symbol, session) units exist, so it changes which trails are produced even though it emits no ExclusionCheck",
+     "sources": [
+      "universe"
+     ]
+    },
+    "trail_producing": {
+     "producer": "app/research/mr002/phase3b/earnings_blackout.py - the ONLY module in the executing closure that constructs ExclusionCheck",
+     "sources": [
+      "anchors"
+     ]
+    }
+   },
+   "identity": "d2b3e01846e603c172d78f8130ea295836ce852cf859f94ee4df1cf412773f0e",
+   "interpretation": {
+    "digest_source": "git blob bytes at the bound commit, never worktree bytes",
+    "identity": "a2953da0ba12f3ca1473190cf58ad08434024081d2b8c68afd7bc6144990ab46",
+    "modules": {
+     "app/research/mr002/phase3b/candidates.py": "070ccf09e60f42b27d11a86ed10331c5e5afbf165238d7cb479d8c86ad31d113",
+     "app/research/mr002/phase3b/earnings_blackout.py": "f6c3af481edda0ba64512bc7ab9b0b9d287bd2ea2b0cb0a72a9f52e453c1cabe",
+     "app/research/mr002/spq1/constants.py": "c1661e4ae720ae292243a6159b78c464d3b84c3e8d8f41acc2e71980b2c4499b",
+     "app/research/mr002/spq1/eligibility.py": "b88ce8977f8d929bc6ff8140c2ea67fba1a447a150eafe82d6ed8715da5fea54"
+    },
+    "rule": "the two frozen earnings controls (70-calendar-day stale-anchor blackout, two-session post-release cooling) evaluated under the fixed precedence taxonomy"
+   },
+   "meaning": "the complete governed source set capable of changing the eligibility evidence trail",
+   "sources": [
+    {
+     "authority": "docs/review/mr002/phase3bc/MR002_SealedStoreUploadManifest_v1.0.json",
+     "kind": "window",
+     "object_key": "validation/anchors.parquet",
+     "sha256": "68d5132fb39edb5c1c42d41d85ba5f2d955845aaa059de4edf0acd757589e2f1",
+     "table": "anchors",
+     "version_id": "7Br5aFGWFabpIJmPgwUBQRgdhQwc2GIK"
+    },
+    {
+     "authority": "docs/review/mr002/phase3bc/MR002_SealedStoreUploadManifest_v1.0.json",
+     "kind": "window",
+     "object_key": "validation/universe.parquet",
+     "sha256": "f369f9f6601a281b7fbe6faace8ccb14e95a5d5b020a97bd869ba57512c6b857",
+     "table": "universe",
+     "version_id": "8Le8rLdT2wvdSenjEQdPaUAgdmSzx3ZO"
+    }
+   ]
+  },
+  "pit_identity_registry": {
+   "constituents": {
+    "interpretation_identity": "6e553593eac65e5c6ea3cfe0f4cb7ec6fb47199d9fb2542f43ad70d281ccb896",
+    "source_identities": [
+     "c75fe1b1362c4a6243358a1b6d68c6c5896f0823a7efe234ed0db5244dce3b16"
+    ]
+   },
+   "construction": "sha256(compact_json({sources: sorted[source_sha256], interpretation: interpretation_identity}))",
+   "identity": "b711c4d77d7a6bea2c7a51a17098cba992b0cf1b904130f3c052a4249d689ed3",
+   "interpretation": {
+    "digest_source": "git blob bytes at the bound commit, never worktree bytes",
+    "identity": "6e553593eac65e5c6ea3cfe0f4cb7ec6fb47199d9fb2542f43ad70d281ccb896",
+    "modules": {
+     "app/research/mr002/phase3b/candidates.py": "070ccf09e60f42b27d11a86ed10331c5e5afbf165238d7cb479d8c86ad31d113",
+     "app/research/mr002/spq1/security_identity.py": "3aef443508baa4bf1139afd362cfc482e217bdfdd902d48650ddb1f2fb44cc10"
+    },
+    "rule": "registered interval/lineage interpretation: permaticker/ticker effective intervals and relationship types mapped to corporate-action continuity"
+   },
+   "meaning": "the point-in-time security lineage source",
+   "sources": [
+    {
+     "authority": "docs/review/mr002/phase3bc/MR002_Phase3BC_RuntimePrerequisiteRegister_v1.3.json",
+     "content_sha256": "3a8bebf2aa03c403de125a6bbb567e4b2ff03f37ac22716b9e67be64a9701916",
+     "kind": "reference",
+     "object_key": "reference/crosswalk.parquet",
+     "sha256": "c75fe1b1362c4a6243358a1b6d68c6c5896f0823a7efe234ed0db5244dce3b16",
+     "table": "crosswalk",
+     "version_id": "ux3JpvSp7lSneFcMHhxRZ_Tp6_gx60eK"
+    }
+   ]
+  },
+  "pit_sector_source": {
+   "constituents": {
+    "interpretation_identity": "80074e17e95e2e118bcf29b42d56e4a56fc8f0d59fe638a71a6f8f55854894ff",
+    "source_identities": [
+     "67dc057ffd7faa93bf630ecc8de3b46f243b345116b9a6ed1c09494229822144"
+    ]
+   },
+   "construction": "sha256(compact_json({sources: sorted[source_sha256], interpretation: interpretation_identity}))",
+   "identity": "61e55b4dc167a653fe9d5a9b33f7d1a7c25e4a3bd26f0d4bcd95d06f0fd6bd4c",
+   "interpretation": {
+    "digest_source": "git blob bytes at the bound commit, never worktree bytes",
+    "identity": "80074e17e95e2e118bcf29b42d56e4a56fc8f0d59fe638a71a6f8f55854894ff",
+    "modules": {
+     "app/research/mr002/spq1/phase2b/cutoff.py": "5aa9c5fe042e6bef308ffd10876e84466f269e57a5d04754a6052b3e72c2a88f",
+     "app/research/mr002/spq1/sector_pit.py": "5b581ab503ec734c25b47876dd1878e8e0d0aab0d0c070d74a5f6705bf2e10d4"
+    },
+    "rule": "PIT acceptance-timestamp and close-t cutoff semantics; no forward fill before the first observation"
+   },
+   "meaning": "the point-in-time SIC observation source",
+   "sources": [
+    {
+     "authority": "docs/review/mr002/phase3bc/MR002_SealedStoreUploadManifest_v1.0.json",
+     "kind": "window",
+     "object_key": "validation/sic_observations.parquet",
+     "sha256": "67dc057ffd7faa93bf630ecc8de3b46f243b345116b9a6ed1c09494229822144",
+     "table": "sic_observations",
+     "version_id": "OkvwAKSX8W8W3HJiBoxZ9KC4ON6Vgj5t"
+    }
+   ]
+  },
+  "price_return_adjustment_policy": {
+   "carried_unchanged": true,
+   "identity": "v3",
+   "meaning": "the frozen price-series adjustment policy",
+   "rationale": "names the frozen policy, not a window-specific dataset instance, so it is window-independent and is NOT re-derived"
+  },
+  "sector_etf_proxy_mapping_table": {
+   "constituents": {
+    "interpretation_identity": "a921c683e6c148aab9a3570ab05e9f7952f7332bdce592d9c02912dceb06ec59",
+    "source_identities": [
+     "292c36a82896169f5420932af4351a822452f3a909df69b8306e3e48d2d62035"
+    ]
+   },
+   "construction": "sha256(compact_json({sources: sorted[source_sha256], interpretation: interpretation_identity}))",
+   "identity": "e2bf0d41445e4f4cb93f6a18dd43256b70647f1ec811536bd4059f0b25a37a79",
+   "interpretation": {
+    "digest_source": "git blob bytes at the bound commit, never worktree bytes",
+    "identity": "a921c683e6c148aab9a3570ab05e9f7952f7332bdce592d9c02912dceb06ec59",
+    "modules": {
+     "app/research/mr002/spq1/phase2b/sic_sector.py": "651b25bcccd11655ceaac19707daf0f6a28732cc93abdd00a1461c053f3a7a78"
+    },
+    "rule": "registered mapping-table semantics: SIC range bounds with effective dates to research_sector and sector_etf"
+   },
+   "meaning": "the SIC-range to research-sector and sector-proxy mapping",
+   "sources": [
+    {
+     "authority": "docs/review/mr002/phase3bc/MR002_Phase3BC_RuntimePrerequisiteRegister_v1.3.json",
+     "content_sha256": "b7d8283023b88489534fdc8ebfbec100470410adb3d7056a603bf87fbcef7cea",
+     "kind": "reference",
+     "object_key": "reference/sic_mapping.parquet",
+     "sha256": "292c36a82896169f5420932af4351a822452f3a909df69b8306e3e48d2d62035",
+     "table": "sic_mapping",
+     "version_id": "_wAa1EJ0wECpUcd4DH7KhrYsYl765kWL"
+    }
+   ]
+  },
+  "sector_etf_source_series": {
+   "constituents": {
+    "interpretation_identity": "b07a01b0477de329063566fdd2c44090ab075597d38d4acf57b06845401a2c92",
+    "source_identities": [
+     "a3da952c15c9cd976639513e821a9a7fc1d5236724f6763c325770fc507b3557"
+    ]
+   },
+   "construction": "sha256(compact_json({sources: sorted[source_sha256], interpretation: interpretation_identity}))",
+   "identity": "b51daaf30b6d139269299c487cf880242cd4c7a2aaf82c3baa4481d452f42229",
+   "interpretation": {
+    "digest_source": "git blob bytes at the bound commit, never worktree bytes",
+    "identity": "b07a01b0477de329063566fdd2c44090ab075597d38d4acf57b06845401a2c92",
+    "modules": {
+     "app/research/mr002/phase3b/assembly.py": "65855d63341eb3ea44ba940769f8166dfcd537d77d6cabfc5bb09287eec8ceb4",
+     "app/research/mr002/spq1/sector_factor.py": "fbd9c8d9743a35de28265d068022007ca85118b23da32ad0286b9a969970807a"
+    },
+    "rule": "sector-ETF source-series extraction over the same registered ETF object; a DIFFERENT rule over the SAME object, which is why source alone cannot identify it"
+   },
+   "meaning": "the sector-ETF proxy series used as the sector factor",
+   "sources": [
+    {
+     "authority": "docs/review/mr002/phase3bc/MR002_SealedStoreUploadManifest_v1.0.json",
+     "kind": "window",
+     "object_key": "validation/etf_prices.parquet",
+     "sha256": "a3da952c15c9cd976639513e821a9a7fc1d5236724f6763c325770fc507b3557",
+     "table": "etf_prices",
+     "version_id": ".mZyHPHgamUNlHpdePGQZq.djUapjrpo"
+    }
+   ]
+  },
+  "spy_total_return_series": {
+   "constituents": {
+    "interpretation_identity": "1ac08c94b43efbf3b0bf1b717889fbc83a972fc2c5b0656771b26d059cf0672e",
+    "source_identities": [
+     "a3da952c15c9cd976639513e821a9a7fc1d5236724f6763c325770fc507b3557"
+    ]
+   },
+   "construction": "sha256(compact_json({sources: sorted[source_sha256], interpretation: interpretation_identity}))",
+   "identity": "503ff556afdf942ac8d25af0ee3a8eed97b357cbcf57f57633aa017d6001367a",
+   "interpretation": {
+    "digest_source": "git blob bytes at the bound commit, never worktree bytes",
+    "identity": "1ac08c94b43efbf3b0bf1b717889fbc83a972fc2c5b0656771b26d059cf0672e",
+    "modules": {
+     "app/research/mr002/phase3b/assembly.py": "65855d63341eb3ea44ba940769f8166dfcd537d77d6cabfc5bb09287eec8ceb4",
+     "app/research/mr002/spq1/returns.py": "b231197e35d827d351a987077959011d33e69d5b3d1bbd8a0773a848a26fa5c8"
+    },
+    "rule": "SPY selected from the registered ETF series by the frozen proxy ticker; total-return semantics per the registered price-return adjustment policy v3"
+   },
+   "meaning": "the SPY total-return series used as the market factor",
+   "sources": [
+    {
+     "authority": "docs/review/mr002/phase3bc/MR002_SealedStoreUploadManifest_v1.0.json",
+     "kind": "window",
+     "object_key": "validation/etf_prices.parquet",
+     "sha256": "a3da952c15c9cd976639513e821a9a7fc1d5236724f6763c325770fc507b3557",
+     "table": "etf_prices",
+     "version_id": ".mZyHPHgamUNlHpdePGQZq.djUapjrpo"
+    }
+   ]
+  }
+ },
+ "status": "SUBMITTED_FOR_ADJUDICATION",
+ "version": "1.0",
+ "window": "validation"
+}

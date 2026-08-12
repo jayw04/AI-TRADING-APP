@@ -1,0 +1,9 @@
+{
+ "eligibility_evidence_sources": "d2b3e01846e603c172d78f8130ea295836ce852cf859f94ee4df1cf412773f0e",
+ "pit_identity_registry": "b711c4d77d7a6bea2c7a51a17098cba992b0cf1b904130f3c052a4249d689ed3",
+ "pit_sector_source": "61e55b4dc167a653fe9d5a9b33f7d1a7c25e4a3bd26f0d4bcd95d06f0fd6bd4c",
+ "price_return_adjustment_policy": "v3",
+ "sector_etf_proxy_mapping_table": "e2bf0d41445e4f4cb93f6a18dd43256b70647f1ec811536bd4059f0b25a37a79",
+ "sector_etf_source_series": "b51daaf30b6d139269299c487cf880242cd4c7a2aaf82c3baa4481d452f42229",
+ "spy_total_return_series": "503ff556afdf942ac8d25af0ee3a8eed97b357cbcf57f57633aa017d6001367a"
+}

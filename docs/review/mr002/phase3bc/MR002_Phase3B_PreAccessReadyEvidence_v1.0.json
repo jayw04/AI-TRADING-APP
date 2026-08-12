@@ -1,0 +1,40 @@
+{
+ "record_type": "MR002_Phase3B_PreAccessReadyEvidence",
+ "version": "1.0",
+ "artifact_kind": "QUALIFICATION_EVIDENCE",
+ "result": "PRE_ACCESS_READY_REACHED",
+ "host_instance_id": "i-00c1034f7026db45e",
+ "image": "sha256:194efbdf96ee11c19f3554dcf1b1097958cdc347bcdc1637504b441237432f51",
+ "invocation": "the real entry point, DEFAULT mode (no --mode flag supplied)",
+ "state": "S7_PRE_ACCESS_READY",
+ "disposition": "PASS",
+ "exit_code": 0,
+ "opening_consumed": false,
+ "boto3_client_constructed": false,
+ "sealed_reads": [],
+ "sealed_bytes_read": 0,
+ "output_root_after_run": "/opt/mr002/out absent - the dry run wrote nothing",
+ "pinned_input_count": 8,
+ "pinned_inputs": [
+  "reference/crosswalk.parquet", "reference/sic_mapping.parquet",
+  "validation/actions.parquet", "validation/anchors.parquet",
+  "validation/etf_prices.parquet", "validation/prices.parquet",
+  "validation/sic_observations.parquet", "validation/universe.parquet"
+ ],
+ "every_input_has_version_and_sha": true,
+ "reference_scope": {
+  "manifest_declared": ["reference/crosswalk.parquet", "reference/sic_mapping.parquet"],
+  "fetched": ["reference/crosswalk.parquet", "reference/sic_mapping.parquet"],
+  "equal": true,
+  "overrides_not_fetched": ["predecessor_overrides", "security_sector_overrides"]
+ },
+ "session_list": {"accepted": true, "count": 850, "authority": "P9 commitment d9966a3a..."},
+ "closure": {"files": 41, "set_equality_proven": true,
+             "runtime_audit": {"runtime_modules_observed": 40, "unpredicted": 0, "drift": 0}},
+ "input_identity_slots_registered": 7,
+ "authorization": {"validation_authorization": true, "_rev": 1,
+                   "store": "Git-tracked CAS state file MR002_Phase3BC_ValidationAuthorizationState_v1.0.json, compare-and-set by scripts/mr002_custody/p12_authorization.py; NOT a live AWS authorization store"},
+ "host_role_deny": {"sealed_bucket_s3": "explicitDeny", "assume_validation_reader": "explicitDeny",
+                    "method": "IAM policy simulation, never a live denial probe"},
+ "boundary": "No reader assumed, no --mode execute, no host-role change, no sealed or OOS object opened, no published_at stamped. The single validation opening remains UNSPENT."
+}
