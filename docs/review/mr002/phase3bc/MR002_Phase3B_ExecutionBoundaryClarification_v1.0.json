@@ -1,0 +1,99 @@
+{
+ "artifact_kind": "PROSPECTIVE_CLARIFICATION",
+ "clarification": "Phase 3B orchestration and execution-enrichment code MAY execute outside the P5-bound evaluator image, provided that the complete execution layer is independently enumerated, hash-bound before validation access, fails closed on identity drift, does not recompute or mutate any frozen SignalDecisionRecord fact, adds only fields permitted by the frozen enrichment schema, and emits the preregistered integrity census. The evaluator image identity remains unchanged.",
+ "classification": "A clarification of the EXECUTION BOUNDARY. It is NOT a change to signal or evaluator logic, Config A/B/C, the runtime image, the dependency lock, P10, or research economics.",
+ "conditions": [
+  {
+   "id": "EB-1",
+   "requirement": "The complete execution layer is INDEPENDENTLY ENUMERATED - every module named, none implicit."
+  },
+  {
+   "id": "EB-2",
+   "requirement": "Every enumerated module is HASH-BOUND (SHA-256) BEFORE any validation access."
+  },
+  {
+   "id": "EB-3",
+   "requirement": "The run FAILS CLOSED on identity drift of any bound module, in either the execution layer or the evaluator."
+  },
+  {
+   "id": "EB-4",
+   "requirement": "No frozen SignalDecisionRecord fact is recomputed or mutated."
+  },
+  {
+   "id": "EB-5",
+   "requirement": "Only fields permitted by the frozen ExecutionEnrichmentSchema are added."
+  },
+  {
+   "id": "EB-6",
+   "requirement": "The preregistered Phase 3B integrity census is emitted: decision_record_mutations = 0, missing_decision_enrichment_bindings = 0, duplicate_enrichment_identities = 0, future_information_violations = 0, unregistered_data_source_reads = 0, unreconciled_validation_units = 0, oos reads = 0."
+  },
+  {
+   "id": "EB-7",
+   "requirement": "The evaluator image identity is UNCHANGED at sha256:194efbdf96ee11c19f3554dcf1b1097958cdc347bcdc1637504b441237432f51."
+  }
+ ],
+ "conditions_are_conjunctive": "All seven must hold. Satisfying six is not partial compliance; it is non-compliance.",
+ "date": "2026-08-12",
+ "disposition": "OPTION A - APPROVED, subject to this clarification",
+ "evidential_basis": {
+  "decisive_finding": "ValidationRunSpecification_v1.0 binds SignalDecisionRecord_model_module_sha256 = efc26d3a..., which resolves to apps/backend/app/research/mr002/spq1/models.py - not one of the 21 modules in the governed image, and the module defining both SignalDecisionRecord and ExecutionEnrichedCandidateRecord. The frozen contract therefore already binds runtime-critical Phase 3B code outside the evaluator image, by SHA-256, and fails closed on its drift. This clarification states the rule that binding already demonstrates.",
+  "memo": "MR002_Phase3B_ExecutionBoundary_EvidenceMemo_v1.0.md",
+  "memo_commit": "3e7b502",
+  "memo_sha256": "dc04fafe26f5255c8f5d613ca415ff220108f426fe85596c4505b678f1f96a81",
+  "supporting_records": {
+   "blocker_register": {
+    "commit": "fa9fc9a",
+    "identity_sha256": "70b3ebd295ded890004100c5d763641c44a7a0d6ae76484ceb0d5a8386d11a38"
+   },
+   "corrigendum_v1": {
+    "commit": "88c11d0",
+    "identity_sha256": "c392589988a0665aec505efe0415e89d22fe16d56c4c798058935333f0c4b1d4"
+   },
+   "corrigendum_v2": {
+    "commit": "35b43dd",
+    "identity_sha256": "ab5598f9f6707a54b71dd67cd95f4d2cca0c3b5d9c8927994326ddf2ddce7043"
+   }
+  },
+  "why_a_clarification_was_still_required": "The contract DEMONSTRATES the mechanism but never STATES the rule. Without this record the boundary would rest on inference, and any later reading would be retrospective. Recorded prospectively, it is a permission; recorded afterwards it would be a rationalization."
+ },
+ "explicitly_not_authorized_by_this_record": [
+  "validation access or any sealed-object read",
+  "Phase 3B real execution",
+  "rebuilding or rebinding the evaluator image",
+  "weakening the development PartitionGuard",
+  "changing Config A/B/C, gates, costs, folds, seams or estimators",
+  "Phase 3C metrics",
+  "OOS access"
+ ],
+ "grants": "NOTHING beyond the stated execution-boundary permission. It releases no credential, edits no trust policy, opens no partition, changes no identity, and computes no performance. validation_authorization remains true at _rev 1 and the single validation opening remains UNSPENT.",
+ "p12_consequence": {
+  "current_grant_status": "VALID but NOT YET SPENDABLE",
+  "not_required": "A repeat of the full P5 -> custody -> WP-B -> recovery copy -> P10 -> WP-F -> D3 -> P12 cycle. That would be required only under Option B, which is not adopted.",
+  "reason": "P12 binds the evaluator image index, dependency lock, numeric runtime manifest, frozen host, resolver and reader role. It names no orchestrator, runner or execution-package identity. Option A introduces exactly one identity P12 does not name - a gap, not a violation.",
+  "required_before_the_opening_may_be_spent": "A SUPPLEMENTAL EXECUTION-IDENTITY ADJUDICATION binding: the Phase 3B RunSpecification identity; the complete runner/orchestrator module roster; execution_enrichment.py; models.py and every other external runtime-critical module; an exact SHA-256 for every module; the Config A/B/C executable bindings; the sealed input manifest and version identities; the exact output contract; the run ID; the one-opening semantics; and the synthetic qualification evidence."
+ },
+ "prospectivity_proof": {
+  "bound_module_drift": 0,
+  "bound_modules_verified": 21,
+  "configuration_mapping_verified": {
+   "A": 1.75,
+   "B": 2.0,
+   "C": 2.25
+  },
+  "entry_point_scan": {
+   "files_scanned": 55,
+   "files_with_entry_point": 0,
+   "pattern": "argparse | __main__ | ^def main"
+  },
+  "evaluator_image_unchanged": "sha256:194efbdf96ee11c19f3554dcf1b1097958cdc347bcdc1637504b441237432f51",
+  "phase3b_execution_layer_present": false,
+  "v03_gate_table_sha256_verified": "1007db8204ad3dff544483614ed40f5fce1573e4dd61b9f6a1cd79d5902bdc59"
+ },
+ "prospectivity_rule": "The generator REFUSES to emit if a Phase 3B execution layer already exists, if the evaluator image identity has changed, if any bound evaluator module has drifted, or if the configuration mapping no longer matches the v0.3 gate table. This record can therefore only have been written before the layer it permits.",
+ "ratified_by": "Jay Wang (owner), 2026-08-12",
+ "record_identity_sha256": "5f54d85b1ff9193ddefdc5a7639d02e8406e28089248e92d211f47c1f300d88f",
+ "record_type": "MR002_Phase3B_ExecutionBoundaryClarification",
+ "status": "RATIFIED",
+ "version": "1.0",
+ "why_not_an_adr": "This clarifies a research-program contract boundary inside MR-002; it establishes no platform-wide architectural invariant and relaxes none. Platform invariants change by ADR; MR-002 contract boundaries are recorded as program artifacts under the frozen preregistration chain. Recorded here deliberately, not by omission."
+}
