@@ -114,7 +114,7 @@ from app.validation.eval_calendar import (
 )
 from app.validation.first_session import open_first_window_session
 from app.validation.forward_evaluator import DecisionProvider, ForwardEvaluator
-from app.validation.forward_window import ForwardRunContext, IntegrityStop
+from app.validation.forward_window import ForwardRunContext, IntegrityStop, seal_performance
 from app.validation.observation_store import (
     Account4StateProbe,
     Durability,
@@ -140,6 +140,73 @@ logger = structlog.get_logger(__name__)
 
 STOP_LOG_FILENAME = "integrity_stops.jsonl"        # store ROOT — never under observations/
 PRE_SESSION_SNAPSHOT = "ledger.pre-session.json"
+#: The immutable expected-vs-actual receipt for a PINNED first-session run (Amendment 6). Store ROOT,
+#: beside the stop log, appended on BOTH outcomes — a verification that leaves no trace is not a
+#: governed verification.
+OUTCOME_PIN_RECEIPT_FILENAME = "outcome_pin_receipts.jsonl"
+
+
+def _is_hex_digest(value: object) -> bool:
+    return isinstance(value, str) and len(value) == 64 and all(
+        c in "0123456789abcdef" for c in value)
+
+
+@dataclass(frozen=True)
+class FirstSessionOutcomePin:
+    """The owner-approved expected outcome for ONE first-session commit (Amendment 6).
+
+    ⚠⚠ Why this exists. The commit boundary lives INSIDE the runner, downstream of its own
+    `ForwardEvaluator.evaluate_session` call, and the record is append-only: a divergence between the
+    reviewed pre-commit outcome and the outcome the committing run produces could otherwise only be
+    DETECTED after the irreversible write, never PREVENTED before it. The pin closes that gap: the
+    runner still evaluates internally, exactly as it always has, and immediately before
+    `open_first_window_session` it compares the newly produced outcome against the approved
+    pre-commit evidence. A mismatch stops with NOTHING committed — no sequence allocation, no
+    commit.json, no post-commit durable ledger save.
+
+    ⚠ The pin narrows; it never supplies. It carries DIGESTS of the reviewed outcome, not the outcome
+    itself — no holdings, no returns, no census. The committed record is built from the outcome this
+    run produced, and the pin can only refuse it. That is what keeps "commit the reviewed outcome"
+    from decaying into "commit what the operator typed".
+
+    `precommit_package_sha256` names the reviewed package the expectations were read from. The runner
+    does not (and cannot) re-hash that external file; it is bound here so the receipt and the stop
+    log name WHICH approval this run executed under.
+    """
+    session_date: date
+    sealed_performance_sha256: str
+    input_evidence_digest: str
+    precommit_package_sha256: str
+
+    def __post_init__(self) -> None:
+        # Fail at CONSTRUCTION, before any leg runs: a pinned execution with a missing or malformed
+        # expectation must refuse outright, never degrade into an unpinned run.
+        for name in ("sealed_performance_sha256", "input_evidence_digest",
+                     "precommit_package_sha256"):
+            if not _is_hex_digest(getattr(self, name)):
+                raise IntegrityStop(
+                    f"the first-session outcome pin carries no usable {name}; pinned execution was "
+                    f"requested and cannot proceed without every expected digest")
+        if not isinstance(self.session_date, date):
+            raise IntegrityStop("the first-session outcome pin names no session date")
+
+    @staticmethod
+    def from_payload(payload: object) -> FirstSessionOutcomePin:
+        """Parse the governed configuration block. ⚠ CONFIGURATION IS THE ONLY SOURCE — there is no
+        environment fallback and no default; expectations that can arrive through an ungoverned
+        channel are not expectations, they are suggestions."""
+        if not isinstance(payload, dict):
+            raise IntegrityStop("first_session_outcome_pin must be an object")
+        try:
+            when = date.fromisoformat(str(payload["session_date"]))
+        except (KeyError, TypeError, ValueError) as exc:
+            raise IntegrityStop(
+                f"first_session_outcome_pin names no valid session_date: {exc}") from exc
+        return FirstSessionOutcomePin(
+            session_date=when,
+            sealed_performance_sha256=str(payload.get("sealed_performance_sha256", "")).lower(),
+            input_evidence_digest=str(payload.get("input_evidence_digest", "")).lower(),
+            precommit_package_sha256=str(payload.get("precommit_package_sha256", "")).lower())
 
 
 class SessionRunStatus(StrEnum):
@@ -221,6 +288,11 @@ class ForwardSessionRunner:
     anchor_verifier: AnchorVerifier | None = None
     external_anchor_sink: ExternalAnchorSink | None = None
     durability: Durability | None = None
+    # The owner-approved expected outcome for ONE first-session commit (Amendment 6). Optional for
+    # ordinary sessions — an unpinned run behaves exactly as before. When set, the newly produced
+    # outcome is compared against it immediately before `open_first_window_session`, and a mismatch
+    # stops with nothing committed. See `FirstSessionOutcomePin`.
+    outcome_pin: FirstSessionOutcomePin | None = None
 
     # ── the entry point a scheduler calls ─────────────────────────────────────────────────────────
     def run_session(self, session_date: date, *, run_timestamp: str) -> SessionRunResult:
@@ -241,6 +313,25 @@ class ForwardSessionRunner:
 
         count = len(records)
         last = records[-1] if records else None
+
+        # ── a pinned execution is authorized for ONE first-session commit, and for nothing else ──
+        # Checked as early as the count is known, before any data work: a stale pin left in the
+        # configuration after the approved commit must refuse a later session rather than be ignored,
+        # and a pin for a different session must never let this one run under its authority.
+        if self.outcome_pin is not None:
+            if count != 0:
+                return self._stop(
+                    iso, "OUTCOME_PIN_ALREADY_COMMITTED",
+                    f"the first-session outcome pin (package "
+                    f"{self.outcome_pin.precommit_package_sha256[:16]}…) authorizes only the FIRST "
+                    f"observation, but the record already holds {count}; remove the pin from the "
+                    f"configuration — its approval was consumed", count, exceptions)
+            if self.outcome_pin.session_date != session_date:
+                return self._stop(
+                    iso, "OUTCOME_PIN_SESSION_MISMATCH",
+                    f"the first-session outcome pin approves {self.outcome_pin.session_date} but "
+                    f"this run evaluates {iso}; an approval of one session is never an approval of "
+                    f"another", count, exceptions)
 
         # ── the independent chain-tip anchor must agree with the committed record (R5d) ──
         # Cross-verify the observation chain against the local anchor log, its signatures, AND the
@@ -422,6 +513,19 @@ class ForwardSessionRunner:
         # the ledger, not a broker.
         rebalances, orders, seeds = (1 if outcome.traded else 0), 0, (1 if outcome.record.is_seed else 0)
 
+        # ── the expected-outcome pin: the LAST refusal before anything becomes immutable ──
+        #
+        # ⚠ Placed after every measurement (the sealed payload, the decision evidence, the
+        # store-unchanged and Account-4-unchanged proofs) and IMMEDIATELY before the committing
+        # block, so what is compared is the outcome this run will actually commit — and a mismatch
+        # stops before `open_first_window_session`, before any sequence allocation, before
+        # commit.json, and before the post-commit durable ledger save. The comparison uses the
+        # SessionOutcome produced INSIDE this run; the pin supplies nothing to it.
+        if self.outcome_pin is not None:
+            pin_stop = self._verify_outcome_pin(iso, sealed, decision_evidence, count, exceptions)
+            if pin_stop is not None:
+                return pin_stop
+
         try:
             if count == 0:                                       # the governed window-open transition
                 _, first_prov, new_count = open_first_window_session(
@@ -574,6 +678,65 @@ class ForwardSessionRunner:
                 f"committed storage holds {count} observation(s) but the durable ledger is missing — "
                 f"a forward record may not continue on a fresh ledger")
         return self.ledger_factory()
+
+    def _verify_outcome_pin(self, iso: str, sealed: dict, decision_evidence: dict | None,
+                            count: int, exceptions: list[str]) -> SessionRunResult | None:
+        """Compare the outcome THIS run produced against the approved pre-commit expectation.
+
+        Returns None when both digests match (the commit may proceed) or the fail-closed stop.
+        Either way an immutable receipt line is appended FIRST — expected and actual, side by side —
+        because a verification that leaves no trace is not a governed verification, and the receipt
+        of a match is the evidence that the committed observation is the reviewed one.
+        """
+        pin = self.outcome_pin
+        assert pin is not None
+        actual_sealed, _ = seal_performance(sealed)
+        actual_evidence = str((decision_evidence or {}).get("input_evidence_digest") or "")
+        receipt = {
+            "session_date": iso,
+            "precommit_package_sha256": pin.precommit_package_sha256,
+            "expected_sealed_performance_sha256": pin.sealed_performance_sha256,
+            "actual_sealed_performance_sha256": actual_sealed,
+            "expected_input_evidence_digest": pin.input_evidence_digest,
+            "actual_input_evidence_digest": actual_evidence,
+            "matched": (actual_sealed == pin.sealed_performance_sha256
+                        and actual_evidence == pin.input_evidence_digest),
+        }
+        self._append_receipt(receipt)
+        if not actual_evidence:
+            return self._stop(
+                iso, "OUTCOME_PIN_EVIDENCE_UNAVAILABLE",
+                "pinned execution requires the evidence-binding decision provider; this run produced "
+                "no input-evidence digest to compare, so the reviewed outcome cannot be identified",
+                count, exceptions)
+        if not receipt["matched"]:
+            return self._stop(
+                iso, "OUTCOME_PIN_MISMATCH",
+                f"the outcome this run produced is not the reviewed one (package "
+                f"{pin.precommit_package_sha256[:16]}…): sealed_performance "
+                f"expected {pin.sealed_performance_sha256[:16]}… actual {actual_sealed[:16]}…, "
+                f"input_evidence expected {pin.input_evidence_digest[:16]}… actual "
+                f"{actual_evidence[:16] or '<none>'}…; nothing was committed", count, exceptions)
+        logger.info("forward_session_outcome_pin_verified", session=iso,
+                    precommit_package=pin.precommit_package_sha256,
+                    sealed_performance_sha256=actual_sealed,
+                    input_evidence_digest=actual_evidence)
+        return None
+
+    def _append_receipt(self, payload: dict) -> None:
+        """Append one expected-vs-actual line, with the SAME durability the stop log gets. A failed
+        append is fatal BEFORE the comparison outcome is acted on — see `_append_stop_log`."""
+        line = json.dumps(payload, sort_keys=True, separators=(",", ":")) + "\n"
+        path = self.store_dir / OUTCOME_PIN_RECEIPT_FILENAME
+        dur = self.durability or default_durability()
+        self.store_dir.mkdir(parents=True, exist_ok=True)
+        created = not path.exists()
+        with open(path, "a", encoding="utf-8") as fh:
+            fh.write(line)
+            fh.flush()
+            os.fsync(fh.fileno())
+        if created:
+            dur.fsync_dir(self.store_dir)
 
     def _stop(self, iso: str, code: str, detail: str, count: int,
               exceptions: list[str]) -> SessionRunResult:

@@ -121,7 +121,11 @@ class _ReadinessReport:
         print(json.dumps({"mode": "readiness", "session_date": self.session_date,
                           "verdict": self.verdict, "detail": self.detail,
                           "evidence": self.evidence}, indent=2, default=str))
-        return 0 if self.verdict == "READY" else 1
+        # Membership, not `== "READY"`: a hard-coded literal would exit 1 for a session that IS
+        # evaluable under disclosed limitations, reporting a governed outcome as a failure.
+        from app.validation.data_finality import READINESS_PERMITS_EVALUATION
+
+        return 0 if self.verdict in {str(v) for v in READINESS_PERMITS_EVALUATION} else 1
 
 
 def _governing_today() -> date:
@@ -214,9 +218,19 @@ def run_readiness(config: ForwardDeploymentConfig, session: date,
         evidence["provider_identities"] = {
             "scores": provider_identity(scores), "bars": provider_identity(bars)}
 
+        # The ACTUAL deployed identity comes from the evidence-derived deployment probe above, never
+        # from a default or a caller assertion; the EXPECTED identity comes from the governed freeze.
+        from app.validation.measurement_freeze import load_measurement_freeze
+
+        freeze = load_measurement_freeze(config.measurement_freeze_path)
+        evidence["measurement_freeze"] = freeze.to_open_provenance()
         ctx = build_forward_context(session, dgs3mo_path=config.dgs3mo_path,
                                     trial_ledger_path=config.trial_ledger_path,
-                                    ledger_account_id=config.ledger_account_id)
+                                    ledger_account_id=config.ledger_account_id,
+                                    code_commit=deployment.agreed_commit,
+                                    measurement_freeze=freeze,
+                                    runtime_root=config.runtime_root,
+                                    ancestry_marker=config.ancestry_marker_path)
         evidence["context_session"] = ctx.session_date.isoformat()
 
         probe = _probe(config)
@@ -224,6 +238,18 @@ def run_readiness(config: ForwardDeploymentConfig, session: date,
 
         if not finality.ready:
             return _ReadinessReport(iso, str(finality.verdict), finality.detail, evidence)
+        # ⚠ The ACTUAL verdict is reported, never a hard-coded "READY". A session that is evaluable
+        # under DISCLOSED LIMITATIONS is not the same result as a fully proven one, and flattening the
+        # two here would erase that distinction at exactly the point an operator reads it.
+        if finality.has_disclosed_limitations:
+            lim = finality.to_open_provenance().get("disclosed_limitations") or {}
+            return _ReadinessReport(
+                iso, str(finality.verdict),
+                f"every data, artifact, deployment, binding and Account-4 check passed, and the "
+                f"decision path is proven valid — but FULL ACTION SEMANTICS ARE NOT PROVEN: "
+                f"{lim.get('limitation_count', 0)} economically terminal corporate action(s) remain "
+                f"economically unproven and are disclosed under {lim.get('limitation_status')}; "
+                f"no session was evaluated", evidence)
         return _ReadinessReport(iso, "READY",
                                 "every data, artifact, deployment, binding and Account-4 check passed; "
                                 "no session was evaluated", evidence)

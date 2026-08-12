@@ -1,0 +1,2 @@
+# QUALIFIED O34 candidate archives — pin exact bytes (SHA-256 bind in FREEZE-003).
+*.json -text

@@ -81,6 +81,17 @@ class AuditAction(StrEnum):
     # ADR 0043 PR6 — a recovery-preflight request or authorization (control plane). The durable
     # evidence is the risk_recovery_preflights parent + its 12 child checks; this is the actor trail.
     LOSS_CONTROL_RECOVERY = "LOSS_CONTROL_RECOVERY"
+    # ADR 0043 Phase 0 — an account's risk_loss_control_state row was explicitly provisioned to
+    # NORMAL via the governed bootstrap tool (scripts/adr0043_bootstrap_loss_control.py), BEFORE
+    # enforcement traffic. This is a provisioning act, NOT a state-machine transition: no
+    # risk_control_events row accompanies it. Payload: account_id, initial_state, state_version,
+    # reason, authority. Written atomically with the state row itself (one transaction).
+    # See docs/runbook/risk-gates.md.
+    LOSS_CONTROL_STATE_BOOTSTRAPPED = "LOSS_CONTROL_STATE_BOOTSTRAPPED"
+    # ADR 0043 canary Model A — Start A baseline capture success, reuse, or refusal.
+    # Payload: outcome (CAPTURED|REUSED|REFUSED), reason_code, start_a_id, freeze_id,
+    # account_id, session_date, baseline_id (when present).
+    CANARY_MODEL_A_BASELINE_CAPTURE = "CANARY_MODEL_A_BASELINE_CAPTURE"
 
     # ---- Operations & Reliability (P11 §3) ----
     # Recorded when reconciliation finds the broker's reality diverges from local state

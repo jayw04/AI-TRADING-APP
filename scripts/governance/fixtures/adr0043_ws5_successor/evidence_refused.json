@@ -1,0 +1,30 @@
+{
+  "activities_count": null,
+  "approved_calls_in_order": [
+    "GET /v2/account"
+  ],
+  "artifact_sha256": "439613a0fae9a7327e2611c814baeb7b4a7089e17b7acffcabf8c5d8a35bad0b",
+  "authoritative_start_a_baseline": false,
+  "broker_access_mode": "read_only",
+  "cash": null,
+  "completed_at_utc": "2026-08-03T00:00:00Z",
+  "credential_key_fingerprint": "ffab8796516a",
+  "credential_secret_fingerprint": "c2cab6509f1b",
+  "equity": null,
+  "expected_account_id": "PA3E97RWHKQZ",
+  "failure_code": "account_identity_mismatch: expected PA3E97RWHKQZ, got PA34USW0Q8UO",
+  "image_manifest_digest": "sha256:c0c1b0c48fbb4d4318207f589ee9a64ee795ca34100028bfd84d4d9d81c6a54d",
+  "last_equity": null,
+  "mutation_attempt_count": 0,
+  "orders_count": null,
+  "portfolio_value": null,
+  "position_market_value": null,
+  "positions_count": null,
+  "returned_account_id": "PA34USW0Q8UO",
+  "run_id": "fixture-refused",
+  "schema_version": "adr0043-ws5-stage-c/1.0",
+  "source_commit": "1880fcdb05e367306e81fa96b355b996f73b7819",
+  "started_at_utc": "2026-08-03T00:00:00Z",
+  "terminal_disposition": "REFUSED",
+  "transport_dispatch_count": 1
+}

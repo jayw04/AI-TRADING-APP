@@ -1,0 +1,284 @@
+{
+  "document_id": "ADR0043-PH0-D-BOX-O34-ACQ-QUAL-001",
+  "outcome": "QUALIFIED",
+  "qualified_at_utc": "2026-07-30T13:43:44Z",
+  "qualifier": "independent-qualifier-o34-acq-001",
+  "independent_of_constructor": true,
+  "constructor_tool": "construct_o34_archives.py",
+  "qualifier_tool": "qualify_o34_archives.py",
+  "bindings": {
+    "freeze_body_sha256": "80dfd8ec6d90182cdeabaab2d1457720ca417bcd5cb1511b4dd9d77989951bb0",
+    "sqlite_snapshot_sha256": "26bae1f5b754c4ff80e031126674d1818ae4a9a90e4faa6b36820f2690278d5b",
+    "construction_merge": "5def3824937b85e859345f6691f2cb37b432105f",
+    "o3_sha256": "53b3310c8db3cdfd3d60a2de3bec990a6eaab8864dd592afc4590e57fc9008b0",
+    "o4a_sha256": "3ba73e61f5e8955a184d820c0aba4ed387de453c30fc6a22d168d84074403c49",
+    "o4b_sha256": "e349f49465aa2689e6c24e20d6ae32286f0a447bfbcdf3b2fbbc531c656bae95"
+  },
+  "findings": [
+    {
+      "check": "O3.hash",
+      "pass": true,
+      "detail": "got=53b3310c8db3cdfd3d60a2de3bec990a6eaab8864dd592afc4590e57fc9008b0 expected=53b3310c8db3cdfd3d60a2de3bec990a6eaab8864dd592afc4590e57fc9008b0"
+    },
+    {
+      "check": "O3.size",
+      "pass": true,
+      "detail": "got=164706 expected=164706"
+    },
+    {
+      "check": "O4_A.hash",
+      "pass": true,
+      "detail": "got=3ba73e61f5e8955a184d820c0aba4ed387de453c30fc6a22d168d84074403c49 expected=3ba73e61f5e8955a184d820c0aba4ed387de453c30fc6a22d168d84074403c49"
+    },
+    {
+      "check": "O4_A.size",
+      "pass": true,
+      "detail": "got=190328 expected=190328"
+    },
+    {
+      "check": "O4_B.hash",
+      "pass": true,
+      "detail": "got=e349f49465aa2689e6c24e20d6ae32286f0a447bfbcdf3b2fbbc531c656bae95 expected=e349f49465aa2689e6c24e20d6ae32286f0a447bfbcdf3b2fbbc531c656bae95"
+    },
+    {
+      "check": "O4_B.size",
+      "pass": true,
+      "detail": "got=260426 expected=260426"
+    },
+    {
+      "check": "sqlite.hash",
+      "pass": true,
+      "detail": "got=26bae1f5b754c4ff80e031126674d1818ae4a9a90e4faa6b36820f2690278d5b expected=26bae1f5b754c4ff80e031126674d1818ae4a9a90e4faa6b36820f2690278d5b"
+    },
+    {
+      "check": "O3.schema_file",
+      "pass": true,
+      "detail": "/tmp/ADR0043_Phase0_O34_O3_Archive.schema.json"
+    },
+    {
+      "check": "O3.required_fields",
+      "pass": true,
+      "detail": "ok"
+    },
+    {
+      "check": "O3.kind",
+      "pass": true,
+      "detail": "O3_HISTORICAL_REPLAY"
+    },
+    {
+      "check": "O3.schema_id",
+      "pass": true,
+      "detail": "ADR0043-PH0-D-BOX-O34-O3-ARCHIVE-SCHEMA-001"
+    },
+    {
+      "check": "O3.freeze_id",
+      "pass": true,
+      "detail": "ADR0043-PH0-D-BOX-O34-ACQ-FREEZE-001"
+    },
+    {
+      "check": "O3.account_scope",
+      "pass": true,
+      "detail": "{'broker_account_id': 'PA34USW0Q8UO', 'workbench_account_id': 3}"
+    },
+    {
+      "check": "O3.window",
+      "pass": true,
+      "detail": "{'end_exclusive_utc': '2026-07-30T00:21:33Z', 'start_inclusive_utc': '2026-06-30T00:00:00Z'}"
+    },
+    {
+      "check": "O4_A.schema_file",
+      "pass": true,
+      "detail": "/tmp/ADR0043_Phase0_O34_O4A_Archive.schema.json"
+    },
+    {
+      "check": "O4_A.required_fields",
+      "pass": true,
+      "detail": "ok"
+    },
+    {
+      "check": "O4_A.kind",
+      "pass": true,
+      "detail": "O4A_DECISION_TIME"
+    },
+    {
+      "check": "O4_A.schema_id",
+      "pass": true,
+      "detail": "ADR0043-PH0-D-BOX-O34-O4A-ARCHIVE-SCHEMA-001"
+    },
+    {
+      "check": "O4_A.freeze_id",
+      "pass": true,
+      "detail": "ADR0043-PH0-D-BOX-O34-ACQ-FREEZE-001"
+    },
+    {
+      "check": "O4_A.account_scope",
+      "pass": true,
+      "detail": "{'broker_account_id': 'PA34USW0Q8UO', 'workbench_account_id': 3}"
+    },
+    {
+      "check": "O4_A.window",
+      "pass": true,
+      "detail": "{'end_exclusive_utc': '2026-07-30T00:21:33Z', 'start_inclusive_utc': '2026-06-30T00:00:00Z'}"
+    },
+    {
+      "check": "O4_B.schema_file",
+      "pass": true,
+      "detail": "/tmp/ADR0043_Phase0_O34_O4B_Archive.schema.json"
+    },
+    {
+      "check": "O4_B.required_fields",
+      "pass": true,
+      "detail": "ok"
+    },
+    {
+      "check": "O4_B.kind",
+      "pass": true,
+      "detail": "O4B_FORENSIC"
+    },
+    {
+      "check": "O4_B.schema_id",
+      "pass": true,
+      "detail": "ADR0043-PH0-D-BOX-O34-O4B-ARCHIVE-SCHEMA-001"
+    },
+    {
+      "check": "O4_B.freeze_id",
+      "pass": true,
+      "detail": "ADR0043-PH0-D-BOX-O34-ACQ-FREEZE-001"
+    },
+    {
+      "check": "O4_B.account_scope",
+      "pass": true,
+      "detail": "{'broker_account_id': 'PA34USW0Q8UO', 'workbench_account_id': 3}"
+    },
+    {
+      "check": "O4_B.window",
+      "pass": true,
+      "detail": "{'end_exclusive_utc': '2026-07-30T00:21:33Z', 'start_inclusive_utc': '2026-06-30T00:00:00Z'}"
+    },
+    {
+      "check": "O3.counts",
+      "pass": true,
+      "detail": "{'n_clusters': 20, 'n_observations': 292, 'n_unique_plans': 292}"
+    },
+    {
+      "check": "O4_A.counts",
+      "pass": true,
+      "detail": "{'n_observations': 287, 'n_unique_plans': 287}"
+    },
+    {
+      "check": "O4_B.counts",
+      "pass": true,
+      "detail": "{'n_fills': 286, 'n_observations': 286, 'n_unique_plans': 286}"
+    },
+    {
+      "check": "O3.dedup",
+      "pass": true,
+      "detail": "Counter({'ord:1080': 1, 'ord:1081': 1, 'ord:1082': 1, 'ord:1083': 1, 'ord:1084': 1, 'ord:1085': 1, 'ord:1086': 1, 'ord:1087': 1, 'ord:1088': 1, 'ord:1089': 1, 'ord:1090': 1, 'ord:1091': 1, 'ord:1092': 1, 'ord:1093': 1, 'ord:1094': 1, 'ord:1095': 1, 'ord:1096': 1, 'ord:1097': 1, 'ord:1098': 1, 'ord:1099': 1, 'ord:1100': 1, 'ord:1101': 1, 'ord:1102': 1, 'ord:1103': 1, 'ord:1104': 1, 'ord:1105': 1, 'ord:1106': 1, 'ord:1107': 1, 'ord:1108': 1, 'ord:1109': 1, 'ord:1110': 1, 'ord:1111': 1, 'ord:1112': 1, 'ord:1113': 1, 'ord:1114': 1, 'ord:1115': 1, 'ord:1116': 1, 'ord:1117': 1, 'ord:1118': 1, 'ord:1119': 1, 'ord:1120': 1, 'ord:1121': 1, 'ord:1122': 1, 'ord:1123': 1, 'ord:1124': 1, 'ord:1125': 1, 'ord:1126': 1, 'ord:1127': 1, 'ord:1128': 1, 'ord:1129': 1, 'ord:1130': 1, 'ord:1131': 1, 'ord:1132': 1, 'ord:1133': 1, 'ord:1134': 1, 'ord:1135': 1, 'ord:1136': 1, 'ord:1137': 1, 'ord:1138': 1, 'ord:1139': 1, 'ord:1140': 1, 'ord:1141': 1, 'ord:1142': 1, 'ord:1143': 1, 'ord:1144': 1, 'ord:1145': 1, 'ord:1146': 1, 'ord:1147': 1, 'ord:1148': 1, 'ord:1149': 1, 'ord:1150': 1, 'ord:1151': 1, 'ord:1152': 1, 'ord:1153': 1, 'ord:1154': 1, 'ord:1155': 1, 'ord:1156': 1, 'ord:1157': 1, 'ord:1158': 1, 'ord:1159': 1, 'ord:1160': 1, 'ord:1161': 1, 'ord:1162': 1, 'ord:1163': 1, 'ord:1164': 1, 'ord:1165': 1, 'ord:1166': 1, 'ord:1167': 1, 'ord:1168': 1, 'ord:1169': 1, 'ord:1170': 1, 'ord:1171': 1, 'ord:1172': 1, 'ord:1173': 1, 'ord:1174': 1, 'ord:1175': 1, 'ord:1176': 1, 'ord:1177': 1, 'ord:1178': 1, 'ord:1179': 1, 'ord:1180': 1, 'ord:1181': 1, 'ord:1182': 1, 'ord:1183': 1, 'ord:1184': 1, 'ord:1185': 1, 'ord:1186': 1, 'ord:1187': 1, 'ord:1188': 1, 'ord:1189': 1, 'ord:1190': 1, 'ord:1191': 1, 'ord:1192': 1, 'ord:1193': 1, 'ord:1194': 1, 'ord:1195': 1, 'ord:1196': 1, 'ord:1197': 1, 'ord:1198': 1, 'ord:1199': 1, 'ord:1200': 1, 'ord:1201': 1, 'ord:1202': 1, 'ord:1203': 1, 'ord:1204': 1, 'ord:1205': 1, 'ord:1206': 1, 'ord:1207': 1, 'ord:1208': 1, 'ord:1209': 1, 'ord:1210': 1, 'ord:1211': 1, 'ord:1212': 1, 'ord:1214': 1, 'ord:1215': 1, 'ord:1216': 1, 'ord:1217': 1, 'ord:1218': 1, 'ord:1219': 1, 'ord:1220': 1, 'ord:1221': 1, 'ord:1222': 1, 'ord:1223': 1, 'ord:1224': 1, 'ord:1225': 1, 'ord:1226': 1, 'ord:1227': 1, 'ord:1228': 1, 'ord:1229': 1, 'ord:1230': 1, 'ord:1231': 1, 'ord:1232': 1, 'ord:1233': 1, 'ord:1234': 1, 'ord:1235': 1, 'ord:1236': 1, 'ord:1237': 1, 'ord:1238': 1, 'ord:1239': 1, 'ord:1240': 1, 'ord:1241': 1, 'ord:1242': 1, 'ord:1243': 1, 'ord:1244': 1, 'ord:1245': 1, 'ord:1246': 1, 'ord:1247': 1, 'ord:1248': 1, 'ord:1249': 1, 'ord:1250': 1, 'ord:1251': 1, 'ord:1252': 1, 'ord:1253': 1, 'ord:1254': 1, 'ord:1255': 1, 'ord:1256': 1, 'ord:1257': 1, 'ord:1258': 1, 'ord:1259': 1, 'ord:1260': 1, 'ord:1261': 1, 'ord:1264': 1, 'ord:1265': 1, 'ord:1266': 1, 'ord:1267': 1, 'ord:1268': 1, 'ord:1269': 1, 'ord:1270': 1, 'ord:1271': 1, 'ord:1272': 1, 'ord:1273': 1, 'ord:1274': 1, 'ord:1275': 1, 'ord:1276': 1, 'ord:1277': 1, 'ord:1278': 1, 'ord:1279': 1, 'ord:1280': 1, 'ord:1281': 1, 'ord:1282': 1, 'ord:1283': 1, 'ord:1288': 1, 'ord:1289': 1, 'ord:1290': 1, 'ord:1291': 1, 'ord:1292': 1, 'ord:1293': 1, 'ord:1294': 1, 'ord:1295': 1, 'ord:1296': 1, 'ord:1297': 1, 'ord:1301': 1, 'ord:1302': 1, 'ord:1303': 1, 'ord:1304': 1, 'ord:1305': 1, 'ord:1306': 1, 'ord:1307': 1, 'ord:1308': 1, 'ord:1309': 1, 'ord:1310': 1, 'ord:1311': 1, 'ord:1313': 1, 'ord:1314': 1, 'ord:1315': 1, 'ord:1316': 1, 'ord:1317': 1, 'ord:1318': 1, 'ord:1319': 1, 'ord:1320': 1, 'ord:1321': 1, 'ord:1322': 1, 'ord:1323': 1, 'ord:1324': 1, 'ord:1325': 1, 'ord:1326': 1, 'ord:1327': 1, 'ord:1328': 1, 'ord:1329': 1, 'ord:1330': 1, 'ord:1331': 1, 'ord:1332': 1, 'ord:1333': 1, 'ord:1334': 1, 'ord:1335': 1, 'ord:1336': 1, 'ord:1337': 1, 'ord:1338': 1, 'ord:1339': 1, 'ord:1340': 1, 'ord:1341': 1, 'ord:1342': 1, 'ord:1343': 1, 'ord:1344': 1, 'ord:1345': 1, 'ord:1346': 1, 'ord:1347': 1, 'ord:1348': 1, 'ord:1349': 1, 'ord:1350': 1, 'ord:1351': 1, 'ord:1353': 1, 'ord:1356': 1, 'ord:1357': 1, 'ord:1358': 1, 'ord:1359': 1, 'ord:1360': 1, 'ord:1361': 1, 'ord:1362': 1, 'ord:1363': 1, 'ord:1364': 1, 'ord:1365': 1, 'ord:1366': 1, 'ord:1367': 1, 'ord:1368': 1, 'ord:1369': 1, 'ord:1370': 1, 'ord:1371': 1, 'ord:1372': 1, 'ord:1373': 1, 'ord:1374': 1, 'ord:1375': 1, 'ord:1376': 1, 'ord:1377': 1, 'ord:1378': 1, 'ord:1379': 1, 'ord:1380': 1, 'ord:1381': 1, 'ord:1382': 1, 'ord:1383': 1, 'ord:1384': 1, 'ord:1385': 1})"
+    },
+    {
+      "check": "O4_A.dedup",
+      "pass": true,
+      "detail": "Counter({'ord:1080': 1, 'ord:1081': 1, 'ord:1082': 1, 'ord:1083': 1, 'ord:1084': 1, 'ord:1085': 1, 'ord:1086': 1, 'ord:1087': 1, 'ord:1088': 1, 'ord:1089': 1, 'ord:1090': 1, 'ord:1091': 1, 'ord:1092': 1, 'ord:1093': 1, 'ord:1094': 1, 'ord:1095': 1, 'ord:1096': 1, 'ord:1097': 1, 'ord:1098': 1, 'ord:1099': 1, 'ord:1100': 1, 'ord:1101': 1, 'ord:1102': 1, 'ord:1103': 1, 'ord:1104': 1, 'ord:1105': 1, 'ord:1106': 1, 'ord:1107': 1, 'ord:1108': 1, 'ord:1109': 1, 'ord:1110': 1, 'ord:1111': 1, 'ord:1112': 1, 'ord:1113': 1, 'ord:1114': 1, 'ord:1115': 1, 'ord:1116': 1, 'ord:1117': 1, 'ord:1118': 1, 'ord:1119': 1, 'ord:1120': 1, 'ord:1121': 1, 'ord:1122': 1, 'ord:1123': 1, 'ord:1124': 1, 'ord:1125': 1, 'ord:1126': 1, 'ord:1127': 1, 'ord:1128': 1, 'ord:1129': 1, 'ord:1130': 1, 'ord:1131': 1, 'ord:1132': 1, 'ord:1133': 1, 'ord:1134': 1, 'ord:1135': 1, 'ord:1136': 1, 'ord:1137': 1, 'ord:1138': 1, 'ord:1139': 1, 'ord:1140': 1, 'ord:1141': 1, 'ord:1142': 1, 'ord:1143': 1, 'ord:1144': 1, 'ord:1145': 1, 'ord:1146': 1, 'ord:1147': 1, 'ord:1148': 1, 'ord:1149': 1, 'ord:1150': 1, 'ord:1151': 1, 'ord:1152': 1, 'ord:1153': 1, 'ord:1154': 1, 'ord:1155': 1, 'ord:1156': 1, 'ord:1157': 1, 'ord:1158': 1, 'ord:1159': 1, 'ord:1160': 1, 'ord:1161': 1, 'ord:1162': 1, 'ord:1163': 1, 'ord:1164': 1, 'ord:1165': 1, 'ord:1166': 1, 'ord:1167': 1, 'ord:1168': 1, 'ord:1169': 1, 'ord:1170': 1, 'ord:1171': 1, 'ord:1172': 1, 'ord:1173': 1, 'ord:1174': 1, 'ord:1175': 1, 'ord:1176': 1, 'ord:1177': 1, 'ord:1178': 1, 'ord:1179': 1, 'ord:1180': 1, 'ord:1181': 1, 'ord:1182': 1, 'ord:1183': 1, 'ord:1184': 1, 'ord:1185': 1, 'ord:1186': 1, 'ord:1187': 1, 'ord:1188': 1, 'ord:1189': 1, 'ord:1190': 1, 'ord:1191': 1, 'ord:1192': 1, 'ord:1193': 1, 'ord:1194': 1, 'ord:1195': 1, 'ord:1196': 1, 'ord:1197': 1, 'ord:1198': 1, 'ord:1199': 1, 'ord:1200': 1, 'ord:1201': 1, 'ord:1202': 1, 'ord:1203': 1, 'ord:1204': 1, 'ord:1205': 1, 'ord:1206': 1, 'ord:1207': 1, 'ord:1208': 1, 'ord:1209': 1, 'ord:1210': 1, 'ord:1211': 1, 'ord:1212': 1, 'ord:1214': 1, 'ord:1215': 1, 'ord:1216': 1, 'ord:1217': 1, 'ord:1218': 1, 'ord:1219': 1, 'ord:1220': 1, 'ord:1221': 1, 'ord:1222': 1, 'ord:1223': 1, 'ord:1224': 1, 'ord:1225': 1, 'ord:1226': 1, 'ord:1227': 1, 'ord:1228': 1, 'ord:1229': 1, 'ord:1230': 1, 'ord:1231': 1, 'ord:1232': 1, 'ord:1233': 1, 'ord:1234': 1, 'ord:1235': 1, 'ord:1236': 1, 'ord:1237': 1, 'ord:1238': 1, 'ord:1239': 1, 'ord:1240': 1, 'ord:1241': 1, 'ord:1242': 1, 'ord:1243': 1, 'ord:1245': 1, 'ord:1246': 1, 'ord:1247': 1, 'ord:1248': 1, 'ord:1249': 1, 'ord:1251': 1, 'ord:1253': 1, 'ord:1254': 1, 'ord:1255': 1, 'ord:1257': 1, 'ord:1258': 1, 'ord:1260': 1, 'ord:1261': 1, 'ord:1264': 1, 'ord:1265': 1, 'ord:1266': 1, 'ord:1267': 1, 'ord:1268': 1, 'ord:1269': 1, 'ord:1270': 1, 'ord:1271': 1, 'ord:1272': 1, 'ord:1273': 1, 'ord:1274': 1, 'ord:1275': 1, 'ord:1276': 1, 'ord:1277': 1, 'ord:1278': 1, 'ord:1279': 1, 'ord:1280': 1, 'ord:1281': 1, 'ord:1282': 1, 'ord:1283': 1, 'ord:1288': 1, 'ord:1289': 1, 'ord:1290': 1, 'ord:1291': 1, 'ord:1292': 1, 'ord:1293': 1, 'ord:1294': 1, 'ord:1295': 1, 'ord:1296': 1, 'ord:1297': 1, 'ord:1301': 1, 'ord:1302': 1, 'ord:1303': 1, 'ord:1304': 1, 'ord:1305': 1, 'ord:1306': 1, 'ord:1307': 1, 'ord:1308': 1, 'ord:1309': 1, 'ord:1310': 1, 'ord:1311': 1, 'ord:1313': 1, 'ord:1314': 1, 'ord:1315': 1, 'ord:1316': 1, 'ord:1317': 1, 'ord:1318': 1, 'ord:1319': 1, 'ord:1320': 1, 'ord:1321': 1, 'ord:1322': 1, 'ord:1323': 1, 'ord:1324': 1, 'ord:1325': 1, 'ord:1326': 1, 'ord:1327': 1, 'ord:1328': 1, 'ord:1329': 1, 'ord:1330': 1, 'ord:1331': 1, 'ord:1332': 1, 'ord:1333': 1, 'ord:1334': 1, 'ord:1335': 1, 'ord:1336': 1, 'ord:1337': 1, 'ord:1338': 1, 'ord:1339': 1, 'ord:1340': 1, 'ord:1341': 1, 'ord:1342': 1, 'ord:1343': 1, 'ord:1344': 1, 'ord:1345': 1, 'ord:1346': 1, 'ord:1347': 1, 'ord:1348': 1, 'ord:1349': 1, 'ord:1350': 1, 'ord:1351': 1, 'ord:1353': 1, 'ord:1356': 1, 'ord:1357': 1, 'ord:1358': 1, 'ord:1359': 1, 'ord:1360': 1, 'ord:1361': 1, 'ord:1362': 1, 'ord:1363': 1, 'ord:1364': 1, 'ord:1365': 1, 'ord:1366': 1, 'ord:1367': 1, 'ord:1368': 1, 'ord:1369': 1, 'ord:1370': 1, 'ord:1371': 1, 'ord:1372': 1, 'ord:1373': 1, 'ord:1374': 1, 'ord:1375': 1, 'ord:1376': 1, 'ord:1377': 1, 'ord:1378': 1, 'ord:1379': 1, 'ord:1380': 1, 'ord:1381': 1, 'ord:1382': 1, 'ord:1383': 1, 'ord:1384': 1, 'ord:1385': 1})"
+    },
+    {
+      "check": "O4_B.dedup",
+      "pass": true,
+      "detail": "Counter({'ord:1080': 1, 'ord:1081': 1, 'ord:1082': 1, 'ord:1083': 1, 'ord:1084': 1, 'ord:1085': 1, 'ord:1086': 1, 'ord:1087': 1, 'ord:1088': 1, 'ord:1089': 1, 'ord:1090': 1, 'ord:1091': 1, 'ord:1092': 1, 'ord:1093': 1, 'ord:1094': 1, 'ord:1095': 1, 'ord:1096': 1, 'ord:1097': 1, 'ord:1098': 1, 'ord:1099': 1, 'ord:1100': 1, 'ord:1101': 1, 'ord:1102': 1, 'ord:1103': 1, 'ord:1104': 1, 'ord:1105': 1, 'ord:1106': 1, 'ord:1107': 1, 'ord:1108': 1, 'ord:1109': 1, 'ord:1110': 1, 'ord:1111': 1, 'ord:1112': 1, 'ord:1113': 1, 'ord:1114': 1, 'ord:1115': 1, 'ord:1116': 1, 'ord:1117': 1, 'ord:1118': 1, 'ord:1119': 1, 'ord:1120': 1, 'ord:1121': 1, 'ord:1122': 1, 'ord:1123': 1, 'ord:1124': 1, 'ord:1125': 1, 'ord:1126': 1, 'ord:1127': 1, 'ord:1128': 1, 'ord:1129': 1, 'ord:1130': 1, 'ord:1131': 1, 'ord:1132': 1, 'ord:1133': 1, 'ord:1134': 1, 'ord:1135': 1, 'ord:1136': 1, 'ord:1137': 1, 'ord:1138': 1, 'ord:1139': 1, 'ord:1140': 1, 'ord:1141': 1, 'ord:1142': 1, 'ord:1143': 1, 'ord:1144': 1, 'ord:1145': 1, 'ord:1146': 1, 'ord:1147': 1, 'ord:1148': 1, 'ord:1149': 1, 'ord:1150': 1, 'ord:1151': 1, 'ord:1152': 1, 'ord:1153': 1, 'ord:1154': 1, 'ord:1155': 1, 'ord:1156': 1, 'ord:1157': 1, 'ord:1158': 1, 'ord:1159': 1, 'ord:1160': 1, 'ord:1161': 1, 'ord:1162': 1, 'ord:1163': 1, 'ord:1164': 1, 'ord:1165': 1, 'ord:1166': 1, 'ord:1167': 1, 'ord:1168': 1, 'ord:1169': 1, 'ord:1170': 1, 'ord:1171': 1, 'ord:1172': 1, 'ord:1173': 1, 'ord:1174': 1, 'ord:1175': 1, 'ord:1176': 1, 'ord:1177': 1, 'ord:1178': 1, 'ord:1179': 1, 'ord:1180': 1, 'ord:1181': 1, 'ord:1182': 1, 'ord:1183': 1, 'ord:1184': 1, 'ord:1185': 1, 'ord:1186': 1, 'ord:1187': 1, 'ord:1188': 1, 'ord:1189': 1, 'ord:1190': 1, 'ord:1191': 1, 'ord:1192': 1, 'ord:1193': 1, 'ord:1194': 1, 'ord:1195': 1, 'ord:1196': 1, 'ord:1197': 1, 'ord:1198': 1, 'ord:1199': 1, 'ord:1200': 1, 'ord:1201': 1, 'ord:1202': 1, 'ord:1203': 1, 'ord:1204': 1, 'ord:1205': 1, 'ord:1206': 1, 'ord:1207': 1, 'ord:1208': 1, 'ord:1209': 1, 'ord:1210': 1, 'ord:1211': 1, 'ord:1212': 1, 'ord:1214': 1, 'ord:1215': 1, 'ord:1216': 1, 'ord:1217': 1, 'ord:1218': 1, 'ord:1219': 1, 'ord:1220': 1, 'ord:1221': 1, 'ord:1222': 1, 'ord:1223': 1, 'ord:1224': 1, 'ord:1225': 1, 'ord:1226': 1, 'ord:1227': 1, 'ord:1228': 1, 'ord:1229': 1, 'ord:1230': 1, 'ord:1231': 1, 'ord:1232': 1, 'ord:1233': 1, 'ord:1234': 1, 'ord:1235': 1, 'ord:1236': 1, 'ord:1237': 1, 'ord:1238': 1, 'ord:1239': 1, 'ord:1240': 1, 'ord:1241': 1, 'ord:1242': 1, 'ord:1243': 1, 'ord:1245': 1, 'ord:1246': 1, 'ord:1247': 1, 'ord:1248': 1, 'ord:1249': 1, 'ord:1251': 1, 'ord:1253': 1, 'ord:1254': 1, 'ord:1255': 1, 'ord:1257': 1, 'ord:1258': 1, 'ord:1260': 1, 'ord:1261': 1, 'ord:1264': 1, 'ord:1265': 1, 'ord:1266': 1, 'ord:1267': 1, 'ord:1268': 1, 'ord:1269': 1, 'ord:1270': 1, 'ord:1271': 1, 'ord:1272': 1, 'ord:1273': 1, 'ord:1274': 1, 'ord:1275': 1, 'ord:1276': 1, 'ord:1277': 1, 'ord:1278': 1, 'ord:1279': 1, 'ord:1280': 1, 'ord:1281': 1, 'ord:1282': 1, 'ord:1283': 1, 'ord:1288': 1, 'ord:1289': 1, 'ord:1290': 1, 'ord:1291': 1, 'ord:1292': 1, 'ord:1293': 1, 'ord:1294': 1, 'ord:1295': 1, 'ord:1296': 1, 'ord:1297': 1, 'ord:1301': 1, 'ord:1302': 1, 'ord:1303': 1, 'ord:1304': 1, 'ord:1305': 1, 'ord:1306': 1, 'ord:1307': 1, 'ord:1308': 1, 'ord:1309': 1, 'ord:1310': 1, 'ord:1311': 1, 'ord:1313': 1, 'ord:1314': 1, 'ord:1315': 1, 'ord:1316': 1, 'ord:1317': 1, 'ord:1318': 1, 'ord:1319': 1, 'ord:1320': 1, 'ord:1321': 1, 'ord:1322': 1, 'ord:1323': 1, 'ord:1324': 1, 'ord:1325': 1, 'ord:1326': 1, 'ord:1327': 1, 'ord:1328': 1, 'ord:1329': 1, 'ord:1330': 1, 'ord:1331': 1, 'ord:1332': 1, 'ord:1333': 1, 'ord:1334': 1, 'ord:1335': 1, 'ord:1336': 1, 'ord:1337': 1, 'ord:1338': 1, 'ord:1339': 1, 'ord:1340': 1, 'ord:1341': 1, 'ord:1342': 1, 'ord:1343': 1, 'ord:1344': 1, 'ord:1345': 1, 'ord:1346': 1, 'ord:1347': 1, 'ord:1348': 1, 'ord:1349': 1, 'ord:1350': 1, 'ord:1351': 1, 'ord:1353': 1, 'ord:1356': 1, 'ord:1357': 1, 'ord:1358': 1, 'ord:1359': 1, 'ord:1360': 1, 'ord:1361': 1, 'ord:1362': 1, 'ord:1363': 1, 'ord:1364': 1, 'ord:1365': 1, 'ord:1366': 1, 'ord:1367': 1, 'ord:1368': 1, 'ord:1369': 1, 'ord:1370': 1, 'ord:1371': 1, 'ord:1372': 1, 'ord:1373': 1, 'ord:1374': 1, 'ord:1375': 1, 'ord:1376': 1, 'ord:1377': 1, 'ord:1378': 1, 'ord:1379': 1, 'ord:1380': 1, 'ord:1381': 1, 'ord:1382': 1, 'ord:1383': 1, 'ord:1385': 1})"
+    },
+    {
+      "check": "O3.clusters",
+      "pass": true,
+      "detail": "n=20"
+    },
+    {
+      "check": "O4_A.no_lookahead",
+      "pass": true,
+      "detail": "[]"
+    },
+    {
+      "check": "O4_B.fills_present",
+      "pass": true,
+      "detail": "[]"
+    },
+    {
+      "check": "O4_B.fill_count",
+      "pass": true,
+      "detail": "fill_count=286"
+    },
+    {
+      "check": "O4.separation_kinds",
+      "pass": true,
+      "detail": "O4A-CAND-20260730T022316Z vs O4B-CAND-20260730T022316Z"
+    },
+    {
+      "check": "O4.separation_obs_ids",
+      "pass": true,
+      "detail": "overlap=0"
+    },
+    {
+      "check": "O4.no_mix_plane",
+      "pass": true,
+      "detail": "ok"
+    },
+    {
+      "check": "no_synthetic_ids",
+      "pass": true,
+      "detail": "[]"
+    },
+    {
+      "check": "no_cross_program_markers_in_ids",
+      "pass": true,
+      "detail": "ok"
+    },
+    {
+      "check": "broker_identity",
+      "pass": true,
+      "detail": "seen=PA34USW0Q8UO"
+    },
+    {
+      "check": "source_order_count",
+      "pass": true,
+      "detail": "n=292"
+    },
+    {
+      "check": "lineage.o3_equals_selected",
+      "pass": true,
+      "detail": "o3=292 selected=292"
+    },
+    {
+      "check": "lineage.o4a_missing_cutoff",
+      "pass": true,
+      "detail": "missing=['ord:1244', 'ord:1250', 'ord:1252', 'ord:1256', 'ord:1259']"
+    },
+    {
+      "check": "lineage.o4b_incomplete",
+      "pass": true,
+      "detail": "incomplete=['ord:1244', 'ord:1250', 'ord:1252', 'ord:1256', 'ord:1259', 'ord:1384']"
+    },
+    {
+      "check": "lineage.source_row_keys",
+      "pass": true,
+      "detail": "[]"
+    },
+    {
+      "check": "freeze_body_pin",
+      "pass": true,
+      "detail": "80dfd8ec6d90182cdeabaab2d1457720ca417bcd5cb1511b4dd9d77989951bb0"
+    },
+    {
+      "check": "construct_merge_pin",
+      "pass": true,
+      "detail": "5def3824937b85e859345f6691f2cb37b432105f"
+    }
+  ],
+  "failed_checks": [],
+  "n_checks": 51,
+  "n_failed": 0,
+  "gate_ready": false,
+  "campaign_reopen_authorized": false,
+  "d_wire": "BLOCKED",
+  "notes": "QUALIFIED means archives may be named in a later campaign scope / successor freeze only. Gate execution remains unauthorized.",
+  "synthetic_marker_scan_hits": [
+    "KOKU"
+  ]
+}

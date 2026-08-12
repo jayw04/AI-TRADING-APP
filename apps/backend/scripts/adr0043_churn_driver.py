@@ -58,6 +58,7 @@ from typing import Any
 
 from app.db.enums import OrderSide, OrderSourceType, OrderType, TimeInForce
 from app.risk import OrderRequest
+from app.risk.loss_control.constants import LOSS_CONTROL_STATE_VERSION as LC_CONTROL_VERSION
 from scripts.adr0043_canary_lib import (
     ACCT,
     CHURN_SYMBOLS,
@@ -306,6 +307,66 @@ def assess_phase0_ready(
     )
 
 
+# Named preflight refusals for the durable loss-control state (2026-07-28 Phase-0 attempt 1).
+# The order gate reads the state via ``load_state_row`` and INTEGRITY_STOPs on an absent row; a
+# preflight that tolerated ``None`` let attempt 1 reach the first submit before dying. Readiness
+# and execution must refuse the same conditions, by name.
+LOSS_CONTROL_STATE_MISSING = "LOSS_CONTROL_STATE_MISSING"
+LOSS_CONTROL_STATE_NOT_NORMAL = "LOSS_CONTROL_STATE_NOT_NORMAL"
+LOSS_CONTROL_STATE_VERSION_INVALID = "LOSS_CONTROL_STATE_VERSION_INVALID"
+
+
+def assess_loss_control_row(row: dict | None) -> None:
+    """Refuse every persisted loss-control state the order gate would not permit a BUY under.
+
+    Pure and fail-closed: an absent row, a non-NORMAL state, or an invalid/unknown version each
+    raise ``CanaryRefused`` with a named reason BEFORE reachability is treated as execution-ready.
+    The bootstrap for a missing row is ``scripts/adr0043_bootstrap_loss_control.py`` — explicit
+    provisioning, never something this driver performs implicitly.
+    """
+    if row is None:
+        raise CanaryRefused(
+            f"{LOSS_CONTROL_STATE_MISSING}: account {ACCT} has no risk_loss_control_state row; "
+            f"the ENFORCE order gate INTEGRITY_STOPs on an unknown state. Bootstrap it explicitly "
+            f"(adr0043_bootstrap_loss_control) before Phase 0."
+        )
+    state = row.get("state")
+    if state != STATE_NORMAL:
+        raise CanaryRefused(
+            f"{LOSS_CONTROL_STATE_NOT_NORMAL}: account {ACCT} is in loss-control state {state!r}; "
+            f"Phase 0 establishes a lock, it does not run inside one"
+        )
+    state_version = row.get("state_version")
+    control_version = row.get("control_version")
+    if not isinstance(state_version, int) or state_version < 0:
+        raise CanaryRefused(
+            f"{LOSS_CONTROL_STATE_VERSION_INVALID}: state_version={state_version!r} is not a "
+            f"non-negative integer"
+        )
+    if control_version != LC_CONTROL_VERSION:
+        raise CanaryRefused(
+            f"{LOSS_CONTROL_STATE_VERSION_INVALID}: control_version={control_version!r} does not "
+            f"match the governed version {LC_CONTROL_VERSION}"
+        )
+
+
+async def load_loss_control_row(sf) -> dict | None:
+    """The persisted row, exactly as the enforcement gate would read it."""
+    from sqlalchemy import text
+
+    async with sf() as s:
+        row = (
+            await s.execute(
+                text(
+                    "SELECT state, state_version, last_sequence_no, control_version "
+                    "FROM risk_loss_control_state WHERE account_id = :a"
+                ),
+                {"a": ACCT},
+            )
+        ).mappings().first()
+    return dict(row) if row else None
+
+
 def validate_symbols(symbols: tuple[str, ...]) -> tuple[str, ...]:
     """Enforce protected-symbol disjointness IN CODE, before anything is submitted."""
     upper = tuple(s.strip().upper() for s in symbols if s.strip())
@@ -460,10 +521,10 @@ class ChurnDriver:
             raise CanaryRefused(
                 "no positive max_daily_loss on the account; there is no boundary to establish")
         pre = await snapshot_state(self.sf, self.ad)
-        if pre.loss_control_state not in (None, STATE_NORMAL):
-            raise CanaryRefused(
-                f"account is already in loss-control state {pre.loss_control_state}; Phase 0 "
-                f"establishes a lock, it does not run inside one")
+        # The persisted durable row, not the snapshot's convenience field: the order gate reads the
+        # ROW (load_state_row) and fails closed on absence — preflight must refuse the exact same
+        # conditions, by name, before a single leg is priced (2026-07-28 attempt-1 finding).
+        assess_loss_control_row(await load_loss_control_row(self.sf))
         if pre.open_orders:
             raise CanaryRefused(f"{pre.open_orders} open broker order(s) before the first leg")
         if await held_reservation_count(self.sf):

@@ -1,0 +1,3 @@
+docs/design/evidence/dbox_evgap_acq_001/snapshots/**/*.sha256 -text
+docs/design/evidence/dbox_evgap_acq_001/snapshots/**/*.json -text
+docs/design/evidence/dbox_evgap_acq_001/stage2/**/*.json -text

@@ -31,6 +31,7 @@ from app.validation.first_session import (
     validate_committed_observation,
 )
 from app.validation.forward_window import ForwardRunContext, IntegrityStop
+from tests.validation.freeze_fixture import TEST_DEPLOYED_COMMIT, freeze_kwargs
 
 REPO = Path(__file__).resolve().parents[4]
 DATA = REPO / "docs/review/momentum_daily/equal_weight_validation"
@@ -85,18 +86,19 @@ class _FailDirFsync(_NoopDurability):
 
 
 @pytest.fixture
-def ctx():
+def ctx(tmp_path):
     dgs3mo = DATA / "data/DGS3MO.csv"
     ledger = DATA / "TrialLedger_v1.0.json"
     if not (dgs3mo.exists() and ledger.exists()):
         pytest.skip("committed artifacts required")
     return ForwardRunContext(
         session_date=date(2026, 7, 24), is_nyse_trading_session=True,
-        code_commit=fw.VALIDATION_MEASUREMENT_COMMIT, benchmark_commits=dict(fw.BENCHMARK_COMMITS),
+        code_commit=TEST_DEPLOYED_COMMIT, benchmark_commits=dict(fw.BENCHMARK_COMMITS),
         dgs3mo_path=dgs3mo, dgs3mo_cutoff=fw.DGS3MO_OBSERVATION_CUTOFF,
         trial_ledger_path=ledger, effective_dsr_trial_count=45, config=dict(fw.FROZEN_CONFIG),
         ledger_account_id=901, ledger_is_shadow_or_separate_paper=True,
-        references_account4_capital=False, references_retired_baseline=False)
+        references_account4_capital=False, references_retired_baseline=False,
+            **freeze_kwargs(tmp_path))
 
 
 def _open(ctx, store_dir, *, probe=None, sealed=None, durability=None):
@@ -315,15 +317,90 @@ def test_open_record_leaking_a_sealed_field_name_fails_closed():
 
 
 def test_open_record_leaking_a_sealed_value_fails_closed():
+    """⚠ Amendment 7 changed this case's shape: the leak is now an EXACT string leaf spelling the
+    sealed value. The old form — free text CONTAINING the digits ("return was 0.0137") — is exactly
+    the substring semantics the owner ruled out; free-text scanning is not separately governed."""
     with pytest.raises(WindowOpenError, match="sealed value"):
         assert_open_record_has_no_sealed_content(
-            {"note": "return was 0.0137"}, {"strategy_return": 0.0137})
+            {"note": "0.0137"}, {"strategy_return": 0.0137})
 
 
 def test_clean_open_record_passes():
     assert_open_record_has_no_sealed_content(
         {"session_date": "2026-07-24", "rebalances": 1, "cap_breaches": 0},
         {"strategy_return": 0.0137})
+
+
+# ---- Amendment 7: typed leaf equality, never substrings of larger values --------------------------
+#
+# The July 27 commit was refused because sealed turnover 0.98 substring-matched INSIDE the open
+# price mark 90.98 — a false positive by construction for any window containing a price ending in
+# .98. The comparison is now typed leaf equality; this block is the owner's required matrix.
+
+def _sealed(v=0.98):
+    return {"turnover": v}
+
+
+def test_a_sealed_value_inside_a_LARGER_numeric_leaf_passes():
+    """★ THE JULY 27 FALSE POSITIVE, both measured collisions verbatim."""
+    assert_open_record_has_no_sealed_content(
+        {"data_finality": {"checks": [{"close": 90.98}, {"close": 350.98}]}}, _sealed())
+
+
+def test_an_exactly_equal_numeric_leaf_refuses():
+    with pytest.raises(WindowOpenError, match="sealed value"):
+        assert_open_record_has_no_sealed_content({"x": 0.98}, _sealed())
+
+
+def test_a_string_leaf_spelling_the_sealed_value_refuses():
+    with pytest.raises(WindowOpenError, match="sealed value"):
+        assert_open_record_has_no_sealed_content({"x": "0.98"}, _sealed())
+
+
+def test_an_integer_sealed_value_matches_an_integer_leaf():
+    with pytest.raises(WindowOpenError, match="sealed value"):
+        assert_open_record_has_no_sealed_content({"n": 98}, {"turnover_cost_units": 98})
+
+
+def test_a_string_leaf_containing_but_not_equalling_the_value_passes():
+    """Free text embedding the digits is not an exact leaf. ⚠ The owner's example wording
+    ("turnover was 0.98") is deliberately NOT used verbatim: "turnover" is a sealed field NAME, and
+    the unchanged name scan refuses it first — correctly, and tested separately below."""
+    assert_open_record_has_no_sealed_content({"x": "90.98"}, _sealed())
+    assert_open_record_has_no_sealed_content({"note": "gross was 0.98 this session"}, _sealed())
+
+
+def test_an_exact_leaf_nested_in_lists_and_dicts_refuses():
+    with pytest.raises(WindowOpenError, match="sealed value"):
+        assert_open_record_has_no_sealed_content(
+            {"a": [{"b": [1, 2, {"c": 0.98}]}]}, _sealed())
+
+
+def test_boolean_leaves_never_match_sealed_numerics():
+    """`False == 0` and `True == 1` in Python; the gate must not read a flag as a leaked number."""
+    assert_open_record_has_no_sealed_content(
+        {"flag": False, "other": True}, {"strategy_return": 0.0, "x": 1.0})
+    # ...and a sealed bool (should one ever exist) never matches numeric leaves either.
+    assert_open_record_has_no_sealed_content({"n": 0, "m": 1}, {"flag": True})
+
+
+def test_a_non_finite_sealed_value_refuses_deterministically():
+    for bad in (float("nan"), float("inf"), float("-inf")):
+        with pytest.raises(WindowOpenError, match="non-finite"):
+            assert_open_record_has_no_sealed_content({"ok": 1}, {"strategy_return": bad})
+
+
+def test_non_finite_OPEN_leaves_never_match_and_never_crash():
+    assert_open_record_has_no_sealed_content(
+        {"weird": float("nan"), "worse": float("inf")}, _sealed())
+
+
+def test_the_name_scan_is_unchanged_by_the_typed_value_scan():
+    """The name scan keeps its serialized-document semantics: a sealed field NAME appearing anywhere
+    — even inside free text — still refuses."""
+    with pytest.raises(WindowOpenError, match="sealed field name"):
+        assert_open_record_has_no_sealed_content(
+            {"note": "the turnover_cost was fine"}, {"strategy_return": 0.0137})
 
 
 # ---- pre-start still fails at the gate inside the opener ------------------------------------------

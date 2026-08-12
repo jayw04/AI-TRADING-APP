@@ -1,0 +1,15 @@
+{
+  "commits": [],
+  "current_freeze_range": {
+    "from_commit": "1c73d442e3461530fbda59c9051d023102a291b6",
+    "to_commit": "1c73d442e3461530fbda59c9051d023102a291b6"
+  },
+  "current_increment_count": 0,
+  "inventory_scope": "INCREMENTS_SINCE_THE_IMMEDIATELY_PRECEDING_FREEZE",
+  "kind": "ratified_measurement_increments",
+  "measured_paths": [
+    "app/validation"
+  ],
+  "previous_inventory_sha256": "01cdac3c9945e73629a9868ff26bab54b52ea7740abf4ff78a778a0e82be9cca",
+  "version": "1.1"
+}

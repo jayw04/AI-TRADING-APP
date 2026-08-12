@@ -63,6 +63,25 @@ def _bars() -> pd.DataFrame:
     )
 
 
+# The slot key is live ET wall clock truncated to the MINUTE (StrategyEngine._slot_key).
+# That is correct in production — cron slots are minute-granular, so a new minute IS a new
+# slot — but it makes any test that dispatches more than once time-coupled: if the dispatches
+# straddle a minute rollover they land in DIFFERENT slots, each legitimately claimable, and a
+# `len(claims) == 1` assertion fails for a reason that has nothing to do with the behaviour
+# under test.
+#
+# That is not hypothetical. On 2026-08-10 it turned PR #624's Tier 3 run red at 13:20:02Z
+# (09:20 ET) on test_an_all_rejected_run_still_claims_the_slot, and re-running the identical
+# SHA passed. A false CI failure on a load-bearing invariant costs a full ~25-minute suite and
+# invites the much worse habit of re-running until green.
+#
+# So the engine under test gets a FROZEN slot key. The assertions stay exactly as they were —
+# in particular `len(claims) == 1` is untouched, because it is the guard for the 2026-07-13
+# incident semantic ("a run whose orders were all rejected still happened"). Freezing removes
+# the incidental coupling to when the test happens to run; it weakens nothing.
+_FROZEN_SLOT = "2026-07-13T14:00"
+
+
 @pytest.fixture
 async def eng(session_factory):
     scheduler = AsyncIOScheduler(timezone="America/New_York")
@@ -78,6 +97,9 @@ async def eng(session_factory):
         order_router=MagicMock(submit=AsyncMock(return_value=MagicMock(id=1))),
         strategies_root=FIXTURES_ROOT,
     )
+    # Pin the slot so repeated dispatches are always the SAME scheduled slot, whatever minute
+    # the suite happens to run in. Tests that need the clock to move override this.
+    engine._slot_key = lambda schedule: _FROZEN_SLOT  # noqa: ARG005
     await asyncio.sleep(0)
     yield engine
     await engine.shutdown()
@@ -245,6 +267,34 @@ async def test_an_all_rejected_run_still_claims_the_slot(eng, session_factory, m
     assert len(claims) == 1
     assert claims[0].outcome == SLOT_COMPLETED, (
         "an all-rejected run must be recorded as COMPLETED, not left open for a retry"
+    )
+
+
+async def test_a_new_minute_is_a_new_slot(eng, session_factory, monkeypatch):
+    """The converse of the frozen-clock fixture — pins WHY the freeze is legitimate.
+
+    Slots are minute-granular by design, so two dispatches in DIFFERENT minutes are two
+    different scheduled slots and both may claim. The `len(claims) == 1` assertions elsewhere
+    in this file are about repeats WITHIN one slot; they are not a claim that time never
+    advances.
+
+    This exists so nobody 'fixes' a future boundary flake by making the slot key
+    time-independent. That would silently convert every later scheduled run of a strategy into
+    a duplicate of the first and stop it dispatching for the rest of the day.
+    """
+    minutes = iter(["2026-07-13T14:00", "2026-07-13T14:01"])
+    eng._slot_key = lambda schedule: next(minutes)  # noqa: ARG005
+
+    sid = await _seed(session_factory)
+    running = await eng.register(sid)
+    monkeypatch.setattr(running.instance, "on_bar", AsyncMock())
+
+    await eng._dispatch_bar_tick(strategy_id=sid)
+    await eng._dispatch_bar_tick(strategy_id=sid)
+
+    claims = await _claims(session_factory)
+    assert [c.scheduled_slot for c in claims] == ["2026-07-13T14:00", "2026-07-13T14:01"], (
+        "a dispatch in a new minute must claim its own slot"
     )
 
 

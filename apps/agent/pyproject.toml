@@ -7,7 +7,10 @@ name = "agent"
 version = "0.1.0"
 description = "Trading Workbench P6 stateless proposal-generation agent"
 readme = "README.md"
-requires-python = ">=3.12"
+requires-python = ">=3.12,<3.13"   # GOVERNED LINE: CI, runtime images and the committed
+# resolution in constraints/ are all CPython 3.12. 3.11 was advertised but never tested or
+# deployed; 3.13+ is untested. Restoring either needs its own compatibility decision, test
+# matrix and lock artifacts. Changing this line requires regenerating constraints/.
 authors = [{ name = "Jay Wang" }]
 dependencies = [
     "httpx>=0.27",
@@ -15,7 +18,13 @@ dependencies = [
     "structlog>=24.4",
     "fastapi>=0.110",       # P6 §1b: control-plane HTTP endpoint
     "uvicorn>=0.30",        # P6 §1b: ASGI server
-    "mcp>=1.0",             # P6 §1b: agent reads workbench state as an MCP client
+    # PINNED EXACTLY, matching apps/mcp-server and apps/mcp-workbench (#539). `mcp 2.0.0`
+    # (2026-07-28) reorganised the package and removed `mcp.server.fastmcp`, taking main red for
+    # ~21 hours. This project survived only because it uses the CLIENT surface (`ClientSession`,
+    # `mcp.client.sse`) rather than FastMCP — luck, not protection. #539 pinned the other two
+    # projects but not this one, leaving it one upstream release from the same outage.
+    # Keep this version identical across all three mcp-dependent projects.
+    "mcp==1.28.1",          # P6 §1b: agent reads workbench state as an MCP client
 ]
 
 [project.optional-dependencies]

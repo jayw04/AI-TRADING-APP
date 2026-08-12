@@ -1,0 +1,54 @@
+{
+  "artifact_kind": "CONSTRUCTION_REFUSAL_CENSUS",
+  "not_a_candidate_archive": true,
+  "archive_status_labels_forbidden": [
+    "CANDIDATE",
+    "QUALIFIED_CANDIDATE",
+    "O3_HISTORICAL_REPLAY"
+  ],
+  "package": "O3",
+  "outcome": "REJECTED_AS_NON_BINDABLE",
+  "reason": "All 292 eligible episodes lack required O3 replay surfaces (quote_provenance, checkpoint_tuple, loss_accounting_inputs, recovery_inputs) under frozen mappings; no bindable row to emit",
+  "n_eligible_episodes": 292,
+  "n_bindable_episodes": 0,
+  "candidate_archive_path": null,
+  "freeze_body_sha256": "af7693f4b97fd7d9d4ad642ab1af47e9e9a2a8cd680f6a26c4d01fee8d57967e",
+  "capture_id": "20260731T002055Z",
+  "stage1_opening_merge": "561e52409eda6c552029da20113caa211aba2256",
+  "stage2_merge": "3f256bb2affae631c22eed72a0f54b2e10aabadd",
+  "stage2_report_sha256": "aac5b599f16324d12a91ca792dc406063d68c7628d1eec9a27b47fde66e3fb0c",
+  "source_pins": {
+    "sqlite_snapshot_sha256": "9e40a9ad2f0176acf884140594ddfa9e946e42d2723794f464bbb0efdc2d9db6",
+    "bar_cache_manifest_sha256": "b32e118732669c2880291cd0a7226589e4b0e2ef20839dc8172c26ce51e0adc7",
+    "market_projection_manifest_sha256": "c0148389daa4139dd60a5921d6bec55a224a4156fb7cca080cc2b8fdfb7eb2c1",
+    "o5_evidence_tree_manifest_sha256": "1c209b068e89456dbdbb8f380fc8672d0b3d04d1460752e12d32dd8717832d26"
+  },
+  "stage2_reason_code_counts": {
+    "MISSING_CUTOFF": 5,
+    "MISSING_DECISION_TIME_QUOTE": 292,
+    "MISSING_FORENSIC_BASELINE": 292,
+    "MISSING_PROVENANCE": 292,
+    "MISSING_REPLAY_SURFACE:checkpoint_tuple": 292,
+    "MISSING_REPLAY_SURFACE:loss_accounting_inputs": 292,
+    "MISSING_REPLAY_SURFACE:quote_provenance": 292,
+    "MISSING_REPLAY_SURFACE:recovery_inputs": 292,
+    "O4B_INCOMPLETE": 6
+  },
+  "stage2_count_reconciliation": {
+    "n_source_count": 292,
+    "n_window_eligible": 292,
+    "n_deduplicated": 292,
+    "n_complete_o3": 0,
+    "n_complete_o4a": 0,
+    "n_complete_o4b": 0
+  },
+  "rows_emitted": 0,
+  "missing_surfaces_reconstructed": false,
+  "accounts_state_day_change_copied_into_episodes": false,
+  "fabrication_performed": false,
+  "mapping_relaxation": false,
+  "o4a_o4b_mix": false,
+  "gate_evidence": false,
+  "tooling_commit": "3f256bb2affae631c22eed72a0f54b2e10aabadd",
+  "constructed_at_utc": "2026-07-31T01:34:33Z"
+}

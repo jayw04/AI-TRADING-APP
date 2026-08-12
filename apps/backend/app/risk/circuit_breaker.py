@@ -58,6 +58,13 @@ from app.db.models.position import Position
 from app.db.models.risk_limits import RiskLimits
 from app.db.models.strategy import Strategy
 from app.risk.loss_control.daily_loss_basis import DailyLossBasis, select_daily_loss_basis
+from app.risk.loss_control.daily_loss_observation import (
+    DailyLossObservation,
+    ObservationStatus,
+    SurfaceAction,
+    map_surface_action,
+    observe_model_a_daily_loss,
+)
 from app.risk.loss_control.session_baseline import resolve_session_date
 from app.utils.time import ensure_aware
 
@@ -78,7 +85,16 @@ class CircuitBreakerStatus:
 
 
 class CircuitBreakerError(RuntimeError):
-    """Raised when the breaker is tripped (or trips) and an order is attempted."""
+    """Raised when the breaker is tripped (or trips) and an order is attempted.
+
+    ``trip_recorded`` is False when admission is refused because the Model A
+    daily-loss basis is unavailable/invalid — the breaker must not be tripped
+    solely because the basis is unknown, and unknown must not be encoded as zero.
+    """
+
+    def __init__(self, message: str, *, trip_recorded: bool = True) -> None:
+        super().__init__(message)
+        self.trip_recorded = trip_recorded
 
 
 class CircuitBreakerService:
@@ -107,11 +123,14 @@ class CircuitBreakerService:
             if limits and limits.max_daily_loss is not None
             else None
         )
-        daily_pnl, basis, _basis_result = await self._compute_daily_pnl(
+        daily_pnl, basis, _basis_result, _model_a = await self._compute_daily_pnl(
             account_id, realized=realized, unrealized=unrealized, max_loss=applicable_limit
         )
         max_loss = applicable_limit if applicable_limit is not None else Decimal("0")
-        headroom = max_loss - abs(daily_pnl) if daily_pnl < 0 else max_loss
+        # Telemetry only: unavailable Model A must not be treated as measured zero for admission.
+        display_pnl = daily_pnl if daily_pnl is not None else Decimal("0")
+        headroom = max_loss - abs(display_pnl) if display_pnl < 0 else max_loss
+        daily_pnl = display_pnl
         tripped_at = ensure_aware(account.circuit_breaker_tripped_at)
         return CircuitBreakerStatus(
             account_id=account_id,
@@ -145,9 +164,20 @@ class CircuitBreakerService:
         max_loss = Decimal(str(limits.max_daily_loss))
         realized = await self._compute_realized_pnl_today(account_id)
         unrealized = await self._compute_unrealized_pnl(account_id)
-        daily_pnl, basis_name, basis_result = await self._compute_daily_pnl(
+        daily_pnl, basis_name, basis_result, model_a = await self._compute_daily_pnl(
             account_id, realized=realized, unrealized=unrealized, max_loss=max_loss
         )
+        if model_a is not None and model_a.status != ObservationStatus.AVAILABLE:
+            action = map_surface_action(model_a.status, surface="new_risk")
+            if action == SurfaceAction.REJECT:
+                raise CircuitBreakerError(
+                    f"Model A daily-loss basis {model_a.status.value} "
+                    f"({model_a.reason_code}) — new risk refused; breaker not tripped.",
+                    trip_recorded=False,
+                )
+            return
+        if daily_pnl is None:
+            return
         if daily_pnl <= -max_loss:
             payload: dict[str, Any] = {
                 "realized_pnl_today": str(realized),
@@ -190,9 +220,14 @@ class CircuitBreakerService:
         max_loss = Decimal(str(limits.max_daily_loss))
         realized = await self._compute_realized_pnl_today(account_id)
         unrealized = await self._compute_unrealized_pnl(account_id)
-        daily_pnl, basis_name, basis_result = await self._compute_daily_pnl(
+        daily_pnl, basis_name, basis_result, model_a = await self._compute_daily_pnl(
             account_id, realized=realized, unrealized=unrealized, max_loss=max_loss
         )
+        # Do not trip solely because Model A basis is unknown/invalid.
+        if model_a is not None and model_a.status != ObservationStatus.AVAILABLE:
+            return False
+        if daily_pnl is None:
+            return False
         if daily_pnl <= -max_loss:
             payload: dict[str, Any] = {
                 "realized_pnl_today": str(realized),
@@ -331,9 +366,9 @@ class CircuitBreakerService:
         realized: Decimal,
         unrealized: Decimal,
         max_loss: Decimal | None = None,
-    ) -> tuple[Decimal, str, DailyLossBasis | None]:
+    ) -> tuple[Decimal | None, str, DailyLossBasis | None, DailyLossObservation | None]:
         """Today's P&L for the daily-loss breaker, measured from a START-OF-DAY
-        baseline (ADR 0004 v2). Returns ``(daily_pnl, basis)``.
+        baseline (ADR 0004 v2). Returns ``(daily_pnl, basis_name, basis, model_a_obs)``.
 
         Preferred basis ``"equity_baseline"``: the broker-synced start-of-day
         equity, ``equity - last_equity`` (== ``AccountState.day_change``). This is
@@ -350,12 +385,73 @@ class CircuitBreakerService:
         passed-in cumulative measure). That is the STRICTER number — it can only
         trip the breaker EARLIER, never later — so an absent baseline never weakens
         the gate (risk engine fails closed).
+
+        Under an effective Model A canary binding, unavailable/invalid observations
+        return ``daily_pnl=None`` (never zero) plus the observation for policy mapping.
         """
         state = (
             await self._session.execute(
                 select(AccountState).where(AccountState.account_id == account_id)
             )
         ).scalars().first()
+        current_equity = (
+            Decimal(str(state.equity))
+            if state is not None and state.equity is not None
+            else None
+        )
+        session_date = resolve_session_date(datetime.now(UTC))
+        # Canary Model A (Q1): effective Start A binding governs; missing baseline ≠ legacy.
+        model_a = await observe_model_a_daily_loss(
+            self._session,
+            account_id,
+            current_equity=current_equity,
+            session_date=session_date,
+        )
+        if model_a is not None:
+            logger.info(
+                "risk_daily_loss_basis",
+                account_id=account_id,
+                gate="circuit_breaker",
+                canary_model_a=True,
+                status=model_a.status.value,
+                reason_code=model_a.reason_code,
+                baseline_id=model_a.baseline_id,
+                raw_response_hash=model_a.raw_response_hash,
+                projection_hash=model_a.projection_hash,
+                surface_action_new_risk=map_surface_action(
+                    model_a.status, surface="new_risk"
+                ).value,
+                daily_pnl=str(model_a.daily_pnl) if model_a.daily_pnl is not None else None,
+            )
+            if model_a.status == ObservationStatus.AVAILABLE and model_a.daily_pnl is not None:
+                basis = DailyLossBasis(
+                    day_change=model_a.daily_pnl,
+                    basis_source=model_a.basis_source,
+                    fallback_reason=None,
+                    market_session_date=model_a.session_date,
+                    current_equity=model_a.current_equity,
+                    baseline_id=model_a.baseline_id,
+                    baseline_equity=model_a.baseline_equity,
+                    applicable_limit=max_loss,
+                )
+                return (
+                    model_a.daily_pnl,
+                    model_a.basis_source or "SESSION_OPEN_BROKER_EQUITY",
+                    basis,
+                    model_a,
+                )
+            # Q1: no cumulative / last_equity; do not encode unknown as zero.
+            basis = DailyLossBasis(
+                day_change=None,
+                basis_source=None,
+                fallback_reason=model_a.reason_code or model_a.status.value,
+                market_session_date=model_a.session_date,
+                current_equity=model_a.current_equity,
+                baseline_id=model_a.baseline_id,
+                baseline_equity=model_a.baseline_equity,
+                applicable_limit=max_loss,
+            )
+            return None, f"MODEL_A_{model_a.status.value}", basis, model_a
         # ADR 0043 §D3 enforcement: prefer the immutable session baseline (with the same last_equity
         # / cumulative fallbacks below), tagged with provenance. Flag OFF → the legacy code path
         # below runs unchanged (byte-for-byte). The cumulative fallback IS sanctioned here.
@@ -363,15 +459,13 @@ class CircuitBreakerService:
             basis = await select_daily_loss_basis(
                 self._session,
                 account_id,
-                current_equity=Decimal(str(state.equity))
-                if state is not None and state.equity is not None
-                else None,
+                current_equity=current_equity,
                 last_equity=Decimal(str(state.last_equity))
                 if state is not None and state.last_equity is not None
                 else None,
                 realized=realized,
                 unrealized=unrealized,
-                session_date=resolve_session_date(datetime.now(UTC)),
+                session_date=session_date,
                 applicable_limit=max_loss,
                 allow_cumulative_fallback=True,
             )
@@ -384,10 +478,15 @@ class CircuitBreakerService:
             day_change = basis.day_change if basis.day_change is not None else realized + unrealized
             # Return the FULL basis object (not just its name) so the durable trip payload — not
             # only the structured log — carries baseline_id / fallback_reason / limit provenance.
-            return day_change, basis.basis_source or "cumulative_fallback", basis
+            return day_change, basis.basis_source or "cumulative_fallback", basis, None
         if state is not None and state.last_equity is not None and Decimal(str(state.last_equity)) > 0:
-            return Decimal(str(state.equity)) - Decimal(str(state.last_equity)), "equity_baseline", None
-        return realized + unrealized, "cumulative_fallback", None
+            return (
+                Decimal(str(state.equity)) - Decimal(str(state.last_equity)),
+                "equity_baseline",
+                None,
+                None,
+            )
+        return realized + unrealized, "cumulative_fallback", None, None
 
     async def _compute_realized_pnl_today(self, account_id: int) -> Decimal:
         """Realized P&L from today's CLOSING trades, via running average cost.

@@ -105,7 +105,7 @@ class TestDeploymentManifest:
             config_path=self._config(tmp_path), host_identity="ec2-forward-validation",
             image_digest=None)
 
-    def test_it_carries_the_five_construction_identities(self, repo, tmp_path):
+    def test_it_carries_every_required_construction_identity(self, repo, tmp_path):
         from app.validation.governed_corpus import REQUIRED_MANIFEST_IDENTITIES
 
         root, _ = repo
@@ -114,6 +114,17 @@ class TestDeploymentManifest:
         for key in REQUIRED_MANIFEST_IDENTITIES:
             assert key in manifest["corpus"], key
         assert manifest["corpus"]["dgs3mo_manifest_sha256"]
+
+    def test_tickers_and_corpus_identities_are_reported_separately(self, repo, tmp_path):
+        """An operator reading a deployment mismatch must be able to tell WHICH component moved:
+        TICKERS content, the resolver's semantics, or something else in the construction."""
+        from app.validation.security_lineage import SECURITY_IDENTITY_CONTRACT
+
+        root, _ = repo
+        self._config(tmp_path)
+        corpus = self._manifest(root, tmp_path)["corpus"]
+        assert corpus["tickers_manifest_sha256"] != corpus["corpus_manifest_sha256"]
+        assert corpus["security_identity_contract"] == SECURITY_IDENTITY_CONTRACT
 
     def test_it_does_not_invent_a_store_identity(self, repo, tmp_path):
         """A manifest finalized before observation #1 cannot honestly carry a value that only exists

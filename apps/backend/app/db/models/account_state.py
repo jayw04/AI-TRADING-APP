@@ -38,6 +38,15 @@ class AccountState(Base):
     # Computed convenience fields (kept on the row so the UI doesn't have to recompute).
     day_change: Mapped[Decimal] = mapped_column(Numeric(18, 4), nullable=False, default=Decimal(0))
     day_change_pct: Mapped[Decimal] = mapped_column(Numeric(10, 6), nullable=False, default=Decimal(0))
+    # Provenance of the baseline behind the two fields above — see services/day_change_basis.py.
+    # ``UNAVAILABLE`` means no baseline was found and the two numbers above are placeholders, NOT a
+    # measured flat day. The conservative default applies to rows written before this column
+    # existed: their basis was never recorded, so it is not asserted.
+    # The literal is spelled out rather than imported to keep models free of service imports;
+    # `test_model_default_matches_constant` pins it to `day_change_basis.UNAVAILABLE`.
+    day_change_basis: Mapped[str] = mapped_column(
+        String(32), nullable=False, default="UNAVAILABLE", server_default="UNAVAILABLE"
+    )
 
     # Status flags
     status: Mapped[str] = mapped_column(String(32), nullable=False, default="UNKNOWN")

@@ -37,6 +37,12 @@ from app.db.models.risk_reservation import RESERVATION_HELD, RiskReservation
 from app.db.models.risk_session_baseline import BASELINE_STATUS_ACTIVE, RiskSessionBaseline
 from app.risk.loss_control import constants as C
 from app.risk.loss_control.daily_loss_basis import select_daily_loss_basis
+from app.risk.loss_control.daily_loss_observation import (
+    ObservationStatus,
+    SurfaceAction,
+    map_surface_action,
+    observe_model_a_daily_loss,
+)
 from app.risk.loss_control.session_baseline import resolve_session_date
 
 logger = structlog.get_logger(__name__)
@@ -297,6 +303,43 @@ async def _session_baseline_valid(ctx: PreflightContext) -> PreflightCheckResult
         # Outside a trading session there is no governing baseline to validate — unverifiable.
         return _incomplete(C.CHECK_SESSION_BASELINE_VALID, C.ERR_BASELINE_INVALID,
                            {"detail": "no trading session"})
+    # Canary Model A: effective Start A binding governs; missing bound baseline fails closed.
+    model_a = await observe_model_a_daily_loss(
+        ctx.session,
+        ctx.account_id,
+        current_equity=None,
+        session_date=session_date,
+    )
+    if model_a is not None:
+        recovery_action = map_surface_action(model_a.status, surface="recovery")
+        # Baseline-presence check (not P&L): CURRENT_EQUITY_MISSING still proves a bound row.
+        bound_evidence = (
+            model_a.baseline_id is not None and model_a.raw_response_hash is not None
+        )
+        if model_a.reason_code == "CURRENT_EQUITY_MISSING" and bound_evidence or (
+            model_a.status == ObservationStatus.AVAILABLE
+            and bound_evidence
+            and recovery_action == SurfaceAction.EVALUATE
+        ):
+            valid = True
+        else:
+            # UNAVAILABLE (missing baseline), CONFLICT, INVALID, STALE → fail closed for recovery.
+            valid = False
+        return _result(
+            C.CHECK_SESSION_BASELINE_VALID,
+            valid,
+            C.ERR_BASELINE_INVALID,
+            {
+                "session_date": session_date,
+                "canary_model_a": True,
+                "status": model_a.status.value,
+                "baseline_id": model_a.baseline_id,
+                "reason_code": model_a.reason_code,
+                "surface_action": recovery_action.value,
+                "freeze_id": model_a.freeze_id,
+                "start_a_id": model_a.start_a_id,
+            },
+        )
     baseline = await ctx.session.scalar(
         select(RiskSessionBaseline).where(
             RiskSessionBaseline.account_id == ctx.account_id,
@@ -316,11 +359,42 @@ async def _daily_loss_recomputed(ctx: PreflightContext) -> PreflightCheckResult:
     state = await ctx.session.scalar(
         select(AccountState).where(AccountState.account_id == ctx.account_id)
     )
+    current_equity = (
+        Decimal(str(state.equity)) if state and state.equity is not None else None
+    )
+    session_date = resolve_session_date(datetime.now(UTC))
+    model_a = await observe_model_a_daily_loss(
+        ctx.session,
+        ctx.account_id,
+        current_equity=current_equity,
+        session_date=session_date,
+    )
+    if model_a is not None:
+        action = map_surface_action(model_a.status, surface="recovery")
+        ok = (
+            model_a.status == ObservationStatus.AVAILABLE
+            and model_a.daily_pnl is not None
+            and action == map_surface_action(ObservationStatus.AVAILABLE, surface="recovery")
+        )
+        # Q1: never PASS on non-authoritative / unavailable Model A basis.
+        return _result(
+            C.CHECK_DAILY_LOSS_RECOMPUTED,
+            ok,
+            C.ERR_LOSS_NOT_RECOMPUTABLE,
+            {
+                "canary_model_a": True,
+                "status": model_a.status.value,
+                "basis_source": model_a.basis_source,
+                "day_change": str(model_a.daily_pnl) if model_a.daily_pnl is not None else None,
+                "reason_code": model_a.reason_code,
+                "surface_action": action.value,
+            },
+        )
     basis = await select_daily_loss_basis(
         ctx.session, ctx.account_id,
-        current_equity=Decimal(str(state.equity)) if state and state.equity is not None else None,
+        current_equity=current_equity,
         last_equity=Decimal(str(state.last_equity)) if state and state.last_equity is not None else None,
-        session_date=resolve_session_date(datetime.now(UTC)),
+        session_date=session_date,
         applicable_limit=None, allow_cumulative_fallback=True,
     )
     ok = basis.day_change is not None and basis.basis_source is not None

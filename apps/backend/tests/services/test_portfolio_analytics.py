@@ -63,7 +63,14 @@ async def factory() -> AsyncIterator[async_sessionmaker]:
 
 
 async def test_compute_flags_lockstep_pair(factory) -> None:
-    base = datetime(2026, 6, 25, 16, 10, tzinfo=UTC)
+    # ⚠ RUNTIME-RELATIVE, deliberately. This was `datetime(2026, 6, 25, 16, 10, UTC)` — a fixed
+    # calendar anchor against production's runtime-relative retention filter
+    # (`ts >= now - (window_days + 5)`), so the fixture decayed one snapshot per day at exactly
+    # 16:10 UTC and killed main on 2026-08-01 (run #1377 red, #1376 green 26 minutes earlier, same
+    # tree). Anchoring 10 days back keeps the oldest point ~25 days INSIDE the 35-day cutoff — far
+    # from the boundary, so no wall-clock second/minute drift between the fixture's now() and
+    # compute()'s now() can change which snapshots qualify.
+    base = datetime.now(tz=UTC).replace(microsecond=0) - timedelta(days=10)
     async with factory() as s:
         for aid in (1, 2, 3):
             s.add(User(id=aid, email=f"u{aid}@t"))

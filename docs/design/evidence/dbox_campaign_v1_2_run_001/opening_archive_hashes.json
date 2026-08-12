@@ -1,0 +1,29 @@
+[
+  {
+    "role": "O3",
+    "path": "docs/design/evidence/dbox_o34_acq_001/constructed/20260730T022316Z/O3_CANDIDATE.json",
+    "size": 164706,
+    "expected_size": 164706,
+    "sha256": "53b3310c8db3cdfd3d60a2de3bec990a6eaab8864dd592afc4590e57fc9008b0",
+    "expected_sha256": "53b3310c8db3cdfd3d60a2de3bec990a6eaab8864dd592afc4590e57fc9008b0",
+    "pass": true
+  },
+  {
+    "role": "O4-A",
+    "path": "docs/design/evidence/dbox_o34_acq_001/constructed/20260730T022316Z/O4A_CANDIDATE.json",
+    "size": 190328,
+    "expected_size": 190328,
+    "sha256": "3ba73e61f5e8955a184d820c0aba4ed387de453c30fc6a22d168d84074403c49",
+    "expected_sha256": "3ba73e61f5e8955a184d820c0aba4ed387de453c30fc6a22d168d84074403c49",
+    "pass": true
+  },
+  {
+    "role": "O4-B",
+    "path": "docs/design/evidence/dbox_o34_acq_001/constructed/20260730T022316Z/O4B_CANDIDATE.json",
+    "size": 260426,
+    "expected_size": 260426,
+    "sha256": "e349f49465aa2689e6c24e20d6ae32286f0a447bfbcdf3b2fbbc531c656bae95",
+    "expected_sha256": "e349f49465aa2689e6c24e20d6ae32286f0a447bfbcdf3b2fbbc531c656bae95",
+    "pass": true
+  }
+]

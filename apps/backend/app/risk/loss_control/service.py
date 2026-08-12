@@ -94,13 +94,17 @@ class LossControlService:
     def __init__(self, session: AsyncSession) -> None:
         self._session = session
 
-    async def _ensure_state_row(self, account_id: int) -> None:
+    async def _ensure_state_row(self, account_id: int) -> bool:
         """Materialize the account's NORMAL state row if absent — race-safe.
 
         INSERT ... ON CONFLICT DO NOTHING: if two writers bootstrap the same account concurrently,
         one inserts and the other's insert is a no-op; both then contend on the CAS below, where
         exactly one wins. (A plain read-then-insert could double-insert; the unique constraint would
         reject one, but ON CONFLICT avoids the error path entirely.)
+
+        Returns whether THIS call inserted the row — ``False`` means the insert was a conflict
+        no-op because a row already existed. Callers that must not claim authorship of a row they
+        did not create (the governed bootstrap tool) refuse on ``False``.
         """
         stmt = (
             sqlite_insert(RiskLossControlState)
@@ -114,7 +118,31 @@ class LossControlService:
             )
             .on_conflict_do_nothing(index_elements=["account_id"])
         )
-        await self._session.execute(stmt)
+        # DML yields a `CursorResult` at runtime though typed as `Result`; `rowcount` is the
+        # authorship witness here (same pattern as `request_transition`'s CAS below).
+        result = cast("CursorResult[Any]", await self._session.execute(stmt))
+        return bool(result.rowcount)
+
+    async def bootstrap_state_row(
+        self, account_id: int
+    ) -> tuple[RiskLossControlState, bool]:
+        """The transaction-owned bootstrap: insert-if-absent and reload, WITHOUT committing.
+
+        The caller owns the transaction — this exists so a governed provisioning act can commit
+        the state row and its governance audit record together, or roll back both (PR #535 review:
+        ``get_state_row`` commits internally, which makes the row durable before any accompanying
+        record and strands a half-provisioned account on failure). Returns ``(row, created)``;
+        ``created=False`` means the row pre-existed (or appeared concurrently) and this call
+        performed a no-op — the caller did NOT create it.
+        """
+        created = await self._ensure_state_row(account_id)
+        row = await self._session.scalar(
+            select(RiskLossControlState).where(
+                RiskLossControlState.account_id == account_id
+            )
+        )
+        # _ensure guarantees existence; the cast documents that invariant for the type checker.
+        return cast("RiskLossControlState", row), created
 
     async def get_state_row(self, account_id: int) -> RiskLossControlState:
         """Return the account's materialized state row, creating a NORMAL one if needed."""

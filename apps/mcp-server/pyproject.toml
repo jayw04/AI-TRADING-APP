@@ -7,10 +7,21 @@ name = "workbench-mcp"
 version = "0.0.1"
 description = "Trading Workbench MCP server (tools for Claude Code + runtime Agent Strategy)"
 readme = "README.md"
-requires-python = ">=3.11"
+requires-python = ">=3.12,<3.13"   # GOVERNED LINE: CI, runtime images and the committed
+# resolution in constraints/ are all CPython 3.12. 3.11 was advertised but never tested or
+# deployed; 3.13+ is untested. Restoring either needs its own compatibility decision, test
+# matrix and lock artifacts. Changing this line requires regenerating constraints/.
 authors = [{ name = "Jay Wang" }]
 dependencies = [
-    "mcp>=1.0",
+    # PINNED EXACTLY. `mcp 2.0.0` (released 2026-07-28) moved/removed `mcp.server.fastmcp`,
+    # which src/workbench_mcp/server.py imports. The previous `mcp>=1.0` had no upper bound, so
+    # a fresh CI install resolved the major bump and every Python FULL job failed at collection
+    # with `ModuleNotFoundError: No module named 'mcp.server.fastmcp'` — main went red between
+    # run 30347327373 (green, mcp 1.28.1) and run 30380598586 (red, mcp 2.0.0), ~7 hours apart.
+    # 1.28.1 is the exact version from the last green run, not a guess from release dates.
+    # Keep this identical to apps/mcp-workbench. Moving to 2.x needs a port of the FastMCP
+    # import surface and its own PR.
+    "mcp==1.28.1",
     "httpx>=0.27",
     "pydantic>=2.9",
     "pydantic-settings>=2.6",

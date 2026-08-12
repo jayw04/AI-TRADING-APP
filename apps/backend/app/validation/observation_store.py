@@ -32,6 +32,7 @@ import ctypes
 import errno
 import hashlib
 import json
+import math
 import os
 import shutil
 from collections.abc import Callable
@@ -88,16 +89,74 @@ _SEALED_FIELD_NAMES: frozenset[str] = frozenset({
 })
 
 
+def _open_record_leaves(node: object):
+    """Every scalar LEAF of the open record, depth-first. Dict keys are not leaves — they are the
+    name scan's jurisdiction — and container nodes carry no value of their own."""
+    if isinstance(node, dict):
+        for v in node.values():
+            yield from _open_record_leaves(v)
+    elif isinstance(node, (list, tuple)):
+        for v in node:
+            yield from _open_record_leaves(v)
+    else:
+        yield node
+
+
 def assert_open_record_has_no_sealed_content(open_record: dict, sealed_payload: dict) -> None:
-    """Fail closed if any sealed field NAME or VALUE appears in the OPEN record. The open record is
-    what a routine operator sees; a leaked return would defeat the sealed no-peeking boundary."""
+    """Fail closed if any sealed field NAME, or any sealed VALUE as a typed leaf, appears in the OPEN
+    record. The open record is what a routine operator sees; a leaked return would defeat the sealed
+    no-peeking boundary.
+
+    ⚠ VALUE comparison is TYPED LEAF EQUALITY, not a substring scan of the serialized document
+    (Amendment 7). The substring form refused the July 27 commit because sealed turnover 0.98 matched
+    INSIDE the open price mark 90.98 — digits of a larger number are not a disclosure of the sealed
+    one. What refuses now:
+
+      * a NUMERIC leaf exactly equal to a sealed numeric value (bool is never numeric here, despite
+        Python's subclassing — ``False == 0`` must not read as a leaked zero-return);
+      * a STRING leaf exactly equal to a sealed string value, or to the canonical spelling of a
+        sealed numeric value (``"0.98"`` discloses 0.98 as surely as the number does).
+
+    What no longer refuses: a sealed value's digits embedded inside a LARGER number or inside free
+    text ("90.98", "turnover was 0.98"). Free-text scanning is not separately governed; the name scan
+    below still refuses any sealed field name appearing anywhere in the serialized record, unchanged.
+
+    Exact semantics, no tolerance: the gate detects disclosure of an exact sealed value, never
+    approximate similarity. A NON-FINITE sealed numeric refuses outright — equality against NaN or an
+    infinity is not a meaningful disclosure test, and a sealed payload carrying one is already
+    malformed.
+    """
     flat = json.dumps(open_record, sort_keys=True, default=str)
     leaked_names = [n for n in (_SEALED_FIELD_NAMES | set(sealed_payload)) if n in flat]
     if leaked_names:
         raise ObservationCommitError(f"OPEN record leaks sealed field name(s): {sorted(leaked_names)}")
+
+    sealed_numbers: list[int | float] = []
+    sealed_strings: set[str] = set()
     for v in sealed_payload.values():
-        if isinstance(v, (int, float)) and v not in (0, 0.0, 1) and str(v) in flat:
-            raise ObservationCommitError(f"OPEN record leaks a sealed value: {v!r}")
+        if isinstance(v, bool):
+            continue                                   # a bool is a flag, not a performance number
+        if isinstance(v, (int, float)):
+            if isinstance(v, float) and not math.isfinite(v):
+                raise ObservationCommitError(
+                    f"the sealed payload carries a non-finite value {v!r}; the leak gate has no "
+                    f"meaningful equality test for it and refuses rather than guessing")
+            if v in (0, 0.0, 1):
+                continue                               # too common to be a disclosure
+            sealed_numbers.append(v)
+            sealed_strings.add(str(v))                 # the canonical spelling discloses it too
+        elif isinstance(v, str):
+            sealed_strings.add(v)
+
+    for leaf in _open_record_leaves(open_record):
+        if isinstance(leaf, bool):
+            continue
+        if isinstance(leaf, (int, float)):
+            if (isinstance(leaf, int) or math.isfinite(leaf)) and any(
+                    leaf == s for s in sealed_numbers):
+                raise ObservationCommitError(f"OPEN record leaks a sealed value: {leaf!r}")
+        elif isinstance(leaf, str) and leaf in sealed_strings:
+            raise ObservationCommitError(f"OPEN record leaks a sealed value: {leaf!r}")
 
 
 def sha_bytes(data: bytes) -> str:

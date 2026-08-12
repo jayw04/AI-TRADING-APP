@@ -47,7 +47,10 @@ from app.validation.account4_probe import Account4Probe, probe_account4
 from app.validation.data_finality import (
     ConstructionSpec,
     DataFinalityEvidence,
+    DataReadiness,
+    NarrowReadinessAttestation,
     assess_data_finality,
+    load_narrow_readiness_attestation,
     verify_store_unchanged,
 )
 from app.validation.deployment_identity import verify_deployment_identity
@@ -62,10 +65,18 @@ from app.validation.governed_corpus import (
     GovernedConstruction,
     construction_identity,
     consumed_rows_identity,
+    file_sha256,
     require_observation_identities,
     resolve_governed_construction,
 )
-from app.validation.production_bindings import build_forward_context, strict_pit_price_fn
+from app.validation.governed_quarantine import GovernedQuarantinePolicy
+from app.validation.measurement_freeze import load_measurement_freeze
+from app.validation.production_bindings import (
+    build_forward_context,
+    governed_narrow_wiring,
+    strict_pit_price_fn,
+)
+from app.validation.security_lineage import SessionLineageFilter
 from app.validation.session_orchestration import SessionRuntime
 from app.validation.witness_enforcement import (
     ProductionWitness,
@@ -128,10 +139,20 @@ class _GovernedReadiness:
     """
 
     def __init__(self, store: Any, config: ForwardDeploymentConfig,
-                 construction: ConstructionSpec) -> None:
+                 construction: ConstructionSpec, *, wiring: Any = None,
+                 narrow_readiness: NarrowReadinessAttestation | None = None) -> None:
         self._store = store
         self._config = config
         self._construction = construction
+        # ⚠ Both are DERIVED at the composition root from the GOVERNED construction and handed in —
+        # deriving either here would put a second derivation inside the gate that is supposed to be
+        # checking the first. `wiring` is the artifact-level derivation only: the VERIFIER it confers
+        # is built lazily inside `assess`, because building it reads the store's ingest provenance,
+        # and the composition root must not touch the store a moment earlier than it always has.
+        # `None` means a construction that confers no wiring (base-plus-delta) — the plain
+        # artifact-path verifier, unchanged.
+        self._wiring = wiring
+        self._narrow = narrow_readiness
         self._assessed: tuple[date, DataFinalityEvidence] | None = None
 
     def assess(self, session_date: date) -> DataFinalityEvidence:
@@ -139,27 +160,14 @@ class _GovernedReadiness:
             return self._assessed[1]
         evidence = assess_data_finality(
             self._store, session_date, construction=self._construction,
-            adjustment_verifier=_adjustment_verifier(self._store))
+            adjustment_verifier=_adjustment_verifier(self._store, self._wiring),
+            narrow_readiness=self._narrow)
         self._assessed = (session_date, evidence)
         return evidence
 
     def verify_unchanged(self, session_date: date, expected: DataFinalityEvidence) -> None:
         verify_store_unchanged(self._store, session_date, expected,
                                construction=self._construction)
-
-
-def _adjustment_verifier(store: Any):
-    from app.validation.adjustment_verifier import verify_adjustments
-    from app.validation.production_bindings import declare_action_source
-
-    source = declare_action_source(store)
-
-    def verifier(window_start: date, session_date: date, tickers: list[str], store_identity: str):
-        return verify_adjustments(store, window_start=window_start, session_date=session_date,
-                                  relevant_tickers=tickers, source=source,
-                                  store_identity_sha256=store_identity)
-
-    return verifier
 
 
 def _open_store(config: ForwardDeploymentConfig) -> Any:
@@ -269,11 +277,28 @@ def _build_proxy_closes(store: Any, config: ForwardDeploymentConfig, session_dat
     return closes, identity
 
 
-def _universe_fn(store: Any):
+def _universe_fn(store: Any, *, session: date, construction: ConstructionSpec):
+    """The registered universe construction, filtered to lineage-eligible securities.
+
+    The filter is applied HERE, at the single callable every downstream consumer draws from, so that
+    ranking, score computation, target sizing and tie-breaking cannot see a candidate whose lookback
+    crosses a permanent-lineage boundary. `universe_asof` itself is deliberately left untouched: it is
+    shared with the frozen replica and with historical conformance evidence, and changing it would
+    invalidate both.
+    """
     from app.factor_data.universe import universe_asof
 
+    window = store.con.execute(
+        "SELECT DISTINCT date FROM sep WHERE date <= ? ORDER BY date DESC LIMIT ?",
+        [session, construction.required_history_sessions]).fetchall()
+    if not window:
+        raise CompositionError(
+            f"the governed store holds no sessions on or before {session.isoformat()}; the lineage "
+            f"lookback cannot be established")
+    lineage = SessionLineageFilter(store, session_date=session, lookback_start=window[-1][0])
+
     def fn(as_of: date, n: int) -> list[str]:
-        return list(universe_asof(store, as_of, n=n))
+        return lineage.filter(list(universe_asof(store, as_of, n=n)))
 
     return fn
 
@@ -293,11 +318,17 @@ def _probe_fn(config: ForwardDeploymentConfig):
     return probe
 
 
-def _context_builder(config: ForwardDeploymentConfig):
+def _context_builder(config: ForwardDeploymentConfig, *, deployed_commit: str, freeze: Any,
+                     runtime_root: Path, ancestry_marker: Path | None):
+    """⚠ `deployed_commit` is the EVIDENCE-DERIVED identity from `verify_deployment_identity`, not a
+    caller assertion and never a default. The freeze supplies what the deployment is EXPECTED to be;
+    these supply what it IS. The gate compares them."""
     def builder(session: date) -> ForwardRunContext:
         return build_forward_context(session, dgs3mo_path=config.dgs3mo_path,
                                      trial_ledger_path=config.trial_ledger_path,
-                                     ledger_account_id=config.ledger_account_id)
+                                     ledger_account_id=config.ledger_account_id,
+                                     code_commit=deployed_commit, measurement_freeze=freeze,
+                                     runtime_root=runtime_root, ancestry_marker=ancestry_marker)
 
     return builder
 
@@ -306,7 +337,6 @@ def _resolve_governed_construction(config: ForwardDeploymentConfig,
                                    session: date) -> GovernedConstruction:
     """Validate the governed construction for this session, fail-closed (ADR 0048)."""
     corpus_block = _deployment_corpus_block(config)
-    base_cutoff = _declared_base_cutoff(corpus_block, config)
     return resolve_governed_construction(
         corpus_manifest_path=config.corpus_manifest_path,
         dgs3mo_manifest_path=config.dgs3mo_manifest_path,
@@ -316,15 +346,39 @@ def _resolve_governed_construction(config: ForwardDeploymentConfig,
         frozen_trial_ledger_sha256=TRIAL_LEDGER_SHA256,
         deployment_manifest_corpus_block=corpus_block,
         observation_session=session,
-        expected_sessions=_expected_delta_sessions(base_cutoff, session),
+        expected_sessions=_expected_sessions_for(config, session),
+        countersignature_path=config.corpus_countersignature_path,
     )
 
 
-def _declared_base_cutoff(corpus_block: Any, config: ForwardDeploymentConfig) -> date:
-    """The base cutoff the CORPUS MANIFEST declares — read before validation only to size the expected
-    session list. It is not trusted: `resolve_governed_construction` re-reads the manifest and refuses
-    unless every identity agrees with the deployment manifest, so a manipulated cutoff here produces a
-    session list that the chain then fails to match."""
+def _expected_sessions_for(config: ForwardDeploymentConfig, session: date) -> tuple[date, ...]:
+    """The delta sessions a BASE-PLUS-DELTA construction must carry, or `()` for a reconstruction.
+
+    ⚠ A Layer 2 reconstruction has no delta chain at all, so there is no expected session list to
+    build and no base cutoff to read. Returning `()` states that; synthesizing a cutoff from its
+    governed coverage in order to produce a list would invent a chain the construction does not have.
+    """
+    if _declared_construction_kind(config):
+        return ()
+    return _expected_delta_sessions(_declared_base_cutoff(config), session)
+
+
+def _declared_construction_kind(config: ForwardDeploymentConfig) -> str:
+    """The `kind` the corpus manifest declares, or `""` for the base-plus-delta construction, which
+    predates the marker and carries none."""
+    try:
+        payload = json.loads(Path(config.corpus_manifest_path).read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        raise CompositionError(
+            f"the corpus manifest at {config.corpus_manifest_path} is unreadable: {exc}") from exc
+    return str(payload.get("kind", "")).strip() if isinstance(payload, dict) else ""
+
+
+def _declared_base_cutoff(config: ForwardDeploymentConfig) -> date:
+    """The base cutoff a BASE-PLUS-DELTA corpus manifest declares — read before validation only to
+    size the expected session list. It is not trusted: `resolve_governed_construction` re-reads the
+    manifest and refuses unless every identity agrees with the deployment manifest, so a manipulated
+    cutoff here produces a session list that the chain then fails to match."""
     try:
         payload = json.loads(Path(config.corpus_manifest_path).read_text(encoding="utf-8"))
         return date.fromisoformat(str(payload["base_coverage_through"]))
@@ -372,6 +426,15 @@ def build_session_runtime(config: ForwardDeploymentConfig, session: date, *,
     evidence["invocation"] = invocation
     evidence["witness"] = witness.evidence
 
+    # The EXPECTED measurement identity, from the governed manifest outside the tree it pins.
+    #
+    # ⚠ Loaded AFTER the witness and BEFORE any data work. The ordering is load-bearing in both
+    # directions: a non-production witness must refuse before anything else runs (a REFERENCE-profile
+    # deployment must never reach the store), and a deployment that is not the ratified measurement
+    # instrument must refuse before minutes of reads rather than after them.
+    measurement_freeze = load_measurement_freeze(config.measurement_freeze_path)
+    evidence["measurement_freeze"] = measurement_freeze.to_open_provenance()
+
     # ADR 0048: establish WHICH governed construction this session is authorized to consume, before
     # the store is opened. A chain with a hole, a repeat, a reordering or a drifted frozen artifact
     # must refuse here rather than after the reads — and the refusal must not depend on the very store
@@ -383,12 +446,54 @@ def build_session_runtime(config: ForwardDeploymentConfig, session: date, *,
     store = _open_store(config)
     try:
         session_dates = _session_calendar(store, session)
-        proxy_closes, regime_source_identity = _build_proxy_closes(
-            store, config, session_dates, construction)
 
-        readiness = _GovernedReadiness(store, config, construction)
+        # Data finality is assessed BEFORE the market proxy is constructed, and the order is
+        # load-bearing rather than stylistic. `build_market_proxy` is a frozen artifact that builds
+        # its own basket by calling `universe_asof` directly, so it cannot be filtered; the one
+        # finding that says its input could fabricate a return — the lineage bridge risk — therefore
+        # has to land before it runs. Refusing afterwards would mean the fabricated return had
+        # already been computed and averaged into the regime.
+        # ADR 0048 / owner ruling 2026-07-31: the governed quarantine and the non-decision M&A
+        # disclosure are derived HERE, from the countersigned construction, and the narrow-readiness
+        # attestation is loaded UNDER that quarantine. Until now none of this reached the session
+        # path: `governed_quarantine` was a countersigned block with no consumer in `app/`, so a
+        # deployment could pass Phase C readiness and then be unable to run the very session that
+        # readiness had just cleared.
+        # ⚠ `None` for a base-plus-delta construction, which declares no governed quarantine. That
+        # path keeps exactly the verifier it has always had — no disclosure, no attestation, no
+        # narrow claim — and this must stay a NO-OP for it rather than a refusal: the format predates
+        # the block, and "declares none" is not a defect.
+        wiring = governed_narrow_wiring(
+            governed.normalized, governed.countersignature,
+            governed_root=Path(config.corpus_manifest_path).parent)
+        if wiring is None:
+            if config.narrow_readiness_attestation_path is not None:
+                raise CompositionError(
+                    f"the deployment declares a narrow-readiness attestation at "
+                    f"{config.narrow_readiness_attestation_path}, but this construction declares no "
+                    f"governed quarantine to bind it under; an attestation that cannot be bound is "
+                    f"refused rather than consulted")
+            narrow = None
+        else:
+            evidence["governed_narrow_wiring"] = wiring.to_open_provenance()
+            narrow = _narrow_attestation(config, wiring.quarantine)
+            if narrow is not None:
+                evidence["narrow_readiness_attestation"] = {
+                    "path": str(config.narrow_readiness_attestation_path),
+                    "attested_session": narrow[0].session_date.isoformat(),
+                    "attestation_sha256": narrow[1],
+                }
+
+        readiness = _GovernedReadiness(
+            store, config, construction, wiring=wiring,
+            narrow_readiness=narrow[0] if narrow else None)
         finality = readiness.assess(session)
         evidence["data_finality"] = finality.to_open_provenance()
+        if finality.verdict is DataReadiness.NOT_READY_LINEAGE_BRIDGE_RISK:
+            raise CompositionError(finality.detail)
+
+        proxy_closes, regime_source_identity = _build_proxy_closes(
+            store, config, session_dates, construction)
 
         # Both identities, from their own sources, in every observation. Independence is structural:
         # the construction identity is RECOMPUTED from the governed manifest, and the value-level one
@@ -404,9 +509,13 @@ def build_session_runtime(config: ForwardDeploymentConfig, session: date, *,
         runtime = SessionRuntime(
             store=store, accessor=_accessor(store),
             store_identity=finality.store_identity_sha256,
-            universe_fn=_universe_fn(store), proxy_closes=proxy_closes,
+            universe_fn=_universe_fn(store, session=session, construction=construction),
+            proxy_closes=proxy_closes,
             session_dates=session_dates, strict_price_fn=strict_pit_price_fn(store),
-            account4_probe=_probe_fn(config), context_builder=_context_builder(config),
+            account4_probe=_probe_fn(config),
+            context_builder=_context_builder(
+                config, deployed_commit=deployment.agreed_commit, freeze=measurement_freeze,
+                runtime_root=config.runtime_root, ancestry_marker=config.ancestry_marker_path),
             readiness=readiness, witness=witness)
     except Exception:
         store.close()
@@ -427,8 +536,44 @@ def build_session_runtime(config: ForwardDeploymentConfig, session: date, *,
         "run_timestamp": invocation,
         "deployed_tree_identity": deployment.agreed_commit,
         "regime_source_identity": regime_source_identity,
+        # Amendment 6: the owner-approved expected outcome for ONE first-session commit, or None.
+        # Resolved from the governed configuration and from nowhere else.
+        "outcome_pin": config.first_session_outcome_pin,
     }
     return ResolvedSession(runtime=runtime, store=store, run_kwargs=run_kwargs, evidence=evidence)
+
+
+def _adjustment_verifier(store: Any, wiring: Any = None) -> Any:
+    """The verifier the readiness gate assesses with — built HERE, at assess time, never earlier.
+
+    Constructing a verifier reads the store's ingest provenance (`declare_action_source`), so this is
+    deliberately deferred out of the composition root: the store must not be interrogated ahead of
+    the refusals the root orders first. With `wiring` (a Layer 2 construction) the verifier carries
+    the manifest-bound authority and the pinned disclosure; without it, the artifact-path source
+    authority with no disclosure — exactly what that construction has always used.
+    """
+    if wiring is not None:
+        return wiring.verifier(store)
+    from app.validation.production_bindings import governed_adjustment_verifier
+
+    return governed_adjustment_verifier(store, authority_policy=None, ma_disclosure=None)
+
+
+def _narrow_attestation(config: ForwardDeploymentConfig, quarantine: GovernedQuarantinePolicy,
+                        ) -> tuple[NarrowReadinessAttestation, str] | None:
+    """Load the deployment's narrow-readiness attestation, bound to the DERIVED quarantine.
+
+    `None` when the deployment declares none — a construction whose corporate actions are all proven
+    needs no narrow claim, and inventing one for it would be worse than not having it. When the
+    deployment DOES declare one, an unreadable or non-binding artifact is a refusal rather than a
+    silent fall back to the broad gate: the difference between "no narrow claim" and "the narrow claim
+    could not be checked" is exactly the difference this fails closed on.
+    """
+    path = config.narrow_readiness_attestation_path
+    if path is None:
+        return None
+    attestation, _record = load_narrow_readiness_attestation(Path(path), quarantine=quarantine)
+    return attestation, file_sha256(Path(path))
 
 
 def _deployment_blob() -> dict[str, Any]:

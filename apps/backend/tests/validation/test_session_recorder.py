@@ -31,6 +31,7 @@ from app.validation.observation_store import (
     committed_session_count,
 )
 from app.validation.session_recorder import record_forward_session
+from tests.validation.freeze_fixture import TEST_DEPLOYED_COMMIT, freeze_kwargs
 
 REPO = Path(__file__).resolve().parents[4]
 DATA = REPO / "docs/review/momentum_daily/equal_weight_validation"
@@ -79,18 +80,19 @@ class _FailFileFsync(_NoopDurability):
 
 
 @pytest.fixture
-def ctx():
+def ctx(tmp_path):
     dgs3mo = DATA / "data/DGS3MO.csv"
     ledger = DATA / "TrialLedger_v1.0.json"
     if not (dgs3mo.exists() and ledger.exists()):
         pytest.skip("committed artifacts required")
     return ForwardRunContext(
         session_date=SESSION_1, is_nyse_trading_session=True,
-        code_commit=fw.VALIDATION_MEASUREMENT_COMMIT, benchmark_commits=dict(fw.BENCHMARK_COMMITS),
+        code_commit=TEST_DEPLOYED_COMMIT, benchmark_commits=dict(fw.BENCHMARK_COMMITS),
         dgs3mo_path=dgs3mo, dgs3mo_cutoff=fw.DGS3MO_OBSERVATION_CUTOFF,
         trial_ledger_path=ledger, effective_dsr_trial_count=45, config=dict(fw.FROZEN_CONFIG),
         ledger_account_id=901, ledger_is_shadow_or_separate_paper=True,
-        references_account4_capital=False, references_retired_baseline=False)
+        references_account4_capital=False, references_retired_baseline=False,
+            **freeze_kwargs(tmp_path))
 
 
 def _open(ctx, store, *, probe=None):
@@ -334,10 +336,13 @@ def test_open_record_carries_no_performance(ctx, tmp_path):
 
 
 def test_sealed_value_leaking_into_the_open_record_fails_closed(ctx, tmp_path):
+    """⚠ Amendment 7 reshaped the leak: an EXACT string leaf spelling the sealed value, smuggled
+    through operational_exceptions. The old free-text form ("session return was -0.0042") is the
+    substring semantics the owner ruled out — its digits inside prose are no longer a refusal."""
     store = tmp_path / "ledger"
     _open(ctx, store)
     with pytest.raises(ObservationCommitError, match="sealed value"):
         _record(ctx, store, SESSION_2,
-                operational={"operational_exceptions": ["session return was -0.0042"]},
+                operational={"operational_exceptions": ["-0.0042"]},
                 sealed={"strategy_return": -0.0042})
     assert committed_session_count(store) == 1

@@ -85,3 +85,6 @@ docker-compose.override.yml
 docs/review/momentum_daily/drift_audit/live_seams.json
 docs/review/momentum_daily/drift_audit/replica_seams.json
 docs/review/momentum_daily/drift_audit/.census_pid
+
+# GITHUB-OPS-001: local uv toolchain venv used to regenerate constraints/ (never committed)
+.uvtool/

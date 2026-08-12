@@ -20,6 +20,7 @@ from pathlib import Path
 import pytest
 
 from app.validation.governed_corpus import (
+    TICKERS_SCHEMA_VERSION,
     CorpusConstructionError,
     CorpusManifest,
     DeltaChainError,
@@ -28,15 +29,18 @@ from app.validation.governed_corpus import (
     GovernedDelta,
     HistoricalAmendmentRefused,
     ManifestIdentityConflict,
+    TickersManifest,
     require_declared_identities,
     require_observation_identities,
     resolve_governed_construction,
     verify_frozen_artifact,
 )
+from app.validation.security_lineage import SECURITY_IDENTITY_CONTRACT
 
 UNIVERSE = "a" * 64
 BASE = "d" * 64
 ACTIONS = "e" * 64
+TICKERS_ID = "9" * 64
 BASE_CUTOFF = date(2026, 7, 24)
 
 # Real XNYS sessions after the base cutoff: Fri 2026-07-24 → Mon 27, Tue 28, Wed 29.
@@ -51,12 +55,40 @@ def delta(session: date, *, coverage: date | None = None, sha: str = "b" * 64,
         retrieved_at="2026-07-28T22:05:00Z", countersignature="delta-cs-1")
 
 
+#: The embedded TICKERS block as it appears in a manifest JSON payload.
+TICKERS_BLOCK = {
+    "schema_version": TICKERS_SCHEMA_VERSION,
+    "columns": ["permaticker", "ticker", "firstpricedate", "lastpricedate"],
+    "rows": 21_934, "permanent_ids": 21_934,
+    "row_identity_sha256": "1" * 64, "coverage_cutoff": "2026-07-29",
+    "artifact_sha256": "2" * 64, "source_identity": "SHARADAR/TICKERS (table=SEP)",
+    "countersignature": "TickersManifest_v1.0",
+}
+
+
+def tickers_manifest(*, rows: int = 21_934, cutoff: date = S29,
+                     schema: str = TICKERS_SCHEMA_VERSION,
+                     columns: tuple[str, ...] = ("permaticker", "ticker", "firstpricedate",
+                                                 "lastpricedate"),
+                     permanent_ids: int | None = None,
+                     row_identity: str = "1" * 64) -> TickersManifest:
+    return TickersManifest(
+        schema_version=schema, columns=columns, rows=rows,
+        permanent_ids=rows if permanent_ids is None else permanent_ids,
+        row_identity_sha256=row_identity, coverage_cutoff=cutoff, artifact_sha256="2" * 64,
+        source_identity="SHARADAR/TICKERS (table=SEP)", countersignature="TickersManifest_v1.0")
+
+
 def manifest(*deltas: GovernedDelta, authoritative: bool = True,
-             universe_size: int = 14_150) -> CorpusManifest:
+             universe_size: int = 14_150, tickers: TickersManifest | None = None,
+             tickers_authoritative: bool = True,
+             contract: str = SECURITY_IDENTITY_CONTRACT) -> CorpusManifest:
     return CorpusManifest(
         base_corpus_sha256=BASE, base_coverage_through=BASE_CUTOFF,
         governed_universe_sha256=UNIVERSE, governed_universe_size=universe_size,
         actions_manifest_sha256=ACTIONS, actions_authoritative=authoritative,
+        tickers=tickers or tickers_manifest(), tickers_authoritative=tickers_authoritative,
+        security_identity_contract=contract,
         deltas=deltas, base_countersignature="GoverningCorpus_Countersignature_v2.0")
 
 
@@ -78,6 +110,92 @@ class TestConstructionIdentity:
     def test_coverage_follows_the_last_delta(self):
         assert manifest().coverage_through == BASE_CUTOFF
         assert manifest(delta(S27), delta(S28)).coverage_through == S28
+
+
+class TestTickersIsPartOfTheConstruction:
+    """ADR 0048 as amended 2026-07-29. TICKERS is bound because the decision demonstrably depends on
+    it: a stale security master yields an EMPTY registered universe and a current one yields 500
+    names, and those two constructions must not be able to share an authorized identity."""
+
+    def test_a_tickers_change_moves_the_corpus_identity(self):
+        before = manifest(delta(S27)).corpus_manifest_sha256
+        after = manifest(delta(S27), tickers=tickers_manifest(rows=21_935)).corpus_manifest_sha256
+        assert before != after
+
+    def test_market_data_identical_but_tickers_different_are_not_equivalent(self):
+        """The delta chain, base and universe are byte-identical; only the security master differs."""
+        d = delta(S27)
+        a = manifest(d, tickers=tickers_manifest(row_identity="3" * 64))
+        b = manifest(d, tickers=tickers_manifest(row_identity="4" * 64))
+        assert a.ordered_delta_manifest_sha256s == b.ordered_delta_manifest_sha256s
+        assert a.base_corpus_sha256 == b.base_corpus_sha256
+        assert a.corpus_manifest_sha256 != b.corpus_manifest_sha256
+
+    def test_changing_the_identity_contract_moves_the_construction_identity(self):
+        """Otherwise a resolver change could reinterpret identical artifacts under the same identity."""
+        assert (manifest(delta(S27)).corpus_manifest_sha256
+                != manifest(delta(S27), contract="SOMETHING_ELSE_V2").corpus_manifest_sha256)
+
+    def test_a_contract_this_deployment_does_not_implement_is_refused(self):
+        with pytest.raises(CorpusConstructionError, match="security identity contract"):
+            manifest(delta(S27), contract="SOMETHING_ELSE_V2").validate(
+                observation_session=S27, expected_sessions=(S27,))
+
+    def test_a_non_authoritative_tickers_dataset_is_refused(self):
+        with pytest.raises(CorpusConstructionError, match="cannot rank securities it cannot identify"):
+            manifest(delta(S27), tickers_authoritative=False).validate(
+                observation_session=S27, expected_sessions=(S27,))
+
+    def test_tickers_coverage_short_of_the_session_is_refused(self):
+        """The exact defect found on 2026-07-29: a security master cut off at 2026-06-12 makes the
+        registered universe empty for every later session, including the original forward start."""
+        with pytest.raises(CorpusConstructionError, match="cut off"):
+            manifest(delta(S27), tickers=tickers_manifest(cutoff=date(2026, 6, 12))).validate(
+                observation_session=S27, expected_sessions=(S27,))
+
+    def test_an_unknown_tickers_schema_is_refused(self):
+        with pytest.raises(CorpusConstructionError, match="schema"):
+            manifest(delta(S27), tickers=tickers_manifest(schema="TICKERS_V1")).validate(
+                observation_session=S27, expected_sessions=(S27,))
+
+    def test_a_manifest_omitting_the_permanent_id_column_is_refused(self):
+        with pytest.raises(CorpusConstructionError, match="identity-bearing column"):
+            manifest(delta(S27), tickers=tickers_manifest(
+                columns=("ticker", "firstpricedate", "lastpricedate"))).validate(
+                observation_session=S27, expected_sessions=(S27,))
+
+    def test_a_symbol_mapping_to_several_lineages_is_refused(self):
+        with pytest.raises(CorpusConstructionError, match="ambiguous by construction"):
+            manifest(delta(S27), tickers=tickers_manifest(
+                rows=21_934, permanent_ids=21_900)).validate(
+                observation_session=S27, expected_sessions=(S27,))
+
+
+class TestGeneratorAndVerifierShareOneDefinition:
+    """The manifest generator writes `to_manifest_json()`; the session reads `from_payload`. Pinning
+    the round trip is what stops a producer growing a second, unreviewed idea of the construction."""
+
+    def test_a_corpus_manifest_round_trips_to_the_same_identity(self):
+        original = manifest(delta(S27), delta(S28))
+        restored = CorpusManifest.from_payload(original.to_manifest_json())
+        assert restored.corpus_manifest_sha256 == original.corpus_manifest_sha256
+        assert restored.tickers_manifest_sha256 == original.tickers_manifest_sha256
+        assert restored.security_identity_contract == original.security_identity_contract
+
+    def test_a_tickers_manifest_round_trips_to_the_same_identity(self):
+        original = tickers_manifest()
+        restored = TickersManifest.from_payload(original.to_manifest_json())
+        assert restored.tickers_manifest_sha256 == original.tickers_manifest_sha256
+
+    def test_the_round_trip_preserves_delta_exclusions(self):
+        d = GovernedDelta(
+            session_date=S27, coverage_through=S27, sha256="b" * 64, source_sha256="c" * 64,
+            universe_sha256=UNIVERSE, rows=5_881, retrieved_at="2026-07-29T12:21:08Z",
+            countersignature="GovernedDelta_2026-07-27_v1.0",
+            exclusions=("1827 future-dated ACTIONS rows excluded",))
+        restored = CorpusManifest.from_payload(manifest(d).to_manifest_json())
+        assert restored.deltas[0].exclusions == d.exclusions
+        assert restored.corpus_manifest_sha256 == manifest(d).corpus_manifest_sha256
 
 
 class TestDeltaChainFailsClosed:
@@ -156,6 +274,8 @@ class TestDeltaChainFailsClosed:
         payload = {"base_corpus_sha256": BASE, "base_coverage_through": "2026-07-24",
                    "governed_universe_sha256": UNIVERSE, "governed_universe_size": 14_150,
                    "actions_manifest_sha256": ACTIONS, "actions_authoritative": "true",
+                   "tickers": TICKERS_BLOCK, "tickers_authoritative": True,
+                   "security_identity_contract": SECURITY_IDENTITY_CONTRACT,
                    "base_countersignature": "v2.0", "deltas": []}
         with pytest.raises(CorpusConstructionError, match="merely reads as one"):
             CorpusManifest.from_payload(payload)
@@ -227,6 +347,7 @@ class TestDeclaredIdentities:
     def block(self, **over) -> dict:
         base = {"base_corpus_sha256": BASE, "ordered_delta_manifest_sha256s": ["b" * 64],
                 "governed_universe_sha256": UNIVERSE, "actions_manifest_sha256": ACTIONS,
+                "tickers_manifest_sha256": TICKERS_ID,
                 "corpus_manifest_sha256": "7" * 64}
         base.update(over)
         return base
@@ -234,6 +355,7 @@ class TestDeclaredIdentities:
     def computed(self, **over) -> dict:
         c = {"base_corpus_sha256": BASE, "ordered_delta_manifest_sha256s": ("b" * 64,),
              "governed_universe_sha256": UNIVERSE, "actions_manifest_sha256": ACTIONS,
+             "tickers_manifest_sha256": TICKERS_ID,
              "corpus_manifest_sha256": "7" * 64}
         c.update(over)
         return c
@@ -327,7 +449,8 @@ class TestObservationIdentities:
     def test_the_construction_identity_may_not_be_sourced_from_the_store(self):
         from app.validation.governed_corpus import construction_identity
 
-        with pytest.raises(ManifestIdentityConflict, match="recomputed from a CorpusManifest"):
+        with pytest.raises(ManifestIdentityConflict,
+                           match="recomputed from a governed corpus manifest"):
             construction_identity(_finality("8" * 64))  # type: ignore[arg-type]
 
     def test_a_hand_built_identity_carries_no_provenance(self):
@@ -457,6 +580,9 @@ class TestCompositionWiring:
             dgs3mo_manifest_path=tmp_path / "dgs3mo_manifest.json",
             dgs3mo_path=tmp_path / "DGS3MO.csv",
             trial_ledger_path=tmp_path / "TrialLedger.json",
+            # A base-plus-delta deployment legitimately configures no sidecar: its approval travels
+            # with each delta's own countersignature reference.
+            corpus_countersignature_path=None,
             deployment_manifest_path=tmp_path / "manifest.json")
 
     def test_the_composition_root_resolves_a_complete_construction(self, tmp_path: Path):
@@ -516,6 +642,8 @@ class TestResolveGovernedConstruction:
             "base_corpus_sha256": BASE, "base_coverage_through": "2026-07-24",
             "governed_universe_sha256": UNIVERSE, "governed_universe_size": 14_150,
             "actions_manifest_sha256": ACTIONS, "actions_authoritative": True,
+            "tickers": TICKERS_BLOCK, "tickers_authoritative": True,
+            "security_identity_contract": SECURITY_IDENTITY_CONTRACT,
             "base_countersignature": "v2.0",
             "deltas": deltas if deltas is not None else [{
                 "session_date": "2026-07-27", "coverage_through": "2026-07-27",
@@ -546,6 +674,7 @@ class TestResolveGovernedConstruction:
             "ordered_delta_manifest_sha256s": list(corpus.ordered_delta_manifest_sha256s),
             "governed_universe_sha256": corpus.governed_universe_sha256,
             "actions_manifest_sha256": corpus.actions_manifest_sha256,
+            "tickers_manifest_sha256": corpus.tickers_manifest_sha256,
             "corpus_manifest_sha256": corpus.corpus_manifest_sha256,
             "dgs3mo_manifest_sha256": dgs.dgs3mo_manifest_sha256,
         }
@@ -576,6 +705,7 @@ class TestResolveGovernedConstruction:
             self._resolve(tmp_path, corpus_path, dgs_path, dgs3mo, ledger, block={
                 "base_corpus_sha256": BASE, "ordered_delta_manifest_sha256s": ["b" * 64],
                 "governed_universe_sha256": UNIVERSE, "actions_manifest_sha256": ACTIONS,
+                "tickers_manifest_sha256": TICKERS_ID,
                 "corpus_manifest_sha256": "0" * 64, "dgs3mo_manifest_sha256": "0" * 64})
 
     def test_a_manifest_without_the_dgs3mo_identity_is_refused(self, tmp_path: Path):
@@ -589,6 +719,7 @@ class TestResolveGovernedConstruction:
                 "ordered_delta_manifest_sha256s": list(corpus.ordered_delta_manifest_sha256s),
                 "governed_universe_sha256": corpus.governed_universe_sha256,
                 "actions_manifest_sha256": corpus.actions_manifest_sha256,
+                "tickers_manifest_sha256": corpus.tickers_manifest_sha256,
                 "corpus_manifest_sha256": corpus.corpus_manifest_sha256})
 
     def test_coverage_short_of_the_session_is_refused(self, tmp_path: Path):
@@ -609,6 +740,7 @@ class TestResolveGovernedConstruction:
                     "ordered_delta_manifest_sha256s": [],
                     "governed_universe_sha256": corpus.governed_universe_sha256,
                     "actions_manifest_sha256": corpus.actions_manifest_sha256,
+                    "tickers_manifest_sha256": corpus.tickers_manifest_sha256,
                     "corpus_manifest_sha256": corpus.corpus_manifest_sha256,
                     "dgs3mo_manifest_sha256": dgs.dgs3mo_manifest_sha256},
                 observation_session=S27, expected_sessions=())

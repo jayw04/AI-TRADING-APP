@@ -57,7 +57,11 @@
     },
     "corpus_manifest_path": {
       "type": "string",
-      "description": "The governed corpus construction: immutable base plus ORDERED append-only deltas, each hashed and countersigned (ADR 0048)."
+      "description": "The governed corpus construction. Either an immutable base plus ORDERED append-only deltas, each hashed and countersigned (ADR 0048), or a `layer2_governed_corpus` whole-corpus reconstruction, which carries no base and no delta chain."
+    },
+    "corpus_countersignature_path": {
+      "type": "string",
+      "description": "The external countersignature sidecar. REQUIRED for a `layer2_governed_corpus` construction and refused-if-absent at composition; a reconstruction is never composed on the strength of the construction artifact alone. Not used by the base-plus-delta construction, whose approval travels with each delta."
     },
     "dgs3mo_manifest_path": {
       "type": "string",

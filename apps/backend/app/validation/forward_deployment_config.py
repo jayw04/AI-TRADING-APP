@@ -48,6 +48,13 @@ class DeploymentConfigError(IntegrityStop):
     """The deployment did not describe itself completely enough to run a governed session."""
 
 
+#: `apps/backend` — the root that contains the measured paths in a source checkout.
+DEFAULT_RUNTIME_ROOT = Path(__file__).resolve().parents[2]
+#: The in-repo governed freeze manifest, resolved from this module rather than the working directory.
+DEFAULT_MEASUREMENT_FREEZE_PATH = (
+    DEFAULT_RUNTIME_ROOT.parents[1] / "manifests" / "forward" / "measurement_freeze.json")
+
+
 @dataclass(frozen=True)
 class ForwardDeploymentConfig:
     """What the deployment says it is. Paths are resolved but NOT opened here."""
@@ -73,6 +80,41 @@ class ForwardDeploymentConfig:
     backstop_days: int
     weight_drift_pct: float
     witness: WitnessConfig                 # the anchor trust boundary this deployment witnesses across
+    #: The governed measurement freeze — the EXPECTED measurement identity, held outside the tree it
+    #: pins so it cannot be a fixed point.
+    #:
+    #: ⚠ Resolved from THIS module's location, not from the working directory. A CWD-relative default
+    #: silently resolves to a different file (or none) depending on where the process was started,
+    #: which for a governed binding is the difference between checking and not checking.
+    measurement_freeze_path: Path = DEFAULT_MEASUREMENT_FREEZE_PATH
+    #: The root that CONTAINS the measured paths, whose executable content is digested and compared
+    #: against the freeze. On the box this is the extracted runtime; in a checkout, `apps/backend`.
+    runtime_root: Path = DEFAULT_RUNTIME_ROOT
+    #: Deploy-time ancestry attestation, for runtimes with no git repository to ask.
+    ancestry_marker_path: Path | None = None
+    #: The external countersignature sidecar for a Layer 2 reconstruction.
+    #:
+    #: ⚠ Optional in the CONFIG, mandatory at COMPOSITION for a Layer 2 construction. It is not in
+    #: `_REQUIRED_KEYS` because a base-plus-delta deployment legitimately has none — its approval
+    #: travels with each delta's own countersignature reference. Absence is therefore diagnosed where
+    #: the construction kind is actually known, by `resolve_governed_construction`, rather than
+    #: refusing every deployment for lacking a file only one kind needs.
+    corpus_countersignature_path: Path | None = None
+    #: The narrow-readiness attestation the Phase C runner produced for this construction.
+    #:
+    #: ⚠ Optional in the CONFIG for the same reason the sidecar is: a construction whose corporate
+    #: actions are all proven reaches `READY` on the broad claim and needs no narrow attestation. When
+    #: a deployment DOES declare one it is mandatory at composition — an unreadable artifact, or one
+    #: written under a different governed quarantine, is a refusal and never a silent fall back to the
+    #: broad gate.
+    narrow_readiness_attestation_path: Path | None = None
+    #: The owner-approved expected outcome for ONE first-session commit (Amendment 6), or None for
+    #: ordinary unpinned operation. Parsed fail-closed at load: a declared pin with a missing or
+    #: malformed digest refuses the whole configuration rather than degrading into an unpinned run.
+    #:
+    #: ⚠ THE CONFIGURATION FILE IS THE ONLY SOURCE. No environment fallback, no CLI argument, no
+    #: default — expectations that can arrive through an ungoverned channel are suggestions.
+    first_session_outcome_pin: Any | None = None
     runtime_digest_path: Path | None = None
     runtime_digest_env: str | None = None
     expected_commit: str | None = None
@@ -87,6 +129,25 @@ class ForwardDeploymentConfig:
         # component options are summarised by key rather than copied into operator-visible evidence.
         d["witness"] = self.witness.to_open_provenance()
         return d
+
+
+def _parse_outcome_pin(payload: Any) -> Any | None:
+    """Parse the optional first-session outcome pin, fail-closed (Amendment 6).
+
+    `None` when the configuration declares none — ordinary unpinned operation. A DECLARED pin that
+    cannot be parsed refuses the whole configuration: silently dropping it would convert "commit only
+    the reviewed outcome" into an ordinary commit, which is the exact degradation the pin forbids.
+    """
+    if payload is None:
+        return None
+    from app.validation.forward_session_runner import FirstSessionOutcomePin
+
+    try:
+        return FirstSessionOutcomePin.from_payload(payload)
+    except IntegrityStop as exc:
+        raise DeploymentConfigError(
+            f"the declared first_session_outcome_pin is unusable and the configuration is refused "
+            f"rather than run unpinned: {exc}") from exc
 
 
 def config_path() -> Path:
@@ -155,6 +216,19 @@ def load_deployment_config(path: Path | None = None) -> ForwardDeploymentConfig:
         backstop_days=int(payload["backstop_days"]),
         weight_drift_pct=float(payload["weight_drift_pct"]),
         witness=load_witness_config(payload.get("witness")),
+        corpus_countersignature_path=(Path(payload["corpus_countersignature_path"])
+                                      if payload.get("corpus_countersignature_path") else None),
+        narrow_readiness_attestation_path=(
+            Path(payload["narrow_readiness_attestation_path"])
+            if payload.get("narrow_readiness_attestation_path") else None),
+        first_session_outcome_pin=_parse_outcome_pin(payload.get("first_session_outcome_pin")),
+        # ⚠ Absent => None, and the ancestry check then FAILS CLOSED wherever ancestry evidence is
+        # required. There is deliberately no environment fallback and no default path: a deployment
+        # that cannot point at its ancestry attestation must not have one fabricated for it. The field
+        # existed on the dataclass but was never read from the payload, so it was silently always None
+        # and no deployment could satisfy an ancestry check it did not itself descend from.
+        ancestry_marker_path=(Path(payload["ancestry_marker_path"])
+                              if payload.get("ancestry_marker_path") else None),
         runtime_digest_path=(Path(payload["runtime_digest_path"])
                              if payload.get("runtime_digest_path") else None),
         runtime_digest_env=(str(payload["runtime_digest_env"])
