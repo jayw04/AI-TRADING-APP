@@ -28,9 +28,9 @@ SUITE = "tests/research/phase3b/test_phase3b_producer_equivalence.py"
 MUTATIONS: list[tuple[str, str, str]] = [
     (
         "signal series reads the split-adjusted close",
-        'fields = {name: _column(prices, name) for name in ("closeadj", "closeunadj", "volume")}',
-        'fields = {"closeadj": _column(prices, "close"), '
-        '"closeunadj": _column(prices, "closeunadj"), "volume": _column(prices, "volume")}',
+        "fields = {name: _column(prices, name) for name in aligned_fields}",
+        'fields = {**{name: _column(prices, name) for name in aligned_fields}, '
+        '"closeadj": _column(prices, "close")}',
     ),
     (
         "YOUNG collapsed into UNEXPLAINED_HOLE",

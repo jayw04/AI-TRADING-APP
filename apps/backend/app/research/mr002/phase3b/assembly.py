@@ -116,7 +116,8 @@ def price_series_by_symbol(prices: Any, calendar: RegisteredCalendar) -> dict[st
     verify_column_purposes("prices", tuple(prices.column_names))
     tickers = _column(prices, "ticker")
     dates = [str(d) for d in _column(prices, "date")]
-    fields = {name: _column(prices, name) for name in ("closeadj", "closeunadj", "volume")}
+    aligned_fields = ("closeadj", "closeunadj", "volume", "open", "close")
+    fields = {name: _column(prices, name) for name in aligned_fields}
 
     by_symbol: dict[str, dict[str, tuple[float, float, float]]] = {}
     for i, ticker in enumerate(tickers):
@@ -126,21 +127,17 @@ def price_series_by_symbol(prices: Any, calendar: RegisteredCalendar) -> dict[st
             raise AssemblyRefused(f"duplicate price row for {symbol} {session}")
         rows[session] = tuple(
             float("nan") if fields[name][i] is None else float(fields[name][i])
-            for name in ("closeadj", "closeunadj", "volume")
+            for name in aligned_fields
         )
 
     n = len(calendar)
     out: dict[str, dict] = {}
     for symbol, rows in by_symbol.items():
-        arrays = {
-            k: np.full(n, np.nan, dtype=np.float64) for k in ("closeadj", "closeunadj", "volume")
-        }
+        arrays = {k: np.full(n, np.nan, dtype=np.float64) for k in aligned_fields}
         for i, session in enumerate(calendar.sessions):
             if session in rows:
-                ca, cu, vol = rows[session]
-                arrays["closeadj"][i] = ca
-                arrays["closeunadj"][i] = cu
-                arrays["volume"][i] = vol
+                for name, value in zip(aligned_fields, rows[session], strict=True):
+                    arrays[name][i] = value
         out[symbol] = arrays
     return out
 
