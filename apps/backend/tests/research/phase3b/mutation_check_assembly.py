@@ -29,7 +29,7 @@ MUTATIONS: list[tuple[str, str, str]] = [
     (
         "signal series reads the split-adjusted close",
         "fields = {name: _column(prices, name) for name in aligned_fields}",
-        'fields = {**{name: _column(prices, name) for name in aligned_fields}, '
+        "fields = {**{name: _column(prices, name) for name in aligned_fields}, "
         '"closeadj": _column(prices, "close")}',
     ),
     (
