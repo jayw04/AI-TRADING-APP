@@ -1,0 +1,47 @@
+{
+ "record_type": "MR002_Phase3B_IAMLatchReleaseEvent",
+ "version": "1.0",
+ "artifact_kind": "PRIVILEGE_EVENT_RECORD",
+ "outcome": "RELEASED_THEN_RESTORED — EXECUTION NOT ATTEMPTED",
+ "authorization": "owner ruling: remove only DenyAssumingTheValidationReaderRole",
+ "role": "mr002-phase3c-run-host",
+ "policy": "mr002-phase3c-qualification-only",
+ "pre_release_equality_check": {
+  "verdict": "PASS",
+  "closure_files_live": 41, "closure_files_bound": 41,
+  "missing": [], "extra": [], "drift": [],
+  "dependency_wheels_equal": true, "inventory_sha256_equal": true, "installed_file_count_equal": true,
+  "image_resolved": "sha256:194efbdf96ee11c19f3554dcf1b1097958cdc347bcdc1637504b441237432f51",
+  "output_root": "/opt/mr002/out absent - FRESH",
+  "authorization_state": {"validation_authorization": true, "_rev": 1, "git_clean": true},
+  "oos_denied_for_both_principals": true
+ },
+ "change_applied": {
+  "removed": ["DenyAssumingTheValidationReaderRole"],
+  "statements_before": 7, "statements_after": 6,
+  "sealed_store_deny_retained": true,
+  "nothing_else_altered": true
+ },
+ "post_release_simulation": {
+  "host_assume_reader": "implicitDeny",
+  "host_sealed_s3": "explicitDeny",
+  "reader_validation": "allowed",
+  "reader_reference": "allowed",
+  "reader_oos": "explicitDeny",
+  "expected_by_ceremony": "host_assume_reader = allowed",
+  "result": "CEREMONY CHECK FAILED — execution not attempted"
+ },
+ "finding": {
+  "summary": "removing the Deny is NECESSARY BUT NOT SUFFICIENT",
+  "cause": "the reader trust policy delegates to the ACCOUNT ROOT (Principal arn:aws:iam::219024422756:root) with a condition on aws:PrincipalArn. When a trust policy delegates to the account root, the calling principal's IDENTITY policy must also grant sts:AssumeRole. The host role's identity policy contains no sts:AssumeRole Allow at all.",
+  "verified": "simulate-principal-policy with the trust policy supplied as --resource-policy still returns implicitDeny with zero matched statements, so this is not a simulation artifact",
+  "consequence": "the reader assumption would have failed with AccessDenied; per the frozen rule the opening would have remained unspent, but the run would have refused"
+ },
+ "restoration": {
+  "restored": true,
+  "byte_identical_to_backup": true,
+  "host_assume_reader_after_restore": "explicitDeny",
+  "rationale": "no run was in progress, so the containment control was returned to its documented state rather than left open pending a decision"
+ },
+ "boundary": "No STS call was made, no reader credentials obtained, no S3 client constructed, no sealed or OOS object opened, no published_at stamped. The single validation opening remains UNSPENT."
+}
