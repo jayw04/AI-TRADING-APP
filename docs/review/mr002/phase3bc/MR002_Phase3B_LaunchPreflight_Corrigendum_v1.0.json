@@ -1,0 +1,66 @@
+{
+ "artifact_kind": "CORRECTION",
+ "boundary": "Zero-data. No AWS call, no sealed object, no credential. validation_authorization remains true at _rev 1 and the single validation opening remains UNSPENT.",
+ "corrected_claims": [
+  {
+   "as_issued": "No frozen artifact carries the A/B/C parameter values (Z_entry thresholds) or their hashes. Preregistration v1.0.4 names the configs and gates Config B, but never defines them.",
+   "corrected_status": "RESOLVED_BY_REGISTERED_GOVERNING_SOURCE",
+   "correction": "WRONG. The values are carried by the v0.3 gate table SS6 'Frozen parameter policy (exactly three configurations - unchanged)' and independently restated in the v1.1 refreeze candidate. Preregistration v1.0.4 registers BOTH files by SHA-256, and both reproduce exactly. Preregistration v1.0.4 does not restate the table because it names the v0.3 gate table as the governing authority, 'frozen UNCHANGED into v1.0' - I read the pointer as an absence.",
+   "location": "parameter_resolution.config_A_B_C_identities.status = UNRESOLVED"
+  }
+ ],
+ "corrects": {
+  "commit": "fa9fc9a",
+  "disposition": "The register is NOT rewritten. It stands as issued, corrected by this record, because owner decisions were taken against it as written.",
+  "identity_sha256": "70b3ebd295ded890004100c5d763641c44a7a0d6ae76484ceb0d5a8386d11a38",
+  "record": "MR002_Phase3B_LaunchPreflight_BlockerRegister_v1.0.json"
+ },
+ "date": "2026-08-12",
+ "effect_on_the_register_verdict": "NONE. The STOP stands on independent grounds: no Phase 3B entry point, no sealed-store reader, a producer hard-bound to DEVELOPMENT, enrichment outside the bound evaluator identity, zero emitters for the six deliverables, and the unreconciled output and input-source contracts. Config A/B/C moves from a STOP item to a specification item.",
+ "governing_sources_verified": [
+  {
+   "file": "docs/implementation/TradingWorkbench_MR002_PreRegistration_v0.3.md",
+   "matches": true,
+   "recomputed_sha256": "1007db8204ad3dff544483614ed40f5fce1573e4dd61b9f6a1cd79d5902bdc59",
+   "registered_in": "governing_gate_source['v0.3_gate_table_sha256'] (recorded truncated as '1007db8204ad3dff...')",
+   "registered_sha256": "1007db8204ad3dff544483614ed40f5fce1573e4dd61b9f6a1cd79d5902bdc59"
+  },
+  {
+   "file": "docs/implementation/TradingWorkbench_MR002_PreRegistration_v1.1_REFREEZE_CANDIDATE.md",
+   "matches": true,
+   "recomputed_sha256": "311e997b92858a7ede9f486ee7da11969703fc0304b2e6eb5c778ed8304f9dd5",
+   "registered_in": "governing_frozen_sources.windows_design.sha256",
+   "registered_sha256": "311e997b92858a7ede9f486ee7da11969703fc0304b2e6eb5c778ed8304f9dd5"
+  }
+ ],
+ "lesson": "A governing document that names an external authority instead of restating its content is not silent. Follow the pointer and hash the target before reporting an absence.",
+ "record_identity_sha256": "c392589988a0665aec505efe0415e89d22fe16d56c4c798058935333f0c4b1d4",
+ "record_type": "MR002_Phase3B_LaunchPreflightCorrigendum",
+ "resolved_configurations": {
+  "authority": "v0.3 SS6, frozen unchanged into v1.0; corroborated by v1.1 SS(summary)",
+  "configs": {
+   "A": {
+    "role": "neighborhood sensitivity",
+    "z_entry": 1.75
+   },
+   "B": {
+    "role": "PRIMARY - verdict configuration; the sole eventual OOS candidate",
+    "z_entry": 2.0
+   },
+   "C": {
+    "role": "neighborhood sensitivity",
+    "z_entry": 2.25
+   }
+  },
+  "exit_z_all_configs": 0.35,
+  "max_hold_note": "v0.3: the entry session is session 1 and the time-stop exit executes at the OPEN OF SESSION 6. This is consistent with preregistration v1.0.4 realization_horizon_governing = 6 (next-open exit t+1..t+6): entry at the t+1 open is session 1, so session 6 is the t+6 open. The 5-session CLOSE-exit alternative is the REJECTED variant and is not executable configuration.",
+  "max_hold_sessions_all_configs": 5,
+  "verdict_rule": "Verdict reads on B only; no other combinations run."
+ },
+ "version": "1.0",
+ "what_remains_true_and_unchanged": [
+  "Nothing binds these values to an EXECUTABLE configuration identity with a hash.",
+  "configuration_id is an opaque caller-supplied string in both the SPQ-1 producer and the evaluator; mr002_valoos_candidates.validate_candidate only checks that a record's configuration_id equals the one passed in - no code maps 'B' to z_entry 2.00.",
+  "Therefore the Phase 3B RunSpecification must CREATE that binding (literal values plus a configuration hash) from these registered sources. It is a specification task, not an inference, and not an invention."
+ ]
+}
