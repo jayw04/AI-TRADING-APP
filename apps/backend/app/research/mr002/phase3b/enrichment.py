@@ -17,10 +17,10 @@ never chosen for plausibility.
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Any
 
-from .gap import GapInputInvalid, economic_gap, gap_cancels
+from .gap import GapInputInvalid, economic_gap
 
 # --- the registered code namespace (ExecutionEnrichmentCodeRegistry v1.0) -----------------------
 SUCCESS = "EXECUTION_ENRICHMENT_SUCCESS"
@@ -106,8 +106,17 @@ class ExecutionFacts:
 
 @dataclass(frozen=True)
 class EnrichedRecord:
-    """The published record: exactly the ten fields of the frozen ExecutionEnrichmentSchema,
-    plus the per-record bindings the edge-case specification requires."""
+    """The published record.
+
+    Exactly the ten fields of the frozen ExecutionEnrichmentSchema, plus only those per-record
+    bindings the edge-case specification itself lists. Nothing else lives here.
+
+    In particular the gap value and the entry-admissibility outcome are NOT fields of this record:
+    the frozen schema provides no place for them, and the gap filter is an ENTRY rule rather than an
+    enrichment fact. They belong to the downstream entry adjudication (`admissibility.py`), which
+    references this record by `decision_record_sha256`. Carrying them here would have made an
+    eleventh and twelfth field on a ten-field frozen surface.
+    """
 
     decision_record_sha256: str
     decision_session_t: int
@@ -119,14 +128,10 @@ class EnrichedRecord:
     ExecutionEnrichmentCode: str
     corporate_action_identity: str | None
     conservative_short_flag: bool
-    # per_record_bindings (edge-case specification)
+    # per_record_bindings, verbatim from MR002_Phase3A_ExecutionEnrichmentEdgeCaseSpecification
     requested_execution_session: int = 0
     actual_source_session: int | None = None
     terminal_treatment: str = ""
-    census_category: str = ""
-    economic_gap: float | None = None
-    entry_admissible: bool | None = None
-    internal_state: str = field(default="", repr=False)
 
     def schema_surface(self) -> dict[str, Any]:
         """Only the ten fields the frozen schema declares, for publication and hashing."""
@@ -211,23 +216,18 @@ def enrich(decision: Any, facts: ExecutionFacts) -> EnrichedRecord:
     else:
         code = _classify(facts)
 
-    # The gap filter is an ENTRY rule (v0.3 §4 / v0.4), not an enrichment failure, and the frozen
-    # registry defines no gap code. A large but well-formed gap still satisfies the registry's
-    # definition of SUCCESS - "official next-open t+1 attached; decision record bound; no future
-    # info" - so the enrichment disposition stays SUCCESS and the cancellation is carried as a
-    # separate admissibility fact. Mapping it to PRICE_CONFLICT would assert a data defect that did
-    # not occur. Only a structurally invalid gap input is a PRICE_CONFLICT.
-    gap_value = None
-    entry_admissible = None
+    # Enrichment validates the price INPUTS but does not adjudicate the gap. Owner ruling
+    # 2026-08-12: a well-formed gap over the frozen threshold is an entry-admissibility outcome,
+    # not an enrichment failure, so it never becomes PRICE_CONFLICT and no new code is invented.
+    # Malformed, non-finite or internally inconsistent inputs ARE a source-integrity condition and
+    # do become PRICE_CONFLICT. The admissibility decision itself lives in `admissibility.py`.
     if code == SUCCESS:
         try:
-            gap_value = economic_gap(
+            economic_gap(
                 float(facts.official_open), float(facts.close_t), float(facts.cash_distribution)
             )
         except GapInputInvalid:
             code = STOP_PRICE_CONFLICT  # missing_or_conflicting_open
-        else:
-            entry_admissible = not gap_cancels(gap_value)
 
     record = EnrichedRecord(
         decision_record_sha256=before_identity,
@@ -243,9 +243,6 @@ def enrich(decision: Any, facts: ExecutionFacts) -> EnrichedRecord:
         requested_execution_session=facts.requested_execution_session,
         actual_source_session=facts.actual_source_session,
         terminal_treatment=TERMINAL_TREATMENT[code],
-        census_category=CENSUS_CATEGORY[code],
-        economic_gap=gap_value,
-        entry_admissible=entry_admissible,
     )
 
     if decision.record_identity != before_identity or decision.canonical() != before_canonical:

@@ -15,6 +15,7 @@ import json
 
 import pytest
 
+from app.research.mr002.phase3b import admissibility as A
 from app.research.mr002.phase3b import enrichment as E
 from app.research.mr002.phase3b import guard as G
 from app.research.mr002.phase3b import roster as R
@@ -138,7 +139,7 @@ def test_every_registered_edge_case_maps_to_its_frozen_code(name):
     kw, expected = EDGE_CASES[name]
     rec = E.enrich(FakeDecision(), facts(**kw))
     assert rec.ExecutionEnrichmentCode == expected, name
-    assert rec.census_category == E.CENSUS_CATEGORY[expected]
+    assert E.CENSUS_CATEGORY[rec.ExecutionEnrichmentCode] == E.CENSUS_CATEGORY[expected]
     assert rec.terminal_treatment == E.TERMINAL_TREATMENT[expected]
 
 
@@ -357,3 +358,39 @@ def test_roster_refuses_an_unbound_module_present():
 def test_producer_roster_is_the_fifteen_bound_modules():
     assert len(R.PRODUCER_MODULES) == 15
     assert "models.py" in R.PRODUCER_MODULES
+
+
+# --------------------------------------------------------------------------- entry adjudication
+def test_gap_cancellation_is_success_plus_not_admissible_never_an_enrichment_stop():
+    """Owner ruling: a well-formed over-threshold gap is an ENTRY outcome, not enrichment failure."""
+    f = facts(official_open=108.0, close_t=100.0)
+    rec = E.enrich(FakeDecision(), f)
+    adj = A.adjudicate_entry(rec, f)
+    assert rec.ExecutionEnrichmentCode == E.SUCCESS
+    assert adj.entry_admissible is False
+    assert adj.outcome == A.NOT_ADMITTED_GAP
+    assert adj.economic_gap == pytest.approx(0.08)
+
+
+def test_admissibility_fields_are_not_on_the_frozen_record():
+    """R-U1: the ten-field surface gains no eleventh or twelfth field."""
+    rec = E.enrich(FakeDecision(), facts())
+    assert not hasattr(rec, "entry_admissible")
+    assert not hasattr(rec, "economic_gap")
+    assert len(rec.schema_surface()) == 10
+
+
+def test_ex_dividend_candidate_remains_admissible():
+    f = facts(official_open=93.0, close_t=100.0, cash_distribution=7.0)
+    rec = E.enrich(FakeDecision(), f)
+    adj = A.adjudicate_entry(rec, f)
+    assert rec.ExecutionEnrichmentCode == E.SUCCESS
+    assert adj.entry_admissible is True and adj.outcome == A.ADMITTED
+
+
+def test_failed_enrichment_is_not_adjudicated_rather_than_defaulted_false():
+    f = facts(halted=True)
+    rec = E.enrich(FakeDecision(), f)
+    adj = A.adjudicate_entry(rec, f)
+    assert adj.entry_admissible is None
+    assert adj.outcome == A.NOT_ADJUDICATED
