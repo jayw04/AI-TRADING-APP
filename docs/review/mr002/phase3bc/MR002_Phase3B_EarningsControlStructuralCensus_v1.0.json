@@ -1,0 +1,68 @@
+{
+ "artifact_kind": "STRUCTURAL_CENSUS",
+ "boundary": "DEVELOPMENT ONLY, hard-bounded 2013-01-02..2019-10-02 with the observed range asserted inside the bounds. Value- and performance-blind: no price, return, residual or z-score is read and no performance is computed. No sealed object, no credential; the validation opening remains UNSPENT.",
+ "controls": {
+  "kept_separate": "the deciding reason is preserved per (security, session); the two controls are never collapsed into one boolean",
+  "post_release_cooling": "v0.4 frozen wording; session mapping corrected by v0.5 \u00a71",
+  "stale_anchor_blackout": "v0.4 V1; 70 calendar days, adjudicated inclusive 2026-08-12"
+ },
+ "date": "2026-08-12",
+ "grants": "NOTHING. Evidence only.",
+ "interpretation_limit": "These are historically emitted candidates that WOULD have been eligibility-blocked under the frozen controls. They are NOT corrected producer output: the corrected record set is not knowable without a replay.",
+ "phase2b_state": "Neither control fired. cooling_start_session/cooling_end_session are declared and never assigned - 0 of 399 populated in the provenance table - so both consumers computed excludes=False, and the 2B-2 refusal census contains no event_blackout outcome at all.",
+ "purpose": "Measure the structural footprint of the two frozen earnings controls on the DEVELOPMENT window, neither of which Phase 2B implemented.",
+ "record_identity_sha256": "d132684aea4e97e31294d647ea10fd929e229b516100d861a529474329a509c1",
+ "record_type": "MR002_Phase3B_EarningsControlStructuralCensus",
+ "results": {
+  "anchors": {
+   "amendment_without_original": 24,
+   "by_availability_class": {
+    "IN_SESSION": 2352,
+    "POST_CLOSE": 6152,
+    "PRE_OPEN": 7853
+   },
+   "rows_carrying_collapsed_duplicates": 273,
+   "rows_carrying_matching_amendments": 112,
+   "securities_with_anchors": 653,
+   "total": 16357
+  },
+  "exclusion_units": {
+   "both_controls_same_unit": 0,
+   "denominator_security_sessions": 1110100,
+   "post_release_cooling": 32591,
+   "securities_with_at_least_one_exclusion": 653,
+   "stale_anchor_blackout": 278059,
+   "union": 310650,
+   "union_share_of_denominator": 0.27984
+  },
+  "per_security_hash": "5bef3846fe06ab0d6ba7293b8c0c9c55cbff14380a1906959278e4d2180c4f91",
+  "universe": {
+   "distinct_tickers": 540,
+   "in_universe_without_any_anchor": 178,
+   "sample_without_anchor": [
+    "AGN",
+    "AGN1",
+    "ALTR1",
+    "ANDV",
+    "AON",
+    "APA",
+    "APC1",
+    "BAC",
+    "BBBY",
+    "BBBYQ"
+   ]
+  },
+  "window": {
+   "end": "2019-10-02",
+   "observed_first": "2013-01-02",
+   "observed_last": "2019-10-02",
+   "sessions": 1700,
+   "start": "2013-01-02"
+  }
+ },
+ "snapshot": {
+  "path": "apps/backend/data/mr002_research.duckdb",
+  "sha256": "24e5153cc0ebed77c7b422562e5a8ebfa147aad3019b27035b5314aaaacfad5a"
+ },
+ "version": "1.0"
+}
