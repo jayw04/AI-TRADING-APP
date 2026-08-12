@@ -17,6 +17,8 @@ from __future__ import annotations
 import hashlib
 import os
 
+from . import closure as _CLOSURE
+
 _HERE = os.path.dirname(os.path.abspath(__file__))
 _SPQ1 = os.path.abspath(os.path.join(_HERE, "..", "spq1"))
 
@@ -61,8 +63,56 @@ def enumerate_producer() -> dict[str, str]:
     return {name: _sha256(os.path.join(_SPQ1, name)) for name in sorted(PRODUCER_MODULES)}
 
 
+def enumerate_closure() -> dict[str, str]:
+    """The whole executing import closure, derived mechanically.
+
+    `enumerate_layer` and `enumerate_producer` above are hand-maintained lists, and a hand-
+    maintained list is how `spq1/__init__.py` -- which supplies four constants that reach
+    GOVERNING_IDENTITIES and therefore every emitted record -- stayed unbound while this roster
+    still passed. This group binds every file Python actually executes, package initializers
+    included, so nothing can execute unbound.
+    """
+    root = _CLOSURE.package_root(_HERE)
+    return {
+        os.path.relpath(p, root).replace(os.sep, "/"): h
+        for p, h in _CLOSURE.static_closure(_HERE).items()
+    }
+
+
 def current_roster() -> dict[str, dict[str, str]]:
-    return {"layer": enumerate_layer(), "producer": enumerate_producer()}
+    return {
+        "layer": enumerate_layer(),
+        "producer": enumerate_producer(),
+        "closure": enumerate_closure(),
+    }
+
+
+def audit_runtime_against(bound_closure: dict[str, str]) -> dict[str, object]:
+    """Post-import audit: prove nothing executed that the static binding did not predict.
+
+    Static binding happens before any access (EB-2). This is the check that the static prediction
+    was actually complete -- conditional imports, importlib and re-exports cannot be seen by an AST
+    walk, so the binding is only trustworthy if runtime agrees with it.
+    """
+    root = _CLOSURE.package_root(_HERE)
+    runtime = _CLOSURE.runtime_closure(root)
+    bound_abs = {os.path.abspath(os.path.join(root, rel)): h for rel, h in bound_closure.items()}
+    unpredicted = sorted(
+        os.path.relpath(p, root).replace(os.sep, "/") for p in set(runtime) - set(bound_abs)
+    )
+    if unpredicted:
+        raise RosterRefused(
+            f"executed but NOT bound: {unpredicted}. The static closure was incomplete; the run "
+            "must not proceed on an identity that does not cover what ran."
+        )
+    drift = sorted(
+        os.path.relpath(p, root).replace(os.sep, "/")
+        for p, h in runtime.items()
+        if bound_abs.get(p) not in (None, h)
+    )
+    if drift:
+        raise RosterRefused(f"a module changed identity between binding and execution: {drift}")
+    return {"runtime_modules_observed": len(runtime), "unpredicted": 0, "drift": 0}
 
 
 def verify(bound: dict[str, dict[str, str]]) -> dict[str, object]:
@@ -73,7 +123,7 @@ def verify(bound: dict[str, dict[str, str]]) -> dict[str, object]:
     """
     actual = current_roster()
     problems: list[str] = []
-    for group in ("layer", "producer"):
+    for group in ("layer", "producer", "closure"):
         want, have = bound.get(group, {}), actual[group]
         missing = sorted(set(want) - set(have))
         extra = sorted(set(have) - set(want))
@@ -84,13 +134,14 @@ def verify(bound: dict[str, dict[str, str]]) -> dict[str, object]:
             problems.append(f"{group}: unbound module present {extra}")
         if drift:
             problems.append(f"{group}: digest drift {drift}")
-    if not actual["layer"] or not actual["producer"]:
+    if not actual["layer"] or not actual["producer"] or not actual["closure"]:
         problems.append("empty enumeration - a roster that binds nothing proves nothing")
     if problems:
         raise RosterRefused("; ".join(problems))
     return {
         "layer_modules": len(actual["layer"]),
         "producer_modules": len(actual["producer"]),
+        "closure_files": len(actual["closure"]),
         "drift": 0,
         "missing": 0,
         "extra": 0,
