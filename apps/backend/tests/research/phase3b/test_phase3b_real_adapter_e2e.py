@@ -1,4 +1,8 @@
-"""Final synthetic end-to-end: the REAL ProducerCandidateSource inside the runner.
+"""COMPONENT end-to-end: the real ProducerCandidateSource with injected units/identity.
+
+⚠ This is component qualification, NOT execution qualification. It injects units, CIK map and
+lineage. The production-entry qualification that injects nothing but the reader lives in
+test_phase3b_entrypoint_qualification.py.
 
 Same synthetic world as the qualified equivalence suite, the same code path the governed run will
 take, and a `FixtureReader` with no AWS dependency in place of the S3 reader. Nothing else differs,
@@ -164,6 +168,12 @@ def _runner(tmp_path, *, units=None, out_name="out", source=None):
         spy_ticker=F.SPY,
         structural_manifest=_manifest(tables, VALIDATION_TABLES),
         reference_manifest=_manifest(tables, REFERENCE_TABLES),
+        # COMPONENT qualification: this suite predates the production construction path and
+        # carries no anchors/universe/crosswalk tables. Declaring empty checks opts out of the
+        # earnings controls explicitly rather than letting a missing table disable them silently.
+        # PRODUCTION qualification is test_phase3b_entrypoint_qualification.py, which builds
+        # everything from the six committed tables.
+        eligibility_checks_by_symbol={},
     )
     return Phase3BRunner(
         reader=FixtureReader(froot),

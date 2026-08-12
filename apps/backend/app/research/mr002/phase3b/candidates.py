@@ -127,11 +127,13 @@ class ProducerCandidateSource:
     """Bridges decoded tables to the frozen producer, one unit at a time."""
 
     calendar: RegisteredCalendar
-    units: list[Unit]
-    lineage: PitIdentityRegistry
-    cik_by_symbol: dict[str, int]
     registry: InputIdentityRegistry
-    observed_identities: dict[str, str]
+    # None means CONSTRUCT from the governed tables. Component qualification may still supply
+    # these directly; production qualification must not, and the entry point never does.
+    units: list[Unit] | None = None
+    lineage: PitIdentityRegistry | None = None
+    cik_by_symbol: dict[str, int] | None = None
+    observed_identities: dict[str, str] | None = None
     spy_ticker: str = "SPY"
     eligibility_checks_by_symbol: dict[str, list[ExclusionCheck]] | None = None
     # P9-shaped commitments. The adapter owns the table contract, so it decodes the governed bytes
@@ -142,6 +144,8 @@ class ProducerCandidateSource:
     reference_prefix: str = "reference"
 
     refusals: list[tuple[str, int, str]] = field(default_factory=list)
+    ambiguous_symbols: tuple[str, ...] = ()
+    tables_opened: tuple[str, ...] = ()
 
     def candidates(self, payloads: dict[str, Any]) -> list[tuple[Any, ExecutionFacts]]:
         """Produce (SignalDecisionRecord, ExecutionFacts) for every unit that survives production.
@@ -150,6 +154,7 @@ class ProducerCandidateSource:
         the enrichment census counts only records the producer actually emitted.
         """
         tables = self._decode(payloads)
+        self._construct_world(tables)
         sic_map = sic_map_from(tables["sic_mapping"])
         sic_obs = sic_observations_by_cik(tables["sic_observations"])
         etf_by_sector = {r.research_sector: r.sector_etf for r in sic_map}
@@ -161,7 +166,9 @@ class ProducerCandidateSource:
         actions = corporate_actions(tables["actions"])
         prices = ASM.price_series_by_symbol(tables["prices"], self.calendar)
 
-        market = ASM.market_data(self.calendar, spy_ret, sector_ret, self.observed_identities)
+        market = ASM.market_data(
+            self.calendar, spy_ret, sector_ret, dict(self.observed_identities or {})
+        )
         out: list[tuple[Any, ExecutionFacts]] = []
         for unit in sorted(self.units, key=lambda u: (u.symbol, u.t)):
             try:
@@ -171,6 +178,31 @@ class ProducerCandidateSource:
                 continue
             out.append((record, self._facts(unit, prices, distributions, actions)))
         return out
+
+    def _construct_world(self, tables: dict[str, Any]) -> None:
+        """Build units, identity and earnings controls from the governed tables.
+
+        Anything already supplied is left alone - that is component qualification. Production
+        supplies none of it, so the same code path that will run validation builds the world here.
+        """
+        if self.units is None:
+            self.units = units_from_universe(tables["universe"], self.calendar)
+        if self.cik_by_symbol is None:
+            resolved = cik_by_symbol_from(tables["crosswalk"])
+            self.cik_by_symbol = resolved.by_symbol
+            self.ambiguous_symbols = resolved.ambiguous
+        if self.lineage is None:
+            self.lineage = lineage_from(tables["crosswalk"], self.calendar)
+        if self.eligibility_checks_by_symbol is None:
+            # REQUIRED, never optional. A missing anchors table must refuse rather than silently
+            # disable the two frozen earnings controls - that silent-disable is the exact defect
+            # Phase 2B shipped.
+            if "anchors" not in tables:
+                raise CandidateSourceRefused(
+                    "anchors table absent: the frozen earnings controls cannot be applied"
+                )
+            self._anchors, self._anchor_availability = anchors_by_symbol(tables["anchors"])
+        self.tables_opened = tuple(sorted(tables))
 
     def _decode(self, payloads: dict[str, Any]) -> dict[str, Any]:
         """Decode the governed bytes against the precommitted structural manifests.
@@ -198,12 +230,33 @@ class ProducerCandidateSource:
             raise CandidateSourceRefused(f"no registered CIK for {unit.symbol}")
         sector = resolve_sector(sic_map, sic_obs.get(int(cik), []), close_t_iso)
         sector_etf(sic_map, sector.sector_id)  # refuses an unmapped sector
-        checks = (self.eligibility_checks_by_symbol or {}).get(unit.symbol, [])
+        checks = self._eligibility_checks(unit)
         security = ASM.security_data(series[unit.symbol], [sector], checks)
         request = ProductionRequest(
             PROGRAM_ID, unit.configuration_id, unit.side, unit.t, close_t_iso
         )
         return produce_decision(market, security, self.registry, self.lineage, request)
+
+    def _eligibility_checks(self, unit: Unit) -> list:
+        """The frozen earnings controls, constructed per unit from the governed anchors.
+
+        Injected checks win when supplied, which is component qualification only; production
+        supplies none, so the same code path that will run validation builds them here.
+        """
+        if self.eligibility_checks_by_symbol is not None:
+            return self.eligibility_checks_by_symbol.get(unit.symbol, [])
+        anchors = getattr(self, "_anchors", {}).get(unit.symbol, [])
+        if not anchors:
+            return []
+        from .earnings_blackout import Calendar as BlackoutCalendar
+        from .earnings_blackout import earnings_exclusion_checks
+
+        return earnings_exclusion_checks(
+            anchors,
+            BlackoutCalendar(self.calendar.sessions),
+            unit.t,
+            getattr(self, "_anchor_availability", {}),
+        )
 
     def _facts(
         self, unit: Unit, prices: dict, distributions: dict, actions: dict

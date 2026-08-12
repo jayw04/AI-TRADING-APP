@@ -213,6 +213,10 @@ def _source(units, config="B"):
         registry=_registry(),
         observed_identities=dict(F.OBSERVED_IDENTITIES),
         spy_ticker=F.SPY,
+        # COMPONENT qualification: injects units/identity and carries no anchors table, so it
+        # opts out of the earnings controls explicitly. Production qualification is
+        # test_phase3b_entrypoint_qualification.py.
+        eligibility_checks_by_symbol={},
     )
 
 
