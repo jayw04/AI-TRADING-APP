@@ -1,0 +1,167 @@
+{
+ "anchor": {
+  "bound_prerequisite_anchor_sha256": "2b8f792081d6285e1a7619a6faa362d0502fa728a46333eb5c23e48a81e6a06d",
+  "computed_from": "MR002_Phase3BC_RuntimePrerequisiteRegister_v1.3.json",
+  "definition": "sha256 of the ascii JSON {prerequisite_id: status} sorted by key",
+  "register_identity_sha256": "89dd307773478f3399e289dbd2fbd2f2e60fc9d76884b1fc2eeb6482a9bab15d",
+  "register_sha256": "a41543a8ae40c947f263a96d78427e79052fbaa7da2733b9dbadb6891cbbd9c5",
+  "stale_anchor_explicitly_rejected": "088d700bb1b3000a707ab58ca880bf6c71319587284161b373064927b6abc7d6",
+  "stale_anchor_status": "STALE AND UNUSABLE",
+  "why_the_old_anchor_may_never_be_used": "088d700b predates P3/P4/P5 satisfaction, the entire evaluator-image rebind, and P10. Binding to it would let a materially changed program inherit an approval granted against a different state. The WP-F verifier hard-codes it as REJECTED and treats recomputing it as a hard stop."
+ },
+ "bound_execution_identities": {
+  "custody_requirement_7": "IMPLEMENTED_PENDING_C_R7_VERIFICATION -> C-R7 PASSED in WP-F",
+  "dependency_lockfile_sha256": "bb38b685d15f78b705fff2681b76807f2277b02f7af5788e4c320951121c7ebd",
+  "digest_kind": "OCI image index digest",
+  "evaluator_image_index": "sha256:194efbdf96ee11c19f3554dcf1b1097958cdc347bcdc1637504b441237432f51",
+  "frozen_host": "i-00c1034f7026db45e (SR-HOST-1)",
+  "numeric_runtime_manifest_sha256": "8e5e39471c0d96c5cd6916e7c316bc74fa320336c7e0106515ede11f479c1ed0",
+  "resolver": "WP-B Requirement-7 fail-closed resolver - the SOLE permitted path",
+  "security_principal_for_a_future_grant": "arn:aws:iam::219024422756:role/mr002-phase3c-run-host - P12 binds the ROLE identity plus the frozen runtime evidence, never the EC2 instance id (D-S8)",
+  "superseded_roots_refused": [
+   "sha256:60b15568aa5960ee04cf10b8c9b006d2ee702aa815a17384beffc979ed4554c9",
+   "sha256:4d1945a64c114c078db2be1938c40f64faa24191d12c7355174b3ddbeef7969b"
+  ]
+ },
+ "boundary": "Validation and OOS remain SEALED AND UNREAD. No returns, PnL, Sharpe, DSR, ranking, or verdict exists or is produced by this package. This submission grants nothing; P12 remains NOT AUTHORIZED until the owner adjudicates D3.",
+ "date": "2026-08-11",
+ "declared_scope_limitations": {
+  "C5": {
+   "condition": "structural manifest precommitted and reproduces exactly",
+   "limitation_verbatim": "Reproduction is verified at the ARTIFACT level: the manifest's identity hash recomputes and its bound calendar/session identities match. Re-deriving the aggregates from the corpus would be a fresh read of the validation partition, which THIS RUN IS NOT AUTHORIZED TO PERFORM.",
+   "plain_statement": "WP-F verified P9 at artifact/identity level and did NOT re-read validation data to recompute structural aggregates.",
+   "status": "PASS"
+  },
+  "C6": {
+   "condition": "numeric-runtime instance sealed and reproducible",
+   "limitation_verbatim": "Reproducibility is verified against the FROZEN host record and a live re-resolution of the image digest. Re-capturing P10 would be a P10 regeneration, which this run is not authorized to perform and which SR-HOST-1 requires only if the runtime changes.",
+   "plain_statement": "WP-F verified the frozen P10 runtime identity and a live image resolution but did NOT regenerate P10, because the host and runtime had not changed.",
+   "status": "PASS"
+  },
+  "owner_position_recorded": "The owner ruled on 2026-08-11 that neither fresh C5 aggregate recomputation nor P10 recapture is required before D3: doing either would violate the closed-world boundary WP-F was designed to preserve, absent separate authorization.",
+  "these_are_scope_limits_not_hidden_pass_substitutions": "Both limitations below are recorded in the WP-F findings themselves, not discovered afterwards. Neither condition was redefined to obtain a PASS; each reports the boundary it could not cross under the authorization WP-F was given."
+ },
+ "grant_readiness": {
+  "basis": "WP-F closed grant-readiness run, owner-ACCEPTED 2026-08-11",
+  "verdict": "READY",
+  "wp_f_run": {
+   "conditions": {
+    "C-R7": "PASS",
+    "C1": "PASS",
+    "C10": "PASS",
+    "C2": "PASS",
+    "C3": "PASS",
+    "C4": "PASS",
+    "C5": "PASS",
+    "C6": "PASS",
+    "C7": "PASS",
+    "C8": "PASS",
+    "C9": "PASS",
+    "K4": "PASS"
+   },
+   "conditions_evaluated": 12,
+   "file": "docs/review/mr002/phase3bc/MR002_WPF_GrantReadinessRun_v1.0.json",
+   "run_identity_sha256": "0b610992a8d19a501edabffc97441efffdab305a95151c600a93ab5516159ba9",
+   "sha256": "15ff2fa2a83c768be9301f11c8ab65841559d1a0d2865c4b50d86bc6a189e6f2",
+   "verdict": "PASS",
+   "verifier_sha256": "e67024127e0c09ce1b61b78d883a5ad485fcaf58786fa7968ad9147079ce5563"
+  }
+ },
+ "grants": "NOTHING. This artifact asks the owner for a decision. It releases no credential, edits no trust policy, opens no partition, and computes no performance.",
+ "if_granted_the_transition": {
+  "credential_release_mechanism": "Editing the mr002-validation-reader trust policy to name the qualified host role IS the credential release (SR-GRANT-1). It may happen only as the P12 event.",
+  "durability_rule": "The grant event must be durably recorded BEFORE any credential release or partition access. A released credential without a recorded grant is an integrity failure.",
+  "expected_rev": 0,
+  "from": false,
+  "must_bind": "2b8f792081d6285e1a7619a6faa362d0502fa728a46333eb5c23e48a81e6a06d",
+  "must_reject": "088d700bb1b3000a707ab58ca880bf6c71319587284161b373064927b6abc7d6",
+  "operation": "COMPARE_AND_SET",
+  "to": true
+ },
+ "p7_access_event_classification": {
+  "adjudication": "docs/review/mr002/MR002_P7AccessEventDefinition_Adjudication_v1.0.json",
+  "binding_constraints": {
+   "K1": "The two 2026-08-11T22:55:52Z denied probes remain in P7/P8 PERMANENTLY. Do not relabel, delete, or suppress them.",
+   "K2": "This amendment is a PROSPECTIVE CLARIFICATION of event classification. It is NOT a retroactive deletion of evidence.",
+   "K3": "'Access event' for P7 means a request that actually obtains partition or object content, or otherwise OPENS the governed partition. Denied attempts remain logged separately as attempted-access / control events.",
+   "K4": "WP-F and all future controls must NEVER prove DENY by live HeadObject/GetObject probes against sealed objects. Use policy simulation or already-recorded control state."
+  },
+  "commit": "82134e6",
+  "does_not_generalize": "This ruling does NOT generalize into 'denied calls are harmless'. Denied requests remain governance-relevant events. They may indicate operator error or an attempted boundary violation and must be surfaced as such. They simply do not count as a successful partition access for P7 / opening-consumption purposes.",
+  "events_remain_visible": {
+   "count": 2,
+   "detail": "Two DENIED HeadObject attempts at 2026-08-11T22:55:52Z by the qualification host role - one on validation/, one on oos/ - caused by a research-side method error during host preconditions. They are retained permanently in P7/P8 v1.1 under K1 and are classified as attempted-access / control events, not partition accesses.",
+   "gate_values_unaffected": {
+    "oos_access_events_before_validation": 0,
+    "validation_access_events_before_authorization": 0
+   },
+   "hash_chain_rows": 42,
+   "hash_chain_verifies": true
+  },
+  "governing_distinction": "A denied request attempt is an auditable access-control event, but it is NOT a partition access/opening event when no object content or partition value is returned and the request is refused by the enforced boundary.",
+  "record_identity_sha256": "2f4cc13f28ed87bc344d1babb1cb653271e65755a8e930d10fbde435caa98b16",
+  "status": "RATIFIED"
+ },
+ "prepared_by": "research (Claude), at owner authorization 2026-08-11",
+ "prerequisite_state": {
+  "P1": "SATISFIED",
+  "P10": "SATISFIED",
+  "P11": "SATISFIED",
+  "P12": "NOT_EXECUTED - this is the act being requested",
+  "P2": "SATISFIED",
+  "P3": "SATISFIED",
+  "P4": "SATISFIED",
+  "P5": "SATISFIED",
+  "P6": "SATISFIED",
+  "P7": "SATISFIED",
+  "P8": "SATISFIED",
+  "P9": "SATISFIED",
+  "blocking_unsatisfied": [
+   "P12"
+  ],
+  "register": "MR002_Phase3BC_RuntimePrerequisiteRegister_v1.3.json"
+ },
+ "record_type": "MR002_Phase3BC_ExecutionAuthorizationRequest",
+ "state_at_submission": {
+  "cas_rev": 0,
+  "credential_released": false,
+  "oos_partition": "UNDER DENY",
+  "sealed_data_read": false,
+  "successful_reads_of_either_sealed_partition": 0,
+  "trust_policy_edited": false,
+  "validation_authorization": false,
+  "validation_partition": "CLOSED - single opening UNCONSUMED",
+  "validation_reader_assumable": false
+ },
+ "status": "SUBMITTED - AWAITING OWNER ADJUDICATION",
+ "submission_identity_sha256": "4c984a4b015bb6825df1f57f549dde6bfc22a2b55ec6e0fed609157b3e1eb3f6",
+ "supersedes": "MR002_Phase3BC_ExecutionAuthorizationRequest_v1.0.json - the D3 submission DENIED WITHOUT PREJUDICE on 2026-07-22. That record is NOT edited and remains the history of the denial.",
+ "the_ask": {
+  "decision_requested": "Adjudicate D3 and, if granted, execute P12: the owner-signed authorization event plus time-bounded credential release for ONE validation execution.",
+  "explicitly_not_requested": [
+   "OOS partition access - OOS requires its own separate later authorization",
+   "more than ONE validation opening",
+   "any parameter, gate, cost, fold, seam, or estimator change",
+   "additional trials or null models - DSR N stays 5",
+   "production promotion or capital allocation",
+   "performance interpretation beyond the preregistered verdict domain"
+  ]
+ },
+ "version": "2.0",
+ "wp_f_correction_history": {
+  "corrections_made": {
+   "C-R7": "Judged commentary as code: the resolver DISCUSSES imageTag in a comment explaining its deliberate absence, so a substring search reported a fallback that does not exist. The check now strips comments first.",
+   "C2": "Selected a record's identity key by SUFFIX, which picked P7's bound_upload_manifest_identity_sha256 - a reference to a DIFFERENT artifact - instead of its own history hash. Self-identity keys are now named explicitly per prerequisite.",
+   "C8": "Rewritten to resolve artifacts under phase3a/, re-hash them from the tree, and FAIL on an empty or short sample. It now re-hashes 26 bound artifacts against a manifest binding 25, and reports sample_is_meaningful.",
+   "K4": "check_k4's forbidden-token list literally contained the forbidden tokens, so the verifier flagged itself. The tokens are now assembled from fragments, so the scan honestly covers its own definition rather than exempting it."
+  },
+  "direction_of_the_correction": "The C8 fix makes the condition STRICTER, not more permissive. The verdict was already PASS before the fix, so this was not a retry for a better answer. C2, C-R7 and K4 were caught by the test suite BEFORE the run.",
+  "evidence_bearing_execution": "The corrected run is the ONLY evidence-bearing execution. Exactly one closed run is committed.",
+  "void_first_execution": {
+   "disposition": "NOT EVIDENCE. Superseded by the corrected run.",
+   "outcome": "PASS - but VOID as evidence. Deleted, never committed.",
+   "why_void": "A vacuity audit of its own output showed C8 reporting '0 bound artifacts re-hashed from the tree; drift=0'. It had certified Phase-3A lineage by examining NOTHING: it searched for a 'sha256' key, while the lineage record stores 'bound_sha256' against bare filenames."
+  },
+  "why_this_is_in_the_submission": "The adjudicator must be able to see that the evidence-bearing run was produced by a corrected instrument, and what was wrong with the first attempt. This is recorded in full rather than summarised as 'WP-F passed'."
+ }
+}
