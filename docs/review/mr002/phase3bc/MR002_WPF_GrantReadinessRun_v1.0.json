@@ -1,0 +1,99 @@
+{
+ "anchor": {
+  "anchor_differs_from_stale": true,
+  "computed_from": "MR002_Phase3BC_RuntimePrerequisiteRegister_v1.3.json",
+  "definition": "sha256 of the ascii JSON {prerequisite_id: status} sorted by key",
+  "prerequisite_anchor_sha256": "2b8f792081d6285e1a7619a6faa362d0502fa728a46333eb5c23e48a81e6a06d",
+  "register_identity_sha256": "89dd307773478f3399e289dbd2fbd2f2e60fc9d76884b1fc2eeb6482a9bab15d",
+  "stale_anchor_reason": "The 2026-07-22 adjudicated digest predates P3/P4/P5, the evaluator-image rebind and P10. It is REJECTED by name; binding to it would let a changed program inherit an old approval.",
+  "stale_anchor_rejected": "088d700bb1b3000a707ab58ca880bf6c71319587284161b373064927b6abc7d6"
+ },
+ "artifact_kind": "RUNTIME_INSTANCE",
+ "authorizes": "NOTHING. A PASS is an input to a future D3/P12 owner decision. This run granted no credential, edited no trust policy, opened no partition and did not touch validation_authorization.",
+ "bound_evaluator_index": "sha256:194efbdf96ee11c19f3554dcf1b1097958cdc347bcdc1637504b441237432f51",
+ "conditions_evaluated": 12,
+ "custodian": "Jay Wang",
+ "findings": [
+  {
+   "condition": "C1",
+   "detail": "unsatisfied=none; P12=NOT_EXECUTED (this is the act being requested) (excluded: it IS the authorization event)",
+   "status": "PASS",
+   "title": "every blocking prerequisite other than the authorization event is satisfied"
+  },
+  {
+   "condition": "C2",
+   "detail": "instances checked=['P10', 'P11', 'P6', 'P7', 'P8', 'P9']; problems=none",
+   "limitation": "P10 carries its provenance rather than a self-identity hash; its file digest is bound by C6 instead.",
+   "status": "PASS",
+   "title": "prerequisite instances are runtime-produced, identity-bound, hash-bound"
+  },
+  {
+   "condition": "C3",
+   "detail": "P4 closeout state='SATISFIED \u2014 SS5 acceptance submission'; acceptance submission present",
+   "status": "PASS",
+   "title": "SS5 acceptance submission complete and accepted"
+  },
+  {
+   "condition": "C4",
+   "detail": "renewed binding digest=sha256:194efbdf96ee11c19f3554dcf1b1097958cdc347bcdc1637504b441237432f51; live resolution=sha256:194efbdf96ee11c19f3554dcf1b1097958cdc347bcdc1637504b441237432f51",
+   "status": "PASS",
+   "title": "SS4 pre-access evaluator binding resolved"
+  },
+  {
+   "condition": "C5",
+   "detail": "identity recomputes=True; registered calendar reproduces=True; sessions 850/850; produced_before_sealing=True",
+   "limitation": "Reproduction is verified at the ARTIFACT level: the manifest's identity hash recomputes and its bound calendar/session identities match. Re-deriving the aggregates from the corpus would be a fresh read of the validation partition, which THIS RUN IS NOT AUTHORIZED TO PERFORM.",
+   "status": "PASS",
+   "title": "structural manifest precommitted and reproduces exactly"
+  },
+  {
+   "condition": "C6",
+   "detail": "17/17 bindings; 21/21 modules verified in-image; frozen host i-00c1034f7026db45e; mismatches=none",
+   "limitation": "Reproducibility is verified against the FROZEN host record and a live re-resolution of the image digest. Re-capturing P10 would be a P10 regeneration, which this run is not authorized to perform and which SR-HOST-1 requires only if the runtime changes.",
+   "status": "PASS",
+   "title": "numeric-runtime instance sealed and reproducible"
+  },
+  {
+   "condition": "C7",
+   "detail": "successful sealed reads=0/0; chain verifies=True; denied ATTEMPTS recorded=2 (classified as attempted-access events, not partition accesses, per the RATIFIED adjudication 2f4cc13f28ed87bc...); DENY in force=True",
+   "status": "PASS",
+   "title": "access-control state proves no prior validation opening occurred"
+  },
+  {
+   "condition": "C8",
+   "detail": "26 bound artifacts re-hashed from the tree (manifest binds 25); drift=none; absent from tree=none; sample_is_meaningful=True",
+   "status": "PASS",
+   "title": "Phase 3A lineage still reproduces from the current tree"
+  },
+  {
+   "condition": "C9",
+   "detail": "21 bound modules; drift=none; missing=none; unbound evaluator modules on disk=none",
+   "status": "PASS",
+   "title": "zero evaluator drift, zero unbound evaluator code"
+  },
+  {
+   "condition": "C10",
+   "detail": "validation_authorization=False; _rev=0",
+   "status": "PASS",
+   "title": "validation_authorization remains false until the explicit grant event"
+  },
+  {
+   "condition": "C-R7",
+   "detail": "resolves sha256:194efbdf96ee11c19f3554dcf1b1097958cdc347bcdc1637504b441237432f51; superseded refusals={'sha256:60b15568aa5960ee04cf10b8c9b006d2ee702aa815a17384beffc979ed4554c9': 'superseded_digest', 'sha256:4d1945a64c114c078db2be1938c40f64faa24191d12c7355174b3ddbeef7969b': 'superseded_digest'}; no tag fallback in the fetch path=True",
+   "status": "PASS",
+   "title": "Requirement-7 resolver is the sole path and fails closed"
+  },
+  {
+   "condition": "K4",
+   "detail": "forbidden call sites in body=none; imports boto3 directly=False (the resolver is injected and touches ECR only, never S3)",
+   "status": "PASS",
+   "title": "verifier contains no path capable of a live sealed-object probe"
+  }
+ ],
+ "produced_at_utc": "2026-08-12T00:43:34Z",
+ "record_type": "MR002_WPF_GrantReadinessRun",
+ "run_identity_sha256": "0b610992a8d19a501edabffc97441efffdab305a95151c600a93ab5516159ba9",
+ "verdict": "PASS",
+ "verifier_sha256": "e67024127e0c09ce1b61b78d883a5ad485fcaf58786fa7968ad9147079ce5563",
+ "version": "1.0"
+}
