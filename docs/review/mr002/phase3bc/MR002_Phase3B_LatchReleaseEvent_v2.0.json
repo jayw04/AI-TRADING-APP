@@ -1,0 +1,37 @@
+{
+ "record_type": "MR002_Phase3B_LatchReleaseEvent",
+ "version": "2.0",
+ "artifact_kind": "PRIVILEGE_EVENT_RECORD",
+ "outcome": "LATCH_RELEASED — EXECUTION AUTHORIZED TO PROCEED",
+ "package": "v3.1 record 2f6b7048078399023aaf0c2c84976c3b9c2c7893946d994cfcb3ce3979f4f143",
+ "host_instance_id": "i-00c1034f7026db45e",
+ "pre_release_checks": {
+  "closure_live_vs_bound": {"live": 41, "bound": 41, "missing": [], "extra": [], "drift": [], "equal": true},
+  "dependency_wheels_equal": true,
+  "dependency_inventory_sha256_equal": true,
+  "dependency_file_count_equal": true,
+  "image_resolved": "sha256:194efbdf96ee11c19f3554dcf1b1097958cdc347bcdc1637504b441237432f51",
+  "output_root": "/opt/mr002/out absent - FRESH",
+  "authorization": {"validation_authorization": true, "_rev": 1, "git_clean": true},
+  "oos_denied_reader": "explicitDeny",
+  "oos_denied_host": "explicitDeny",
+  "verdict": "PASS"
+ },
+ "change_applied": {
+  "removed": ["DenyAssumingTheValidationReaderRole"],
+  "statements_before": 8, "statements_after": 7,
+  "narrow_allow_retained": "AssumeOnlyTheGovernedValidationReader",
+  "sealed_store_deny_retained": "DenyAllAccessToTheSealedStore",
+  "nothing_else_altered": true
+ },
+ "four_decisions_after_release": {
+  "host_assume_reader": "allowed",
+  "host_sealed_s3": "explicitDeny",
+  "reader_validation": "allowed",
+  "reader_reference": "allowed",
+  "reader_oos": "explicitDeny",
+  "all_match_expected": true
+ },
+ "consumption_boundary": "the first successful pinned validation GetObject spends the single opening",
+ "containment_plan": "DenyAssumingTheValidationReaderRole is restored immediately after the governed run reaches its terminal state, and the contained state re-verified"
+}
