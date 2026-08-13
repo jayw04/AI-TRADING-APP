@@ -124,10 +124,27 @@ class AccountSnapshot:
     open_orders: list[SnapshotOpenOrder]
     cash: Decimal
     equity: Decimal
-    # Broker cursor / sequence / reconciliation stamp — the causality anchor.
+    # Broker cursor / sequence / reconciliation stamp — the causality anchor. A broker-issued
+    # TIMESTAMP, or None when this broker read contained no order events to stamp. It is never
+    # a non-temporal identifier: an account id is not a point in time, and comparing one against
+    # a timestamp silently makes every settled account look stale.
     broker_cursor: str | None
-    # Highest broker event we have already observed locally. The snapshot must be >= this.
+    # Locally observed execution cursor: highest broker event we have already persisted. The
+    # snapshot must be >= this. Used ONLY when `broker_cursor` exists, i.e. when there is
+    # something to compare against.
+    # ⚠ MIXED PROVENANCE — a max() over a broker stamp (fills.filled_at) and a local one
+    # (orders.updated_at), so this does NOT share a guaranteed clock with `broker_cursor`. See #631.
     observed_cursor: str | None = None
+    # Highest broker event we have observed locally that could STILL BE IN FLIGHT (an event on
+    # a non-terminal order), KEYED BY SYMBOL. Used when the broker read shows no open orders at
+    # all: there is then no broker timestamp to compare, and the question is not "is the read
+    # behind us" but "does the broker agree that nothing is in flight". A settled historical
+    # fill is not evidence of in-flight disagreement — its economic effect is already carried
+    # by the freshly fetched positions and cash in THIS snapshot.
+    #
+    # Keyed by symbol because an account-wide scalar made ONE unresolved local row block
+    # risk-reducing exits in EVERY symbol, permanently. See ``is_causally_complete``.
+    observed_inflight_by_symbol: dict[str, str] = field(default_factory=dict)
     # Set False by the fetcher when the broker read failed or reconciliation was incomplete.
     complete: bool = True
     # Quantities already promised to other in-flight reducing decisions (§ D).
@@ -168,17 +185,71 @@ class AccountSnapshot:
             json.dumps(payload, sort_keys=True).encode()
         ).hexdigest()
 
-    def is_causally_complete(self) -> tuple[bool, RiskEffectReason | None]:
+    def is_causally_complete(
+        self, *, reducing_candidate_symbol: str | None = None
+    ) -> tuple[bool, RiskEffectReason | None]:
+        """The § A check, stated as the four states it actually has to distinguish.
+
+        ``broker_cursor`` is the broker-read cursor; ``observed_cursor`` is the locally observed
+        execution cursor. ⚠ They are NOT guaranteed to share a clock — ``observed_cursor`` is a
+        ``max()`` over a broker stamp and a local one — so comparing them is a practical ordering
+        test under roughly-synchronised clocks, not a clock-independent proof. Typed,
+        non-comparable cursor domains are tracked in #631 and out of scope here.
+
+        A broker read that contains NO order events has no timestamp to offer, and the absence of
+        one is not itself evidence of staleness — it is the normal state of a settled account
+        holding positions and nothing in flight. That case is decided on whether the two sides
+        AGREE that nothing is in flight, not on a timestamp.
+
+        ``reducing_candidate_symbol`` narrows ONLY that last question, and ONLY for an order
+        the caller has already shown to be a non-crossing reduction of an existing position in
+        that symbol. For such an order the in-flight question is asked **about that symbol**
+        rather than account-wide, because an unresolved local row in some OTHER symbol does not
+        make the broker-fetched position of THIS one ambiguous.
+
+        The narrowing is deliberately confined to *risk-reducing execution eligibility*. It is
+        NOT a general relaxation of snapshot freshness: an unknown in-flight order elsewhere
+        can still move buying power, gross exposure and account-level loss state, so every
+        other action — buys, opens, cancels, anything that could increase exposure — keeps the
+        account-wide test. Left account-wide for everything, one order stuck non-terminal (the
+        documented trade-updates-flap mode) permanently blocked de-risking across every symbol
+        on the account: the same permanent trap as the account-id cursor bug, one step in.
+        """
         if not self.complete:
             return False, RiskEffectReason.SNAPSHOT_INCOMPLETE
+
         if self.broker_cursor is None:
-            return False, RiskEffectReason.SNAPSHOT_INCOMPLETE
-        # Must be AT OR BEYOND every broker event already seen locally.
-        if self.observed_cursor is not None and self.broker_cursor < self.observed_cursor:
+            if self.open_orders:
+                # The broker HAS open orders but none of them carried a usable event stamp,
+                # so we cannot establish where this read sits at all.
+                return False, RiskEffectReason.SNAPSHOT_INCOMPLETE
+            if self._inflight_disagreement(reducing_candidate_symbol):
+                # The broker says nothing is in flight; we locally believe something IS.
+                # That is a genuine disagreement about the present, not a settled account.
+                return False, RiskEffectReason.SNAPSHOT_STALE
+            # Broker flat, we are flat: there is no broker event for this read to be behind.
+        elif self.observed_cursor is not None and self.broker_cursor < self.observed_cursor:
+            # Both cursors present and comparable — must be AT OR BEYOND every broker event
+            # already seen locally, INCLUDING settled fills. A read that sits behind a fill we
+            # have recorded is not "a bit old"; it is a different account.
             return False, RiskEffectReason.SNAPSHOT_STALE
+
         if any(o.has_unresolved_partial_fill for o in self.open_orders):
             return False, RiskEffectReason.UNRESOLVED_PARTIAL_FILL
         return True, None
+
+    def _inflight_disagreement(self, reducing_candidate_symbol: str | None) -> bool:
+        """Do we locally believe something is in flight that the broker does not report?
+
+        Scoped to one symbol for a proven non-crossing reduction of that symbol; account-wide
+        for everything else. Same-symbol unresolved state still blocks — that is exactly the
+        case where the true position is genuinely ambiguous.
+        """
+        if not self.observed_inflight_by_symbol:
+            return False
+        if reducing_candidate_symbol is None:
+            return True
+        return reducing_candidate_symbol.upper() in self.observed_inflight_by_symbol
 
 
 @dataclass(frozen=True)
@@ -295,6 +366,39 @@ def available_reducible_quantity(snap: AccountSnapshot, symbol: str) -> Decimal:
 _Emit = Callable[..., RiskEffectDecision]
 
 
+def _reducing_candidate_symbol(
+    snap: AccountSnapshot, action: ProposedAction
+) -> str | None:
+    """The symbol to scope the in-flight question to, or ``None`` for the account-wide test.
+
+    Returns a symbol ONLY for an ``ORDER_SUBMIT`` that, against the live broker positions in
+    THIS snapshot, is a reduction of an existing position in that symbol which cannot cross
+    zero. That is a deliberately conservative pre-test: it runs before classification (the
+    causality gate must), so it may only use facts already in the snapshot, and it must never
+    admit anything that could open, enlarge or reverse exposure.
+
+    Anything else — a buy, a sell with no position, a sell larger than the position, a cancel,
+    a replace — returns ``None`` and keeps the account-wide test. If this pre-test is wrong in
+    the permissive direction the order still faces the full classifier immediately afterwards;
+    it decides which *causality question* is asked, never whether the order is allowed.
+    """
+    if action.action is not ActionType.ORDER_SUBMIT:
+        return None
+    if action.side is None or action.qty is None or action.qty <= ZERO:
+        return None
+
+    held = snap.positions.get(action.symbol.upper())
+    if held is None or held.qty == ZERO:
+        return None
+
+    # Reduces, and cannot cross through zero.
+    if held.qty > ZERO and action.side is OrderSide.SELL and action.qty <= held.qty:
+        return action.symbol.upper()
+    if held.qty < ZERO and action.side is OrderSide.BUY and action.qty <= -held.qty:
+        return action.symbol.upper()
+    return None
+
+
 def classify(snap: AccountSnapshot, action: ProposedAction) -> RiskEffectDecision:
     """Classify ``action`` by its projected effect on ``snap``.
 
@@ -331,7 +435,9 @@ def classify(snap: AccountSnapshot, action: ProposedAction) -> RiskEffectDecisio
 
     # --- § A: causal completeness. Checked FIRST — no classification is meaningful against a
     # state we cannot trust.
-    ok, why = snap.is_causally_complete()
+    ok, why = snap.is_causally_complete(
+        reducing_candidate_symbol=_reducing_candidate_symbol(snap, action)
+    )
     if not ok:
         return _out(RiskEffect.INDETERMINATE, Decision.FAIL_CLOSED, [why])  # type: ignore[list-item]
 
