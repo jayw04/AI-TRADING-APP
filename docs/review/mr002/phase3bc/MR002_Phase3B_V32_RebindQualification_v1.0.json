@@ -1,0 +1,159 @@
+{
+ "artifact_kind": "QUALIFICATION_EVIDENCE",
+ "authorizes": "NOTHING. This establishes that the rebound package satisfies the owner's eight required proofs. The replacement opening is a separate owner authorization and remains WITHHELD.",
+ "boundary": "Zero-data. No AWS call against sealed storage, no credential, no sealed object, no opening consumed. The IAM latch stayed CLOSED throughout.",
+ "bridge_to_the_429_capacity_run": {
+  "all_other_executing_files_equal_rebound_closure": {
+   "files": 39,
+   "mismatches": 0
+  },
+  "conclusion": "SATISFIED. The in-flight 429 run is executing byte-for-byte the rebound v3.2 closure, so its result is direct evidence about the exact future package rather than an overlay approximation. It does not need to be repeated on account of the rebind having been formalised afterwards.",
+  "container": "mr002w429",
+  "overlay_bytes_equal_git_blobs": {
+   "publish.py": {
+    "equal": true,
+    "executing": "3ea0c899a951a5b85bf190a708e0bd7fcdfe8c29d9ebcfdc30da4e4ee85a89e5",
+    "git_blob_id": "a3e1edd09d7bdd6d02327f1dfeb83563bd879cfb"
+   },
+   "runner.py": {
+    "equal": true,
+    "executing": "6e5f3e594985e9984ebe38c40e7c47f923c59912acab59713f58ffefe9f6d654",
+    "git_blob_id": "3949a65fd3df2446bfc528815b3ca8f933cb3d90"
+   }
+  },
+  "owner_condition": "429 overlay bytes == the exact runner.py/publish.py Git blobs in the rebound package, AND all other executing files == rebound closure",
+  "still_pending": "the 429 run's own terminal disposition, peak RSS and S11_PUBLISHED result"
+ },
+ "produced_at": "2026-08-13T20:27:47Z",
+ "qualifies": {
+  "code_checkpoint": "899d6456cfa4b3ddcbbaa2c5b64628ff9d6a0240",
+  "code_identity": "487c7f8ddad1904b725747ef37c1b963f5283f887f0d4d9b5c6ba2be2c0b7c34",
+  "supplement": "MR002_Phase3B_SupplementalExecutionIdentity_v3.2.json"
+ },
+ "record_type": "MR002_Phase3B_V32_RebindQualification",
+ "requirements": {
+  "1_exact_live_mount_equals_new_bound_closure": {
+   "files_compared": 41,
+   "method": "sha256 of every .py in the live 429 execution mount, compared file-by-file against the Git blobs at the checkpoint and against the bound v3.2 closure",
+   "mismatches": 0,
+   "note": "captured while container mr002w429 was executing, so this is the mount that actually ran, not a reconstruction",
+   "result": "PASS"
+  },
+  "2_code_archive_reproduces_from_git_blobs": {
+   "archive_bytes": 58498,
+   "archive_sha256": "6b75daf6549bbaf2efeb049a9087ea5b3c807623e10246956b13142afb69f4f1",
+   "determinism": "sorted members, mtime=0, mode=0644, uid=gid=0, empty uname/gname, GNU_FORMAT, gzip mtime=0 - byte-reproducible from the same blobs",
+   "extracted_on_host_equals_bound_closure": {
+    "extra": 0,
+    "files": 41,
+    "mismatches": 0,
+    "missing": 0
+   },
+   "members": 41,
+   "rebuilt_twice_identical": true,
+   "result": "PASS",
+   "transferred_intact": "archive sha256 verified on the host after transfer"
+  },
+  "3_only_runner_and_publish_differ_from_v31": {
+   "changed": [
+    "app/research/mr002/phase3b/publish.py",
+    "app/research/mr002/phase3b/runner.py"
+   ],
+   "result": "PASS",
+   "transitive_closure_set_recomputed": "static_closure() over the repaired tree yields the SAME 41-file set as the accepted v3.1 closure - the repair introduced no new import",
+   "unchanged": 39
+  },
+  "4_primary_error_preservation_falsification": {
+   "falsification": "computation raises PRIMARY_FAILURE_X and publication raises PUBLICATION_FAILURE_Y => the terminal evidence must carry BOTH, X stays primary and governs disposition",
+   "result": "PASS",
+   "tests": {
+    "test_a_publication_failure_does_not_raise_out_of_the_runner": "passed",
+    "test_a_publication_failure_never_replaces_the_primary_failure": "passed",
+    "test_publication_success_marks_published_and_leaves_the_verdict_alone": "passed",
+    "test_the_outcome_carries_both_failures_for_the_evidence_record": "passed",
+    "test_the_terminal_outcome_is_captured_before_publication_is_attempted": "passed"
+   }
+  },
+  "5_publication_root_and_full_publication": {
+   "covers": "ensure_root creates the governed hierarchy then refuses an occupied destination; the full path reaches publication, writes every deliverable, each reproduces its recorded identity, and the run is non-vacuous",
+   "result": "PASS",
+   "tests": {
+    "test_ensure_root_creates_the_governed_hierarchy": "passed",
+    "test_ensure_root_still_refuses_an_occupied_destination": "passed",
+    "test_every_published_deliverable_reproduces_its_recorded_identity": "passed",
+    "test_full_path_reaches_publication_and_writes_every_deliverable": "passed",
+    "test_publication_succeeds_into_a_freshly_created_root": "passed",
+    "test_the_full_path_run_is_not_vacuous": "passed",
+    "test_the_published_report_is_reproducible_from_its_own_bytes": "passed"
+   }
+  },
+  "6_dry_entry_point_reaches_pre_access_ready": {
+   "executed_in": "the bound image sha256:194efbdf... on the resized host, from the extracted v3.2 archive",
+   "negative_control": "--network=none AND AWS_EC2_METADATA_DISABLED=true, so any STS call or credential lookup would have FAILED LOUDLY rather than passing silently",
+   "observed": {
+    "disposition": "PASS",
+    "error": null,
+    "mode": "dry",
+    "opening_consumed": false,
+    "run_id": "MR002-SPQ1-P3B-VALIDATION-V1",
+    "state": "S7_PRE_ACCESS_READY"
+   },
+   "output_root_after_run": "present and EMPTY - the dry run wrote nothing",
+   "result": "PASS",
+   "sealed_reads": 0,
+   "sts_calls": 0
+  },
+  "7_reader_transition_unchanged_and_proven": {
+   "design_status": "RETAINED from v3.1 UNCHANGED; the v3.1 privilege-transition design remains accepted and is not modified by this rebind",
+   "properties_proven": [
+    "lazy STS - no call at construction and none during a dry run",
+    "reader ARN is a module constant, not a runtime parameter",
+    "S3 client built from temporary credentials only",
+    "no ambient fallback - assumption failure refuses before any S3 call"
+   ],
+   "result": "PASS",
+   "tests": {
+    "test_a_dry_run_never_calls_sts": "passed",
+    "test_a_successful_read_is_still_pinned_and_verified": "passed",
+    "test_assumption_failure_refuses_before_any_s3_call": "passed",
+    "test_assumption_returning_no_credentials_refuses_rather_than_falling_back": "passed",
+    "test_constructing_the_reader_calls_no_sts_and_builds_no_client": "passed",
+    "test_partial_credentials_refuse": "passed",
+    "test_the_first_read_assumes_the_reader_role_then_builds_s3_from_its_credentials": "passed",
+    "test_the_reader_exposes_the_identity_it_will_assume": "passed",
+    "test_the_role_arn_is_bound_in_the_module_not_supplied_at_runtime": "passed",
+    "test_the_s3_client_is_built_from_temporary_credentials_only": "passed",
+    "test_the_source_contains_no_ambient_s3_client_construction": "passed"
+   }
+  },
+  "8_resized_host_p10_runtime_identity_reproduces": {
+   "evidence": "MR002_HostCapacityResize_RuntimeRequalification_v1.0.json",
+   "host_supplied_identical": "4/4",
+   "identity_sha256": "74acfb45eb5b8a8b806e21fa77b6a6f5c3f9921d2ea6d0dac9dd9f2474e98c90",
+   "in_image_bindings_identical": "13/13",
+   "note": "the rebind changes the execution PACKAGE, not the runtime; the P10 identity is unaffected by it and was re-proven on the resized host the same day",
+   "result": "PASS"
+  }
+ },
+ "test_execution": {
+  "suites": [
+   "tests/research/phase3b/test_phase3b_publication_recovery.py",
+   "tests/research/phase3b/test_phase3b_reader_assumption.py",
+   "tests/research/phase3b/test_phase3b_end_to_end.py",
+   "tests/research/phase3b/test_phase3b_entrypoint_qualification.py"
+  ],
+  "totals": {
+   "errors": 0,
+   "failures": 0,
+   "skipped": 0,
+   "tests": 80
+  },
+  "where": "developer machine against the checkpoint tree, whose bytes are proven equal to the bound v3.2 closure. Run off-host deliberately: the host was mid-flight on the 14-hour 429 capacity run with no swap, and a concurrent test container risked an OOM kill of that run for no evidentiary gain."
+ },
+ "version": "1.0",
+ "what_this_does_not_establish": [
+  "that width 429 fits the resized envelope - that run is still in flight",
+  "eligibility to consume a replacement opening, which is a separate owner authorization",
+  "any research result"
+ ]
+}

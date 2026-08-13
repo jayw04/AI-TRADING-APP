@@ -1,0 +1,82 @@
+{
+ "config_mapping": {
+  "A": 1.75,
+  "B": 2.0,
+  "C": 2.25
+ },
+ "contract_identities": {
+  "corrected_development_reconciliation": "5904e04b24bab2320cd773e82d8803870d0188ec4408cc0cf88c0ab7913d70bc",
+  "earnings_control_census": "d132684aea4e97e31294d647ea10fd929e229b516100d861a529474329a509c1",
+  "execution_boundary_clarification": "5f54d85b1ff9193ddefdc5a7639d02e8406e28089248e92d211f47c1f300d88f",
+  "p12_authorization_grant": "440e96e15bda2f8c4eaf991ce8e45190392607bb16bc3ff803f0e6bdac9137f5",
+  "reference_manifest": "22166af451536b3c2f027addccfbbc5b18d7b6f1892bf4f64faa84f2d21860d9",
+  "registered_session_list": "d11d3561e0b814d3a2fc5e5baeeb3fb76274dbf647cbb4ae177d9c21ad45dbdc",
+  "run_specification": "2a1fb7755a57b97f9831cf257c6e60c8bd5baf77eab39541b75ae88c27cb5b43",
+  "validation_input_identity_registration": "8578707bc94084c7ed30c9f30b3a001c47b6144c0fcafb9c03639424f779ca56"
+ },
+ "expected_runtime_facts": {
+  "boto3": "1.43.70",
+  "botocore": "1.43.70",
+  "host_instance_id": "i-00c1034f7026db45e",
+  "image_digest": "sha256:194efbdf96ee11c19f3554dcf1b1097958cdc347bcdc1637504b441237432f51",
+  "numpy": "2.2.6",
+  "pandas": "3.0.5",
+  "pyarrow": "20.0.0",
+  "python_version": "3.13.14",
+  "scipy": "1.18.0"
+ },
+ "identities": {
+  "code_identity": "487c7f8ddad1904b725747ef37c1b963f5283f887f0d4d9b5c6ba2be2c0b7c34",
+  "governing_identity": "2a1fb7755a57b97f9831cf257c6e60c8bd5baf77eab39541b75ae88c27cb5b43",
+  "runtime_identity": "sha256:194efbdf96ee11c19f3554dcf1b1097958cdc347bcdc1637504b441237432f51"
+ },
+ "observed_identities": {
+  "dependency_bundle_sha256": "d5d21eadb52ee5bccc85df832d35a060105327a7787808c5c1a6126e7ed9b5a1",
+  "eligibility_evidence_sources": "d2b3e01846e603c172d78f8130ea295836ce852cf859f94ee4df1cf412773f0e",
+  "execution_closure_file_count": 41,
+  "execution_closure_sha256": "487c7f8ddad1904b725747ef37c1b963f5283f887f0d4d9b5c6ba2be2c0b7c34",
+  "pit_identity_registry": "b711c4d77d7a6bea2c7a51a17098cba992b0cf1b904130f3c052a4249d689ed3",
+  "pit_sector_source": "61e55b4dc167a653fe9d5a9b33f7d1a7c25e4a3bd26f0d4bcd95d06f0fd6bd4c",
+  "price_return_adjustment_policy": "v3",
+  "sealed_input_sha256": {
+   "reference/crosswalk.parquet": "c75fe1b1362c4a6243358a1b6d68c6c5896f0823a7efe234ed0db5244dce3b16",
+   "reference/predecessor_overrides.parquet": "1395263b28a24c1a68af8acaf474b4c285fa313009482004b4c1b6855d8fc2ac",
+   "reference/security_sector_overrides.parquet": "0790f1c5fd1ce360633c4d48cade8b591169452143c6d392109c95c5d997b5bd",
+   "reference/sic_mapping.parquet": "292c36a82896169f5420932af4351a822452f3a909df69b8306e3e48d2d62035",
+   "validation/actions.parquet": "5707558f11c4f12bc19ab3ab5cfb309207e7e0429c1469904d83ec619c6b9fc4",
+   "validation/anchors.parquet": "68d5132fb39edb5c1c42d41d85ba5f2d955845aaa059de4edf0acd757589e2f1",
+   "validation/etf_prices.parquet": "a3da952c15c9cd976639513e821a9a7fc1d5236724f6763c325770fc507b3557",
+   "validation/prices.parquet": "9417d05ebdd54f34172cc3ad3dcbb4e1710b1f36923f98ec98b8fb82fe951de2",
+   "validation/sic_observations.parquet": "67dc057ffd7faa93bf630ecc8de3b46f243b345116b9a6ed1c09494229822144",
+   "validation/universe.parquet": "f369f9f6601a281b7fbe6faace8ccb14e95a5d5b020a97bd869ba57512c6b857"
+  },
+  "sector_etf_proxy_mapping_table": "e2bf0d41445e4f4cb93f6a18dd43256b70647f1ec811536bd4059f0b25a37a79",
+  "sector_etf_source_series": "b51daaf30b6d139269299c487cf880242cd4c7a2aaf82c3baa4481d452f42229",
+  "spy_total_return_series": "503ff556afdf942ac8d25af0ee3a8eed97b357cbcf57f57633aa017d6001367a"
+ },
+ "rebind": {
+  "changed_fields": [
+   "identities.code_identity",
+   "observed_identities.execution_closure_sha256"
+  ],
+  "code_checkpoint": "899d6456cfa4b3ddcbbaa2c5b64628ff9d6a0240",
+  "generated_at": "2026-08-13T20:26:23Z",
+  "reason": "post-recovery execution rebind (supplement v3.2). The v1.0 code_identity named the PRE-RECOVERY package whose runner/publication mechanics are known defective.",
+  "supersedes": "MR002_Phase3B_ExecutionConfiguration_v1.0.json",
+  "unchanged": "dependency bundle, P10 image, reader transition, frozen A/B/C configuration, input identities, governing identities, sealed input identities, contract identities",
+  "version": "1.1"
+ },
+ "run_id": "MR002-SPQ1-P3B-VALIDATION-V1",
+ "runtime_facts": {
+  "boto3": "1.43.70",
+  "botocore": "1.43.70",
+  "host_instance_id": "i-00c1034f7026db45e",
+  "image_digest": "sha256:194efbdf96ee11c19f3554dcf1b1097958cdc347bcdc1637504b441237432f51",
+  "numpy": "2.2.6",
+  "pandas": "3.0.5",
+  "pyarrow": "20.0.0",
+  "python_version": "3.13.14",
+  "scipy": "1.18.0"
+ },
+ "window": "validation"
+}
