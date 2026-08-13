@@ -12,6 +12,7 @@ being exercised shows up as a missing outcome rather than as silence.
 from __future__ import annotations
 
 import math
+import os
 from datetime import date, timedelta
 
 from app.research.mr002.spq1 import (
@@ -38,8 +39,12 @@ from app.research.mr002.spq1.security_identity import LineageRecord, PitIdentity
 # SIGNAL_INPUT_IDENTITY_MISMATCH ("sector-ETF insufficient history") - which is how the first
 # version of this fixture failed the non-vacuity gate.
 MIN_SCORE_T = WARMUP_PRICE_OBSERVATIONS + Z_NORM_OBS + R5_HORIZON + OLS_WINDOW
-N_SESSIONS = 320
-SCORE_T = 260
+# The validation window is 850 sessions. The routine suite runs at 320 to stay fast; the
+# 850-session full-path qualification sets MR002_FIXTURE_SESSIONS=850 so the SAME fixture builder
+# produces a validation-shaped workload. Attempt #1 died in four seconds on a path nobody had run
+# to completion, so "it works at 320" is not the claim that matters.
+N_SESSIONS = int(os.environ.get("MR002_FIXTURE_SESSIONS", "320"))
+SCORE_T = min(260, N_SESSIONS - 2)
 assert SCORE_T >= MIN_SCORE_T, f"fixture would refuse every unit; need t >= {MIN_SCORE_T}"
 assert N_SESSIONS > SCORE_T + 1, "no t+1 session for the enrichment stage"
 

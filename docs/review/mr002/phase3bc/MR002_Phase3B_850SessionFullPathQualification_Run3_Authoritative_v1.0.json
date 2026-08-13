@@ -1,0 +1,92 @@
+{
+ "artifact_kind": "QUALIFICATION_EVIDENCE",
+ "calendar_identity_disclaimer": {
+  "acceptable_because": "this is a technical qualification of execution and publication mechanics at the validation session COUNT; it is not a research run and asserts nothing about the registered calendar",
+  "claim_NOT_made": "calendar identity equivalence with the registered validation window",
+  "claim_made": "850-session SCALE and PATH coverage",
+  "registered_validation_calendar": {
+   "authority": "MR002_ValidationStructuralManifest_v1.0.json, session_list_sha256 d9966a3a...",
+   "first": "2019-10-03",
+   "last": "2023-02-16",
+   "sessions": 850
+  },
+  "why": "the fixture builds 850 consecutive WEEKDAYS from 2019-10-03, so it ends 2023-01-04. The governed P9 validation calendar is 850 TRADING sessions and ends 2023-02-16 - the difference is market holidays, which the fixture does not model."
+ },
+ "data_class": "FIXTURE / NON-SEALED \u2014 no sealed read, no reader assumption, no IAM change, no validation or OOS object",
+ "deliverable_count": 6,
+ "deliverable_inventory": {
+  "ExecutionEnrichmentEdgeCaseCensus_v1.0.json": {
+   "bytes": 907,
+   "sha256": "69a5430efa3b40c8a10a95407316b22c5225318b9cf6b14626e1770dafd46a20"
+  },
+  "MR002_ValOOS_validation_Publication.json": {
+   "bytes": 1385,
+   "sha256": "db62a2f6be8edcd65961e9bc07d08b8605517c046168739dce23c0a782bbc4e4"
+  },
+  "MR002_ValOOS_validation_Report.json": {
+   "bytes": 3260,
+   "sha256": "142eeaec930603039da0f3baaebbfb928415114d68a51a27607483e47f394b4b"
+  },
+  "ValidationDecisionExecutionBindingReport_v1.0.json": {
+   "bytes": 515890,
+   "sha256": "3b6e224ade40f283cad107a775fc7ce6c00359f5c5f6fee1898584b18898fb96"
+  },
+  "ValidationExecutionEnrichmentManifest_v1.0.json": {
+   "bytes": 3703413,
+   "sha256": "541608a0ba6c4cec8431e2a9dc06a9baf098f8d28ba8b7ea50559c3aed93a17f"
+  },
+  "ValidationOpenedObjectLedger_v1.0.json": {
+   "bytes": 3096,
+   "sha256": "0dc64b870baed29197234a032b4992898f7aaa1193d1a4591e9318103f95c1c5"
+  },
+  "ValidationSealVerificationReport_v1.0.json": {
+   "bytes": 647,
+   "sha256": "6030f9cd7496c00f19ca058cb1667f01a9aef63759e2b60ac468912a62c2c916"
+  },
+  "ValidationUnitReconciliation_v1.0.json": {
+   "bytes": 2275426,
+   "sha256": "1dab70149dcaf49ffb4aaf8fc2871c8c7294708b53fef2824e428c8478a2aedb"
+  }
+ },
+ "disposition": "PASS",
+ "host_margin_note": "the qualified host is c6a.large (2 vCPU / 4 GiB). Compare the figures above against that before granting a replacement opening.",
+ "performance": {
+  "note": "tracemalloc measures PYTHON allocations only; it excludes interpreter overhead and native arrow/numpy buffers, so treat it as a lower bound on true process RSS",
+  "peak_rss_bytes": 161333248,
+  "peak_rss_method": "GetProcessMemoryInfo.PeakWorkingSetSize",
+  "peak_rss_mib": 153.9,
+  "peak_rss_note": "process-level, measured by this harness; it INCLUDES interpreter overhead and native arrow/numpy buffers that tracemalloc cannot see. Measured on the developer machine, not the qualified host.",
+  "peak_traced_memory_bytes": 26534379,
+  "peak_traced_memory_mib": 25.3,
+  "run_seconds": 190.13,
+  "world_build_seconds": 0.46
+ },
+ "primary_disposition": "PASS",
+ "publication_error": null,
+ "published": true,
+ "purpose": "prove the repaired execution path completes computation AND durable publication at the validation window's 850-session horizon",
+ "record_type": "MR002_Phase3B_850SessionFullPathQualification",
+ "result": "PASS",
+ "session_coverage": {
+  "calendar_session_count": 850,
+  "distinct_session_ordinals_in_units": 850,
+  "enrichment_records_examined": 7368,
+  "expected_session_count": 850,
+  "first_session": "2019-10-03",
+  "last_session": "2023-01-04",
+  "max_unit_session_ordinal": 849,
+  "min_unit_session_ordinal": 0,
+  "producer_refusals": 2832,
+  "records_examined": 7368,
+  "refusal_codes": [
+   "INELIGIBLE:OLS_WINDOW_INSUFFICIENT",
+   "INTEGRITY_STOP:OLS_DESIGN_SINGULAR",
+   "INTEGRITY_STOP:OLS_WINDOW_INCOMPLETE",
+   "INTEGRITY_STOP:SECURITY_IDENTITY_AMBIGUOUS",
+   "REFUSED_CODE_OR_DATA_IDENTITY:SIGNAL_INPUT_IDENTITY_MISMATCH"
+  ],
+  "units_enumerated": 10200
+ },
+ "terminal_state": "S11_PUBLISHED",
+ "version": "1.0"
+}

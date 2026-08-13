@@ -1,0 +1,90 @@
+{
+ "record_type": "MR002_Phase3B_ReplacementOpeningEvidencePackage",
+ "version": "1.0",
+ "artifact_kind": "ADJUDICATION_PACKAGE",
+ "purpose": "evidence for the owner's threshold question: did the repaired package demonstrate a complete 850-session non-sealed execution and durable publication, with acceptable observed resource use, while changing only execution/publication mechanics and leaving the frozen research design untouched?",
+ "requests": "NOTHING. A replacement opening requires the owner's fresh adjudication.",
+
+ "repaired_execution_checkpoint": {
+  "code_checkpoint_under_test": "HEAD of research/mr002-preregistration at submission",
+  "v31_code_checkpoint": "d88813b72193c60803e3da581be0915fc8604d02",
+  "recovery_commit": "da0c309f673b59843630cfc08a6c4b99960bedcc",
+  "supersedes_for_execution_mechanics_only": "v3.1 record 2f6b7048078399023aaf0c2c84976c3b9c2c7893946d994cfcb3ce3979f4f143",
+  "privilege_boundary": "UNCHANGED — v3.1's host->reader STS transition is not reopened"
+ },
+
+ "runs": {
+  "run_1": {"role": "CORROBORATING", "result": "PASS", "run_seconds": 311.45,
+            "artifact": "MR002_Phase3B_850SessionFullPathQualification_Run1_Corroborating_v1.0.json",
+            "missing": ["peak_rss", "calendar_identity_disclaimer"]},
+  "run_2": {"role": "CORROBORATING", "result": "PASS", "run_seconds": 249.5,
+            "missing": ["peak_rss — the Windows GetProcessMemoryInfo call mis-marshalled the -1 pseudo-handle as a 32-bit int and returned 0; the harness recorded 'unavailable' rather than fabricating a number"]},
+  "run_3": {"role": "AUTHORITATIVE", "result": "PASS", "run_seconds": 190.1,
+            "artifact": "MR002_Phase3B_850SessionFullPathQualification_Run3_Authoritative_v1.0.json",
+            "complete": true}
+ },
+
+ "threshold_evidence": {
+  "terminal_state": "S11_PUBLISHED",
+  "disposition": "PASS",
+  "exit_code": 0,
+  "published": true,
+  "publication_error": null,
+  "session_coverage": {
+   "expected": 850, "runner_calendar": 850,
+   "distinct_session_ordinals": 850, "ordinal_range": "0..849",
+   "units_enumerated": 10200, "records_examined": 7368,
+   "enrichment_records_examined": 7368, "producer_refusals": 2832,
+   "no_early_stop_ambiguity": "850 distinct ordinals spanning the full 0..849 range"
+  },
+  "nonzero_production_work": true,
+  "deliverables": {"count": 8, "all_present": true, "all_nonempty": true,
+                   "all_reproduce_recorded_sha256": true, "report_reproduces": true,
+                   "partial_run": false},
+  "runtime_seconds": {"run_1": 311.45, "run_2": 249.5, "run_3": 190.1,
+                      "measured_on": "developer laptop, NOT the qualified c6a.large"},
+  "memory": {
+   "peak_python_allocations_mib": 25.3,
+   "peak_rss_mib": 153.9,
+   "peak_rss_method": "GetProcessMemoryInfo.PeakWorkingSetSize",
+   "percent_of_4gib_host": 3.76,
+   "interpretation": "observed headroom under THIS qualification workload; NOT a formal worst-case bound"
+  },
+  "research_identities_unchanged": {
+   "closure_files_changed_since_v31": ["app/research/mr002/phase3b/publish.py",
+                                       "app/research/mr002/phase3b/runner.py"],
+   "economic_or_research_modules_touched": [],
+   "verified_by": "byte comparison of all 41 closure files between d88813b and HEAD",
+   "conclusion": "execution and publication MECHANICS only"
+  }
+ },
+
+ "residual_risks_not_closed_by_this_qualification": {
+  "cross_sectional_width": {
+   "finding": "the qualification exercises the validation SESSION HORIZON, not its WIDTH",
+   "sealed_prices_rows": 524827, "fixture_prices_rows_approx": 10200, "ratio_approx": "51x",
+   "sealed_universe_distinct_securities": 429, "fixture_securities": 12,
+   "consequence": "peak RSS and runtime scale with securities-per-session; the real run will examine substantially more than 7,368 records",
+   "therefore": "153.9 MiB does not bound the sealed run's memory, and 190s does not predict its duration"
+  },
+  "calendar_identity": {
+   "claim_made": "850-session scale and path coverage",
+   "claim_NOT_made": "calendar identity equivalence with the registered P9 validation window",
+   "fixture_bounds": "2019-10-03..2023-01-04 (850 consecutive weekdays)",
+   "registered_bounds": "2019-10-03..2023-02-16 (850 trading sessions)",
+   "difference": "market holidays, which the fixture does not model"
+  },
+  "host_performance": {
+   "note": "timings are from a developer laptop; the c6a.large has 2 vCPU. There is no execution timeout, so a slower host stretches the run rather than failing it — an operational concern, not an automatic correctness failure."
+  }
+ },
+
+ "containment_at_submission": {
+  "iam_latch": "CLOSED — host->assume reader explicitDeny",
+  "host_direct_sealed_access": "explicitDeny",
+  "host": "stopped",
+  "reader_assumption": "none since the void attempt",
+  "sealed_access": "none",
+  "opening": "attempt #1 SPENT; no replacement requested or consumed"
+ }
+}
