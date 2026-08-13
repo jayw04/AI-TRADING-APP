@@ -319,12 +319,12 @@ def _qualify(expected_sessions: int, sampler: _Sampler, out_path: str, base: dic
             "host_margin_note": "the qualified host is c6a.large (2 vCPU / 4 GiB). Compare the "
                                 "figures above against that before granting a replacement opening.",
         }
-        out = os.path.join(_HERE, "..", "..", "..", "docs", "review", "mr002", "phase3bc",
-                           "MR002_Phase3B_850SessionFullPathQualification_v1.0.json")
-        out = os.path.abspath(out)
-        body = (json.dumps(evidence, sort_keys=True, indent=1) + "\n").encode()
-        with open(out, "wb") as fh:
-            fh.write(body)
+        out = out_path
+        sampler.stop()
+        evidence.update(sampler.snapshot("PASS"))
+        evidence["result"] = "PASS"
+        evidence["status"] = "PASS"
+        _atomic_write(out, evidence)
         print(json.dumps({k: v for k, v in evidence.items()
                           if k in ("result", "session_coverage", "performance")}, indent=1))
         print(f"\nwrote {out}")

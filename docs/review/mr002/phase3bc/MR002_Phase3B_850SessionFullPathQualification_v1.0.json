@@ -16,24 +16,24 @@
  "deliverable_count": 6,
  "deliverable_inventory": {
   "ExecutionEnrichmentEdgeCaseCensus_v1.0.json": {
-   "bytes": 907,
-   "sha256": "69a5430efa3b40c8a10a95407316b22c5225318b9cf6b14626e1770dafd46a20"
+   "bytes": 910,
+   "sha256": "aa45846aaad0daf8b7e6821df78e9cdf0afecac0afeb9bbd8563ae0425615056"
   },
   "MR002_ValOOS_validation_Publication.json": {
    "bytes": 1385,
-   "sha256": "db62a2f6be8edcd65961e9bc07d08b8605517c046168739dce23c0a782bbc4e4"
+   "sha256": "435a64435a02d93a39798af3def96f847e149b99c4c471cb6a0d0cc95997d3e3"
   },
   "MR002_ValOOS_validation_Report.json": {
-   "bytes": 3260,
-   "sha256": "142eeaec930603039da0f3baaebbfb928415114d68a51a27607483e47f394b4b"
+   "bytes": 3268,
+   "sha256": "0b6859d1c40c1ace71a4223871ddbd52c311a0e7d40a63cbd0a1bcf5af99440d"
   },
   "ValidationDecisionExecutionBindingReport_v1.0.json": {
-   "bytes": 515890,
-   "sha256": "3b6e224ade40f283cad107a775fc7ce6c00359f5c5f6fee1898584b18898fb96"
+   "bytes": 1074491,
+   "sha256": "67ebcac4055e371de0a66a6529024e02e7a2b063c873804a55e2e1153188ab72"
   },
   "ValidationExecutionEnrichmentManifest_v1.0.json": {
-   "bytes": 3703413,
-   "sha256": "541608a0ba6c4cec8431e2a9dc06a9baf098f8d28ba8b7ea50559c3aed93a17f"
+   "bytes": 7718722,
+   "sha256": "100694bb678e4ff73877ceb9286fd7791db8ba602b4021d6d9c5c60c7b7d4fcf"
   },
   "ValidationOpenedObjectLedger_v1.0.json": {
    "bytes": 3096,
@@ -44,22 +44,22 @@
    "sha256": "6030f9cd7496c00f19ca058cb1667f01a9aef63759e2b60ac468912a62c2c916"
   },
   "ValidationUnitReconciliation_v1.0.json": {
-   "bytes": 2275426,
-   "sha256": "1dab70149dcaf49ffb4aaf8fc2871c8c7294708b53fef2824e428c8478a2aedb"
+   "bytes": 4740220,
+   "sha256": "ccb18435f1fd315c1ee464f9638ab0adea7538937ee8cc903ebda13f3d726bdd"
   }
  },
  "disposition": "PASS",
  "host_margin_note": "the qualified host is c6a.large (2 vCPU / 4 GiB). Compare the figures above against that before granting a replacement opening.",
  "performance": {
   "note": "tracemalloc measures PYTHON allocations only; it excludes interpreter overhead and native arrow/numpy buffers, so treat it as a lower bound on true process RSS",
-  "peak_rss_bytes": 161333248,
+  "peak_rss_bytes": 215605248,
   "peak_rss_method": "GetProcessMemoryInfo.PeakWorkingSetSize",
-  "peak_rss_mib": 153.9,
+  "peak_rss_mib": 205.6,
   "peak_rss_note": "process-level, measured by this harness; it INCLUDES interpreter overhead and native arrow/numpy buffers that tracemalloc cannot see. Measured on the developer machine, not the qualified host.",
-  "peak_traced_memory_bytes": 26534379,
-  "peak_traced_memory_mib": 25.3,
-  "run_seconds": 190.13,
-  "world_build_seconds": 0.46
+  "peak_traced_memory_bytes": 54041180,
+  "peak_traced_memory_mib": 51.5,
+  "run_seconds": 445.21,
+  "world_build_seconds": 0.47
  },
  "primary_disposition": "PASS",
  "publication_error": null,
@@ -70,14 +70,14 @@
  "session_coverage": {
   "calendar_session_count": 850,
   "distinct_session_ordinals_in_units": 850,
-  "enrichment_records_examined": 7368,
+  "enrichment_records_examined": 15348,
   "expected_session_count": 850,
   "first_session": "2019-10-03",
   "last_session": "2023-01-04",
   "max_unit_session_ordinal": 849,
   "min_unit_session_ordinal": 0,
-  "producer_refusals": 2832,
-  "records_examined": 7368,
+  "producer_refusals": 5052,
+  "records_examined": 15348,
   "refusal_codes": [
    "INELIGIBLE:OLS_WINDOW_INSUFFICIENT",
    "INTEGRITY_STOP:OLS_DESIGN_SINGULAR",
@@ -85,7 +85,7 @@
    "INTEGRITY_STOP:SECURITY_IDENTITY_AMBIGUOUS",
    "REFUSED_CODE_OR_DATA_IDENTITY:SIGNAL_INPUT_IDENTITY_MISMATCH"
   ],
-  "units_enumerated": 10200
+  "units_enumerated": 20400
  },
  "terminal_state": "S11_PUBLISHED",
  "version": "1.0"

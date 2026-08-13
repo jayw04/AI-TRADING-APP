@@ -1,65 +1,95 @@
 {
  "artifact_kind": "QUALIFICATION_EVIDENCE",
- "data_class": "FIXTURE / NON-SEALED - load and shape only; no sealed read, no reader assumption, no IAM change, and no attempt to mimic sealed economics",
- "elapsed_seconds": 168.9,
- "price_rows_generated": 9959,
- "record_type": "MR002_Phase3B_WidthQualification",
- "rss_peak_at_elapsed_seconds": 168.9,
- "rss_peak_bytes": 138518528,
- "rss_peak_mib": 132.1,
- "rss_samples": [
-  {
-   "rss_mib": 59.2,
-   "t": 0.0
+ "calendar_identity_disclaimer": {
+  "acceptable_because": "this is a technical qualification of execution and publication mechanics at the validation session COUNT; it is not a research run and asserts nothing about the registered calendar",
+  "claim_NOT_made": "calendar identity equivalence with the registered validation window",
+  "claim_made": "850-session SCALE and PATH coverage",
+  "registered_validation_calendar": {
+   "authority": "MR002_ValidationStructuralManifest_v1.0.json, session_list_sha256 d9966a3a...",
+   "first": "2019-10-03",
+   "last": "2023-02-16",
+   "sessions": 850
   },
-  {
-   "rss_mib": 130.1,
-   "t": 15.3
+  "why": "the fixture builds 850 consecutive WEEKDAYS from 2019-10-03, so it ends 2023-01-04. The governed P9 validation calendar is 850 TRADING sessions and ends 2023-02-16 - the difference is market holidays, which the fixture does not model."
+ },
+ "data_class": "FIXTURE / NON-SEALED \u2014 no sealed read, no reader assumption, no IAM change, no validation or OOS object",
+ "deliverable_count": 6,
+ "deliverable_inventory": {
+  "ExecutionEnrichmentEdgeCaseCensus_v1.0.json": {
+   "bytes": 910,
+   "sha256": "aa45846aaad0daf8b7e6821df78e9cdf0afecac0afeb9bbd8563ae0425615056"
   },
-  {
-   "rss_mib": 130.1,
-   "t": 30.6
+  "MR002_ValOOS_validation_Publication.json": {
+   "bytes": 1385,
+   "sha256": "435a64435a02d93a39798af3def96f847e149b99c4c471cb6a0d0cc95997d3e3"
   },
-  {
-   "rss_mib": 130.1,
-   "t": 46.0
+  "MR002_ValOOS_validation_Report.json": {
+   "bytes": 3268,
+   "sha256": "0b6859d1c40c1ace71a4223871ddbd52c311a0e7d40a63cbd0a1bcf5af99440d"
   },
-  {
-   "rss_mib": 130.1,
-   "t": 61.4
+  "ValidationDecisionExecutionBindingReport_v1.0.json": {
+   "bytes": 1074491,
+   "sha256": "67ebcac4055e371de0a66a6529024e02e7a2b063c873804a55e2e1153188ab72"
   },
-  {
-   "rss_mib": 130.1,
-   "t": 76.8
+  "ValidationExecutionEnrichmentManifest_v1.0.json": {
+   "bytes": 7718722,
+   "sha256": "100694bb678e4ff73877ceb9286fd7791db8ba602b4021d6d9c5c60c7b7d4fcf"
   },
-  {
-   "rss_mib": 130.1,
-   "t": 92.0
+  "ValidationOpenedObjectLedger_v1.0.json": {
+   "bytes": 3096,
+   "sha256": "0dc64b870baed29197234a032b4992898f7aaa1193d1a4591e9318103f95c1c5"
   },
-  {
-   "rss_mib": 130.1,
-   "t": 107.5
+  "ValidationSealVerificationReport_v1.0.json": {
+   "bytes": 647,
+   "sha256": "6030f9cd7496c00f19ca058cb1667f01a9aef63759e2b60ac468912a62c2c916"
   },
-  {
-   "rss_mib": 130.1,
-   "t": 122.8
-  },
-  {
-   "rss_mib": 130.1,
-   "t": 138.1
-  },
-  {
-   "rss_mib": 130.8,
-   "t": 153.5
-  },
-  {
-   "rss_mib": 132.1,
-   "t": 168.9
+  "ValidationUnitReconciliation_v1.0.json": {
+   "bytes": 4740220,
+   "sha256": "ccb18435f1fd315c1ee464f9638ab0adea7538937ee8cc903ebda13f3d726bdd"
   }
- ],
- "sample_count": 12,
+ },
+ "disposition": "PASS",
+ "host_margin_note": "the qualified host is c6a.large (2 vCPU / 4 GiB). Compare the figures above against that before granting a replacement opening.",
+ "performance": {
+  "note": "tracemalloc measures PYTHON allocations only; it excludes interpreter overhead and native arrow/numpy buffers, so treat it as a lower bound on true process RSS",
+  "peak_rss_bytes": 215605248,
+  "peak_rss_method": "GetProcessMemoryInfo.PeakWorkingSetSize",
+  "peak_rss_mib": 205.6,
+  "peak_rss_note": "process-level, measured by this harness; it INCLUDES interpreter overhead and native arrow/numpy buffers that tracemalloc cannot see. Measured on the developer machine, not the qualified host.",
+  "peak_traced_memory_bytes": 54041180,
+  "peak_traced_memory_mib": 51.5,
+  "run_seconds": 445.21,
+  "world_build_seconds": 0.47
+ },
+ "primary_disposition": "PASS",
+ "publication_error": null,
+ "published": true,
+ "purpose": "prove the repaired execution path completes computation AND durable publication at the validation window's 850-session horizon",
+ "record_type": "MR002_Phase3B_850SessionFullPathQualification",
+ "result": "PASS",
+ "routing_note": "written by the harness to the legacy 850SessionFullPathQualification filename because a per-width routing patch silently failed to match; contents are the width-12 run VERBATIM, relocated only. The 6-security record previously at that path was overwritten and is NOT reconstructed - see MR002_Phase3B_850SessionFullPathQualification_Run3_Authoritative_v1.0.json",
  "securities": 12,
- "sessions": 850,
- "status": "RUNNING",
+ "session_coverage": {
+  "calendar_session_count": 850,
+  "distinct_session_ordinals_in_units": 850,
+  "enrichment_records_examined": 15348,
+  "expected_session_count": 850,
+  "first_session": "2019-10-03",
+  "last_session": "2023-01-04",
+  "max_unit_session_ordinal": 849,
+  "min_unit_session_ordinal": 0,
+  "producer_refusals": 5052,
+  "records_examined": 15348,
+  "refusal_codes": [
+   "INELIGIBLE:OLS_WINDOW_INSUFFICIENT",
+   "INTEGRITY_STOP:OLS_DESIGN_SINGULAR",
+   "INTEGRITY_STOP:OLS_WINDOW_INCOMPLETE",
+   "INTEGRITY_STOP:SECURITY_IDENTITY_AMBIGUOUS",
+   "REFUSED_CODE_OR_DATA_IDENTITY:SIGNAL_INPUT_IDENTITY_MISMATCH"
+  ],
+  "units_enumerated": 20400
+ },
+ "status": "PASS",
+ "terminal_state": "S11_PUBLISHED",
  "version": "1.0"
 }
