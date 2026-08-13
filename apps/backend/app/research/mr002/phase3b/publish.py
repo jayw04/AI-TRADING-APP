@@ -83,6 +83,18 @@ def verify_exit_agreement(disposition: str, exit_code: int) -> None:
         )
 
 
+def ensure_root(root: str) -> None:
+    """Create the governed destination hierarchy, then prove it is vacant.
+
+    The first validation run consumed its opening, read all eight sealed objects, and then lost the
+    result because nothing created this directory: vacancy was checked and files were opened
+    O_CREAT|O_EXCL, but no component ever called makedirs. Creating the tree is not the same as
+    tolerating a dirty one - vacancy is still asserted immediately afterwards.
+    """
+    os.makedirs(root, exist_ok=True)
+    assert_root_vacant(root)
+
+
 def assert_root_vacant(root: str) -> None:
     """Refuse before a single byte is written if any destination is already occupied."""
     occupied = [n for n in EXPECTED_ARTIFACTS if os.path.lexists(os.path.join(root, n))]

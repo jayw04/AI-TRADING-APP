@@ -46,6 +46,12 @@ class RunOutcome:
     exit_code: int = P.EXIT_BY_DISPOSITION[P.REFUSED]
     state: str = S.S0_INIT
     opening_consumed: bool = False
+    # The computation's terminal verdict, captured before publication is attempted and never
+    # overwritten by it.
+    primary_disposition: str | None = None
+    primary_error: str | None = None
+    published: bool = False
+    publication_error: str | None = None
     history: list[str] = field(default_factory=list)
     enrichment_census: dict | None = None
     seam: dict | None = None
@@ -124,7 +130,7 @@ class Phase3BRunner:
         self.sequence.advance(S.S5_INPUTS_STAGED)
 
     def _prepare_outputs(self) -> None:
-        P.assert_root_vacant(self.output_root)
+        P.ensure_root(self.output_root)
         self.sequence.advance(S.S6_OUTPUTS_PREPARED)
 
     def preflight(self) -> None:
@@ -195,8 +201,23 @@ class Phase3BRunner:
             outcome.state = self.sequence.state
             outcome.opening_consumed = self.sequence.opening_consumed
             outcome.history = list(self.sequence.history)
+            # The terminal COMPUTATION outcome is now fixed. Publication may annotate it; it may
+            # never overwrite it. The first validation run lost its primary failure exactly here,
+            # because a publication exception raised out of `finally` and replaced the disposition
+            # that the computation had already established.
+            outcome.primary_disposition = outcome.disposition
+            outcome.primary_error = outcome.error
             if self.sequence.opening_consumed:
-                outcome.publication = self._publish_run(outcome)
+                try:
+                    outcome.publication = self._publish_run(outcome)
+                except Exception as pub_exc:
+                    outcome.publication_error = f"{type(pub_exc).__name__}: {pub_exc}"
+                    outcome.published = False
+                    # Disposition and error stay as the computation left them.
+                    outcome.disposition = outcome.primary_disposition
+                    outcome.error = outcome.primary_error
+                else:
+                    outcome.published = True
                 # S11 is reached by PUBLISHING, not by succeeding: a refused run that published its
                 # terminal disposition is just as published as a passing one, and the state must
                 # say so or the sequence has a terminal state nothing ever enters.
