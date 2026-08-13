@@ -69,7 +69,16 @@ XLK, XLF = "XLK", "XLF"
 # AMBIGSEC : two conflicting lineage successors at the same session -> IDENTITY_AMBIGUOUS
 # BOUNDSEC : PIT sector observation accepted exactly at the close-t cutoff
 # GAPFACTOR: healthy security whose SECTOR ETF has a hole in the window
-SECURITIES = ("HEALTHY", "YOUNGSEC", "HOLESEC", "AMBIGSEC", "BOUNDSEC", "GAPFACTOR")
+_CASE_SECURITIES = ("HEALTHY", "YOUNGSEC", "HOLESEC", "AMBIGSEC", "BOUNDSEC", "GAPFACTOR")
+
+# WIDTH. The six cases above are hand-crafted behaviours; the sealed validation universe carries
+# 429 securities. MR002_FIXTURE_SECURITIES pads the roster with synthetic HEALTHY clones so the
+# SAME builder and the SAME production path can be driven at the real cross-sectional scale.
+# Everything downstream loops over SECURITIES generically, so a clone inherits healthy behaviour
+# without a second implementation. Default 6 keeps the routine suite fast.
+_WIDTH = int(os.environ.get("MR002_FIXTURE_SECURITIES", "6"))
+_SYNTHETIC = tuple(f"WIDE{i:04d}" for i in range(max(0, _WIDTH - len(_CASE_SECURITIES))))
+SECURITIES = _CASE_SECURITIES + _SYNTHETIC
 
 CIK_BY_SYMBOL = {
     "HEALTHY": 100,
@@ -79,6 +88,7 @@ CIK_BY_SYMBOL = {
     "BOUNDSEC": 104,
     "GAPFACTOR": 105,
 }
+CIK_BY_SYMBOL.update({sym: 200 + i for i, sym in enumerate(_SYNTHETIC)})
 
 # GAPFACTOR sits in the sector whose ETF carries the hole.
 SECTOR_ETF_BY_SYMBOL = {s: XLK for s in SECURITIES}

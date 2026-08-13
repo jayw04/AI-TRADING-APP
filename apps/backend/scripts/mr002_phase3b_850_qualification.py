@@ -17,11 +17,13 @@ no validation or OOS object.
 
 from __future__ import annotations
 
+import contextlib
 import hashlib
 import json
 import os
 import sys
 import tempfile
+import threading
 import time
 import tracemalloc
 
@@ -85,12 +87,100 @@ def peak_rss_bytes() -> tuple[int | None, str]:
     return None, "unavailable"
 
 
+def _atomic_write(path: str, obj: dict) -> None:
+    """Write via temp + os.replace so a kill can never leave a half-written artifact."""
+    tmp = path + ".tmp"
+    with open(tmp, "wb") as fh:
+        fh.write((json.dumps(obj, sort_keys=True, indent=1) + chr(10)).encode())
+        fh.flush()
+        os.fsync(fh.fileno())
+    os.replace(tmp, path)
+
+
+class _Sampler(threading.Thread):
+    """Sample RSS and checkpoint evidence WHILE the production run executes.
+
+    The previous harness was all-or-nothing: hours of work, evidence written only on success, so
+    two interrupted attempts produced zero bytes. It also could not distinguish 'working' from
+    'stalled at launch'. This samples from outside the production path - the runner is untouched.
+    """
+
+    def __init__(self, path: str, base: dict, interval: float = 15.0):
+        super().__init__(daemon=True)
+        self.path, self.base, self.interval = path, base, interval
+        self.peak = 0
+        self.peak_at = None
+        self.samples: list[dict] = []
+        self.started = time.perf_counter()
+        self._stop = threading.Event()
+
+    def snapshot(self, status: str, extra: dict | None = None) -> dict:
+        rec = {**self.base, "status": status,
+               "elapsed_seconds": round(time.perf_counter() - self.started, 1),
+               "rss_peak_bytes": self.peak,
+               "rss_peak_mib": round(self.peak / (1024 * 1024), 1) if self.peak else None,
+               "rss_peak_at_elapsed_seconds": self.peak_at,
+               "rss_samples": self.samples[-40:],
+               "sample_count": len(self.samples)}
+        if extra:
+            rec.update(extra)
+        return rec
+
+    def run(self) -> None:
+        while not self._stop.is_set():
+            rss, _m = peak_rss_bytes()
+            elapsed = round(time.perf_counter() - self.started, 1)
+            if rss:
+                if rss > self.peak:
+                    self.peak, self.peak_at = rss, elapsed
+                self.samples.append({"t": elapsed, "rss_mib": round(rss / (1024 * 1024), 1)})
+                print(f"[progress] t={elapsed}s rss={round(rss / (1024 * 1024), 1)}MiB "
+                      f"peak={round(self.peak / (1024 * 1024), 1)}MiB", flush=True)
+            with contextlib.suppress(OSError):
+                _atomic_write(self.path, self.snapshot("RUNNING"))
+            self._stop.wait(self.interval)
+
+    def stop(self) -> None:
+        self._stop.set()
+
+
 class QualificationFailed(Exception):
     """The 850-session path did not complete. Nothing is claimed."""
 
 
+def evidence_path(width: int) -> str:
+    name = f"MR002_Phase3B_WidthQualification_{width:03d}sec_v1.0.json"
+    return os.path.abspath(os.path.join(
+        _HERE, "..", "..", "..", "docs", "review", "mr002", "phase3bc", name))
+
+
 def main() -> int:
     expected_sessions = int(os.environ["MR002_FIXTURE_SESSIONS"])
+    width = len(F.SECURITIES)
+    out_path = evidence_path(width)
+    base = {"record_type": "MR002_Phase3B_WidthQualification", "version": "1.0",
+            "artifact_kind": "QUALIFICATION_EVIDENCE",
+            "securities": width, "sessions": expected_sessions,
+            "price_rows_generated": len(F.price_rows()),
+            "data_class": "FIXTURE / NON-SEALED - load and shape only; no sealed read, no reader "
+                          "assumption, no IAM change, and no attempt to mimic sealed economics"}
+    sampler = _Sampler(out_path, base)
+    _atomic_write(out_path, sampler.snapshot("RUNNING", {"phase": "starting"}))
+    sampler.start()
+    print(f"[start] width={width} sessions={expected_sessions} "
+          f"price_rows={base['price_rows_generated']} -> {out_path}", flush=True)
+    try:
+        return _qualify(expected_sessions, sampler, out_path, base)
+    except BaseException as exc:
+        sampler.stop()
+        _atomic_write(out_path, sampler.snapshot(
+            "INTERRUPTED", {"interrupted_by": f"{type(exc).__name__}: {str(exc)[:400]}"}))
+        raise
+    finally:
+        sampler.stop()
+
+
+def _qualify(expected_sessions: int, sampler: _Sampler, out_path: str, base: dict) -> int:
     if len(F.SESSIONS) != expected_sessions:
         raise QualificationFailed(
             f"fixture built {len(F.SESSIONS)} sessions, expected {expected_sessions}"

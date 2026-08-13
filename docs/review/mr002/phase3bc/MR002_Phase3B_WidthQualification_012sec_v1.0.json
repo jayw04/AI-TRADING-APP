@@ -1,0 +1,65 @@
+{
+ "artifact_kind": "QUALIFICATION_EVIDENCE",
+ "data_class": "FIXTURE / NON-SEALED - load and shape only; no sealed read, no reader assumption, no IAM change, and no attempt to mimic sealed economics",
+ "elapsed_seconds": 168.9,
+ "price_rows_generated": 9959,
+ "record_type": "MR002_Phase3B_WidthQualification",
+ "rss_peak_at_elapsed_seconds": 168.9,
+ "rss_peak_bytes": 138518528,
+ "rss_peak_mib": 132.1,
+ "rss_samples": [
+  {
+   "rss_mib": 59.2,
+   "t": 0.0
+  },
+  {
+   "rss_mib": 130.1,
+   "t": 15.3
+  },
+  {
+   "rss_mib": 130.1,
+   "t": 30.6
+  },
+  {
+   "rss_mib": 130.1,
+   "t": 46.0
+  },
+  {
+   "rss_mib": 130.1,
+   "t": 61.4
+  },
+  {
+   "rss_mib": 130.1,
+   "t": 76.8
+  },
+  {
+   "rss_mib": 130.1,
+   "t": 92.0
+  },
+  {
+   "rss_mib": 130.1,
+   "t": 107.5
+  },
+  {
+   "rss_mib": 130.1,
+   "t": 122.8
+  },
+  {
+   "rss_mib": 130.1,
+   "t": 138.1
+  },
+  {
+   "rss_mib": 130.8,
+   "t": 153.5
+  },
+  {
+   "rss_mib": 132.1,
+   "t": 168.9
+  }
+ ],
+ "sample_count": 12,
+ "securities": 12,
+ "sessions": 850,
+ "status": "RUNNING",
+ "version": "1.0"
+}
