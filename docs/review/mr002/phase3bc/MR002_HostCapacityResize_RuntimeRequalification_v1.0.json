@@ -1,0 +1,340 @@
+{
+ "artifact_kind": "REQUALIFICATION_EVIDENCE",
+ "authorizes": "NOTHING. This records that the identities P12 binds are unchanged across an execution-capacity correction. It is not a replacement opening, not a P12 grant, and not a validation authorization.",
+ "data_class": "NON-SEALED. No sealed object was read, no reader role was assumed, no IAM policy was changed, and containment was verified by policy SIMULATION rather than by a live access attempt, so no request against the sealed store appears in CloudTrail.",
+ "inputs": {
+  "frozen_p10_manifest": "docs/review/mr002/phase3bc/MR002_NumericRuntimeIdentityManifest_RuntimeInstance_v1.0.json",
+  "host_freeze_record": "docs/review/mr002/phase3bc/MR002_Phase3CHostFreeze_v1.0.json",
+  "post_resize_manifest_produced_by": "scripts/mr002_custody/numeric_runtime_identity.py (produce_p10_manifest, unmodified) on the resized host"
+ },
+ "owner_ruling": {
+  "authorized": "resize the SAME instance c6a.large -> c6a.xlarge; do not replace the instance",
+  "classification": "execution-capacity correction, not a research-semantic change",
+  "condition": "the resized host is NOT validation-ready merely because AWS reports c6a.xlarge; numeric execution identity must be RE-PROVEN",
+  "fresh_p12_required_if": "any bound runtime identity changes; then P10/runtime binding must be adjudicated and P12 compatibility reconsidered before sealed access"
+ },
+ "produced_at": "2026-08-13T18:59:25.851069Z",
+ "record_type": "MR002_HostCapacityResize_RuntimeRequalification",
+ "requirements": {
+  "1_instance_identity_unchanged": {
+   "note": "resized in place with ec2 modify-instance-attribute while stopped. The instance was NOT replaced; it is not CloudFormation-managed, so no stack update could substitute it.",
+   "observed": "i-00c1034f7026db45e",
+   "observed_via": "IMDSv2 from inside the running instance",
+   "required": "i-00c1034f7026db45e",
+   "result": "PASS"
+  },
+  "2_instance_type_and_capacity_recorded": {
+   "availability_zone": "us-east-1d",
+   "avx2": true,
+   "avx512": false,
+   "docker": "25.0.14",
+   "kernel": "6.1.177-224.371.amzn2023.x86_64",
+   "mem_total_gib": 7.56,
+   "mem_total_kib": 7924808,
+   "note": "swap is 0, so the peak-RSS margin is real memory and not deferred paging.",
+   "now": "c6a.xlarge",
+   "processor_model": "AMD EPYC 7R13 Processor",
+   "result": "PASS",
+   "root_free_gib": 27,
+   "swap_total_kib": 0,
+   "topology": {
+    "cores_per_socket": 2,
+    "sockets": 1,
+    "threads_per_core": 2
+   },
+   "vcpu": 4,
+   "was": "c6a.large (2 vCPU / 4096 MiB)"
+  },
+  "3_bound_image_unchanged": {
+   "bound": "sha256:194efbdf96ee11c19f3554dcf1b1097958cdc347bcdc1637504b441237432f51",
+   "note": "live ECR re-resolution with bytes rehashed, via the sole permitted path resolve_evaluator_image.resolve_bound_image. Not a cached tag and not a local image.",
+   "observed": "sha256:194efbdf96ee11c19f3554dcf1b1097958cdc347bcdc1637504b441237432f51",
+   "re_resolved_at": "2026-08-13T18:52:42.709851Z",
+   "resolution_method": "live registry batch_get_image by imageDigest, bytes rehashed",
+   "result": "PASS"
+  },
+  "4_dependency_bundle_and_closure_reproduce": {
+   "dependency_lockfile_sha256_bound": "bb38b685d15f78b705fff2681b76807f2277b02f7af5788e4c320951121c7ebd",
+   "dependency_lockfile_sha256_observed": "bb38b685d15f78b705fff2681b76807f2277b02f7af5788e4c320951121c7ebd",
+   "evaluator_module_source": "rehashed in-image, compared to the bound image manifest",
+   "evaluator_modules_verified": 21,
+   "image_manifest_sha256": "d3171952af42b79b127409e5123dd01761fdd0a17fc1442a0ad1c31eee1c746b",
+   "result": "PASS",
+   "spec_sha256": "0ec253505a4d55befe35b1e832960e6a1de36e6e934fe8ac8a515270f2a8826a"
+  },
+  "5_cpu_and_instruction_set_compared_to_p10": {
+   "bound": {
+    "machine": "x86_64",
+    "numpy_cpu_baseline": [
+     "SSE",
+     "SSE2",
+     "SSE3"
+    ],
+    "numpy_cpu_dispatch": [
+     "SSSE3",
+     "SSE41",
+     "POPCNT",
+     "SSE42",
+     "AVX",
+     "F16C",
+     "FMA3",
+     "AVX2",
+     "AVX512F",
+     "AVX512CD",
+     "AVX512_KNL",
+     "AVX512_KNM",
+     "AVX512_SKX",
+     "AVX512_CLX",
+     "AVX512_CNL",
+     "AVX512_ICL"
+    ],
+    "numpy_cpu_features_enabled": [
+     "AVX",
+     "AVX2",
+     "F16C",
+     "FMA3",
+     "MMX",
+     "POPCNT",
+     "SSE",
+     "SSE2",
+     "SSE3",
+     "SSE41",
+     "SSE42",
+     "SSSE3"
+    ],
+    "processor_model": "AMD EPYC 7R13 Processor"
+   },
+   "note": "same processor model and identical numpy baseline/dispatch/enabled feature sets. AVX2 present, AVX512 absent, on both instance sizes - c6a is uniformly AMD EPYC 7R13.",
+   "observed": {
+    "machine": "x86_64",
+    "numpy_cpu_baseline": [
+     "SSE",
+     "SSE2",
+     "SSE3"
+    ],
+    "numpy_cpu_dispatch": [
+     "SSSE3",
+     "SSE41",
+     "POPCNT",
+     "SSE42",
+     "AVX",
+     "F16C",
+     "FMA3",
+     "AVX2",
+     "AVX512F",
+     "AVX512CD",
+     "AVX512_KNL",
+     "AVX512_KNM",
+     "AVX512_SKX",
+     "AVX512_CLX",
+     "AVX512_CNL",
+     "AVX512_ICL"
+    ],
+    "numpy_cpu_features_enabled": [
+     "AVX",
+     "AVX2",
+     "F16C",
+     "FMA3",
+     "MMX",
+     "POPCNT",
+     "SSE",
+     "SSE2",
+     "SSE3",
+     "SSE41",
+     "SSE42",
+     "SSSE3"
+    ],
+    "processor_model": "AMD EPYC 7R13 Processor"
+   },
+   "result": "PASS"
+  },
+  "6_numeric_library_identities_reproduce": {
+   "blas": {
+    "bound": {
+     "name": "scipy-openblas",
+     "openblas_config": "OpenBLAS 0.3.29  USE64BITINT DYNAMIC_ARCH NO_AFFINITY Haswell MAX_THREADS=64",
+     "pc_file": "/project/.openblas",
+     "version": "0.3.29"
+    },
+    "observed": {
+     "name": "scipy-openblas",
+     "openblas_config": "OpenBLAS 0.3.29  USE64BITINT DYNAMIC_ARCH NO_AFFINITY Haswell MAX_THREADS=64",
+     "pc_file": "/project/.openblas",
+     "version": "0.3.29"
+    },
+    "result": "PASS"
+   },
+   "lapack": {
+    "bound": {
+     "name": "scipy-openblas",
+     "openblas_config": "OpenBLAS 0.3.29  USE64BITINT DYNAMIC_ARCH NO_AFFINITY Haswell MAX_THREADS=64",
+     "pc_file": "/project/.openblas",
+     "version": "0.3.29"
+    },
+    "observed": {
+     "name": "scipy-openblas",
+     "openblas_config": "OpenBLAS 0.3.29  USE64BITINT DYNAMIC_ARCH NO_AFFINITY Haswell MAX_THREADS=64",
+     "pc_file": "/project/.openblas",
+     "version": "0.3.29"
+    },
+    "result": "PASS"
+   },
+   "numpy_scipy_binary_identities": {
+    "bound": {
+     "numpy._core._multiarray_umath": {
+      "available": true,
+      "path": "/usr/local/lib/python3.13/site-packages/numpy/_core/_multiarray_umath.cpython-313-x86_64-linux-gnu.so",
+      "sha256": "aa26455b9418a62fc93e36752003b088c9cbcb0d143e7dbb9505234f5a93eca6"
+     },
+     "scipy.linalg._flapack": {
+      "available": true,
+      "path": "/usr/local/lib/python3.13/site-packages/scipy/linalg/_flapack.cpython-313-x86_64-linux-gnu.so",
+      "sha256": "440c3b578ea6a222d2e23ff23ff8cd6bf7c63e8d1d81f53667925655a5496901"
+     },
+     "scipy.linalg.cython_lapack": {
+      "available": true,
+      "path": "/usr/local/lib/python3.13/site-packages/scipy/linalg/cython_lapack.cpython-313-x86_64-linux-gnu.so",
+      "sha256": "e6bb843003a657aab3dd312b40cddb72f52d5b52c86ed5a93b9b7b70e2803f4e"
+     }
+    },
+    "observed": {
+     "numpy._core._multiarray_umath": {
+      "available": true,
+      "path": "/usr/local/lib/python3.13/site-packages/numpy/_core/_multiarray_umath.cpython-313-x86_64-linux-gnu.so",
+      "sha256": "aa26455b9418a62fc93e36752003b088c9cbcb0d143e7dbb9505234f5a93eca6"
+     },
+     "scipy.linalg._flapack": {
+      "available": true,
+      "path": "/usr/local/lib/python3.13/site-packages/scipy/linalg/_flapack.cpython-313-x86_64-linux-gnu.so",
+      "sha256": "440c3b578ea6a222d2e23ff23ff8cd6bf7c63e8d1d81f53667925655a5496901"
+     },
+     "scipy.linalg.cython_lapack": {
+      "available": true,
+      "path": "/usr/local/lib/python3.13/site-packages/scipy/linalg/cython_lapack.cpython-313-x86_64-linux-gnu.so",
+      "sha256": "e6bb843003a657aab3dd312b40cddb72f52d5b52c86ed5a93b9b7b70e2803f4e"
+     }
+    },
+    "result": "PASS"
+   },
+   "numpy_version": {
+    "bound": "2.2.6",
+    "observed": "2.2.6",
+    "result": "PASS"
+   },
+   "pandas_version": {
+    "bound": "3.0.5",
+    "observed": "3.0.5",
+    "result": "PASS"
+   },
+   "python_executable_identity": {
+    "bound": {
+     "build": "main Jun 24 2026 02:07:54",
+     "compiler": "GCC 12.2.0",
+     "implementation": "CPython",
+     "path": "/usr/local/bin/python",
+     "sha256": "73b68fc2dac176af16098180a2c98a03ee9f1f1b02db25d42d44d782e79e2330"
+    },
+    "observed": {
+     "build": "main Jun 24 2026 02:07:54",
+     "compiler": "GCC 12.2.0",
+     "implementation": "CPython",
+     "path": "/usr/local/bin/python",
+     "sha256": "73b68fc2dac176af16098180a2c98a03ee9f1f1b02db25d42d44d782e79e2330"
+    },
+    "result": "PASS"
+   },
+   "python_version": {
+    "bound": "3.13.14",
+    "observed": "3.13.14",
+    "result": "PASS"
+   },
+   "rng_algorithm": {
+    "bound": {
+     "default_rng_bit_generator": "PCG64",
+     "numpy_random_module": "numpy.random"
+    },
+    "observed": {
+     "default_rng_bit_generator": "PCG64",
+     "numpy_random_module": "numpy.random"
+    },
+    "result": "PASS"
+   },
+   "scipy_version": {
+    "bound": "1.18.0",
+    "observed": "1.18.0",
+    "result": "PASS"
+   },
+   "thread_env": {
+    "bound": {
+     "MKL_NUM_THREADS": "1",
+     "NUMEXPR_NUM_THREADS": "1",
+     "OMP_NUM_THREADS": "1",
+     "OPENBLAS_CORETYPE": "HASWELL",
+     "OPENBLAS_NUM_THREADS": "1"
+    },
+    "observed": {
+     "MKL_NUM_THREADS": "1",
+     "NUMEXPR_NUM_THREADS": "1",
+     "OMP_NUM_THREADS": "1",
+     "OPENBLAS_CORETYPE": "HASWELL",
+     "OPENBLAS_NUM_THREADS": "1"
+    },
+    "result": "PASS"
+   }
+  },
+  "7_existing_tests_reproduce_under_the_resized_host": {
+   "host_side_venv": {
+    "failed": 13,
+    "passed": 36,
+    "result": "EXPECTED",
+    "why": "the 13 failures are all numpy_unavailable. Those tests exercise capture/gate paths that are IN-IMAGE by design; the host driver venv has no numpy and must not have one - installing numpy on the host would introduce versions different from the image the tests compare against, which would make a pass meaningless."
+   },
+   "in_image": {
+    "executed_in": "the bound image sha256:194efbdf... on the resized host",
+    "failed": 0,
+    "passed": 49,
+    "result": "PASS",
+    "suite": "scripts/mr002_custody/test_numeric_runtime_identity.py"
+   },
+   "note": "pytest was installed into an isolated venv (/opt/mr002/testvenv) and, for the in-image leg, into an EPHEMERAL container layer under --rm. The bound image was never committed or pushed; ecr:PutImage is explicitly denied to this host in any case."
+  },
+  "8_iam_containment_intact": {
+   "host_to_reader": {
+    "action": "sts:AssumeRole",
+    "decision": "explicitDeny",
+    "matched": "role_mr002-phase3c-run-host_mr002-phase3c-qualification-only",
+    "resource": "arn:aws:iam::219024422756:role/mr002-validation-reader"
+   },
+   "host_to_sealed_store": {
+    "bucket": "workbench-mr002-sealed-219024422756",
+    "s3:GetObject": "explicitDeny",
+    "s3:ListBucket": "explicitDeny",
+    "s3:PutObject": "explicitDeny"
+   },
+   "method": "iam simulate-principal-policy against the host role - no live access attempt, so the sealed store access history is unaffected",
+   "note": "the co-resident Allow on the reader role is the latch open position; the explicit Deny overrides it. The latch is CLOSED.",
+   "principal": "arn:aws:iam::219024422756:role/mr002-phase3c-run-host",
+   "result": "PASS"
+  }
+ },
+ "verdict": {
+  "conclusion": "Every identity P12 binds is unchanged across the resize. Per the owner ruling, no fresh P12 grant is required on account of the instance-type change.",
+  "host_supplied_bindings_identical": 4,
+  "identity_sha256_excluding_resolution_timestamp": {
+   "c6a.large_bound": "74acfb45eb5b8a8b806e21fa77b6a6f5c3f9921d2ea6d0dac9dd9f2474e98c90",
+   "c6a.xlarge_observed": "74acfb45eb5b8a8b806e21fa77b6a6f5c3f9921d2ea6d0dac9dd9f2474e98c90",
+   "identical": true
+  },
+  "in_image_bindings_compared": 13,
+  "in_image_bindings_identical": 13,
+  "only_field_that_differs": "container_image_digest.resolved_at - the timestamp of the live re-resolution, not an identity. The digest itself is identical.",
+  "require_numeric_runtime_equivalent": "PASS - compare_bindings() returns no differences over the 13 in-image bindings and the live-resolved digest equals the bound digest, so the gate raises no NumericRuntimeMismatch"
+ },
+ "version": "1.0",
+ "what_this_does_not_establish": [
+  "that width 429 fits in the resized envelope - that is the pending 850x429 non-sealed run",
+  "any research result, ranking, return, or Sharpe",
+  "a replacement opening, which remains WITHHELD"
+ ],
+ "why_the_thread_count_hazard_did_not_materialise": "The owner concern - more vCPUs changing thread counts, BLAS behaviour, or affinity - is the hazard the frozen threading policy already addresses, and the custody code ENFORCES it rather than assuming it: _require_frozen_threading() REFUSES to capture when any of OMP/OPENBLAS/MKL/NUMEXPR_NUM_THREADS or OPENBLAS_CORETYPE is unset, on the stated grounds that an unset variable takes a library default that is a function of the host core count. All five were set to the frozen values for this capture, OpenBLAS is built NO_AFFINITY, and OPENBLAS_CORETYPE=HASWELL pins kernel dispatch independently of the detected CPU. threading_policy_branch remains FROZEN; the alternative branch (proving that varying the thread variables leaves governed output hashes unchanged) is still NOT performed and is not relied on here."
+}
