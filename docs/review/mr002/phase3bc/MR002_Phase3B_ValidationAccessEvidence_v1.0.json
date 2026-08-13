@@ -1,0 +1,118 @@
+{
+ "s3": [
+  {
+   "time": "2026-08-13T00:14:23Z",
+   "event": "GetObject",
+   "key": "validation/anchors.parquet",
+   "versionId": "7Br5aFGWFabpIJmPgwUBQRgdhQwc2GIK",
+   "principal": "arn:aws:sts::219024422756:assumed-role/mr002-validation-reader/mr002-p3b-validation-v1",
+   "error": "SUCCESS",
+   "bytes": 190412
+  },
+  {
+   "time": "2026-08-13T00:14:23Z",
+   "event": "GetObject",
+   "key": "validation/actions.parquet",
+   "versionId": "wJ6QFkebGAidGzoWO.qzUMYjy.b6zLrx",
+   "principal": "arn:aws:sts::219024422756:assumed-role/mr002-validation-reader/mr002-p3b-validation-v1",
+   "error": "SUCCESS",
+   "bytes": 57564
+  },
+  {
+   "time": "2026-08-13T00:14:23Z",
+   "event": "GetObject",
+   "key": "validation/etf_prices.parquet",
+   "versionId": ".mZyHPHgamUNlHpdePGQZq.djUapjrpo",
+   "principal": "arn:aws:sts::219024422756:assumed-role/mr002-validation-reader/mr002-p3b-validation-v1",
+   "error": "SUCCESS",
+   "bytes": 67689
+  },
+  {
+   "time": "2026-08-13T00:14:23Z",
+   "event": "GetObject",
+   "key": "reference/sic_mapping.parquet",
+   "versionId": "_wAa1EJ0wECpUcd4DH7KhrYsYl765kWL",
+   "principal": "arn:aws:sts::219024422756:assumed-role/mr002-validation-reader/mr002-p3b-validation-v1",
+   "error": "SUCCESS",
+   "bytes": 10490
+  },
+  {
+   "time": "2026-08-13T00:14:23Z",
+   "event": "GetObject",
+   "key": "reference/crosswalk.parquet",
+   "versionId": "ux3JpvSp7lSneFcMHhxRZ_Tp6_gx60eK",
+   "principal": "arn:aws:sts::219024422756:assumed-role/mr002-validation-reader/mr002-p3b-validation-v1",
+   "error": "SUCCESS",
+   "bytes": 35136
+  },
+  {
+   "time": "2026-08-13T00:14:24Z",
+   "event": "GetObject",
+   "key": "validation/sic_observations.parquet",
+   "versionId": "OkvwAKSX8W8W3HJiBoxZ9KC4ON6Vgj5t",
+   "principal": "arn:aws:sts::219024422756:assumed-role/mr002-validation-reader/mr002-p3b-validation-v1",
+   "error": "SUCCESS",
+   "bytes": 142811
+  },
+  {
+   "time": "2026-08-13T00:14:24Z",
+   "event": "GetObject",
+   "key": "validation/universe.parquet",
+   "versionId": "8Le8rLdT2wvdSenjEQdPaUAgdmSzx3ZO",
+   "principal": "arn:aws:sts::219024422756:assumed-role/mr002-validation-reader/mr002-p3b-validation-v1",
+   "error": "SUCCESS",
+   "bytes": 109836
+  },
+  {
+   "time": "2026-08-13T00:14:24Z",
+   "event": "GetObject",
+   "key": "validation/prices.parquet",
+   "versionId": "eC8XZGBPXa6vPDW_WKPvwV8HtF05_tty",
+   "principal": "arn:aws:sts::219024422756:assumed-role/mr002-validation-reader/mr002-p3b-validation-v1",
+   "error": "SUCCESS",
+   "bytes": 16780884
+  }
+ ],
+ "sts": [
+  {
+   "time": "2026-08-13T00:03:56Z",
+   "role": "arn:aws:iam::219024422756:role/aws-service-role/resource-explorer-2.amazonaws.com/AWSServiceRoleForResourceExplorer",
+   "error": "SUCCESS"
+  },
+  {
+   "time": "2026-08-13T00:09:19Z",
+   "role": "arn:aws:iam::219024422756:role/mr002-phase3c-run-host",
+   "error": "SUCCESS"
+  },
+  {
+   "time": "2026-08-13T00:09:19Z",
+   "role": "arn:aws:iam::219024422756:role/mr002-phase3c-run-host",
+   "error": "SUCCESS"
+  },
+  {
+   "time": "2026-08-13T00:09:54Z",
+   "role": "arn:aws:iam::219024422756:role/workbench-paper-InstanceRole-4P2Tvq7FaG1E",
+   "error": "SUCCESS"
+  },
+  {
+   "time": "2026-08-13T00:09:54Z",
+   "role": "arn:aws:iam::219024422756:role/workbench-paper-InstanceRole-4P2Tvq7FaG1E",
+   "error": "SUCCESS"
+  },
+  {
+   "time": "2026-08-13T00:14:23Z",
+   "role": "arn:aws:iam::219024422756:role/mr002-validation-reader",
+   "error": "SUCCESS"
+  },
+  {
+   "time": "2026-08-13T00:17:30Z",
+   "role": "arn:aws:iam::219024422756:role/adr0043-canary-ws5-52b3ff136196-role",
+   "error": "SUCCESS"
+  },
+  {
+   "time": "2026-08-13T00:17:30Z",
+   "role": "arn:aws:iam::219024422756:role/adr0043-canary-ws5-52b3ff136196-role",
+   "error": "SUCCESS"
+  }
+ ]
+}

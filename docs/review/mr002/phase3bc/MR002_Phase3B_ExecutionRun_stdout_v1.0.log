@@ -1,0 +1,40 @@
+=== PRE-EXEC: output root ===
+absent - FRESH
+=== EXECUTE ===
+Traceback (most recent call last):
+  File "/opt/mr002/code/app/research/mr002/phase3b/publish.py", line 60, in _create_exclusive
+    fd = os.open(path, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o644)
+FileNotFoundError: [Errno 2] No such file or directory: '/opt/mr002/out/valoos/validation/MR002_ValOOS_validation_Report.json'
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "<string>", line 12, in <module>
+    rc = E.main(argv)
+  File "/opt/mr002/code/app/research/mr002/phase3b/entrypoint.py", line 274, in main
+    outcome = runner.run(stop_at=S.S7_PRE_ACCESS_READY if args.mode == DRY else None)
+  File "/opt/mr002/code/app/research/mr002/phase3b/runner.py", line 199, in run
+    outcome.publication = self._publish_run(outcome)
+                          ~~~~~~~~~~~~~~~~~^^^^^^^^^
+  File "/opt/mr002/code/app/research/mr002/phase3b/runner.py", line 254, in _publish_run
+    return P.publish_run(
+           ~~~~~~~~~~~~~^
+        self.output_root,
+        ^^^^^^^^^^^^^^^^^
+    ...<15 lines>...
+        stderr_text=outcome.error or "",
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/opt/mr002/code/app/research/mr002/phase3b/publish.py", line 150, in publish_run
+    report_sha = _create_exclusive(os.path.join(root, REPORT), _canonical(report_body))
+  File "/opt/mr002/code/app/research/mr002/phase3b/publish.py", line 64, in _create_exclusive
+    raise PublicationRefused(
+        f"destination_uncreatable:{os.path.basename(path)}:{type(exc).__name__}"
+    ) from exc
+app.research.mr002.phase3b.publish.PublicationRefused: destination_uncreatable:MR002_ValOOS_validation_Report.json:FileNotFoundError
+EXCEPTION PublicationRefused destination_uncreatable:MR002_ValOOS_validation_Report.json:FileNotFoundError
+=== POST-EXEC: output tree ===
+/opt/mr002/out:
+total 0
+

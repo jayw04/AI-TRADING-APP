@@ -1,0 +1,77 @@
+{
+ "record_type": "MR002_Phase3B_PostConsumptionFailureReport",
+ "version": "1.0",
+ "artifact_kind": "INCIDENT_EVIDENCE",
+ "classification": "OPENING_CONSUMED — RUN FAILED AFTER SUCCESSFUL SEALED READS — NO RESTART ATTEMPTED",
+ "opening_status": "SPENT",
+ "package": "v3.1 record 2f6b7048078399023aaf0c2c84976c3b9c2c7893946d994cfcb3ce3979f4f143",
+ "code_checkpoint": "d88813b72193c60803e3da581be0915fc8604d02",
+ "host_instance_id": "i-00c1034f7026db45e",
+ "image": "sha256:194efbdf96ee11c19f3554dcf1b1097958cdc347bcdc1637504b441237432f51",
+ "ssm_command_id": "074f555a-b02b-419c-862a-c0fa13caee81",
+ "run_window_utc": {"start": "2026-08-13T00:14:21.704Z", "end": "2026-08-13T00:14:25.704Z", "seconds": 4},
+
+ "privilege_transition": {
+  "assume_role_utc": "2026-08-13T00:14:23Z",
+  "role": "arn:aws:iam::219024422756:role/mr002-validation-reader",
+  "session_name": "mr002-p3b-validation-v1",
+  "caller": "arn:aws:sts::219024422756:assumed-role/mr002-phase3c-run-host/i-00c1034f7026db45e",
+  "error_code": null,
+  "verdict": "worked exactly as designed"
+ },
+
+ "sealed_reads": {
+  "source": "CloudTrail data events, trail mr002-custody-trail",
+  "total_getobject": 8,
+  "validation_getobject": 6,
+  "reference_getobject": 2,
+  "all_succeeded": true,
+  "all_pinned_to_registered_versionid": true,
+  "objects_outside_the_registered_set": [],
+  "oos_objects_touched": [],
+  "total_bytes": 17394822,
+  "first_successful_validation_read_utc": "2026-08-13T00:14:23Z",
+  "consumption_trigger": "the first successful pinned validation GetObject — both the frozen state machine and the owner's rule now agree the opening is SPENT"
+ },
+
+ "failure": {
+  "raised": "PublicationRefused: destination_uncreatable:MR002_ValOOS_validation_Report.json:FileNotFoundError",
+  "site": "publish.publish_run -> _create_exclusive",
+  "cause": "the output directory /opt/mr002/out/valoos/validation did not exist. No component creates the output tree: assert_root_vacant checks vacancy and the publisher opens with O_CREAT|O_EXCL, but nothing calls makedirs.",
+  "outputs_produced": "none — the output tree is empty",
+  "deliverables_published": 0
+ },
+
+ "masking_defect": {
+  "finding": "the ORIGINAL failure reason is LOST",
+  "mechanism": "runner.run calls _publish_run from its `finally` block; when publication raised, that exception propagated and replaced whatever exception had set outcome.disposition",
+  "consequence": "we know publication failed and that all 8 reads succeeded, but not what the run itself did between the reads and the finally block",
+  "severity": "independent of the directory bug and arguably worse: it destroys the diagnosis of any post-read failure"
+ },
+
+ "timing_observation": {
+  "note": "the whole run took 4 seconds and read 16.6 MB. Production over 850 sessions could not have completed in the remaining time, so an exception almost certainly occurred shortly after decoding. Its identity is unknown because of the masking defect above.",
+  "explicitly_not_asserted": "no claim is made about which step failed"
+ },
+
+ "containment": {
+  "latch_restored": true,
+  "restored_byte_identical": true,
+  "host_assume_reader_after": "explicitDeny",
+  "host_sealed_s3_after": "explicitDeny",
+  "restart_attempted": false,
+  "second_opening_requested": false
+ },
+
+ "preserved_evidence": [
+  "SSM command id and invocation record (status, response code, start/end)",
+  "stdout with the full traceback",
+  "stderr",
+  "CloudTrail AssumeRole event with reader session identity",
+  "CloudTrail S3 data events for all 8 reads with keys, VersionIds and byte counts",
+  "the empty output tree",
+  "IAM latch state before, during and after"
+ ],
+
+ "boundary": "No restart. No second opening. No OOS access. No reader re-assumption after the failure. Stopped for adjudication."
+}
