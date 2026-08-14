@@ -1,0 +1,186 @@
+{
+ "artifact_kind": "DATA_VOCABULARY_CENSUS",
+ "authorized_by": "owner authorization 2026-08-14 to implement v3.5 under the frozen three-part scope, together with its standing stop rule: stop rather than broaden if qualification exposes a new contradiction. This record IS that stop.",
+ "boundary": "DEVELOPMENT PARTITION ONLY. Every content query is hard-bounded to 2013-01-02..2019-10-02, the same bound and the same registered local snapshot the authorized A1-F1 query used. No sealed object was opened, no credential was used, no validation or OOS row was read, and the opening is UNSPENT. No code was changed to produce this record.",
+ "census_development_window": {
+  "distinct_kinds": 15,
+  "kinds": {
+   "acquisitionby": {
+    "first": "2013-05-30",
+    "last": "2019-08-08",
+    "rows": 77
+   },
+   "acquisitionof": {
+    "first": "2013-01-07",
+    "last": "2019-09-24",
+    "rows": 357
+   },
+   "bankruptcyliquidation": {
+    "first": "2014-10-15",
+    "last": "2019-06-28",
+    "rows": 4
+   },
+   "delisted": {
+    "first": "2013-05-30",
+    "last": "2019-08-08",
+    "rows": 85
+   },
+   "dividend": {
+    "first": "2013-01-02",
+    "last": "2019-10-01",
+    "rows": 9989
+   },
+   "listed": {
+    "first": "2013-01-02",
+    "last": "2019-09-26",
+    "rows": 110
+   },
+   "mergerfrom": {
+    "first": "2013-12-05",
+    "last": "2015-07-02",
+    "rows": 6
+   },
+   "mergerto": {
+    "first": "2015-07-02",
+    "last": "2017-12-29",
+    "rows": 2
+   },
+   "relation": {
+    "first": "2013-09-24",
+    "last": "2019-09-06",
+    "rows": 98
+   },
+   "spinoff": {
+    "first": "2013-01-02",
+    "last": "2019-10-02",
+    "rows": 75
+   },
+   "spinoffdividend": {
+    "first": "2013-01-02",
+    "last": "2019-10-02",
+    "rows": 65
+   },
+   "split": {
+    "first": "2013-01-16",
+    "last": "2019-06-13",
+    "rows": 107
+   },
+   "spunofffrom": {
+    "first": "2013-01-02",
+    "last": "2019-09-11",
+    "rows": 14
+   },
+   "tickerchangefrom": {
+    "first": "2013-01-10",
+    "last": "2019-09-25",
+    "rows": 102
+   },
+   "tickerchangeto": {
+    "first": "2013-01-10",
+    "last": "2019-09-25",
+    "rows": 102
+   }
+  }
+ },
+ "conclusion": "v3.5 as frozen would NOT reach a research result. It removes the trigger that spent the third opening and leaves at least five others standing, the first of which fires on the most common unmapped kind in the feed. Implementing it as written would spend the fourth opening on a fourth pre-research refusal.",
+ "disclosure_unbounded_metadata_query": {
+  "assessment": "This reveals no research-relevant fact about MR-002 and cannot bias the validation outcome. It is recorded rather than omitted because the governed boundary is a discipline, not an inference.",
+  "standing_finding": "CONTAINMENT-LOCAL-SNAPSHOT: the local development snapshot is not partition-limited. The only control preventing a validation-partition read from it is query discipline. The care taken by the A1-F1 record to hard-bound its own query suggests this is already understood, but nothing in the file enforces it.",
+  "what": "One unbounded query was run against the local snapshot: SELECT MIN(date), MAX(date), COUNT(*) FROM actions, plus COUNT(*) of rows dated after the development bound.",
+  "what_it_returned": "date extent 2010-01-04..2026-07-09, 26,266 rows total, 10,757 of them dated after 2019-10-02. Dates and counts only - no ticker, no action kind, no price and no economic fact from any post-bound row was read.",
+  "why": "to establish whether the local snapshot is partition-limited. It is NOT."
+ },
+ "finding_1_roster_gaps": {
+  "matrix_b_kinds_never_observed_in_the_development_window": [
+   "bankruptcy",
+   "cash_only_acquisition",
+   "merger",
+   "regulatorychange",
+   "stock_and_cash_acquisition"
+  ],
+  "near_misses_that_explain_the_gaps": {
+   "bankruptcyliquidation": "Matrix B names 'bankruptcy'; the feed emits 'bankruptcyliquidation'. The label the matrix inherited comes from eligibility.py:170, a research-layer tuple, not from the feed.",
+   "spinoff": "Matrix B names 'spinoffdividend' (economic) and 'spunofffrom' (inert) but not 'spinoff', which is the most frequent of the three and co-occurs with 'spinoffdividend' on 69 sessions."
+  },
+  "root_cause": "the economic set enrichment._CORPORATE_ACTION_KINDS was assembled from the frozen edge-case SPECIFICATION vocabulary, and Matrix B reconciled against that set plus code references. Neither was ever reconciled against the FEED vocabulary. 'cash_only_acquisition' and 'stock_and_cash_acquisition' are specification labels that no vendor row carries; 'listed', 'relation', 'spinoff' and 'bankruptcyliquidation' are feed labels no specification names.",
+  "statement": "Four kinds present in the governed feed have NO role in Matrix B at all. Under the frozen classifier they fall to the unknown branch and REFUSE the run.",
+  "unmapped_kinds": {
+   "bankruptcyliquidation": 4,
+   "listed": 110,
+   "relation": 98,
+   "spinoff": 75
+  },
+  "unmapped_rows_total": 287
+ },
+ "finding_2_residual_conflict_triggers": {
+  "acquisitionby_delisted_is_resolvable_within_scope": "77 of these disappear if 'delisted' LEAVES the economic scalar map when part 2 gives it its own channel. A kind cannot occupy two channels: Matrix A already forbids double-consumption for the identity event ('do NOT populate the enrichment boolean from ticker-change rows - that would double-consume one identity event'). Single-channel routing is the matrix's own principle, and _classify() already ranks DELISTING above CORPORATE_ACTION, so the outcome is unchanged where both apply.",
+  "dividend_split_is_not_resolvable_within_scope": "'dividend'+'split' and 'acquisitionof'+'dividend' are two ECONOMICALLY CONSUMED kinds on one session. The frozen rule says differing consumed kinds REFUSE and no composition is authorized. Rare in development (3 sessions), but each one aborts the whole run, and nothing bounds their count in validation.",
+  "statement": "corporate_actions() refuses when one (ticker, session) carries two different kinds, and it evaluates that over the ENTIRE actions table - not only over sessions a candidate reaches. Excluding the ticker-change pair (v3.5 part 1) clears 102 sessions and every pair whose other member is a ticker change. It does not clear these.",
+  "still_aborting_under_the_frozen_v35": {
+   "acquisitionby+delisted": 77,
+   "acquisitionby+relation": 3,
+   "acquisitionof+dividend": 2,
+   "bankruptcyliquidation+delisted": 4,
+   "delisted+dividend": 1,
+   "delisted+mergerto": 2,
+   "delisted+relation": 5,
+   "dividend+listed": 1,
+   "dividend+relation": 2,
+   "dividend+split": 1,
+   "dividend+spunofffrom": 1,
+   "listed+spunofffrom": 8,
+   "spinoff+spinoffdividend": 69,
+   "spinoff+split": 4,
+   "spinoffdividend+split": 4
+  }
+ },
+ "finding_3_inert_is_self_contradictory_as_specified": {
+  "statement": "The third classifier category exists so that 'the audit does not itself become a behavioural change' - inert rows must not become run-aborting refusals. But an inert kind that REMAINS in the economic scalar map still participates in the uniqueness guard and still aborts the run whenever it co-occurs with anything else.",
+  "the_fork": {
+   "reading_a": "inert kinds stay in the map - preserves the published corporate_action_identity for those rows, and keeps the abort risk the category was created to remove.",
+   "reading_b": "inert kinds are excluded from the map like lineage metadata - genuinely no effect and no abort, but corporate_action_identity, one of the ten frozen published schema fields, becomes null on records where it is currently populated.",
+   "why_it_is_not_mine_to_pick": "Reading B changes a frozen published surface. Reading A leaves v3.5 unable to reach a verdict. Both are semantic decisions about the published contract."
+  }
+ },
+ "finding_4_structural": {
+  "consequence": "'unknown -> REFUSE at whole-run granularity' is structurally a serial-surprise generator: every kind that exists in validation but not in development is one more spent opening, discovered one at a time. This is the same failure shape as openings 1, 2 and 3, not a new one.",
+  "id": "UNKNOWN-KIND-REFUSE-IS-UNFALSIFIABLE-BEFORE-THE-FACT",
+  "note_on_blast_radius": "the same over-broad granularity is what spent opening 3: corporate_actions() is built over the entire table, so a conflict on a ticker no candidate ever reaches still aborts. Whether ('BKR','2019-10-20') was even a universe member was never established.",
+  "statement": "The validation-window ACTIONS vocabulary cannot be censused by any permitted means. The sealed path is the only governed reader, and reading it spends the opening; the local snapshot's post-bound rows are exactly the partition the containment architecture exists to protect. So a roster-keyed, run-aborting REFUSE branch can never be shown complete IN ADVANCE.",
+  "what_would_be_robust_instead": "designs where an unadjudicated kind cannot abort the whole run - e.g. it refuses only the affected UNIT, recorded in ProducerCandidateSource.refusals, which the census already counts and reconciles; or it is inert with an explicit per-kind audit count published as evidence. Both preserve fail-closed semantics per record while removing the whole-run blast radius. NEITHER IS AUTHORIZED and neither is proposed here as a decision - they are stated so the owner ruling has the real option set."
+ },
+ "grants": "NOTHING. Evidence only.",
+ "produced_at": "2026-08-14T00:00:00Z",
+ "purpose": "Test the Matrix-B closure claim of MR002_Phase3B_SemanticReconciliationMatrix_v1.0 against the ACTIONS vocabulary the governed feed actually carries, BEFORE implementing the closed classifier whose REFUSE branch is keyed on that roster.",
+ "questions_for_owner": [
+  "Q1 - Does 'delisted' LEAVE the economic scalar map when part 2 gives it its own channel? (single-channel routing; clears 77 of the residual triggers)",
+  "Q2 - Reading A or reading B for inert kinds, i.e. may corporate_action_identity become null on rows whose kind has no adjudicated Phase-3B effect?",
+  "Q3 - What semantic role do 'listed', 'relation', 'spinoff' and 'bankruptcyliquidation' take? They are feed-present and Matrix-B-absent.",
+  "Q4 - Does an unadjudicated or conflicting kind refuse the RUN or the UNIT? This is the one that decides whether a fifth opening is needed after the fourth.",
+  "Q5 - Two economically consumed kinds on one session ('dividend'+'split') currently abort the run under the no-composition rule. Confirmed intent, or a per-unit refusal?"
+ ],
+ "record_identity_sha256": "a6f3d678c9ac3a3f416e15cab1d068fce4e3162feaa8eae490b321afb945b801",
+ "record_type": "MR002_Phase3B_ActionsVocabularyCensus",
+ "snapshot": {
+  "identity_matches": "MR002_Phase3B_A1F1_ActionsSplitBasis_v1.0 (byte-identical snapshot)",
+  "identity_verified": true,
+  "path": "apps/backend/data/mr002_research.duckdb",
+  "sha256": "24e5153cc0ebed77c7b422562e5a8ebfa147aad3019b27035b5314aaaacfad5a"
+ },
+ "state_after_this_record": {
+  "code_changed": false,
+  "fourth_opening_requested": false,
+  "identity_rebound": false,
+  "openings_spent": 3,
+  "research_verdict": "NONE",
+  "staged": false,
+  "v35_implemented": false
+ },
+ "verdict": "MATRIX_B_CLOSURE_CLAIM_FALSIFIED_ON_THE_DEVELOPMENT_PARTITION",
+ "version": "1.0",
+ "what_this_record_does_not_claim": [
+  "That the development vocabulary equals the validation vocabulary. It does not, and cannot be shown to.",
+  "That 'listed', 'relation', 'spinoff' or 'bankruptcyliquidation' are economically irrelevant, benign, or safe to treat as inert. Their Phase-3B semantics are UNADJUDICATED, which is a different statement.",
+  "That any part of v3.5 is wrong. Parts 1 and 2 remain correct and necessary; they are insufficient."
+ ]
+}
