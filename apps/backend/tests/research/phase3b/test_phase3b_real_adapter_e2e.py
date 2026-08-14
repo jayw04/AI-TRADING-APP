@@ -268,10 +268,12 @@ def test_real_adapter_population_is_homogeneous_by_construction(tmp_path):
     exercised = {k for k, v in outcome.enrichment_census["by_code"].items() if v}
     assert exercised == {E.SUCCESS}
     assert runner.candidate_source.refusals, "producer refusals must still be exercised upstream"
-    assert len({c for _s, _t, c in runner.candidate_source.refusals}) >= 3
+    assert len({c for _s, _t, c, _v in runner.candidate_source.refusals}) >= 3
 
 
-def test_produces_all_nine_expected_artifacts(tmp_path):
+def test_produces_all_expected_artifacts(tmp_path):
+    """Ten now, not nine: the unit-refusal census became a mandatory deliverable when refusal moved
+    to unit scope."""
     runner = _runner(tmp_path)
     outcome = runner.run()
     assert outcome.disposition == P.PASS, outcome.error
@@ -279,7 +281,8 @@ def test_produces_all_nine_expected_artifacts(tmp_path):
     for name in P.DELIVERABLES:
         assert name in written, name
     assert P.REPORT in written and P.PUBLICATION in written
-    assert len(P.EXPECTED_ARTIFACTS) == 9
+    assert "ValidationUnitRefusalCensus_v1.0.json" in P.DELIVERABLES
+    assert len(P.EXPECTED_ARTIFACTS) == 10
 
 
 @pytest.mark.parametrize("config", ["A", "B", "C"])

@@ -56,6 +56,15 @@ class RunOutcome:
     enrichment_census: dict | None = None
     seam: dict | None = None
     integrity: dict | None = None
+    # The three status fields are separate because they answer different questions and the answers
+    # legitimately diverge: COMPLETED + FAIL + inadmissible is not a contradiction. The computation
+    # succeeded; the resulting research population failed its preregistered coverage requirement.
+    # Keeping them separable is what stops a later reader saying "run completed successfully" while
+    # omitting that its evidence failed qualification.
+    execution_status: str = "NOT_STARTED"
+    qualification_status: str | None = None
+    evidence_admissible: bool | None = None
+    refusal_census: dict | None = None
     deliverable_hashes: dict[str, str] = field(default_factory=dict)
     publication: dict | None = None
     error: str | None = None
@@ -217,6 +226,7 @@ class Phase3BRunner:
             payloads = self._consume_opening()
 
             pairs = self.candidate_source.candidates(payloads)
+            outcome.refusal_census = self._require_refusal_census()
             if not pairs:
                 raise RunRefused(
                     "candidate source produced nothing; a run over zero candidates "
@@ -234,15 +244,27 @@ class Phase3BRunner:
             if not outcome.integrity["all_gates_zero"]:
                 raise RunRefused(f"integrity gates non-zero: {outcome.integrity}")
 
-            outcome.deliverable_hashes = self._publish_deliverables(records, adjudications)
-            outcome.disposition = P.PASS
-            outcome.exit_code = 0
+            outcome.deliverable_hashes = self._publish_deliverables(
+                records, adjudications, outcome.refusal_census
+            )
+            # The computation is done. What remains is not whether it ran, but whether its
+            # population is admissible as governed evidence - a question the gates can only answer
+            # AFTER the population exists. A breach publishes FAIL, which is already a registered
+            # disposition; no new one is minted, and the opening is spent either way.
+            outcome.execution_status = "COMPLETED"
+            breached = bool(outcome.refusal_census["any_materiality_gate_breached"])
+            outcome.qualification_status = P.FAIL if breached else P.PASS
+            outcome.evidence_admissible = not breached
+            outcome.disposition = P.FAIL if breached else P.PASS
+            outcome.exit_code = P.EXIT_BY_DISPOSITION[outcome.disposition]
         except Exception as exc:  # published verbatim; never reinterpreted
             outcome.disposition = (
                 P.INTEGRITY_STOP if isinstance(exc, C.CensusRefused) else P.REFUSED
             )
             outcome.exit_code = P.EXIT_BY_DISPOSITION[outcome.disposition]
             outcome.error = f"{type(exc).__name__}: {exc}"
+            outcome.execution_status = outcome.disposition
+            outcome.evidence_admissible = False
         finally:
             outcome.state = self.sequence.state
             outcome.opening_consumed = self.sequence.opening_consumed
@@ -273,7 +295,25 @@ class Phase3BRunner:
                 outcome.history = list(self.sequence.history)
         return outcome
 
-    def _publish_deliverables(self, records: list, adjudications: list) -> dict[str, str]:
+    def _require_refusal_census(self) -> dict:
+        """The census is mandatory. A source that cannot account for its units cannot be trusted.
+
+        Deliberately fail-closed rather than defaulting to an empty census: an absent accounting
+        would publish as "nothing was refused", which is precisely the silent population change the
+        deliverable exists to make impossible.
+        """
+        produce = getattr(self.candidate_source, "refusal_census", None)
+        if not callable(produce):
+            raise RunRefused(
+                "candidate source cannot produce the mandatory unit-refusal census; unit-scope "
+                "refusal without published incidence would let a run PASS on a silently reduced "
+                "population"
+            )
+        return produce()
+
+    def _publish_deliverables(
+        self, records: list, adjudications: list, refusal_census: dict
+    ) -> dict[str, str]:
         payloads = {
             "ValidationOpenedObjectLedger_v1.0.json": {
                 "record_type": "ValidationOpenedObjectLedger",
@@ -308,6 +348,10 @@ class Phase3BRunner:
                 "sealed_reads": self.guard.counts()["sealed_reads"],
                 "pinned_reads": list(getattr(self.reader, "reads", [])),
             },
+            "ValidationUnitRefusalCensus_v1.0.json": {
+                "record_type": "ValidationUnitRefusalCensus",
+                **refusal_census,
+            },
         }
         return {
             name: P.publish_deliverable(self.output_root, name, body)
@@ -328,6 +372,10 @@ class Phase3BRunner:
                 "enrichment_census": outcome.enrichment_census,
                 "seam": outcome.seam,
                 "integrity_census": outcome.integrity,
+                "unit_refusal_census": outcome.refusal_census,
+                "execution_status": outcome.execution_status,
+                "qualification_status": outcome.qualification_status,
+                "evidence_admissible": outcome.evidence_admissible,
                 "error": outcome.error,
             },
             disposition=outcome.disposition,

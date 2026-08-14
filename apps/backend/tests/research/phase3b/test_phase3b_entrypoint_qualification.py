@@ -454,7 +454,7 @@ def test_the_run_is_not_vacuous_and_the_controls_actually_removed_units(tmp_path
     source = runner.candidate_source
     assert outcome.enrichment_census["records_examined"] > 0
     assert source.refusals, "no unit was refused; the controls cannot be firing"
-    codes = {c for _s, _t, c in source.refusals}
+    codes = {c for _s, _t, c, _v in source.refusals}
     assert any("INELIGIBLE" in c for c in codes), f"no eligibility refusal among {codes}"
 
 

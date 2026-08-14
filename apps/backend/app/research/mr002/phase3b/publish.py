@@ -37,6 +37,9 @@ DELIVERABLES = (
     "ValidationUnitReconciliation_v1.0.json",
     "ExecutionEnrichmentEdgeCaseCensus_v1.0.json",
     "ValidationSealVerificationReport_v1.0.json",
+    # Mandatory once refusal is unit-scoped: without it a run can PASS while silently discarding a
+    # material share of candidates. It carries the population accounting AND the materiality gates.
+    "ValidationUnitRefusalCensus_v1.0.json",
 )
 REPORT = "MR002_ValOOS_validation_Report.json"
 PUBLICATION = "MR002_ValOOS_validation_Publication.json"

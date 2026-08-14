@@ -107,7 +107,34 @@ class FixtureCandidateSource:
             if self.fail_after is not None and i >= self.fail_after:
                 raise RuntimeError("injected mid-run failure")
             out.append((Decision(100, tag, cfg), _facts(**kw)))
+        self.accepted = len(out)
         return out
+
+    def refusal_census(self):
+        """The mandatory unit-refusal census. This source refuses nothing, and says so explicitly.
+
+        A source that could not produce this would be refused by the runner: an absent accounting
+        publishes as "nothing was refused", which is the silent population change the deliverable
+        exists to prevent.
+        """
+        accepted = getattr(self, "accepted", 0)
+        return {
+            "units_enumerated": accepted,
+            "units_producer_refused": 0,
+            "eligible_candidate_units": accepted,
+            "units_accepted": accepted,
+            "units_bridge_refused": 0,
+            "units_bridge_refused_by_code": {},
+            "units_bridge_refused_by_code_and_vocabulary_state": {},
+            "unique_symbols_affected_by_code": {},
+            "fraction_refused_overall": 0.0,
+            "fraction_refused_by_reason": {},
+            "observed_action_vocabulary": [],
+            "unregistered_action_kinds_observed": [],
+            "materiality_gate_results_by_reason": {},
+            "any_materiality_gate_breached": False,
+            "reconciliation": {"identity": "fixture source", "balances": True},
+        }
 
 
 def _fixture_root(tmp_path):
@@ -318,7 +345,8 @@ def test_all_nine_artifacts_are_expected_and_six_deliverables_are_written(tmp_pa
     for name in P.DELIVERABLES:
         assert name in written, name
     assert P.REPORT in written and P.PUBLICATION in written
-    assert len(P.EXPECTED_ARTIFACTS) == 9
+    # Ten, not nine: the unit-refusal census joined the deliverables when refusal became unit-scoped.
+    assert len(P.EXPECTED_ARTIFACTS) == 10
     assert set(outcome.deliverable_hashes) == set(P.DELIVERABLES)
 
 

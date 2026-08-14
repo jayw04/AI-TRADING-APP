@@ -26,6 +26,7 @@ from ..spq1.refusals import SignalRefusal
 from ..spq1.security_identity import PitIdentityRegistry
 from . import assembly as ASM
 from . import parquet as PQ
+from .enrichment import _CORPORATE_ACTION_KINDS as _ECONOMIC_KINDS
 from .enrichment import ExecutionFacts
 
 PROGRAM_ID = "MR-002"
@@ -59,7 +60,96 @@ class Unit:
 
 
 class CandidateSourceRefused(Exception):
-    """A bridge input that cannot be assembled under the frozen rules."""
+    """A GLOBAL bridge failure: the run must not proceed.
+
+    Reserved for the frozen global-integrity conditions - schema corruption, a registered column
+    absent, an unloadable or unestablishable governed source, an empty enumeration. A condition
+    that belongs to ONE unit is `CandidateRefused` below, not this.
+    """
+
+
+# --- the frozen ACTIONS semantic model ---------------------------------------------------------
+# MR002_Phase3B_SemanticReconciliationMatrix_v1.1 (95ae21ba...). Five classes, three channels, one
+# consuming channel per kind. The classes exist because the previous design answered "what kind is
+# on this (ticker, session)?" once and used that single answer as the economic scalar, the published
+# audit identity, the conflict subject AND the run's life-or-death condition. Three governed
+# openings were spent on kinds that had no bearing on the economics they aborted.
+
+# Channel 1. The authority is `enrichment._CORPORATE_ACTION_KINDS` itself, imported rather than
+# restated: the set whose membership gates STOP_CORPORATE_ACTION must BE the set this classifies as
+# economic, or the two can disagree.
+ECONOMICALLY_ADJUDICATED: frozenset[str] = frozenset(_ECONOMIC_KINDS)
+# Channel 2. Exclusive: delisted no longer occupies the economic scalar. A kind cannot hold two
+# channels, and leaving it in both made acquisitionby+delisted a false composition conflict on 77
+# development sessions while consuming one event twice.
+TERMINAL_DELISTING: frozenset[str] = frozenset({"delisted"})
+# Consumed UPSTREAM, before a candidate exists (crosswalk -> identity_adapter -> PitIdentityRegistry).
+# Not audit-visible here: publishing it would double-consume one identity event.
+UPSTREAM_IDENTITY_LINEAGE: frozenset[str] = frozenset({"tickerchangefrom", "tickerchangeto"})
+# Channel 3 only. Recognized, auditable, identity-preserving, and OUT of the economic conflict guard.
+# "Inert" cannot mean "no economic effect but still causes economic conflict".
+EXPLICITLY_INERT: frozenset[str] = frozenset({"bankruptcy", "regulatorychange", "spunofffrom"})
+# Observed in the governed feed, unadjudicated in Phase 3B. NEVER aliased: spinoff is not
+# spinoffdividend and bankruptcyliquidation is not bankruptcy. Name similarity is not adjudication.
+KNOWN_UNADJUDICATED: frozenset[str] = frozenset(
+    {"bankruptcyliquidation", "listed", "relation", "spinoff"}
+)
+
+REGISTERED_ACTION_VOCABULARY: frozenset[str] = (
+    ECONOMICALLY_ADJUDICATED
+    | TERMINAL_DELISTING
+    | UPSTREAM_IDENTITY_LINEAGE
+    | EXPLICITLY_INERT
+    | KNOWN_UNADJUDICATED
+)
+
+# --- the bridge refusal namespace --------------------------------------------------------------
+# MR002_Phase3B_UnitRefusalGovernance_v1.0 (d03ae667...). Deliberately NOT SignalRefusal codes:
+# `spq1/refusals.py` is a bound R-PROD producer module and cannot be extended without changing the
+# producer contract. These are a different semantic class and live in the layer that owns them.
+REFUSED_ACTION_COMPOSITION = "CANDIDATE_REFUSED:ACTION_COMPOSITION_UNRESOLVED"
+REFUSED_ACTION_KIND = "CANDIDATE_REFUSED:ACTION_KIND_UNADJUDICATED"
+REFUSED_IDENTITY = "CANDIDATE_REFUSED:IDENTITY_UNRESOLVED"
+
+BRIDGE_REFUSAL_CODES = (REFUSED_ACTION_COMPOSITION, REFUSED_ACTION_KIND, REFUSED_IDENTITY)
+
+# The discriminator on REFUSED_ACTION_KIND. It exists because the frozen gates treat these two
+# irreconcilably - an unregistered label fails at incidence > 0, a known-unadjudicated one is gated
+# at 1% / 5 symbols - so a single undifferentiated code makes the gates uncomputable. It separates
+# WHY the unit was refused (semantics unavailable) from WHY they are unavailable.
+VOCAB_KNOWN_UNADJUDICATED = "KNOWN_UNADJUDICATED"
+VOCAB_UNKNOWN = "UNKNOWN_VOCABULARY"
+
+
+class CandidateRefused(Exception):
+    """A UNIT whose semantics cannot be established. Independent units continue.
+
+    Still fail-closed - it just puts the refusal at the scope of the uncertainty. The whole-run
+    alternative is what let a conflict on a ticker no candidate ever reached abort a research run.
+    """
+
+    def __init__(self, code: str, detail: str = "", vocabulary_state: str | None = None) -> None:
+        if code not in BRIDGE_REFUSAL_CODES:
+            raise AssertionError(f"unregistered bridge refusal code: {code}")
+        self.code = code
+        self.vocabulary_state = vocabulary_state
+        self.detail = detail
+        super().__init__(f"{code}: {detail}" if detail else code)
+
+
+def classify_action_kind(kind: str) -> str:
+    """The closed five-class classifier. An unregistered label is UNKNOWN, never guessed at."""
+    if kind in ECONOMICALLY_ADJUDICATED:
+        return "ECONOMICALLY_ADJUDICATED"
+    if kind in TERMINAL_DELISTING:
+        return "TERMINAL_DELISTING"
+    if kind in UPSTREAM_IDENTITY_LINEAGE:
+        return "UPSTREAM_IDENTITY_LINEAGE"
+    if kind in EXPLICITLY_INERT:
+        return "EXPLICITLY_INERT"
+    if kind in KNOWN_UNADJUDICATED:
+        return "KNOWN_UNADJUDICATED"
+    return "UNKNOWN_VOCABULARY"
 
 
 def _rows(table: Any, columns: tuple[str, ...]) -> list[tuple]:
@@ -107,18 +197,35 @@ def cash_distributions(table: Any) -> dict[tuple[str, str], float]:
     return out
 
 
-def corporate_actions(table: Any) -> dict[tuple[str, str], tuple[str, str]]:
-    """(ticker, session) -> (kind, identity). A session carrying two different kinds is refused."""
-    cols = ("date", "ticker", "action")
-    out: dict[tuple[str, str], tuple[str, str]] = {}
-    for date, ticker, action in _rows(table, cols):
-        key = (str(ticker), str(date))
-        kind = str(action)
-        if key in out and out[key][0] != kind:
-            raise CandidateSourceRefused(
-                f"conflicting corporate-action kinds for {key}: {out[key][0]} and {kind}"
-            )
-        out[key] = (kind, f"actions:{ticker}:{date}:{kind}")
+def actions_by_key(table: Any) -> dict[tuple[str, str], tuple[str, ...]]:
+    """(ticker, session) -> every kind present on it, sorted. NO judgement is made here.
+
+    This function used to collapse each key to one scalar and refuse the WHOLE RUN when a second
+    row carried a different kind - before asking whether either kind had any execution meaning, and
+    over the entire table rather than over sessions a candidate actually reaches. That is what spent
+    the third governed opening, on ('BKR','2019-10-20'), a ticker whose universe membership was
+    never established. Classification and refusal are now per unit, at `_facts()` time.
+    """
+    out: dict[tuple[str, str], set[str]] = {}
+    for date, ticker, action in _rows(table, ("date", "ticker", "action")):
+        out.setdefault((str(ticker), str(date)), set()).add(str(action))
+    return {key: tuple(sorted(kinds)) for key, kinds in out.items()}
+
+
+def delistings_by_ticker(table: Any) -> dict[str, str]:
+    """ticker -> EARLIEST registered delisting session.
+
+    Earliest, because the frozen predicate is AT OR BEFORE session(t+1) (`dataset.py:303`, ``ad <=
+    d``), not equality with t+1: once a security is delisted it stays delisted, so the first such
+    session is the one that decides the fact for every later execution session.
+    """
+    out: dict[str, str] = {}
+    for date, ticker, action in _rows(table, ("date", "ticker", "action")):
+        if str(action) not in TERMINAL_DELISTING:
+            continue
+        key, session = str(ticker), str(date)
+        if key not in out or session < out[key]:
+            out[key] = session
     return out
 
 
@@ -143,7 +250,17 @@ class ProducerCandidateSource:
     window_prefix: str = "validation"
     reference_prefix: str = "reference"
 
-    refusals: list[tuple[str, int, str]] = field(default_factory=list)
+    # (symbol, t, code, vocabulary_state). Producer refusals carry a SignalRefusal code and a None
+    # state; bridge refusals carry a CANDIDATE_REFUSED:* code. The two are counted separately in the
+    # census, because "how much of the population did the producer drop" and "how much did the
+    # bridge drop for want of semantics" are different questions.
+    refusals: list[tuple[str, int, str, str | None]] = field(default_factory=list)
+    units_accepted: int = 0
+    # Every action kind on a session this run actually INSPECTED. Evidence only - it can never
+    # abort a run. Note the limit this carries: a kind appearing exclusively on tickers or sessions
+    # no unit touches is never seen here. That is the direct cost of unit scope and the correct
+    # trade, but it means this evidences the inspected vocabulary, NOT the partition's.
+    observed_action_kinds: set[str] = field(default_factory=set)
     ambiguous_symbols: tuple[str, ...] = ()
     tables_opened: tuple[str, ...] = ()
 
@@ -163,7 +280,8 @@ class ProducerCandidateSource:
         )
         series = ASM.security_series(tables["prices"], self.calendar)
         distributions = cash_distributions(tables["actions"])
-        actions = corporate_actions(tables["actions"])
+        actions = actions_by_key(tables["actions"])
+        delistings = delistings_by_ticker(tables["actions"])
         prices = ASM.price_series_by_symbol(tables["prices"], self.calendar)
 
         market = ASM.market_data(
@@ -171,12 +289,20 @@ class ProducerCandidateSource:
         )
         out: list[tuple[Any, ExecutionFacts]] = []
         for unit in sorted(self.units, key=lambda u: (u.symbol, u.t)):
+            # The catch encloses `_facts()` as well as `_produce()`. It previously stopped short of
+            # it, so a per-unit semantic condition raised during fact assembly escaped as a
+            # whole-run abort. Widening it is not enough - the boundary had to MOVE.
             try:
                 record = self._produce(unit, market, series, sic_map, sic_obs)
+                facts = self._facts(unit, prices, distributions, actions, delistings)
             except SignalRefusal as exc:
-                self.refusals.append((unit.symbol, unit.t, exc.code))
+                self.refusals.append((unit.symbol, unit.t, exc.code, None))
                 continue
-            out.append((record, self._facts(unit, prices, distributions, actions)))
+            except CandidateRefused as exc:
+                self.refusals.append((unit.symbol, unit.t, exc.code, exc.vocabulary_state))
+                continue
+            out.append((record, facts))
+        self.units_accepted = len(out)
         return out
 
     def _construct_world(self, tables: dict[str, Any]) -> None:
@@ -227,7 +353,11 @@ class ProducerCandidateSource:
         self.lineage.resolve_permanent_id(unit.symbol, unit.t)  # refuses ambiguity, never picks
         cik = self.cik_by_symbol.get(unit.symbol)
         if cik is None:
-            raise CandidateSourceRefused(f"no registered CIK for {unit.symbol}")
+            # A per-symbol condition, refused at UNIT scope (frozen separately, not generalised
+            # from the action-kind rulings). `cik_by_symbol_from` deliberately leaves an ambiguous
+            # symbol unarbitrated so the caller can COUNT the affected securities - the intent was
+            # always per-unit; only the implementation aborted the run.
+            raise CandidateRefused(REFUSED_IDENTITY, f"no registered CIK for {unit.symbol}")
         sector = resolve_sector(sic_map, sic_obs.get(int(cik), []), close_t_iso)
         sector_etf(sic_map, sector.sector_id)  # refuses an unmapped sector
         checks = self._eligibility_checks(unit)
@@ -258,15 +388,82 @@ class ProducerCandidateSource:
             getattr(self, "_anchor_availability", {}),
         )
 
+    def _resolve_actions(
+        self, unit: Unit, session_t1: str | None, kinds: tuple[str, ...]
+    ) -> tuple[str | None, str | None]:
+        """Route the kinds on this unit's relevant session into their exclusive channels.
+
+        Returns (economic scalar kind, audit identity). Refuses the UNIT - never the run - when the
+        semantics cannot be established. A row relevant to no unit is never seen here at all, which
+        is the whole point of unit scope.
+        """
+        self.observed_action_kinds.update(kinds)
+        if not kinds:
+            return None, None
+
+        by_class: dict[str, list[str]] = {}
+        for kind in kinds:
+            by_class.setdefault(classify_action_kind(kind), []).append(kind)
+
+        if by_class.get("UNKNOWN_VOCABULARY"):
+            raise CandidateRefused(
+                REFUSED_ACTION_KIND,
+                f"unregistered action kind(s) {by_class['UNKNOWN_VOCABULARY']} on "
+                f"({unit.symbol}, {session_t1})",
+                vocabulary_state=VOCAB_UNKNOWN,
+            )
+        if by_class.get("KNOWN_UNADJUDICATED"):
+            raise CandidateRefused(
+                REFUSED_ACTION_KIND,
+                f"unadjudicated action kind(s) {by_class['KNOWN_UNADJUDICATED']} on "
+                f"({unit.symbol}, {session_t1})",
+                vocabulary_state=VOCAB_KNOWN_UNADJUDICATED,
+            )
+
+        economic = by_class.get("ECONOMICALLY_ADJUDICATED", [])
+        if len(economic) > 1:
+            # No composition semantics are defined and none is invented - no ordering, no combined
+            # return. Only the SCOPE of this refusal changed.
+            raise CandidateRefused(
+                REFUSED_ACTION_COMPOSITION,
+                f"differing economically adjudicated kinds {economic} on "
+                f"({unit.symbol}, {session_t1})",
+                vocabulary_state=None,
+            )
+
+        def identity_for(kind: str) -> str:
+            return f"actions:{unit.symbol}:{session_t1}:{kind}"
+
+        # Channel 3, the published audit identity. Precedence follows `_classify`'s own ordering -
+        # delisting outranks corporate action - so the identity names the action that actually drove
+        # the disposition rather than one that did not. Upstream lineage is never published here.
+        delisting = by_class.get("TERMINAL_DELISTING", [])
+        inert = by_class.get("EXPLICITLY_INERT", [])
+        identity = None
+        if delisting:
+            identity = identity_for(delisting[0])
+        elif economic:
+            identity = identity_for(economic[0])
+        elif inert:
+            identity = identity_for(sorted(inert)[0])
+        return (economic[0] if economic else None), identity
+
     def _facts(
-        self, unit: Unit, prices: dict, distributions: dict, actions: dict
+        self, unit: Unit, prices: dict, distributions: dict, actions: dict, delistings: dict
     ) -> ExecutionFacts:
         """The permitted t+1 facts. Nothing here may bear on close t."""
         t1 = unit.t + 1
         arrays = prices[unit.symbol]
         beyond_window = t1 >= len(self.calendar)
         session_t1 = None if beyond_window else self.calendar.sessions[t1]
-        kind, identity = actions.get((unit.symbol, session_t1 or ""), (None, None))
+        kind, identity = self._resolve_actions(
+            unit, session_t1, actions.get((unit.symbol, session_t1 or ""), ())
+        )
+        # Channel 2, at-or-before session(t+1). Beyond the window there is no t+1 session, so the
+        # predicate cannot be evaluated and the fact is not asserted - a delisting is never inferred
+        # from the absence of a session.
+        delisted_on = delistings.get(unit.symbol)
+        delisted = bool(session_t1 and delisted_on and delisted_on <= session_t1)
         open_t1 = None if beyond_window else _finite(arrays["open"][t1])
         close_t = _finite(arrays["close"][unit.t])
         distribution = distributions.get((unit.symbol, session_t1 or ""), 0.0)
@@ -291,8 +488,132 @@ class ProducerCandidateSource:
             corporate_action_identity=identity,
             corporate_action_kind=kind,
             adjusted_open_constructible=constructible,
+            delisted_at_or_before_t_plus_1=delisted,
             conservative_short_flag=unit.side == "SHORT",
         )
+
+    # --- the mandatory unit-refusal census ------------------------------------------------------
+    def refusal_census(self) -> dict[str, Any]:
+        """Publish what unit-scope refusal costs, and gate it.
+
+        This is a GOVERNED DELIVERABLE, not diagnostics. Once refusal moves from run scope to unit
+        scope, an unpublished refusal is a silent population change: the run can report PASS while
+        discarding a material share of candidates, which trades a visible abort for an invisible
+        one. The reconciliation identity below is what makes silent shrinkage impossible.
+        """
+        enumerated = len(self.units or ())
+        producer = [r for r in self.refusals if r[2] not in BRIDGE_REFUSAL_CODES]
+        bridge = [r for r in self.refusals if r[2] in BRIDGE_REFUSAL_CODES]
+        # The population the BRIDGE is responsible for. Publishing `units_enumerated` alongside is
+        # what stops a reader seeing "1.2% refused" without knowing how much of the original
+        # population had already disappeared upstream.
+        eligible = enumerated - len(producer)
+
+        by_code: dict[str, int] = {}
+        by_reason: dict[str, int] = {}
+        symbols_by_reason: dict[str, set[str]] = {}
+        for symbol, _t, code, state in bridge:
+            by_code[code] = by_code.get(code, 0) + 1
+            reason = f"{code}|{state}" if state else code
+            by_reason[reason] = by_reason.get(reason, 0) + 1
+            symbols_by_reason.setdefault(reason, set()).add(symbol)
+
+        unregistered = sorted(self.observed_action_kinds - REGISTERED_ACTION_VOCABULARY)
+        gates = self._evaluate_gates(eligible, by_reason, symbols_by_reason, unregistered)
+        # Checked BEFORE the census is assembled, not read back out of it: the identity is the
+        # control, and a control that reads its own output is the shape of check this package has
+        # already been burned by once.
+        balances = enumerated == len(producer) + len(bridge) + self.units_accepted
+        if not balances:
+            raise CandidateSourceRefused(
+                f"unit reconciliation does not balance: {enumerated} != {len(producer)} + "
+                f"{len(bridge)} + {self.units_accepted}"
+            )
+        census: dict[str, Any] = {
+            "units_enumerated": enumerated,
+            "units_producer_refused": len(producer),
+            "eligible_candidate_units": eligible,
+            "units_accepted": self.units_accepted,
+            "units_bridge_refused": len(bridge),
+            "units_bridge_refused_by_code": dict(sorted(by_code.items())),
+            "units_bridge_refused_by_code_and_vocabulary_state": dict(sorted(by_reason.items())),
+            "unique_symbols_affected_by_code": {
+                r: len(s) for r, s in sorted(symbols_by_reason.items())
+            },
+            "fraction_refused_overall": (len(bridge) / eligible) if eligible else 0.0,
+            "fraction_refused_by_reason": {
+                r: (n / eligible if eligible else 0.0) for r, n in sorted(by_reason.items())
+            },
+            "observed_action_vocabulary": sorted(self.observed_action_kinds),
+            "unregistered_action_kinds_observed": unregistered,
+            "materiality_gate_results_by_reason": gates,
+            "any_materiality_gate_breached": any(g["breached"] for g in gates.values()),
+            "reconciliation": {
+                "identity": (
+                    "units_enumerated == units_producer_refused + units_bridge_refused + "
+                    "units_accepted"
+                ),
+                "balances": balances,
+            },
+            "vocabulary_coverage_limit": (
+                "the bridge inspects only rows relevant to a unit, so a kind appearing exclusively "
+                "on tickers or sessions no unit reaches is NOT counted here. This evidences the "
+                "INSPECTED vocabulary, never the partition's full vocabulary."
+            ),
+        }
+        return census
+
+    @staticmethod
+    def _evaluate_gates(
+        eligible: int,
+        by_reason: dict[str, int],
+        symbols_by_reason: dict[str, set[str]],
+        unregistered: list[str],
+    ) -> dict[str, dict[str, Any]]:
+        """The frozen per-reason materiality gates.
+
+        QUALIFICATION gates, not economic tolerances: they bound how much of the analyzable
+        population may vanish into semantic uncertainty before the result stops being evidence. Each
+        reason breaches on the DISJUNCTION of its two conditions.
+        """
+        out: dict[str, dict[str, Any]] = {}
+        for reason, (max_fraction, max_symbols) in MATERIALITY_GATES.items():
+            units = by_reason.get(reason, 0)
+            symbols = len(symbols_by_reason.get(reason, ()))
+            fraction = (units / eligible) if eligible else 0.0
+            out[reason] = {
+                "units": units,
+                "unique_symbols": symbols,
+                "fraction": fraction,
+                "max_fraction": max_fraction,
+                "max_unique_symbols": max_symbols,
+                "breached": fraction > max_fraction or symbols > max_symbols,
+            }
+        # Unknown vocabulary is not ordinary attrition: a single unregistered label means the
+        # vocabulary the whole classifier is keyed on is not closed. Provable on first occurrence -
+        # but proving it never stops processing, because "isolated or systemic?" is the question
+        # worth answering once the result is already inadmissible.
+        unknown_units = by_reason.get(UNKNOWN_VOCABULARY_REASON, 0)
+        out[UNKNOWN_VOCABULARY_REASON] = {
+            "units": unknown_units,
+            "unique_symbols": len(symbols_by_reason.get(UNKNOWN_VOCABULARY_REASON, ())),
+            "unregistered_kinds_observed": unregistered,
+            "max_incidence": 0,
+            "breached": unknown_units > 0 or bool(unregistered),
+        }
+        return out
+
+
+UNKNOWN_VOCABULARY_REASON = f"{REFUSED_ACTION_KIND}|{VOCAB_UNKNOWN}"
+
+# MR002_Phase3B_UnitRefusalGovernance_v1.0: (max fraction of eligible units, max unique symbols).
+# Identity is allowed a larger ceiling because unresolved crosswalk identity is an already-recognised
+# property of the crosswalk - and it is still a ceiling.
+MATERIALITY_GATES: dict[str, tuple[float, int]] = {
+    REFUSED_ACTION_COMPOSITION: (0.01, 5),
+    f"{REFUSED_ACTION_KIND}|{VOCAB_KNOWN_UNADJUDICATED}": (0.01, 5),
+    REFUSED_IDENTITY: (0.02, 10),
+}
 
 
 def _finite(value: float) -> float | None:

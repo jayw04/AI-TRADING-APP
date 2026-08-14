@@ -1,0 +1,55 @@
+{
+ "artifact_kind": "IMPLEMENTATION_FINDINGS",
+ "authorized_by": "owner authorization 2026-08-14 to implement against MR002_Phase3B_SemanticReconciliationMatrix_v1.1 and MR002_Phase3B_UnitRefusalGovernance_v1.0/v1.1, under the standing stop rule that any further per-unit condition found escalated to run scope is RECORDED and ADJUDICATED, never generalised automatically.",
+ "boundary": "Zero sealed access. Implementation and fixture qualification only. No rebind, no staging, no opening requested. Three openings spent, research verdict NONE.",
+ "determination_made_during_implementation": {
+  "id": "AUDIT-IDENTITY-PRECEDENCE",
+  "status": "FLAGGED, not silently adopted. No frozen record specifies a precedence, because the previous behaviour was to ABORT rather than choose - so any ordering here is new. Upstream lineage is never published in this field. Multiple inert kinds with no economic or delisting kind resolve to the lexicographically first, purely for determinism.",
+  "what": "when several actions coexist on one relevant session, the PUBLISHED corporate_action_identity follows delisting > economic > inert.",
+  "why": "it makes the published identity name the action that actually drove the disposition: _classify() ranks STOP_DELISTING above STOP_CORPORATE_ACTION, so on an acquisitionby+delisted session the record stops for delisting and now names the delisting. The alternative would publish a provenance string for an action that did not determine the outcome."
+ },
+ "grants": "NOTHING.",
+ "implemented": {
+  "1_actions_interpretation_moved_to_unit_scope": "corporate_actions() - which collapsed every (ticker, session) to one scalar and refused the WHOLE RUN on a differing kind, over the entire table - is replaced by actions_by_key() and delistings_by_ticker(), neither of which judges anything. Classification and refusal now happen per unit in _resolve_actions(), called from _facts().",
+  "2_three_exclusive_channels": "economic scalar (uniqueness guard applies here and nowhere else), terminal delisting (at-or-before session(t+1)), identity/audit metadata. delisted LEFT the economic map.",
+  "3_closed_five_class_vocabulary": "classify_action_kind(), keyed on the frozen rosters.",
+  "4_bridge_refusal_namespace": "CandidateRefused with the three frozen CANDIDATE_REFUSED:* codes and the vocabulary_state discriminator. spq1/refusals.py is UNTOUCHED.",
+  "5_catch_boundary_moved": "the per-unit try now ENCLOSES _facts(), which previously ran outside it, and catches both SignalRefusal and CandidateRefused.",
+  "6_cik_identity_at_unit_scope": "no registered CIK -> CANDIDATE_REFUSED:IDENTITY_UNRESOLVED.",
+  "7_refusal_census": "ProducerCandidateSource.refusal_census(), published as the new mandatory deliverable ValidationUnitRefusalCensus_v1.0.json. EXPECTED_ARTIFACTS is now 10, was 9.",
+  "8_gates_and_status_fields": "execution_status / qualification_status / evidence_admissible on RunOutcome and in the published report. A breach publishes disposition FAIL (exit 1), a previously unused registered disposition; no new one minted.",
+  "9_semantic_path_qualification": "tests/research/phase3b/test_phase3b_semantic_path_qualification.py - 29 cases over the REAL bridge (real-typed parquet -> decode -> candidate construction -> _facts() -> enrichment), not injected facts.",
+  "not_done": [
+   "10. rebind and stage",
+   "11. request opening #4"
+  ],
+  "steps_1_to_9_of_the_authorized_order": "COMPLETE"
+ },
+ "next": "owner review of the two recorded findings and the precedence determination, then steps 10 and 11 - rebind and stage as ONE unit, then request the fourth opening.",
+ "produced_at": "2026-08-14T00:00:00Z",
+ "record_identity_sha256": "7f77a914d1b7967aabe095e7d41430e6d4119226fe2130c18fef3e25cb268f2c",
+ "record_type": "MR002_Phase3B_ImplementationFindings",
+ "stop_rule_findings_RECORDED_NOT_FIXED": {
+  "ANCHOR-TIMESTAMP-ABSENT-IS-A-WHOLE-RUN-ABORT": {
+   "disposition": "NOT CHANGED. Genuinely ambiguous between the two frozen scopes, which is precisely the case the stop rule reserves for adjudication.",
+   "location": "candidates.py::anchors_by_symbol - 'anchor {accession} has no acceptance timestamp'",
+   "statement": "one anchor row missing its acceptance timestamp raises CandidateSourceRefused and aborts the entire run. The anchor belongs to ONE symbol, so under the frozen principle - put the refusal at the scope of the uncertainty - this looks per-unit.",
+   "the_argument_the_other_way": "a required column value being absent is arguably a data-integrity property of the anchors TABLE, which is squarely RUN scope. It is also built once for the whole table rather than per unit, and the frozen earnings controls silently disabling themselves is the exact defect Phase 2B shipped - so failing closed here has history behind it."
+  },
+  "MISSING-PRICE-SERIES-IS-AN-UNTYPED-WHOLE-RUN-ABORT": {
+   "disposition": "NOT CHANGED. Typing it would require deciding both its class and its scope, which is a new adjudication, not an implementation detail.",
+   "location": "candidates.py::_produce series[unit.symbol] and _facts arrays = prices[unit.symbol]",
+   "reachability": "UNMEASURED. Universe membership does not by itself guarantee a price series in the bound partition.",
+   "severity_note": "this is the same FAMILY as the defect that spent opening 3, and worse in one respect: it is untyped, so it would surface as a raw traceback rather than as a governed refusal with a code. Behaviour is UNCHANGED by this implementation - the lookups sat outside a governed class before and still do.",
+   "statement": "a universe symbol absent from the prices table raises a bare KeyError. It belongs to no governed refusal class at all - not SignalRefusal, not CandidateRefused, not CandidateSourceRefused - so it escapes the per-unit catch and aborts the run as an unhandled exception."
+  }
+ },
+ "verification": {
+  "mypy": "10 errors, EXACTLY the pre-existing baseline - no new error introduced",
+  "note": "the fixture CandidateSource in test_phase3b_end_to_end.py gained an explicit refusal_census() returning zeroes. It states 'this source refuses nothing' rather than letting an absent accounting publish as if nothing had been refused.",
+  "phase3b_suite": "328 passed",
+  "ruff_check": "clean",
+  "ruff_format": "the two files touched are clean; 6 pre-existing unformatted files in this package are unchanged and were already unformatted at HEAD"
+ },
+ "version": "1.0"
+}
