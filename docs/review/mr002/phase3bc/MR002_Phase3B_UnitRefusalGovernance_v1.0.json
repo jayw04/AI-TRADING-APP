@@ -1,0 +1,144 @@
+{
+ "artifact_kind": "REFUSAL_GOVERNANCE_FREEZE",
+ "authorized_by": "owner rulings 2026-08-14 (PM, second set), issued against the four items MR002_Phase3B_SemanticReconciliationMatrix_v1.1 left blocking implementation: the bridge refusal namespace, the unit-refusal census deliverable, per-reason materiality gates, and the scope of the CIK/crosswalk condition.",
+ "boundary": "Zero-data. NO sealed access. No code changed to produce this record. This record FREEZES the four remaining decisions; it does not implement them.",
+ "custody_ruling_recorded": {
+  "action_taken": "a narrow allowlist was added to the working-tree .gitignore for the three governing record families (SemanticReconciliationMatrix_v*, ActionsVocabularyCensus_v*, UnitRefusalGovernance_v*). Verified: those are re-included, other material under docs/review/mr002/phase3bc/ remains ignored.",
+  "not_committed": "the working-tree .gitignore is an UNCOMMITTED ADR-0050 draft whose docs rules do not exist in HEAD at all. Committing the allowlist alone would produce negations of rules that are not present, so the carve-out rides with that draft and is NOT committed here. The records themselves are tracked regardless.",
+  "ruling": "OWNER, 2026-08-14: the MR-002 reconciliation and census records must NOT fall under a blanket /docs/review/ ignore. They are governing audit evidence used to freeze semantics before sealed data is opened, not bulk diagnostics. S3-only custody for them would have to be an explicit governed decision, not an accidental consequence of a broad ignore rule."
+ },
+ "depends_on": {
+  "MR002_Phase3B_ActionsVocabularyCensus_v1.0": "a6f3d678c9ac3a3f416e15cab1d068fce4e3162feaa8eae490b321afb945b801",
+  "MR002_Phase3B_SemanticReconciliationMatrix_v1.1": "95ae21ba41911c2e167610735997e1bb1939e71d24cf59eff435d4fb84297856"
+ },
+ "freeze_1_bridge_refusal_namespace": {
+  "frozen_codes": {
+   "CANDIDATE_REFUSED:ACTION_COMPOSITION_UNRESOLVED": "two differing ECONOMICALLY_ADJUDICATED kinds on the unit's relevant session. The frozen model defines no composition semantics; no ordering and no combined return is invented.",
+   "CANDIDATE_REFUSED:ACTION_KIND_UNADJUDICATED": "the unit's relevant session carries an action kind whose Phase-3B semantics are not established.",
+   "CANDIDATE_REFUSED:IDENTITY_UNRESOLVED": "the unit's symbol has no registered CIK, or resolves ambiguously in the crosswalk. Scoped to the per-symbol identity condition ONLY - see freeze 4. It must NOT be overloaded with global integrity failures."
+  },
+  "not_adopted": "v1.1 proposed CANDIDATE_REFUSED:ACTION_KIND_UNKNOWN as a separate code. Superseded by the discriminator above.",
+  "required_discriminator": {
+   "alternative_if_vetoed": "add a fourth code CANDIDATE_REFUSED:ACTION_KIND_UNKNOWN and drop the discriminator. Functionally equivalent; flagged so the choice is the owner's.",
+   "applies_to": "CANDIDATE_REFUSED:ACTION_KIND_UNADJUDICATED",
+   "field": "vocabulary_state",
+   "status": "FROZEN, flagged - this is the one place this record resolves an ambiguity the rulings did not address.",
+   "values": [
+    "KNOWN_UNADJUDICATED",
+    "UNKNOWN_VOCABULARY"
+   ],
+   "why_it_is_required": "the frozen gates treat these two differently and irreconcilably - an unknown vendor kind fails qualification at incidence > 0, while a known-unadjudicated kind is gated at 1% / 5 symbols. A single undifferentiated code makes the gates uncomputable. The owner froze THREE names; this discriminator honours that count rather than adding a fourth code."
+  },
+  "ruling": "APPROVED as a separate namespace. spq1/refusals.py and REFUSAL_CODES are NOT to be modified - that would change a bound R-PROD producer contract. Bridge-level refusals are a different semantic class and remain outside SignalRefusal."
+ },
+ "freeze_2_unit_refusal_census_deliverable": {
+  "acknowledged_limit": "the bridge inspects only rows relevant to a unit, so a kind appearing exclusively on tickers or sessions no unit touches is never vocabulary-checked. That is the direct cost of unit scope and is the correct trade - it is precisely the whole-table sensitivity that spent opening 3 - but it means the census evidences the INSPECTED vocabulary, not the partition's full vocabulary. Do not report it as the latter.",
+  "current_state_being_fixed": "ProducerCandidateSource.refusals is collected at candidates.py:146,177 and read only by tests. runner.py, census.py and publish.py never touch it.",
+  "frozen_denominators": {
+   "both_denominators_published": "units_enumerated is published alongside, so any ratio can be recomputed on either base without re-running.",
+   "eligible_candidate_units": "units_enumerated MINUS units_producer_refused - the population whose semantics the BRIDGE is responsible for. This is the denominator for every percentage gate.",
+   "note_on_ordering": "IDENTITY_UNRESOLVED arises inside _produce() BEFORE the producer's own eligibility evaluation, so such a unit is bridge-refused and IS counted in eligible_candidate_units. Recorded because the alternative reading would quietly shrink the gate denominator.",
+   "reconciliation_identity": "units_enumerated == units_producer_refused + units_bridge_refused + units_accepted. The existing suite already asserts the two-term form (records_examined + refusals == units); this is its three-term generalisation."
+  },
+  "rationale": "once refusal moves to unit scope, refusal incidence is load-bearing evidence. Without it the run can PASS while silently discarding a material share of candidates - a visible abort traded for an invisible one.",
+  "required_fields": [
+   "units_enumerated",
+   "units_producer_refused",
+   "eligible_candidate_units",
+   "units_accepted",
+   "units_bridge_refused",
+   "units_bridge_refused_by_code",
+   "units_bridge_refused_by_code_and_vocabulary_state",
+   "unique_symbols_affected_by_code",
+   "fraction_refused_overall",
+   "fraction_refused_by_reason",
+   "observed_action_vocabulary",
+   "unregistered_action_kinds_observed",
+   "materiality_gate_results_by_reason",
+   "any_materiality_gate_breached"
+  ],
+  "ruling": "REQUIRED. A governed deliverable, not a test-only field.",
+  "vocabulary_census_is_implied_not_added": "the unknown-kind gate is stated as 'incidence > 0', which cannot be evaluated without enumerating the action vocabulary the run actually inspected. observed_action_vocabulary and unregistered_action_kinds_observed are therefore requirements OF that gate, not an extension of it. They are EVIDENCE ONLY and can never abort a run - behaviour remains governed by unit scope."
+ },
+ "freeze_3_materiality_gates": {
+  "combination_rule": "each reason breaches if EITHER its unit-fraction OR its unique-symbol count is exceeded. 'Whichever occurs first' describes which trips in practice; the frozen predicate is the disjunction.",
+  "gates": {
+   "ACTION_COMPOSITION_UNRESOLVED": {
+    "of": "eligible_candidate_units",
+    "unique_symbols_max": 5,
+    "unit_fraction_max": 0.01
+   },
+   "ACTION_KIND_UNADJUDICATED__KNOWN_UNADJUDICATED": {
+    "of": "eligible_candidate_units",
+    "unique_symbols_max": 5,
+    "unit_fraction_max": 0.01
+   },
+   "ACTION_KIND_UNADJUDICATED__UNKNOWN_VOCABULARY": {
+    "incidence_max": 0,
+    "rule": "HARD FAIL at incidence > 0, on either refused units or unregistered kinds observed",
+    "why_zero": "this is not ordinary candidate attrition. A single unregistered label means the vocabulary that the whole classifier is keyed on is not closed, which is a governance failure rather than a measurement."
+   },
+   "IDENTITY_UNRESOLVED": {
+    "of": "eligible_candidate_units",
+    "unique_symbols_max": 10,
+    "unit_fraction_max": 0.02,
+    "why_larger": "unresolved crosswalk identity is an already-recognised property of the crosswalk, which deliberately leaves ambiguity unarbitrated. The larger ceiling is operational, and it is still a ceiling."
+   }
+  },
+  "nature": "QUALIFICATION gates, not economic tolerances. They bound how much of the analyzable population may vanish into semantic uncertainty before the result stops being evidence.",
+  "owner_note_recorded": "the owner observed that a cleaner rule would be 'any systematic refusal class that changes the analyzable population by more than de minimis blocks the opening', and chose explicit thresholds for reproducible qualification. Recorded so a later reviewer sees the numbers as a deliberate choice, not an arbitrary one."
+ },
+ "freeze_4_identity_unresolved_is_unit_scope": {
+  "evidence": "cik_by_symbol_from() deliberately leaves an ambiguous symbol out of by_symbol, and its docstring states the intent: the caller should be able to COUNT how many securities that affected instead of wondering where they went. The intent was always per-unit; only the implementation was per-run (candidates.py:230 raises inside _produce(), which candidates() does not catch).",
+  "mapping": "no registered CIK for X -> CANDIDATE_REFUSED:IDENTITY_UNRESOLVED",
+  "remains_RUN_REFUSE": [
+   "the crosswalk source cannot be loaded",
+   "crosswalk schema or version mismatch",
+   "crosswalk provenance cannot be established",
+   "crosswalk mutation or integrity failure"
+  ],
+  "ruling": "AUTHORIZED as unit scope, frozen SEPARATELY from the action-kind rulings rather than generalised from them.",
+  "the_clean_distinction": {
+   "global_source_or_integrity_failure": "RUN_REFUSE",
+   "unit_specific_semantic_uncertainty": "CANDIDATE_REFUSED:*"
+  }
+ },
+ "freeze_5_catch_boundary": {
+  "requirement": "the per-unit catch boundary in candidates.py must cover BOTH SignalRefusal and the bridge-level CandidateRefused, and it must enclose _facts() - which today runs OUTSIDE the existing try/except at candidates.py:174-179.",
+  "ruling": "the ACTIONS lookup moves to _facts() time and is evaluated ONLY for the current unit. It must not be precomputed in a way that lets an irrelevant ticker abort the run."
+ },
+ "frozen_sequence": [
+  "freeze refusal namespace - DONE here",
+  "freeze per-reason materiality gates - DONE here",
+  "freeze CIK unresolved as unit scope - DONE here",
+  "make the refusal census a required deliverable - DONE here",
+  "implement the three-channel classifier and the unit-scope catch path",
+  "semantic-path qualification",
+  "rebind and stage as ONE unit",
+  "fourth-opening request"
+ ],
+ "grants": "NOTHING. Adjudication only. No opening is granted or requested by this record.",
+ "implementation_status": {
+  "code_changed": false,
+  "fourth_opening_requested": false,
+  "identity_rebound": false,
+  "not_started": true,
+  "openings_spent": 3,
+  "research_verdict": "NONE",
+  "staged": false,
+  "state": "UNBLOCKED on the four frozen items; ONE open item (GATE-TIMING) remains"
+ },
+ "open_item_gate_evaluation_timing": {
+  "id": "GATE-TIMING",
+  "proposed_frozen_reading": "evaluate in BOTH places with different meanings. (a) In pre-sealed qualification against fixtures: prove every gate FIRES and every code is REACHABLE - this qualifies the gate, not the population. (b) In the governed run: a breach makes the published result INADMISSIBLE as research evidence and is a governance finding.",
+  "statement": "the gates are stated as QUALIFICATION thresholds, but the population they measure only exists during the governed run. Pre-sealed qualification runs on fixtures, where incidence is whatever the fixture author constructed.",
+  "status": "OPEN - one owner confirmation needed before implementation",
+  "the_limit_that_cannot_be_engineered_away": "a breach discovered during the governed run CANNOT un-spend the opening. The gate protects the INTERPRETATION of a result, not the opening itself. Anything claiming to block an opening on population evidence would have to read the partition first, which is the thing the opening exists to authorise. Stated plainly so the gate is not mistaken for a pre-flight control it cannot be."
+ },
+ "produced_at": "2026-08-14T00:00:00Z",
+ "purpose": "Close the last four items so implementation proceeds from an adjudicated contract. v1.1 moved refusal from run scope to unit scope; that move is only safe if refusal incidence is published and gated, because an unpublished unit refusal is a silent population change.",
+ "record_identity_sha256": "d03ae6677812cc8f5975fc6ae9ed5ab638730a5ab6d740f7c123fde0676b49ec",
+ "record_type": "MR002_Phase3B_UnitRefusalGovernance",
+ "standing_stop_rule_added": "OWNER, 2026-08-14: if implementation reveals another per-unit condition currently escalated to run scope, do NOT generalise automatically. Record it and adjudicate, unless it is already covered by one of the refusal classes frozen here. This is the rule that would have caught CIK-UNRESOLVED earlier, and it is why that condition was frozen separately above rather than folded into ruling 4.",
+ "version": "1.0"
+}
