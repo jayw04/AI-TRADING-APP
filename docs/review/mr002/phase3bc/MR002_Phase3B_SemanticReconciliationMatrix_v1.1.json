@@ -1,0 +1,180 @@
+{
+ "artifact_kind": "SEMANTIC_RECONCILIATION",
+ "authorized_by": "owner rulings 2026-08-14 (PM), issued in response to the vocabulary census: (1) delisted leaves the economic scalar map; (2) inert means recognized + auditable + identity-preserving but excluded from economic consumption and from the economic conflict guard; (3) the four newly observed labels are KNOWN_UNADJUDICATED and must not be aliased; (4) refusal scope is the UNIT, not the run, except for global data-integrity failure; (5) the no-composition rule stands, at unit scope.",
+ "boundary": "Zero-data. NO sealed access was used or required. No code was changed to produce this record. The census it rests on read the DEVELOPMENT partition only, hard-bounded.",
+ "frozen_channel_model": {
+  "channel_1_economic_scalar": {
+   "consumes": "ECONOMICALLY_ADJUDICATED only",
+   "feeds": "ExecutionFacts.corporate_action_kind, and through it the _classify() STOP_CORPORATE_ACTION branch",
+   "uniqueness_guard": "applies to THIS CHANNEL ONLY. Two differing economically adjudicated kinds on one relevant session are a composition the frozen model does not define, and refuse."
+  },
+  "channel_2_terminal_delisting": {
+   "consumes": "TERMINAL_DELISTING only",
+   "does_not": "derive a delisting return, invent a price, or participate in the channel-1 uniqueness guard.",
+   "feeds": "ExecutionFacts.delisted_at_or_before_t_plus_1 -> STOP_DELISTING",
+   "temporal_rule": "action_date <= session(t+1). AT OR BEFORE, per dataset.py:303 'ad <= d'. NOT exact equality with t+1. UNCHANGED from v1.0."
+  },
+  "channel_3_identity_audit_metadata": {
+   "consumes": "observable only - never economic",
+   "feeds": "ExecutionFacts.corporate_action_identity, the published field",
+   "note": "This channel is why 'inert' is now coherent. An inert kind stays VISIBLE in the audit metadata while having no economic effect and creating no economic conflict. The v1.0 formulation ('no economic effect but still causes economic conflict') was internally contradictory, which the census made concrete: spinoff+spinoffdividend on 69 development sessions."
+  },
+  "statement": "Three independent channels. A kind occupies AT MOST ONE consuming channel. Double-consumption is prohibited - the principle Matrix A already applied to the identity event now applies generally."
+ },
+ "frozen_refusal_scope": {
+  "RUN_REFUSE": [
+   "schema corruption or a registered column absent",
+   "structural-manifest / P9 commitment mismatch, including date bounds and row counts",
+   "impossible temporal state",
+   "mutation of a governed input, or of the bound decision record",
+   "inability to establish the bound dataset, roster, closure identity or contract identities",
+   "anchors table absent (a missing table must never silently disable the frozen earnings controls)",
+   "universe enumerates no units; crosswalk produces no lineage records"
+  ],
+  "UNIT_REFUSE": [
+   "unknown vocabulary encountered by the unit",
+   "known-unadjudicated kind encountered by the unit",
+   "two differing economically adjudicated kinds on the unit's relevant session (no-composition, OWNER RULING 5)"
+  ],
+  "relevance_definition_frozen": "A unit is (symbol, decision session t, side). An ACTIONS row is RELEVANT to that unit when its ticker is the unit's symbol AND its session is the unit's t+1 - the same key _facts() already reads - except for channel 2, whose frozen predicate is at-or-before session(t+1) for that symbol. A row that is relevant to no unit has NO effect on the run. This single sentence removes the ('BKR','2019-10-20') failure mode: whether BKR was even a universe member was never established, and under this rule it does not matter unless it was.",
+  "ruling": "OWNER RULING 4, 2026-08-14 - the most important one. An unadjudicated action kind or an unresolved multi-action conflict stops the UNIT whose semantics cannot be established, while independent units continue. Whole-run refusal is reserved for genuinely GLOBAL integrity failures. This is still fail-closed; it puts the refusal at the scope of the uncertainty.",
+  "ruling_5_no_composition": "OWNER RULING 5: dividend+split and acquisitionof+dividend on one relevant session remain a refusal. The frozen model defines no composition semantics and none is to be invented - no ordering, no combined return. What changes is ONLY that the refusal is the unit's, not the run's."
+ },
+ "frozen_vocabulary_classes": {
+  "1_ECONOMICALLY_ADJUDICATED": {
+   "audit_visible": true,
+   "channel": "1 - economic scalar",
+   "members": [
+    "acquisitionby",
+    "acquisitionof",
+    "cash_only_acquisition",
+    "dividend",
+    "merger",
+    "mergerfrom",
+    "mergerto",
+    "spinoffdividend",
+    "split",
+    "stock_and_cash_acquisition"
+   ],
+   "note": "cash_only_acquisition, stock_and_cash_acquisition and merger are frozen edge-case SPECIFICATION labels and were not observed in the development feed. They stay adjudicated; an unobserved adjudicated label costs nothing. Their presence in this list is precisely why v1.0's roster looked complete while missing feed labels.",
+   "on_conflict_with_a_differing_member": "UNIT_REFUSE (no composition)"
+  },
+  "2_TERMINAL_DELISTING": {
+   "audit_visible": true,
+   "channel": "2 - terminal delisting",
+   "members": [
+    "delisted"
+   ],
+   "ruling": "OWNER RULING 1, 2026-08-14: delisted LEAVES the economic scalar map. Once it has a dedicated channel it must not also participate in the economic uniqueness calculation, or acquisitionby+delisted remains a false composition conflict and the same event is consumed twice. Clears 77 development co-occurrences. _classify() already ranks DELISTING above CORPORATE_ACTION, so no outcome changes where both would have applied."
+  },
+  "3_UPSTREAM_IDENTITY_LINEAGE": {
+   "audit_visible": false,
+   "channel": "none - consumed UPSTREAM, before a candidate exists",
+   "do_not": "populate ExecutionFacts.identity_transition from these rows - that double-consumes one identity event and could turn AUTHORIZED continuity into an enrichment stop.",
+   "evidence_chain": "ACTIONS tickerchangefrom -> altdata/mr002/crosswalk.py:158-175 -> relationship_type=ticker_rename -> spq1/adapters/identity_adapter.py::_REL (FROZEN) -> ticker_change -> PitIdentityRegistry.resolve_permanent_id(), which fails closed on ambiguous lineage BEFORE a candidate exists. UNCHANGED from v1.0.",
+   "members": [
+    "tickerchangefrom",
+    "tickerchangeto"
+   ]
+  },
+  "4_EXPLICITLY_INERT": {
+   "audit_visible": true,
+   "channel": "3 - identity/audit metadata only",
+   "economic_effect": "NONE",
+   "members": [
+    "bankruptcy",
+    "regulatorychange",
+    "spunofffrom"
+   ],
+   "note": "bankruptcy and regulatorychange are research-layer labels (eligibility.py:170) that the development feed never emitted. They stay registered and inert.",
+   "participates_in_uniqueness_guard": false,
+   "ruling": "OWNER RULING 2, 2026-08-14: recognized + auditable + identity-preserving, but excluded from economic consumption AND from the economic conflict guard. 'Inert' cannot mean 'no economic effect but still causes economic conflict'."
+  },
+  "5_KNOWN_UNADJUDICATED": {
+   "audit_visible": "recorded as census evidence",
+   "channel": "none - no invented economic scalar effect",
+   "members": [
+    "bankruptcyliquidation",
+    "listed",
+    "relation",
+    "spinoff"
+   ],
+   "observed_development_rows": {
+    "bankruptcyliquidation": 4,
+    "listed": 110,
+    "relation": 98,
+    "spinoff": 75
+   },
+   "refusal": "UNIT_REFUSE when encountered by an evaluated unit",
+   "ruling": "OWNER RULING 3, 2026-08-14: these are observed in the feed and unadjudicated in Phase 3B. They are NOT to be silently aliased. Specifically: do NOT infer spinoff == spinoffdividend, and do NOT infer bankruptcyliquidation == bankruptcy, merely because the names are similar. Until separately adjudicated they have no invented economic effect; where one is relevant to an evaluated unit, that unit fails closed rather than pretending its semantics are known."
+  },
+  "6_UNKNOWN_VOCABULARY": {
+   "additionally": "emit a census / governance finding naming the label and its incidence, so the next adjudication starts from evidence instead of from another spent opening.",
+   "members": "anything not registered above",
+   "refusal": "UNIT_REFUSE when encountered by an evaluated unit"
+  }
+ },
+ "grants": "NOTHING. Evidence and adjudication only.",
+ "implementation_constraints_discovered": {
+  "1_the_frozen_refusal_taxonomy_cannot_be_extended": {
+   "consequence": "the bridge needs its own registered code namespace, owned by the Phase-3B layer.",
+   "finding": "spq1/refusals.py is a bound PRODUCER module (R-PROD, byte-identical to Phase 2B 1cc98f5) and SignalRefusal asserts membership in REFUSAL_CODES. Unit-scope bridge refusals therefore CANNOT be expressed as SignalRefusal codes without breaking the producer identity binding.",
+   "proposed_codes_NOT_YET_OWNER_CONFIRMED": [
+    "CANDIDATE_REFUSED:ACTION_KIND_UNKNOWN",
+    "CANDIDATE_REFUSED:ACTION_KIND_UNADJUDICATED",
+    "CANDIDATE_REFUSED:ACTION_COMPOSITION_UNSUPPORTED"
+   ],
+   "status": "PROPOSED. These names are the one place this record goes beyond what the rulings spelled out, and they are flagged rather than frozen so they can be vetoed."
+  },
+  "2_unit_refusals_are_currently_never_published": {
+   "finding": "ProducerCandidateSource.refusals is collected (candidates.py:146,177) and is asserted only in tests. No deliverable publishes it; runner.py, census.py and publish.py never read it.",
+   "requirement": "publish a per-code, per-reason refusal census as a deliverable, reconciled against records_examined + refusals == units, which the existing tests already assert. A MATERIALITY threshold above which unit refusals are a governance finding rather than a silent pass is REQUIRED and is NOT set here - it is an owner decision.",
+   "why_it_is_now_load_bearing": "under unit-scope refusal this list becomes the primary evidence surface. A systematically unadjudicated kind could refuse a large share of units while the run still reports PASS with a quietly reduced population - trading a visible abort for an invisible one. That is a worse failure than the one being fixed."
+  },
+  "3_corporate_actions_must_become_unit_scoped": "the map is currently constructed eagerly over the ENTIRE actions table, so the conflict check fires before any unit is considered. Under the frozen relevance definition the classification and the uniqueness guard must be evaluated per unit at _facts() time, and the resulting refusal must be caught where SignalRefusal is caught today (candidates.py:176-178), which currently runs BEFORE _facts()."
+ },
+ "matrix_a_execution_facts_carried_forward": {
+  "delisted_at_or_before_t_plus_1": "PRODUCTION_FACT_REQUIRED. Unchanged, except that channel 2 is now exclusive: delisted no longer also occupies the economic scalar.",
+  "future_information": "UPSTREAM_CONTROLLED by the live mutation-detection raise at enrichment.py:250. Do NOT populate the boolean to make its branch reachable. Unchanged.",
+  "halted": "REGISTERED_BUT_UNREACHABLE. assembly.classify() is the only producer of stock_status and cannot emit HALT_WITH_EVIDENCE; the producer control covers the signal window [t-124, t] while the fact concerns the t+1 execution session. OUT of scope. Do NOT synthesize halts from price gaps. Unchanged - see the open item below.",
+  "identity_transition": "UPSTREAM_CONTROLLED by PitIdentityRegistry.resolve_permanent_id(). Unchanged.",
+  "open_basis_conflict": "REGISTERED_BUT_UNREACHABLE under the bound inputs. STOP_PRICE_CONFLICT remains reachable via its other branches. Unchanged."
+ },
+ "new_findings_not_yet_adjudicated": {
+  "CIK-UNRESOLVED-IS-A-WHOLE-RUN-ABORT": {
+   "incidence": "UNMEASURED. Not censused here: it was not established whether the crosswalk is a validation-prefixed or reference-prefixed object, and the conservative reading is not to query it. The defect is provable from the code regardless of its rate.",
+   "recommendation": "adjudicate under the same OWNER RULING 4 principle. NOT assumed here - ruling 4 was issued about action-kind semantics, and extending it silently is exactly the kind of scope drift this record exists to prevent.",
+   "statement": "candidates.py:230 raises CandidateSourceRefused('no registered CIK for X') inside _produce(), but candidates() catches only SignalRefusal - so a PER-UNIT condition aborts the entire run. The same shape as the defect that spent opening 3, still armed.",
+   "why_it_is_reachable": "cik_by_symbol_from() deliberately leaves an ambiguous symbol OUT of by_symbol. Its own docstring states the intent: 'a unit whose symbol is ambiguous will fail to resolve a CIK and refuse, which is the governed outcome, and the caller can count how many securities that affected instead of wondering where they went.' The intent is per-unit; the implementation is per-run. Any universe symbol that is ambiguous in the crosswalk aborts the run."
+  }
+ },
+ "next_bounded_step": "owner confirms the four flagged items (the three CANDIDATE_REFUSED names, the materiality threshold, the CIK-unresolved scope question, and whether the unit-refusal census becomes a deliverable). Then implement against THIS record, qualify on the semantic path, rebind, stage as one unit, and only then request the fourth opening.",
+ "open_items": {
+  "CONTAINMENT-LOCAL-SNAPSHOT": "apps/backend/data/mr002_research.duckdb is NOT partition-limited: extent 2010-01-04..2026-07-09, with 10,757 ACTIONS rows dated after the development bound. QUERY DISCIPLINE, not physical partitioning, is what enforces the boundary. Recorded as a governance fact per owner instruction. OPEN.",
+  "HALT-EVIDENCE-INPUT-GAP": "carried forward from v1.0, UNCHANGED and still OPEN. Phase 3B has no governed input capable of producing HALT_WITH_EVIDENCE, so the trading_halt census class is zero BY CONSTRUCTION. One question for acceptance: is Phase 3B intentionally scoped to proceed without trading-halt evidence? If not, bind a halt-evidence source - do NOT infer halts from prices.",
+  "REFUSAL-MATERIALITY-THRESHOLD": "NEW. Above what share of unit refusals is a run a governance finding rather than a pass? Required before unit-scope refusal can be trusted. Owner decision.",
+  "UNIT-REFUSAL-CODE-NAMESPACE": "NEW. The three proposed CANDIDATE_REFUSED:* names await confirmation."
+ },
+ "produced_at": "2026-08-14T00:00:00Z",
+ "purpose": "Freeze the distinction the previous design conflated: recognized vocabulary, economic consumption, identity/audit visibility, and scope of refusal were treated as one axis. They are four. This record separates them so implementation can proceed from an adjudicated model rather than from field names.",
+ "record_identity_sha256": "95ae21ba41911c2e167610735997e1bb1939e71d24cf59eff435d4fb84297856",
+ "record_type": "MR002_Phase3B_SemanticReconciliationMatrix",
+ "supersedes": {
+  "reason": "v1.0 asserted that the ACTIONS inventory was CLOSED. MR002_Phase3B_ActionsVocabularyCensus_v1.0 (a6f3d678...) falsified that on the development partition: four feed kinds have no role in v1.0's Matrix B, and v1.0's economic set carries two specification labels the feed never emits. v1.0's Matrix A survives unchanged; its classifier_rule and Matrix B are superseded.",
+  "record": "MR002_Phase3B_SemanticReconciliationMatrix_v1.0",
+  "record_identity_sha256": "4ef8aeb15af9820e058ab60b75de6ec8c4a62ab44aa96a6355dfb0df4d86819c",
+  "what_v10_got_right": "Matrix A - the five-field reachability reconciliation - is carried forward verbatim in substance. The ticker-change closed loop, the halt precondition failure, the at-or-before delisting rule and the mutation-detection provenance of future_information are all unaffected by the census and remain frozen."
+ },
+ "the_conflation_that_caused_three_pre_research_refusals": "corporate_actions() answered one question - 'what is the kind on this (ticker, session)?' - and that single answer was simultaneously the economic scalar, the published audit identity, the uniqueness-conflict subject, and the run's life-or-death condition. Any kind that was merely PRESENT could therefore abort a research run whose economics it had no bearing on. Separating the channels is the repair; extending the roster was not.",
+ "v35_status": {
+  "fourth_opening": "NOT REQUESTED and must not be requested before this reconciliation is frozen.",
+  "implementation": "NOT STARTED. No code changed, no identity rebound, nothing staged.",
+  "openings_spent": 3,
+  "part_1_exclude_ticker_change": "SURVIVES, necessary, insufficient alone",
+  "part_2_wire_delisted": "SURVIVES, and is now EXCLUSIVE to channel 2 per ruling 1",
+  "part_3_closed_4_category_classifier": "FALSIFIED by the census. Replaced by the five-class model plus the frozen refusal scope above.",
+  "research_verdict": "NONE",
+  "state": "SUPERSEDED - the previously frozen three-part scope is no longer implementable as written"
+ },
+ "version": "1.1"
+}
