@@ -1,0 +1,101 @@
+{
+ "acceptance_conditions": {
+  "correct_package_reaches_S7_unconsumed": "MET (both offline and networked)",
+  "live_closure_still_ef12de6d": "MET",
+  "mutated_config_mapping_refuses_pre_access": "MET at S2",
+  "mutated_contract_identity_refuses_pre_access": "MET at S1",
+  "no_S8_or_S9_in_any_case": "MET - the terminal states observed were S7, S2, S1, S0 only",
+  "no_reader_assumption_or_STS": "MET structurally: four of six cases ran with --network=none and could not have reached STS at all; in all six the runner returns before _assume_reader() and s3_reader() is lazy.",
+  "no_successful_sealed_GetObject": "MET. Structural for the offline cases - no network existed. For the networked positive the same code path returns before reader assumption, and zero artifacts were written. CORROBORATING ONLY: a CloudTrail AssumeRole lookup showed no event naming mr002 among the 20 most recent. That is a sample of management events and CloudTrail lookup is eventually consistent, so it corroborates the structural argument rather than independently establishing it.",
+  "staged_config_archive_and_frozen_authorities_unchanged_after": "MET - config 16a25ac9... and archive 32800572... byte-identical after the full ceremony; four-way agreement re-proven; contract_identities and config_mapping still equal the frozen in-closure authorities.",
+  "stale_or_wrong_code_identity_refuses_pre_access": "MET at S0_INIT"
+ },
+ "artifact_kind": "NON_CONSUMING_EXECUTION_CEREMONY_REHEARSAL",
+ "authorized_by": "owner ruling 2026-08-14 (PM, fifth set): push the durable record, then run the v3.5 dry preflight through the PRODUCTION entrypoint to S7_PRE_ACCESS_READY with the negative controls, before any fourth-opening adjudication.",
+ "bound_package": {
+  "archive_sha256": "32800572384cbaa37f5909c06df9b2d12d17646959abb328bdbeb5248810bb9e",
+  "code_identity": "ef12de6dcabd8a46a1dfcb69993693bfe316e4b76ecaf8f8dbc45f08669fc25d",
+  "host": "i-00c1034f7026db45e",
+  "image": "sha256:194efbdf96ee11c19f3554dcf1b1097958cdc347bcdc1637504b441237432f51",
+  "pushed_checkpoint": "a61ec4d",
+  "pushed_range": "259b751..a61ec4d on research/mr002-preregistration",
+  "staged_config_sha256": "16a25ac9d41e44d397169cb35bdb3924291f234f50299c25f8f0516ba50bc1f7"
+ },
+ "boundary": "NON-CONSUMING BY CONSTRUCTION. --mode dry makes the runner stop_at S7_PRE_ACCESS_READY, which returns BEFORE _assume_reader(); s3_reader() is lazy and calls no STS until a first read that never happens. Openings spent remains 3; research verdict remains NONE.",
+ "grants": "NOTHING. Rehearsal evidence only.",
+ "method_note": {
+  "a_correction_worth_recording": "the first post-ceremony shell check printed STAGED_CONFIG_UNCHANGED=NO. That was a broken shell quote in the comparison - cut received a literal quote as its delimiter - not a changed file; the hash it printed already matched. Re-verified in python, where the comparison cannot be mangled by quoting: unchanged. Recorded because a green ceremony with one spurious NO in the transcript is exactly the kind of thing a later reader would trip over.",
+  "staged_config_never_mutated": "each negative ran from its OWN COPY under /opt/mr002/qual/v35/dry/. The staged configuration was mounted read-only throughout and is byte-identical afterwards."
+ },
+ "produced_at": "2026-08-14T00:00:00Z",
+ "record_identity_sha256": "349eb8e817ce363a7ced3a3138a5bf1e2e33908e5f8ba136d5e76016d190e486",
+ "record_type": "MR002_Phase3B_DryPreflightCeremony",
+ "results": {
+  "1a_correct_offline": {
+   "artifacts_written": 0,
+   "disposition": "PASS",
+   "exit_code": 0,
+   "network": "none",
+   "opening_consumed": false,
+   "state": "S7_PRE_ACCESS_READY"
+  },
+  "1b_correct_ceremony": {
+   "artifacts_written": 0,
+   "disposition": "PASS",
+   "exit_code": 0,
+   "network": "ENABLED - full ceremony fidelity",
+   "opening_consumed": false,
+   "state": "S7_PRE_ACCESS_READY",
+   "why_both": "the offline pass proves the pre-access chain needs no network at all; the networked pass proves it still stops at S7 when the network IS available. A rehearsal that could only pass offline would not be a rehearsal of the real ceremony."
+  },
+  "2_stale_identity": {
+   "artifacts_written": 0,
+   "disposition": "REFUSED",
+   "error": "execution closure identity mismatch: live mount ef12de6d... != declared 7c972455...; refusing before any credential or sealed access",
+   "exit_code": 2,
+   "mutation": "BOTH identity scalars set to the superseded v3.4 identity - an internally CONSISTENT configuration naming a superseded package, which is the exact v3.2 incident",
+   "network": "none",
+   "opening_consumed": false,
+   "significance": "only the LIVE-MOUNT comparison can catch this one. Self-consistency checks cannot, which is precisely why an opening was spent on 2026-08-14.",
+   "state": "S0_INIT"
+  },
+  "3_self_disagreement": {
+   "artifacts_written": 0,
+   "disposition": "REFUSED",
+   "error": "configuration disagrees with itself",
+   "exit_code": 2,
+   "mutation": "identities.code_identity alone",
+   "network": "none",
+   "opening_consumed": false,
+   "state": "S0_INIT"
+  },
+  "4_contract_drift": {
+   "artifacts_written": 0,
+   "disposition": "REFUSED",
+   "error": "contract identity drift: [corrected_development_reconciliation]",
+   "exit_code": 2,
+   "mutation": "one contract_identities value zeroed",
+   "network": "none",
+   "opening_consumed": false,
+   "state": "S1_CODE_IDENTITY_VERIFIED"
+  },
+  "5_config_drift": {
+   "artifacts_written": 0,
+   "disposition": "REFUSED",
+   "error": "configuration mismatch",
+   "exit_code": 2,
+   "mutation": "config_mapping B 2.00 -> 2.01",
+   "network": "none",
+   "opening_consumed": false,
+   "state": "S2_CONTRACT_IDENTITY_VERIFIED"
+  }
+ },
+ "state": {
+  "fourth_opening": "NOT granted, NOT requested by this record",
+  "openings_spent": 3,
+  "research_verdict": "NONE",
+  "v35": "STAGED, BOUND, AND REHEARSED"
+ },
+ "version": "3.5",
+ "why_v34_reaching_S7_did_not_settle_this": "v3.5 changed semantic bridge behaviour and was rebound to a new execution identity. That a SUPERSEDED package once traversed the pre-access chain says nothing about the package that would actually receive the opening."
+}
