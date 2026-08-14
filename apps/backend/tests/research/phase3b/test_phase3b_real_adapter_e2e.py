@@ -190,10 +190,12 @@ def _runner(tmp_path, *, units=None, out_name="out", source=None):
         expected_runtime_facts={"python": "3.13.14"},
         clock=lambda: "2026-08-12T00:00:00Z",
         identities={
-            "code_identity": "roster",
+            # The live closure identity, as a real execution configuration declares it.
+            "code_identity": R.closure_identity(),
             "runtime_identity": "p10",
             "governing_identity": "2a1fb775",
         },
+        observed_identities={"execution_closure_sha256": R.closure_identity()},
     )
 
 

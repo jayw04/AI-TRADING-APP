@@ -21,6 +21,7 @@ import pyarrow.parquet as pq  # noqa: E402
 
 from app.research.mr002.phase3b import entrypoint as EP  # noqa: E402
 from app.research.mr002.phase3b import publish as P  # noqa: E402
+from app.research.mr002.phase3b import roster as R  # noqa: E402
 from app.research.mr002.phase3b import states as S  # noqa: E402
 from app.research.mr002.phase3b.readers import FixtureReader  # noqa: E402
 from app.research.mr002.spq1 import (  # noqa: E402
@@ -210,6 +211,20 @@ CONFIG = {
     },
     "config_mapping": {"A": 1.75, "B": 2.00, "C": 2.25},
 }
+
+
+def _config_declaring_the_live_closure() -> dict:
+    """CONFIG with the closure identity a real execution configuration would carry.
+
+    Resolved per call, not at import: sibling suites transiently add and remove modules inside the
+    package while exercising the closure machinery, so an identity captured at module scope goes
+    stale depending on test order.
+    """
+    live = R.closure_identity()
+    cfg = {k: (dict(v) if isinstance(v, dict) else v) for k, v in CONFIG.items()}
+    cfg["identities"]["code_identity"] = live
+    cfg["observed_identities"]["execution_closure_sha256"] = live
+    return cfg
 assert PRODUCER_CODE_VERSION and PHASE0_CENSUS_SHA256 and PHASE0_OWNER_RULINGS_SHA256
 assert PHASE0_SCHEMA_SHA256
 
@@ -227,7 +242,7 @@ def _runner(tmp_path, *, omit: str | None = None, out="out"):
         reference_manifest=_reference_manifest(
             tables, tuple(n for n in REFERENCE_TABLES if n != omit)
         ),
-        **CONFIG,
+        **_config_declaring_the_live_closure(),
     )
 
 

@@ -232,6 +232,9 @@ def build_runner(
         runtime_facts=dict(runtime_facts),
         expected_runtime_facts=dict(expected_runtime_facts),
         identities=dict(identities),
+        # Not derived from the live mount: this is the CONFIGURATION's recording, and it is the
+        # only side of the comparison that can disagree with the executing bytes.
+        observed_identities=dict(observed_identities),
     )
 
 

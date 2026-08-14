@@ -15,6 +15,7 @@ Three groups are bound together, because all three affect the produced records:
 from __future__ import annotations
 
 import hashlib
+import json
 import os
 
 from . import closure as _CLOSURE
@@ -85,6 +86,27 @@ def current_roster() -> dict[str, dict[str, str]]:
         "producer": enumerate_producer(),
         "closure": enumerate_closure(),
     }
+
+
+def closure_identity(closure: dict[str, str] | None = None) -> str:
+    """The SCALAR identity of an execution closure, comparable to a configuration's declaration.
+
+    The encoding is the one the execution manifest has used since v1.0 and that the v3.2 rebind
+    bound: sha256 over ``json.dumps(sorted mapping, sort_keys=True, indent=1, ensure_ascii=True)``
+    plus a trailing newline, ascii-encoded.
+
+    This exists because ``verify()`` above cannot answer the question a run actually needs to ask.
+    ``verify()`` compares a roster against a roster; the entrypoint passed it ``current_roster()``,
+    so it compared the live closure against ITSELF and could not fail. On 2026-08-14 a stale
+    configuration declaring a superseded ``code_identity`` therefore passed S1 while different
+    bytes executed, and the run spent a governed opening before anything noticed. A scalar
+    identity the configuration also carries is what makes that comparison possible.
+    """
+    files = enumerate_closure() if closure is None else closure
+    canonical = (
+        json.dumps(dict(sorted(files.items())), sort_keys=True, indent=1, ensure_ascii=True) + "\n"
+    ).encode("ascii")
+    return hashlib.sha256(canonical).hexdigest()
 
 
 def audit_runtime_against(bound_closure: dict[str, str]) -> dict[str, object]:

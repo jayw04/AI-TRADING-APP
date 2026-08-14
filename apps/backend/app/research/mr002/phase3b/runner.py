@@ -76,6 +76,12 @@ class Phase3BRunner:
     runtime_facts: dict[str, str]
     expected_runtime_facts: dict[str, str]
     identities: dict[str, str]
+    # The configuration's own recording of the executing closure. Carried so the run can compare
+    # the bytes it is about to execute against the identity its configuration declares, which
+    # `bound_roster` cannot do -- the entrypoint supplies that from `current_roster()`, making it a
+    # self-comparison. Defaulted so existing constructions keep working; absent or disagreeing
+    # values REFUSE in `_verify_declared_closure_identity`, they do not pass silently.
+    observed_identities: dict[str, str] = field(default_factory=dict)
     staged_open_prefix_payloads: dict[str, bytes] = field(default_factory=dict)
     # Injected only so a test can make publication deterministic. There is NO published_at input:
     # the publisher stamps it at the durable publication transition, so the run reaches
@@ -89,7 +95,47 @@ class Phase3BRunner:
     # -- pre-gate: everything that can fail for free ---------------------------------
     def _verify_code_identity(self) -> None:
         R.verify(self.bound_roster)
+        self._verify_declared_closure_identity()
         self.sequence.advance(S.S1_CODE_IDENTITY_VERIFIED)
+
+    def _verify_declared_closure_identity(self) -> None:
+        """The live closure must equal the identity the CONFIGURATION declares.
+
+        Runs before reader construction, before STS, and before any sealed access, so a
+        configuration that names a different execution package refuses for free.
+
+        This check exists because of an observed failure, not a hypothetical one. On 2026-08-14 a
+        stale configuration declaring the superseded identity ``f35e8209...`` was executed against
+        v3.2 bytes ``487c7f8d...``; ``R.verify`` above could not catch it because the entrypoint
+        hands it ``current_roster()``, i.e. it compares the live closure against itself. The
+        opening was spent before anything noticed, and the published record misattributed the
+        package that ran.
+
+        Both configuration fields are required to agree with each other first: they are two
+        recordings of one fact, and a configuration that disagrees with itself cannot bind
+        anything.
+        """
+        declared = (self.identities or {}).get("code_identity")
+        observed_field = (self.observed_identities or {}).get("execution_closure_sha256")
+        if not declared:
+            raise RunRefused(
+                "identities.code_identity absent; an execution package that declares no identity "
+                "cannot be bound to the bytes that are about to run"
+            )
+        if not observed_field:
+            raise RunRefused("observed_identities.execution_closure_sha256 absent")
+        if declared != observed_field:
+            raise RunRefused(
+                "configuration disagrees with itself: identities.code_identity "
+                f"{declared} != observed_identities.execution_closure_sha256 {observed_field}"
+            )
+        live = R.closure_identity()
+        if live != declared:
+            raise RunRefused(
+                f"execution closure identity mismatch: live mount {live} != declared {declared}. "
+                "The configuration names a different execution package than the one executing; "
+                "refusing before any credential or sealed access."
+            )
 
     def _verify_contract_identity(self) -> None:
         drift = sorted(

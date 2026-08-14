@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import io
 from dataclasses import dataclass
+from datetime import UTC, date, datetime
 from typing import Any
 
 
@@ -77,6 +78,57 @@ def decode(payload: bytes, commitment: TableCommitment) -> Any:
     return table
 
 
+def _availability_date(value: Any, table_name: str) -> str:
+    """One availability value as the DATE the commitment is expressed in.
+
+    P9 commits date bounds at DATE granularity. An availability column may legitimately be a
+    ``DATE`` or a timezone-aware ``TIMESTAMP`` -- ``sic_observations.accepted_utc`` is declared
+    ``TIMESTAMP WITH TIME ZONE`` -- so the comparison has to reduce to a date rather than compare
+    ``str(value)``. Doing the latter refused the sealed partition on 2026-08-14 with
+    ``2019-10-03 10:03:29+00:00 != 2019-10-03``: the data and the commitment were both correct and
+    only the rendering disagreed.
+
+    Naive datetimes are REFUSED rather than assumed to be UTC. Assuming a zone is exactly the
+    silent coercion this module exists to prevent, and a naive timestamp near midnight would
+    resolve to a different date under a different assumption.
+    """
+    if isinstance(value, datetime):
+        if value.tzinfo is None or value.tzinfo.utcoffset(value) is None:
+            raise ParquetRefused(
+                f"{table_name}: naive timestamp {value!r} in the availability column; the "
+                "commitment is a UTC date and a zoneless value cannot be resolved to one"
+            )
+        return value.astimezone(UTC).date().isoformat()
+    if isinstance(value, date):
+        return value.isoformat()
+    if isinstance(value, str):
+        # Fixture compatibility, deliberately narrow. The sealed partition declares five
+        # availability columns ``DATE`` and one ``TIMESTAMP WITH TIME ZONE``, for which pyarrow
+        # yields ``date`` and aware ``datetime`` objects respectively -- never a string. The
+        # fixture suite, however, represents DATE columns as ISO date strings, which is why no
+        # fixture run could ever have caught the 2026-08-14 timestamp defect.
+        #
+        # Only an EXACT ``YYYY-MM-DD`` literal is accepted: it carries no time and no zone, so
+        # nothing is being assumed on its behalf. Anything longer -- notably
+        # ``'2019-10-03 10:03:29+00:00'``, the shape that caused the incident -- is refused,
+        # because a value with a time component must arrive as a real datetime so its zone is
+        # explicit rather than parsed out of a rendering.
+        try:
+            parsed = date.fromisoformat(value)
+        except ValueError:
+            parsed = None
+        if parsed is not None and len(value) == 10:
+            return parsed.isoformat()
+        raise ParquetRefused(
+            f"{table_name}: availability value {value!r} is not a bare YYYY-MM-DD date literal; "
+            "a value carrying a time component must be a timezone-aware datetime, not a string"
+        )
+    raise ParquetRefused(
+        f"{table_name}: availability value {value!r} of unexpected type "
+        f"{type(value).__name__}; expected date or timezone-aware datetime"
+    )
+
+
 def _verify_date_bounds(table: Any, commitment: TableCommitment) -> None:
     if not commitment.availability_column or commitment.first_date is None:
         return
@@ -85,10 +137,12 @@ def _verify_date_bounds(table: Any, commitment: TableCommitment) -> None:
             f"{commitment.name}: availability column {commitment.availability_column} absent"
         )
     column = table.column(commitment.availability_column)
-    values = [str(v) for v in column.to_pylist() if v is not None]
-    if not values:
+    dates = [
+        _availability_date(v, commitment.name) for v in column.to_pylist() if v is not None
+    ]
+    if not dates:
         raise ParquetRefused(f"{commitment.name}: availability column carries no value")
-    observed_first, observed_last = min(values), max(values)
+    observed_first, observed_last = min(dates), max(dates)
     if observed_first != commitment.first_date or observed_last != commitment.last_date:
         raise ParquetRefused(
             f"{commitment.name}: date bounds {observed_first}..{observed_last} != committed "

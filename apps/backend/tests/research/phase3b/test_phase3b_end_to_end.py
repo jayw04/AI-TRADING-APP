@@ -155,7 +155,11 @@ def _runner(tmp_path, *, source=None, out_name="out", reader=None):
         runtime_facts=dict(RUNTIME),
         expected_runtime_facts=dict(RUNTIME),
         clock=lambda: "2026-08-12T00:00:00Z",
-        identities=dict(IDENTITIES),
+        # Resolved HERE, not at import: sibling suites transiently add and remove modules inside
+        # the package while exercising the closure machinery, so an identity captured at module
+        # scope goes stale depending on test order.
+        identities={**IDENTITIES, "code_identity": R.closure_identity()},
+        observed_identities={"execution_closure_sha256": R.closure_identity()},
     )
 
 
