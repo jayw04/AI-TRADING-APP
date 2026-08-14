@@ -1,0 +1,263 @@
+{
+ "artifact_kind": "QUALIFICATION_EVIDENCE",
+ "calendar_identity_disclaimer": {
+  "acceptable_because": "this is a technical qualification of execution and publication mechanics at the validation session COUNT; it is not a research run and asserts nothing about the registered calendar",
+  "claim_NOT_made": "calendar identity equivalence with the registered validation window",
+  "claim_made": "850-session SCALE and PATH coverage",
+  "registered_validation_calendar": {
+   "authority": "MR002_ValidationStructuralManifest_v1.0.json, session_list_sha256 d9966a3a...",
+   "first": "2019-10-03",
+   "last": "2023-02-16",
+   "sessions": 850
+  },
+  "why": "the fixture builds 850 consecutive WEEKDAYS from 2019-10-03, so it ends 2023-01-04. The governed P9 validation calendar is 850 TRADING sessions and ends 2023-02-16 - the difference is market holidays, which the fixture does not model."
+ },
+ "data_class": "FIXTURE / NON-SEALED - load and shape only; no sealed read, no reader assumption, no IAM change, and no attempt to mimic sealed economics",
+ "deliverable_count": 6,
+ "deliverable_inventory": {
+  "ExecutionEnrichmentEdgeCaseCensus_v1.0.json": {
+   "bytes": 915,
+   "sha256": "2c9709d321212b642c4772a6b2acf4082848ea3b7df8303435cbc2db2a324c7c"
+  },
+  "MR002_ValOOS_validation_Publication.json": {
+   "bytes": 1385,
+   "sha256": "b4fa21453e10b77b04208be8493468b302b10ebd270ff694860eeb5e2ac9b656"
+  },
+  "MR002_ValOOS_validation_Report.json": {
+   "bytes": 3279,
+   "sha256": "52cb915892044a40fb82ef2273f6f8fe2c8582d19df80c0833f81238c789be31"
+  },
+  "ValidationDecisionExecutionBindingReport_v1.0.json": {
+   "bytes": 39897192,
+   "sha256": "959846c901c79fdcbbc0a38118242a0355ce9094b7c3042a56852dd5663ceb97"
+  },
+  "ValidationExecutionEnrichmentManifest_v1.0.json": {
+   "bytes": 286658740,
+   "sha256": "01b75ecf7552df119f1845b14533e258cc2b5f645717b7b0239ab3cf6b95049b"
+  },
+  "ValidationOpenedObjectLedger_v1.0.json": {
+   "bytes": 3096,
+   "sha256": "0dc64b870baed29197234a032b4992898f7aaa1193d1a4591e9318103f95c1c5"
+  },
+  "ValidationSealVerificationReport_v1.0.json": {
+   "bytes": 647,
+   "sha256": "6030f9cd7496c00f19ca058cb1667f01a9aef63759e2b60ac468912a62c2c916"
+  },
+  "ValidationUnitReconciliation_v1.0.json": {
+   "bytes": 176550751,
+   "sha256": "fc91d813cc3dbd79da7e5685149933f528691214d062350154dff4960e792b18"
+  }
+ },
+ "disposition": "PASS",
+ "elapsed_seconds": 21297.8,
+ "host_margin_note": "the qualified host is c6a.large (2 vCPU / 4 GiB). Compare the figures above against that before granting a replacement opening.",
+ "performance": {
+  "note": "tracemalloc measures PYTHON allocations only; it excludes interpreter overhead and native arrow/numpy buffers, so treat it as a lower bound on true process RSS",
+  "peak_rss_bytes": 3669209088,
+  "peak_rss_method": "resource.getrusage",
+  "peak_rss_mib": 3499.2,
+  "peak_rss_note": "process-level, measured by this harness; it INCLUDES interpreter overhead and native arrow/numpy buffers that tracemalloc cannot see. Measured on the developer machine, not the qualified host.",
+  "peak_traced_memory_bytes": 1952519238,
+  "peak_traced_memory_mib": 1862.1,
+  "run_seconds": 21295.97,
+  "world_build_seconds": 1.41
+ },
+ "price_rows_generated": 364409,
+ "primary_disposition": "PASS",
+ "publication_error": null,
+ "published": true,
+ "purpose": "prove the repaired execution path completes computation AND durable publication at the validation window's 850-session horizon",
+ "record_type": "MR002_Phase3B_WidthQualification",
+ "result": "PASS",
+ "rss_peak_at_elapsed_seconds": 21292.9,
+ "rss_peak_bytes": 3669209088,
+ "rss_peak_mib": 3499.2,
+ "rss_samples": [
+  {
+   "rss_mib": 2019.1,
+   "t": 20688.0
+  },
+  {
+   "rss_mib": 2020.1,
+   "t": 20703.1
+  },
+  {
+   "rss_mib": 2021.2,
+   "t": 20718.1
+  },
+  {
+   "rss_mib": 2022.2,
+   "t": 20733.1
+  },
+  {
+   "rss_mib": 2023.2,
+   "t": 20748.2
+  },
+  {
+   "rss_mib": 2024.0,
+   "t": 20763.2
+  },
+  {
+   "rss_mib": 2025.0,
+   "t": 20778.3
+  },
+  {
+   "rss_mib": 2026.1,
+   "t": 20793.3
+  },
+  {
+   "rss_mib": 2027.1,
+   "t": 20808.3
+  },
+  {
+   "rss_mib": 2028.1,
+   "t": 20823.4
+  },
+  {
+   "rss_mib": 2028.9,
+   "t": 20838.5
+  },
+  {
+   "rss_mib": 2029.9,
+   "t": 20853.5
+  },
+  {
+   "rss_mib": 2031.0,
+   "t": 20868.5
+  },
+  {
+   "rss_mib": 2032.0,
+   "t": 20883.6
+  },
+  {
+   "rss_mib": 2033.0,
+   "t": 20898.6
+  },
+  {
+   "rss_mib": 2034.0,
+   "t": 20913.7
+  },
+  {
+   "rss_mib": 2034.8,
+   "t": 20928.7
+  },
+  {
+   "rss_mib": 2035.9,
+   "t": 20943.8
+  },
+  {
+   "rss_mib": 2036.9,
+   "t": 20958.8
+  },
+  {
+   "rss_mib": 2037.9,
+   "t": 20973.9
+  },
+  {
+   "rss_mib": 2038.9,
+   "t": 20988.9
+  },
+  {
+   "rss_mib": 2040.0,
+   "t": 21004.0
+  },
+  {
+   "rss_mib": 2040.8,
+   "t": 21019.0
+  },
+  {
+   "rss_mib": 2041.8,
+   "t": 21034.1
+  },
+  {
+   "rss_mib": 2042.8,
+   "t": 21049.1
+  },
+  {
+   "rss_mib": 2048.5,
+   "t": 21064.1
+  },
+  {
+   "rss_mib": 2061.1,
+   "t": 21079.2
+  },
+  {
+   "rss_mib": 2074.3,
+   "t": 21094.2
+  },
+  {
+   "rss_mib": 2087.7,
+   "t": 21109.3
+  },
+  {
+   "rss_mib": 2101.1,
+   "t": 21124.3
+  },
+  {
+   "rss_mib": 2121.2,
+   "t": 21139.4
+  },
+  {
+   "rss_mib": 2141.6,
+   "t": 21154.4
+  },
+  {
+   "rss_mib": 2163.5,
+   "t": 21169.4
+  },
+  {
+   "rss_mib": 2183.8,
+   "t": 21184.5
+  },
+  {
+   "rss_mib": 2204.7,
+   "t": 21199.5
+  },
+  {
+   "rss_mib": 2226.6,
+   "t": 21214.6
+  },
+  {
+   "rss_mib": 2244.9,
+   "t": 21229.6
+  },
+  {
+   "rss_mib": 2265.6,
+   "t": 21244.7
+  },
+  {
+   "rss_mib": 3226.0,
+   "t": 21277.3
+  },
+  {
+   "rss_mib": 3499.2,
+   "t": 21292.9
+  }
+ ],
+ "sample_count": 1415,
+ "securities": 429,
+ "session_coverage": {
+  "calendar_session_count": 850,
+  "distinct_session_ordinals_in_units": 850,
+  "enrichment_records_examined": 569958,
+  "expected_session_count": 850,
+  "first_session": "2019-10-03",
+  "last_session": "2023-01-04",
+  "max_unit_session_ordinal": 849,
+  "min_unit_session_ordinal": 0,
+  "producer_refusals": 159342,
+  "records_examined": 569958,
+  "refusal_codes": [
+   "INELIGIBLE:OLS_WINDOW_INSUFFICIENT",
+   "INTEGRITY_STOP:OLS_DESIGN_SINGULAR",
+   "INTEGRITY_STOP:OLS_WINDOW_INCOMPLETE",
+   "INTEGRITY_STOP:SECURITY_IDENTITY_AMBIGUOUS",
+   "REFUSED_CODE_OR_DATA_IDENTITY:SIGNAL_INPUT_IDENTITY_MISMATCH"
+  ],
+  "units_enumerated": 729300
+ },
+ "sessions": 850,
+ "status": "PASS",
+ "terminal_state": "S11_PUBLISHED",
+ "version": "1.0"
+}

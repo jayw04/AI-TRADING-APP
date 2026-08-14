@@ -1,6 +1,14 @@
 # MR-002 Phase 3B — width qualification curve
 
 **Status: complete through width 150. Width 429 NOT run — stop rule triggered.**
+
+> **RESOLVED 2026-08-13.** The stop applied to the *original* c6a.large host and was
+> correct: the measured width-429 peak is **3,499.2 MiB = 85% of that host's TOTAL 4 GiB**.
+> After the owner-authorized resize to c6a.xlarge, width 429 ran full-path and **PASSED** —
+> see `MR002_Phase3B_WidthQualification_429sec_v1.0.json` and
+> `MR002_Phase3B_HostCapacityQualification_429_v1.0.json`. The analysis below is retained as
+> the record of the sizing finding; its 429 row is superseded by that measurement.
+
 **Classification: `HOST_SIZING` — the qualified host is undersized for the registered universe.**
 
 Data class: **FIXTURE / NON-SEALED**. No sealed read, no reader assumption, no IAM change, no

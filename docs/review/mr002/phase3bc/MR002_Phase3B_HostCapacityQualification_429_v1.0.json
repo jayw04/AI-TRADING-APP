@@ -1,0 +1,141 @@
+{
+ "artifact_kind": "QUALIFICATION_EVIDENCE",
+ "authorizes": "NOTHING. This closes the last technical gate. The replacement opening remains a separate owner authorization and is still WITHHELD.",
+ "not_claimed": [
+  "calendar identity with the registered validation window (the fixture builds 850 consecutive weekdays and ends 2023-01-04; the registered calendar is 850 TRADING sessions ending 2023-02-16)",
+  "sealed-data economics",
+  "any research result - no Sharpe, return, ranking or config outcome exists or is implied"
+ ],
+ "produced_at": "2026-08-14T01:22:51Z",
+ "record_type": "MR002_Phase3B_HostCapacityQualification_429",
+ "required_proofs": {
+  "1_429_securities_850_sessions_actually_processed": {
+   "calendar_session_count": 850,
+   "distinct_session_ordinals_in_units": 850,
+   "enrichment_records_examined": 569958,
+   "price_rows_generated": 364409,
+   "producer_refusals": 159342,
+   "records_examined": 569958,
+   "result": "PASS",
+   "securities": 429,
+   "sessions": 850,
+   "unit_ordinal_range": [
+    0,
+    849
+   ],
+   "units_enumerated": 729300,
+   "why_this_is_processing_not_acceptance": "850 DISTINCT session ordinals appear in the units, spanning 0..849, and 569,958 records were examined. The run did not merely accept an 850-session calendar and terminate early."
+  },
+  "2_pass_and_s11_published": {
+   "disposition": "PASS",
+   "note": "primary_disposition/primary_error and published/publication_error are the v3.2 recovery fields. They are populated, so the repaired primary/secondary separation actually executed at full width - not merely present in source.",
+   "primary_disposition": "PASS",
+   "primary_error": null,
+   "publication_error": null,
+   "published": true,
+   "result": "PASS",
+   "result_field": "PASS",
+   "terminal_state": "S11_PUBLISHED"
+  },
+  "3_complete_deliverable_set_with_reproducible_hashes": {
+   "artifacts_inventoried": 8,
+   "deliverable_count": 6,
+   "inventory": {
+    "ExecutionEnrichmentEdgeCaseCensus_v1.0.json": {
+     "bytes": 915,
+     "sha256": "2c9709d321212b642c4772a6b2acf4082848ea3b7df8303435cbc2db2a324c7c"
+    },
+    "MR002_ValOOS_validation_Publication.json": {
+     "bytes": 1385,
+     "sha256": "b4fa21453e10b77b04208be8493468b302b10ebd270ff694860eeb5e2ac9b656"
+    },
+    "MR002_ValOOS_validation_Report.json": {
+     "bytes": 3279,
+     "sha256": "52cb915892044a40fb82ef2273f6f8fe2c8582d19df80c0833f81238c789be31"
+    },
+    "ValidationDecisionExecutionBindingReport_v1.0.json": {
+     "bytes": 39897192,
+     "sha256": "959846c901c79fdcbbc0a38118242a0355ce9094b7c3042a56852dd5663ceb97"
+    },
+    "ValidationExecutionEnrichmentManifest_v1.0.json": {
+     "bytes": 286658740,
+     "sha256": "01b75ecf7552df119f1845b14533e258cc2b5f645717b7b0239ab3cf6b95049b"
+    },
+    "ValidationOpenedObjectLedger_v1.0.json": {
+     "bytes": 3096,
+     "sha256": "0dc64b870baed29197234a032b4992898f7aaa1193d1a4591e9318103f95c1c5"
+    },
+    "ValidationSealVerificationReport_v1.0.json": {
+     "bytes": 647,
+     "sha256": "6030f9cd7496c00f19ca058cb1667f01a9aef63759e2b60ac468912a62c2c916"
+    },
+    "ValidationUnitReconciliation_v1.0.json": {
+     "bytes": 176550751,
+     "sha256": "fc91d813cc3dbd79da7e5685149933f528691214d062350154dff4960e792b18"
+    }
+   },
+   "result": "PASS",
+   "total_bytes": 503116005,
+   "total_mb": 503.12,
+   "verification": "the harness re-read every deliverable, the report and the publication record, refused on any missing or empty artifact, and refused unless each sha256 reproduced the identity recorded in the publication. It did not refuse."
+  },
+  "4_peak_rss_and_runtime": {
+   "peak_rss_gib": 3.42,
+   "peak_rss_method": "resource.getrusage",
+   "peak_rss_mib": 3499.2,
+   "peak_traced_memory_mib": 1862.1,
+   "result": "PASS",
+   "run_hours": 5.92,
+   "run_seconds": 21295.97,
+   "world_build_seconds": 1.41
+  },
+  "5_no_sealed_access_no_reader_assumption": {
+   "data_class": "FIXTURE / NON-SEALED - load and shape only; no sealed read, no reader assumption, no IAM change, and no attempt to mimic sealed economics",
+   "iam_latch": "CLOSED throughout - host->reader sts:AssumeRole explicitDeny, host->sealed s3:* explicitDeny; unchanged by this run",
+   "network": "--network=none for the entire run",
+   "opening_consumed": false,
+   "reader_assumed": false,
+   "result": "PASS",
+   "sealed_objects_read": 0
+  },
+  "6_memory_margin": {
+   "envelope_mib": 7739,
+   "headroom_gib": 4.14,
+   "headroom_mib": 4239.8,
+   "note": "swap is zero, so the headroom is real memory rather than deferred paging.",
+   "peak_mib": 3499.2,
+   "result": "PASS",
+   "swap": 0,
+   "utilisation_pct": 45.2
+  }
+ },
+ "run": {
+  "code_checkpoint": "899d6456cfa4b3ddcbbaa2c5b64628ff9d6a0240",
+  "container": "mr002w429, detached, --network=none, no timeout wrapper",
+  "executing_bytes_equal_bound_closure": "41/41 files, 0 mismatches - proven mid-flight",
+  "execution_identity": "487c7f8ddad1904b725747ef37c1b963f5283f887f0d4d9b5c6ba2be2c0b7c34 (v3.2)",
+  "host": "i-00c1034f7026db45e (c6a.xlarge, 4 vCPU / 7,924,808 kiB, swap 0)",
+  "image": "sha256:194efbdf96ee11c19f3554dcf1b1097958cdc347bcdc1637504b441237432f51"
+ },
+ "the_resize_was_necessary_and_the_stop_was_correct": {
+  "conclusion": "the measured peak is 85% of the ORIGINAL c6a.large's total RAM, before the operating system, container runtime and page cache take their share. Stopping before 429 on that host was correct, and the projection that drove it was not alarmist.",
+  "model_accuracy": {
+   "error_pct": -0.17,
+   "linear_in_width_prediction_mib": 3505,
+   "measured_mib": 3499.2,
+   "note": "the linear-in-width model built from widths 6/12/50/150 on the laptop predicted the host measurement to within 0.2%. The competing sublinear power law predicted 3,308 MiB and would have understated it."
+  },
+  "old_host_total_mib": 4096,
+  "peak_as_pct_of_old_host_total": 85.4,
+  "runtime_projection_was_wrong_in_the_safe_direction": {
+   "actual_hours": 5.92,
+   "overestimate_factor": 2.32,
+   "projected_hours": 13.7,
+   "why": "the alpha ~= 1.21 time exponent came from laptop points; on the host the 6->429 exponent is 1.013, i.e. runtime is essentially LINEAR in width. The laptop's width-50 contention outlier had inflated the exponent."
+  }
+ },
+ "verdict": "PASS",
+ "version": "1.0",
+ "what_remains": "the replacement validation opening itself - a new owner authorization that must name execution identity 487c7f8d... explicitly, classified REPLACEMENT_FOR_TECHNICALLY_VOID_EXECUTION, not a second statistical trial.",
+ "what_this_closes": "the last technical gate. Recovery mechanics, execution identity (v3.2), runtime/host identity and host capacity are all now closed."
+}
