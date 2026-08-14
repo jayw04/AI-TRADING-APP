@@ -1,0 +1,57 @@
+{
+ "artifact_kind": "SEMANTIC_RECONCILIATION",
+ "authorized_by": "owner ruling 2026-08-14 (PM, fourth set): v3.5 ACCEPTED FOR STAGING, with the multi-action publication precedence to be preserved ONLY IF the record explicitly states the precedence and why. This record states it.",
+ "boundary": "Zero-data. NO sealed access. No code changed to produce this record.",
+ "carried_forward_unchanged_from_v11": [
+  "the three exclusive channels: economic scalar, terminal delisting, identity/audit metadata",
+  "the five vocabulary classes and their membership",
+  "the frozen refusal scope: unit for semantic uncertainty, run for global integrity",
+  "the relevance definition: ticker == unit symbol AND session == unit t+1, except channel 2 which is at-or-before",
+  "Matrix A - the five-field reachability reconciliation, including halted as REGISTERED_BUT_UNREACHABLE",
+  "no composition; differing economically adjudicated kinds still refuse"
+ ],
+ "frozen_rule_audit_identity_precedence": {
+  "applies_to": "ExecutionFacts.corporate_action_identity - channel 3, a PUBLISHED field of the frozen ten-field ExecutionEnrichmentSchema",
+  "determinism_tie_break": "several EXPLICITLY_INERT kinds and no delisting or economic kind resolve to the LEXICOGRAPHICALLY FIRST. This is a determinism device, not a semantic claim: it asserts nothing about which inert action matters, because by construction none of them has any economic effect.",
+  "id": "AUDIT-IDENTITY-PRECEDENCE",
+  "implemented_at": "candidates.py::ProducerCandidateSource._resolve_actions",
+  "the_rule": "TERMINAL_DELISTING > ECONOMICALLY_ADJUDICATED > EXPLICITLY_INERT",
+  "upstream_identity_lineage": "NEVER published in this field, at any precedence. Publishing it would double-consume one identity event, which Matrix A already forbids. Unchanged from v1.1.",
+  "what_this_rule_does_not_do": [
+   "it does not change which kinds are consumed, or by which channel",
+   "it does not change any enrichment code or disposition",
+   "it does not make an inert kind behavioural - inert kinds remain outside the economic conflict guard and have no economic effect",
+   "it does not alter the refusal scope"
+  ],
+  "why_this_needed_a_ruling_at_all": "it is a NEW SEMANTIC SELECTION RULE, not a mechanical repair. No prior record specifies a precedence because the previous behaviour was to ABORT rather than choose - a session carrying two differing kinds refused the whole run, so the question of which identity to publish never arose. Removing the abort created the question. Any ordering here is therefore new, and recording it as merely 'how the code happens to behave' would leave a published field governed by an implementation detail.",
+  "why_this_ordering": "it makes the published identity name the action that actually DETERMINED the disposition. _classify() ranks STOP_DELISTING above STOP_CORPORATE_ACTION, so on an acquisitionby+delisted session the record stops for the delisting; publishing the acquisition's provenance string there would name an action that did not decide the outcome. The precedence is derived from the frozen classification order, not chosen for convenience."
+ },
+ "grants": "NOTHING. Adjudication only.",
+ "open_items_carried_forward": {
+  "ANCHOR-ACCEPTANCE-SCOPE": "NEW follow-up, does NOT block staging. An anchor missing its acceptance timestamp aborts the whole run for a per-symbol condition. Ambiguous between unit refusal and table-integrity failure; because silently disabling the earnings controls would recreate the Phase 2B class of defect, it needs its own ruling before any rescoping. NO CHANGE to anchors_by_symbol.",
+  "CONTAINMENT-LOCAL-SNAPSHOT": "carried forward, OPEN.",
+  "HALT-EVIDENCE-INPUT-GAP": "carried forward, OPEN and unchanged.",
+  "MISSING-PRICE-REFUSAL-TYPING": "NEW follow-up, does NOT block staging. A universe symbol absent from the prices table raises a bare KeyError belonging to NO governed refusal class, escaping the per-unit catch. Operationally the more concerning of the two, but it must NOT be typed ad hoc: decide whether it is a unit-scoped refusal, a source-integrity stop, or something else, and FREEZE the class before changing behaviour. NO CHANGE to current behaviour."
+ },
+ "produced_at": "2026-08-14T00:00:00Z",
+ "record_identity_sha256": "9e1f7830f3d248431336f6136b4bd16fefe63ec33a9606f264ef293232aa2276",
+ "record_type": "MR002_Phase3B_SemanticReconciliationMatrix",
+ "supersedes": {
+  "record": "MR002_Phase3B_SemanticReconciliationMatrix_v1.1",
+  "record_identity_sha256": "95ae21ba41911c2e167610735997e1bb1939e71d24cf59eff435d4fb84297856",
+  "scope_of_change": "ADDITIVE AND MINIMAL. One rule is frozen - the channel-3 publication precedence. Everything else in v1.1 carries forward VERBATIM in substance: the three channels, the five vocabulary classes, the refusal scope, the relevance definition and Matrix A. The classifier is NOT reopened."
+ },
+ "v35_disposition": {
+  "conditions_recorded": [
+   "no additional semantic audit",
+   "no changes to anchors_by_symbol",
+   "no changes to missing-price behaviour",
+   "no work on the .gitignore / ADR-0050 draft",
+   "the three pre-existing Phase 3BC failures stay classified as unrelated, on their stale authorization-state basis"
+  ],
+  "next": "Step 10 rebind + stage as ONE unit, then Step 11 fourth-opening request.",
+  "state": "ACCEPTED FOR STAGING",
+  "verdict": "NONE, and remains NONE until an opening is authorized and completed."
+ },
+ "version": "1.2"
+}
