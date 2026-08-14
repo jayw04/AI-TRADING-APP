@@ -1,0 +1,99 @@
+{
+ "artifact_kind": "OPENING_REQUEST",
+ "bound_to": {
+  "checkpoint_is_pushed": true,
+  "code_archive_sha256": "32800572384cbaa37f5909c06df9b2d12d17646959abb328bdbeb5248810bb9e",
+  "code_checkpoint": "b93e770",
+  "configuration": "frozen A=1.75 B=2.00 C=2.25, verified against FROZEN_CONFIG_MAPPING",
+  "contract_identities": "verified against FROZEN_CONTRACT_IDENTITIES",
+  "dependency_bundle_sha256": "d5d21eadb52ee5bccc85df832d35a060105327a7787808c5c1a6126e7ed9b5a1",
+  "execution_identity": "ef12de6dcabd8a46a1dfcb69993693bfe316e4b76ecaf8f8dbc45f08669fc25d",
+  "host_capacity": "c6a.xlarge",
+  "instance": "i-00c1034f7026db45e",
+  "numeric_runtime_identity": "74acfb45eb5b8a8b806e21fa77b6a6f5c3f9921d2ea6d0dac9dd9f2474e98c90 - CARRIED FORWARD from the v2.0 authorization and NOT re-measured in this ceremony. The p10 image digest WAS independently re-verified against the running image.",
+  "p10_image": "sha256:194efbdf96ee11c19f3554dcf1b1097958cdc347bcdc1637504b441237432f51",
+  "privilege_transition": "the v3.1 mr002-validation-reader design, retained unchanged",
+  "pushed_range": "259b751..b93e770 on research/mr002-preregistration",
+  "staged_config_sha256": "16a25ac9d41e44d397169cb35bdb3924291f234f50299c25f8f0516ba50bc1f7",
+  "staged_tree": "/opt/mr002/v35"
+ },
+ "evidence_supporting_the_request": {
+  "ceremony": "correct package reaches S7_PRE_ACCESS_READY unconsumed both offline and networked; stale identity refuses at S0, self-disagreement at S0, contract drift at S1, config drift at S2; no case reached S8 or S9; zero artifacts written; the staged package is byte-identical afterwards.",
+  "governing_records": {
+   "ActionsVocabularyCensus_v1.0": "a6f3d678...",
+   "DryPreflightCeremony_v3.5": "349eb8e8...",
+   "ImplementationFindings_v1.0": "7f77a914...",
+   "SemanticReconciliationMatrix_v1.1": "95ae21ba...",
+   "SemanticReconciliationMatrix_v1.2": "9e1f7830...",
+   "StagingRecord_v3.5": "f2fcebef...",
+   "UnitRefusalGovernance_v1.0": "d03ae667...",
+   "UnitRefusalGovernance_v1.1": "1a557a64..."
+  },
+  "qualification": "phase3b 328 passed, including 29 real-bridge semantic-path cases; ruff clean; mypy at its pre-existing 10-error baseline.",
+  "semantic_repair": "the defect that spent opening 3 was the BRIDGE, not the producer: a whole-run refusal keyed on a corporate-action row whose economics had no bearing on the run. v3.5 gives each kind exactly one channel and moves refusal to the scope of the uncertainty.",
+  "staging": "four-way identity agreement proven inside the bound image, --network=none."
+ },
+ "freeze_condition": "the readiness determination binds THIS package. Code, configuration, the staged package, the census, the matrices and the ceremony logic must not change between the adjudication and the grant. Any such change INVALIDATES readiness and requires re-binding rather than being folded into opening 4.",
+ "grants": "NOTHING. This is a REQUEST, not an authorization. No opening is granted, no sealed object is opened, and nothing is consumed by this record. The opening occurs only under a separate owner grant.",
+ "previous_openings": {
+  "attempt_1": "f35e8209... - eight objects read, output directory never created, the publication exception replaced the primary failure.",
+  "attempt_2": "487c7f8d... - REFUSED at S9 in 4.12 s on a date-bound guard comparing a tz-aware timestamp against a date-granularity commitment.",
+  "attempt_3": "7c972455... - REFUSED at S9 in 10.93 s at candidate construction, on conflicting corporate-action kinds for (BKR, 2019-10-20).",
+  "count": 3,
+  "history_not_mutated": "all three remain permanently recorded as spent. Nothing here reclassifies any of them as unspent.",
+  "is_a_fourth_statistical_trial": false,
+  "no_interpretable_result_ever_existed": "no Sharpe, return, ranking or configuration comparison was ever produced or observed. All three failures were pre-research execution mechanics.",
+  "status": "all SPENT",
+  "why_not": "it would be the FIRST statistical trial. Three openings were spent without any validation result existing, so no research observation has ever been made."
+ },
+ "produced_at": "2026-08-14T00:00:00Z",
+ "record_identity_sha256": "7f0ecc621b660f660630e31209a823f3b96948a5c5535ca73638b13224551126",
+ "record_type": "MR002_Phase3B_FourthOpeningRequest",
+ "requested_classification": "REPLACEMENT_FOR_PRE_RESEARCH_EXECUTION_REFUSAL",
+ "requested_consumption_rule": {
+  "automatic_retry": "PROHIBITED",
+  "consumed_by": "the FIRST SUCCESSFUL PINNED VALIDATION GetObject",
+  "first_consuming_read": "validation/actions.parquet",
+  "first_read": "reference/crosswalk.parquet - reference, does NOT consume",
+  "if_it_refuses_before_the_first_validation_read": "the opening REMAINS UNSPENT",
+  "if_the_first_validation_object_is_read": "the opening is SPENT regardless of what follows",
+  "read_order": "sorted by key, so the four reference objects precede the six validation ones",
+  "runtime_pinned_objects": 8
+ },
+ "requested_post_run_obligations": [
+  "restore DenyAssumingTheValidationReaderRole IMMEDIATELY on terminal completion, whether PASS, FAIL, REFUSED or failure",
+  "verify the host policy is BYTE-IDENTICAL to the pre-release capture",
+  "publish the unit-refusal census and the materiality gate results alongside the research outcome; a completed run whose gates breached is NOT a research verdict",
+  "do NOT open OOS. Report the validation outcome under the frozen preregistration first; whether Config B earns the right to cross into OOS is a separate owner decision."
+ ],
+ "residual_risk_disclosed": {
+  "1_MISSING-PRICE-REFUSAL-TYPING": "LIVE whole-run abort path. A universe symbol absent from the prices table raises a bare KeyError belonging to NO governed refusal class, so it escapes the per-unit catch and would terminate the run as an unhandled exception AFTER the opening is spent. Reachability is UNMEASURED. Deliberately not typed - the owner ruled it a separate adjudication - but it is the single most likely way opening 4 could fail the same way the first three did.",
+  "2_ANCHOR-ACCEPTANCE-SCOPE": "LIVE whole-run abort path. One anchor row missing its acceptance timestamp aborts the entire run for a per-symbol condition. Deliberately unchanged.",
+  "3_materiality_gates_can_make_a_completed_run_inadmissible": "per the frozen GATE-TIMING ruling, a gate breach yields execution_status=COMPLETED, qualification_status=FAIL, evidence_admissible=false. The opening is spent either way. An unregistered action kind present in the VALIDATION window but absent from the development window would breach at incidence 1, and that vocabulary cannot be censused in advance by any permitted means.",
+  "4_halt_evidence_gap": "HALT-EVIDENCE-INPUT-GAP remains OPEN: the trading_halt census class is zero BY CONSTRUCTION, not by observation. A zero there must not be read as 'no halts occurred'.",
+  "5_what_the_ceremony_cannot_prove": "the dry preflight validates the PRE-ACCESS chain only. Everything from S8 onward - reader assumption, the eight pinned reads, candidate construction over the real validation partition, enrichment, census and publication - has never executed successfully end to end on this or any package.",
+  "why_this_section_exists": "three openings have been lost to conditions that looked settled beforehand. A request that presents only its green evidence would be repeating the pattern that produced them. None of the following is a reason to withhold the grant; all of it is material to granting with open eyes."
+ },
+ "state_at_submission": {
+  "fourth_opening": "REQUESTED, NOT GRANTED",
+  "host": "i-00c1034f7026db45e RUNNING, left up per the owner ruling pending this decision",
+  "oos": "PROHIBITED - remains sealed",
+  "openings_spent": 3,
+  "research_verdict": "NONE",
+  "window": "validation ONLY"
+ },
+ "submitted_under": "owner adjudication 2026-08-14 (PM, sixth set): v3.5 ceremony package PASS, READY FOR FOURTH-OPENING REQUEST, with request explicitly distinguished from grant.",
+ "supersedes_execution_identity": {
+  "classification": "SUPERSEDED_BRIDGE_SEMANTICS_DEFECTIVE",
+  "v34": "7c97245505b8048b83a5ea5757fcd965784a49081964b2ad76ed4163d119d994"
+ },
+ "version": "1.0",
+ "what_this_request_does_not_seek": [
+  "any OOS access",
+  "more than one execution",
+  "automatic retry past the first successful validation read",
+  "any parameter, gate, economics or preregistration change",
+  "rescoping of ANCHOR-ACCEPTANCE-SCOPE or MISSING-PRICE-REFUSAL-TYPING",
+  "a 429-width capacity rerun, which the owner has ruled NOT REQUIRED"
+ ]
+}
