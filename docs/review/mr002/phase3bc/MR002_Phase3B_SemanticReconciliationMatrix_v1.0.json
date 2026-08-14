@@ -1,0 +1,99 @@
+{
+ "artifact_kind": "SEMANTIC_RECONCILIATION",
+ "audit_stopping_boundary_reached": "every ACTIONS kind known to be present in the governed feed has a documented semantic role, and every registered enrichment fact has a documented production provenance/reachability disposition.",
+ "authorized_by": "owner rulings 2026-08-14 - bounded five-field reachability reconciliation and complete known-ACTIONS semantic-role reconciliation",
+ "boundary": "Zero-data. NO sealed access was used or required. No signal generation, statistics, portfolio logic or OOS was inspected. No code was changed to produce this record.",
+ "classifier_rule": {
+  "composition": "NOT AUTHORIZED. Differing economically consumed kinds - including merger/acquisition directional pairs - continue to REFUSE. Complementarity in the raw vendor vocabulary is insufficient authorization to compose economic semantics.",
+  "duplicate_same_consumed_kind": "existing permitted behaviour retained",
+  "shape": "known economic -> consume; proven upstream-only metadata -> exclude; known feed kind with unresolved Phase-3B semantics -> preserve existing inert behaviour with NO new effect; anything else -> REFUSE",
+  "why_the_third_category_exists": "a closed classifier that only knew consume-or-refuse would turn previously inert rows (delisted, spunofffrom, bankruptcy, regulatorychange) into run-aborting refusals, moving the next sealed-path failure rather than removing it. The audit itself must not become a behavioural change."
+ },
+ "matrix_a_execution_facts": {
+  "delisted_at_or_before_t_plus_1": {
+   "disposition": "PRODUCTION_FACT_REQUIRED",
+   "evidence": "eligibility.py:166-170 keys terminal-event treatment on ACTIONS kinds including delisted (merger / delisting / reorganization; open positions exit at the next open); dataset.py:303 applies the same tuple with the predicate action_date <= session_date; execution.py:139 delisting_value() carries the registered priority order.",
+   "governing_source": "ACTIONS delisted, per the frozen MR-002 terminal-event rule",
+   "scope_limit": "wire the existing governed event into the existing boolean. Do NOT derive a vendor delisting return and do NOT invent a price. The enrichment code already knows what to do with the boolean: STOP_DELISTING. The research-layer rule remains the semantic authority.",
+   "temporal_rule": "action_date <= session(t+1), i.e. AT OR BEFORE - which is what the fact name states and what dataset.py:303 implements. NOT exact equality with t+1."
+  },
+  "future_information": {
+   "disposition": "UPSTREAM_CONTROLLED",
+   "do_not": "do NOT populate the boolean merely to make its branch reachable.",
+   "evidence": "the census counter (census.py:124) is sum(1 for r in records if r.ExecutionEnrichmentCode == FUTURE_INFORMATION) - it counts EMITTED codes, so it is an audit counter over _classify() output, not an independent detector.",
+   "finding": "the protection is live and operates BY EXCEPTION; only the _classify() branch reading the unpopulated boolean is unreachable.",
+   "governing_control": "the live mutation-detection raise at enrichment.py:250 - INTEGRITY_STOP:FUTURE_INFORMATION_DETECTED: enrichment mutated the bound decision record"
+  },
+  "halted": {
+   "disposition": "REGISTERED_BUT_UNREACHABLE_UNDER_CURRENT_BOUND_INPUTS",
+   "do_not": "do NOT synthesize halt status from price gaps, missing opens or any proxy. An absent close currently classifies as UNEXPLAINED_HOLE and fails closed (INTEGRITY_STOP:OLS_WINDOW_INCOMPLETE). Reinterpreting such gaps as halts would convert an integrity refusal into an ordinary exclusion, which the frozen OWNER-C note in returns.py exists to prevent.",
+   "evidence": "assembly.classify() is the ONLY producer of stock_status in the bound path. Its docstring states: PRESENT / YOUNG / UNEXPLAINED_HOLE, keyed off the first present session. Mirrors the Phase 2B path exactly. HALT_WITH_EVIDENCE is not produced here because that path does not produce it; adding it would be a divergence, not an improvement. The implementation derives status purely from np.isfinite(closeadj).",
+   "precondition_result": "FAILED",
+   "precondition_tested": "prove the bound production inputs populate a calendar-aligned stock_status[t+1] carrying CellStatus.HALT_WITH_EVIDENCE",
+   "removed_from_v35_scope": true,
+   "timing_finding": "the producer halt control covers the SIGNAL WINDOW [t-124, t] (classify_stock_window over stock_status[t-124 : t+1], which excludes index t+1), whereas ExecutionFacts.halted concerns the t+1 EXECUTION session. They are different controls over different sessions, so the producer control does NOT cover the enrichment fact. This is why halted is not UPSTREAM_CONTROLLED."
+  },
+  "identity_transition": {
+   "disposition": "UPSTREAM_CONTROLLED",
+   "do_not": "do NOT populate the enrichment boolean from ticker-change rows - that would double-consume one identity event and could turn AUTHORIZED continuity into an enrichment stop.",
+   "evidence_chain": "ACTIONS tickerchangefrom -> altdata/mr002/crosswalk.py:158-175 builds crosswalk spans with relationship_type=ticker_rename -> spq1/adapters/identity_adapter.py::_REL (marked FROZEN) maps ticker_rename -> (ticker_change, history_continuity_authorized=True) -> security_identity.py fails closed on ambiguous lineage or unauthorized continuity with INTEGRITY_STOP:SECURITY_IDENTITY_AMBIGUOUS, BEFORE a candidate exists.",
+   "frozen_rule": "security_identity.py (SIG-28/29, Ruling 8/12): a ticker change KEEPS the permanent id when the registry records economic continuity.",
+   "governing_control": "PitIdentityRegistry.resolve_permanent_id()",
+   "invariant": "Any lineage ambiguity or unauthorized continuity must fail before candidate emission; therefore no successfully emitted candidate can independently carry an unresolved identity transition into enrichment."
+  },
+  "open_basis_conflict": {
+   "disposition": "REGISTERED_BUT_UNREACHABLE_UNDER_CURRENT_BOUND_INPUTS",
+   "do_not": "do NOT invent a trigger. A separate governed open-basis identity source would be a new governed change.",
+   "evidence": "no governed source was found capable of setting it. The bound price inputs carry no independent adjusted/open-basis identity to compare. The only adjusted-vs-unadjusted governance located (liquidity_adapter.py:26) concerns ADV, not the open basis.",
+   "note": "STOP_PRICE_CONFLICT REMAINS REACHABLE through its other production branches (execution_session_ne_registered_next, missing_or_conflicting_open). Only the adjusted_vs_unadjusted_open_identity branch is zero by construction.",
+   "registered_edge_case": "adjusted_vs_unadjusted_open_identity -> EXECUTION_ENRICHMENT_STOP:PRICE_CONFLICT"
+  }
+ },
+ "matrix_b_actions_semantic_roles": {
+  "__genuinely_unknown_label__": "UNSUPPORTED -> REFUSE (fail closed)",
+  "acquisitionby": "ECONOMICALLY_CONSUMED (also appears in the research-layer terminal-exit tuple; that second meaning does NOT create another Phase-3B fact)",
+  "acquisitionof": "ECONOMICALLY_CONSUMED",
+  "bankruptcy": "KNOWN_FEED_KIND / PHASE3B_SEMANTICS_UNRESOLVED / NO_NEW_EFFECT",
+  "cash_only_acquisition": "ECONOMICALLY_CONSUMED",
+  "delisted": "UPSTREAM_OTHER_CONTROL -> now wired to delisted_at_or_before_t_plus_1 (v3.5)",
+  "dividend": "ECONOMICALLY_CONSUMED",
+  "merger": "ECONOMICALLY_CONSUMED",
+  "mergerfrom": "ECONOMICALLY_CONSUMED",
+  "mergerto": "ECONOMICALLY_CONSUMED",
+  "regulatorychange": "KNOWN_FEED_KIND / PHASE3B_SEMANTICS_UNRESOLVED / NO_NEW_EFFECT",
+  "spinoffdividend": "ECONOMICALLY_CONSUMED",
+  "split": "ECONOMICALLY_CONSUMED",
+  "spunofffrom": "KNOWN_FEED_KIND / PHASE3B_SEMANTICS_UNRESOLVED / NO_NEW_EFFECT - do NOT equate to spinoffdividend",
+  "stock_and_cash_acquisition": "ECONOMICALLY_CONSUMED",
+  "tickerchangefrom": "UPSTREAM_IDENTITY_LINEAGE_METADATA - excluded from the economic map",
+  "tickerchangeto": "UPSTREAM_IDENTITY_LINEAGE_METADATA - excluded from the economic map"
+ },
+ "open_item_halt_evidence_input_gap": {
+  "classification": "GOVERNED COVERAGE LIMITATION / VALIDATION-SURFACE GAP - not automatically an implementation defect",
+  "id": "HALT-EVIDENCE-INPUT-GAP",
+  "if_no": "the correct next work is NOT to infer halts from existing prices; it is to design and bind a proper halt-evidence source.",
+  "if_yes": "record the limitation and continue.",
+  "single_question_for_acceptance": "Is Phase 3B intentionally scoped to proceed without trading-halt evidence, with that validation surface explicitly excluded?",
+  "statement": "Phase 3B has no governed input capable of producing HALT_WITH_EVIDENCE. Therefore ExecutionFacts.halted is REGISTERED_BUT_UNREACHABLE, and the trading_halt census class is zero by construction. Any future activation requires a separately governed halt-evidence source and contract change. Missing-price states must NOT be reinterpreted as halt evidence.",
+  "status": "OPEN - awaiting the architectural/governance answer",
+  "why_it_matters": "a zero count could otherwise be misread as -we observed the universe and found no halts- when the truth is -this input contract cannot represent halts at all-."
+ },
+ "produced_at": "2026-08-14T14:50:38Z",
+ "purpose": "Locate every registered Phase-3B enrichment fact at the layer where its control actually operates, and give every known ACTIONS feed kind a governed semantic role, so the v3.5 bridge repair is scoped from frozen evidence rather than from field names.",
+ "record_identity_sha256": "4ef8aeb15af9820e058ab60b75de6ec8c4a62ab44aa96a6355dfb0df4d86819c",
+ "record_type": "MR002_Phase3B_SemanticReconciliationMatrix",
+ "v35_authorized_scope": [
+  "tickerchangefrom / tickerchangeto excluded from the economic-action scalar map",
+  "delisted wired into delisted_at_or_before_t_plus_1 using the frozen at-or-before rule",
+  "closed ACTIONS classifier with the four-category rule above"
+ ],
+ "v35_explicitly_unchanged": [
+  "identity_transition remains upstream-controlled",
+  "future_information remains protected by mutation detection",
+  "open_basis_conflict remains registered-but-unreachable",
+  "halted becomes registered-but-unreachable and is OUT of v3.5 scope",
+  "differing consumed kinds still refuse; no composition",
+  "no new research or economic rule"
+ ],
+ "version": "1.0"
+}
