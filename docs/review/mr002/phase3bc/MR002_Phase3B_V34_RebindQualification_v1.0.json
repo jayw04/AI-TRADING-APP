@@ -1,0 +1,118 @@
+{
+ "429_repeat": {
+  "owner_ruling": "neither date normalisation, a one-time pre-access identity comparison, nor two additional pre-access equality checks materially change memory or runtime scaling",
+  "required": false
+ },
+ "artifact_kind": "QUALIFICATION_EVIDENCE",
+ "authorizes": "NOTHING. One further replacement opening remains a separate owner authorization.",
+ "boundary": "Zero-data. No sealed object, no credential, no reader assumption, no opening. Every host check ran --network=none with AWS_EC2_METADATA_DISABLED=true. The IAM latch is CLOSED and was never released.",
+ "produced_at": "2026-08-14T03:11:35Z",
+ "qualifies": {
+  "code_archive": "a77f3460712cb11f37dc2a0a29ba0e9ad5c86716a67ff685e16f81a38bea9b4a",
+  "code_checkpoint": "06db800884477f955fa70cc5b527fc0389365cc8",
+  "code_identity": "7c97245505b8048b83a5ea5757fcd965784a49081964b2ad76ed4163d119d994",
+  "supplement": "MR002_Phase3B_SupplementalExecutionIdentity_v3.4.json"
+ },
+ "record_type": "MR002_Phase3B_V34_RebindQualification",
+ "required_proofs": {
+  "10_publication_and_reader_transition_stay_green": {
+   "result": "PASS"
+  },
+  "1_full_regression_green": {
+   "result": "PASS",
+   "totals": {
+    "errors": 0,
+    "failures": 0,
+    "skipped": 0,
+    "tests": 299
+   }
+  },
+  "2_real_parquet_DATE_round_trip": {
+   "note": "fixtures now write real Arrow date32; the parquet suite decodes real DATE columns through the whole PQ.decode path",
+   "result": "PASS"
+  },
+  "3_real_timestamp_round_trip_for_sic_observations": {
+   "note": "real Arrow timestamp(us, tz=UTC) at the incident endpoints, through PQ.decode",
+   "result": "PASS"
+  },
+  "4_string_availability_value_refuses": {
+   "cases": [
+    "2019-10-03 10:03:29+00:00",
+    "2019-10-03T10:03:29Z",
+    "2019-10-03 (bare date literal)"
+   ],
+   "result": "PASS"
+  },
+  "5_stale_code_identity_refuses_pre_access": {
+   "on_the_host": {
+    "disposition": "REFUSED",
+    "opening_consumed": false,
+    "state": "S0_INIT"
+   },
+   "result": "PASS"
+  },
+  "6_mutated_contract_identity_refuses_pre_access": {
+   "on_the_host": {
+    "disposition": "REFUSED",
+    "error": "contract identity drift: run_specification",
+    "opening_consumed": false,
+    "state": "S1_CODE_IDENTITY_VERIFIED"
+   },
+   "result": "PASS",
+   "unit_level": "parametrized over all EIGHT contract identities"
+  },
+  "7_mutated_config_mapping_refuses_pre_access": {
+   "on_the_host": {
+    "disposition": "REFUSED",
+    "error": "configuration mismatch: B 2.01 != 2.00",
+    "opening_consumed": false,
+    "state": "S2_CONTRACT_IDENTITY_VERIFIED"
+   },
+   "result": "PASS",
+   "unit_level": "A, B and C each mutated"
+  },
+  "8_correct_package_reaches_pre_access_ready": {
+   "negative_control": "--network=none AND AWS_EC2_METADATA_DISABLED=true",
+   "on_the_host": {
+    "disposition": "PASS",
+    "opening_consumed": false,
+    "state": "S7_PRE_ACCESS_READY"
+   },
+   "result": "PASS"
+  },
+  "9_negatives_prove_where_they_stopped": {
+   "asserted": [
+    "disposition REFUSED",
+    "opening_consumed False",
+    "state not in S8_READER_ASSUMED / S9_OPENING_CONSUMED",
+    "reader.reads empty",
+    "sealed_reads == 0"
+   ],
+   "result": "PASS"
+  }
+ },
+ "staging_control": {
+  "byte_exactness": "the configuration is written LF-exact in binary. A first attempt was written in text mode and Windows CRLF translation made the staged hash differ from the recorded one; caught by re-reading from the host, corrected, and re-staged.",
+  "four_way_identity_proof": {
+   "all_four_agree": true,
+   "archive_derived_closure_identity": "7c97245505b8048b83a5ea5757fcd965784a49081964b2ad76ed4163d119d994",
+   "config_code_identity": "7c97245505b8048b83a5ea5757fcd965784a49081964b2ad76ed4163d119d994",
+   "config_execution_closure_sha256": "7c97245505b8048b83a5ea5757fcd965784a49081964b2ad76ed4163d119d994",
+   "live_mount_closure_identity": "7c97245505b8048b83a5ea5757fcd965784a49081964b2ad76ed4163d119d994",
+   "note": "the archive-derived identity is computed by re-hashing the members INSIDE the staged tarball, independently of the extracted tree"
+  },
+  "frozen_authorities_verified": {
+   "config_config_mapping_equal_frozen": true,
+   "config_contract_identities_equal_frozen": true
+  },
+  "method": "archive and configuration transferred and written in ONE operation, then re-read from the host and hashed",
+  "staged_archive_sha256": "a77f3460712cb11f37dc2a0a29ba0e9ad5c86716a67ff685e16f81a38bea9b4a",
+  "staged_config_sha256": "c78d5c63cd053eaa4f4d011fc36cd61755b97de3751bc16e284ecaac8816f272"
+ },
+ "version": "1.0",
+ "what_this_does_not_establish": [
+  "eligibility to consume a further opening - a separate owner authorization",
+  "that the sealed partition decodes past every OTHER structural check",
+  "any research result"
+ ]
+}

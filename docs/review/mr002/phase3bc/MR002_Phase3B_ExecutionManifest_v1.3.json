@@ -1,0 +1,253 @@
+{
+ "artifact_kind": "GENERATED_EXECUTION_CONFIGURATION",
+ "authorization": {
+  "_rev": 1,
+  "granted_at_utc": "2026-08-12T01:28:16Z",
+  "provenance": {
+   "artifact": "docs/review/mr002/phase3bc/MR002_Phase3BC_ValidationAuthorizationState_v1.0.json",
+   "artifact_file_sha256": "702354acdfe109c633e5deb3e3bde2fb8c608a715f496502e31dc9f4c5c6b10b",
+   "note": "the CAS is file-based, so its authority rests on Git history rather than an atomic store. Recorded as a fact, not asserted as equivalent.",
+   "store": "Git-tracked file, compare-and-set by scripts/mr002_custody/p12_authorization.py"
+  },
+  "validation_authorization": true
+ },
+ "boundary": "Zero-data. No AWS call, no sealed object, no credential. The opening remains UNSPENT.",
+ "configuration": {
+  "config_mapping": {
+   "A": 1.75,
+   "B": 2.0,
+   "C": 2.25
+  },
+  "contract_identities": {
+   "corrected_development_reconciliation": "5904e04b24bab2320cd773e82d8803870d0188ec4408cc0cf88c0ab7913d70bc",
+   "earnings_control_census": "d132684aea4e97e31294d647ea10fd929e229b516100d861a529474329a509c1",
+   "execution_boundary_clarification": "5f54d85b1ff9193ddefdc5a7639d02e8406e28089248e92d211f47c1f300d88f",
+   "p12_authorization_grant": "440e96e15bda2f8c4eaf991ce8e45190392607bb16bc3ff803f0e6bdac9137f5",
+   "reference_manifest": "22166af451536b3c2f027addccfbbc5b18d7b6f1892bf4f64faa84f2d21860d9",
+   "registered_session_list": "d11d3561e0b814d3a2fc5e5baeeb3fb76274dbf647cbb4ae177d9c21ad45dbdc",
+   "run_specification": "2a1fb7755a57b97f9831cf257c6e60c8bd5baf77eab39541b75ae88c27cb5b43",
+   "validation_input_identity_registration": "8578707bc94084c7ed30c9f30b3a001c47b6144c0fcafb9c03639424f779ca56"
+  },
+  "expected_runtime_facts": {
+   "boto3": "1.43.70",
+   "botocore": "1.43.70",
+   "host_instance_id": "i-00c1034f7026db45e",
+   "image_digest": "sha256:194efbdf96ee11c19f3554dcf1b1097958cdc347bcdc1637504b441237432f51",
+   "numpy": "2.2.6",
+   "pandas": "3.0.5",
+   "pyarrow": "20.0.0",
+   "python_version": "3.13.14",
+   "scipy": "1.18.0"
+  },
+  "identities": {
+   "code_identity": "7c97245505b8048b83a5ea5757fcd965784a49081964b2ad76ed4163d119d994",
+   "governing_identity": "2a1fb7755a57b97f9831cf257c6e60c8bd5baf77eab39541b75ae88c27cb5b43",
+   "runtime_identity": "sha256:194efbdf96ee11c19f3554dcf1b1097958cdc347bcdc1637504b441237432f51"
+  },
+  "observed_identities": {
+   "dependency_bundle_sha256": "d5d21eadb52ee5bccc85df832d35a060105327a7787808c5c1a6126e7ed9b5a1",
+   "eligibility_evidence_sources": "d2b3e01846e603c172d78f8130ea295836ce852cf859f94ee4df1cf412773f0e",
+   "execution_closure_file_count": 41,
+   "execution_closure_sha256": "7c97245505b8048b83a5ea5757fcd965784a49081964b2ad76ed4163d119d994",
+   "pit_identity_registry": "b711c4d77d7a6bea2c7a51a17098cba992b0cf1b904130f3c052a4249d689ed3",
+   "pit_sector_source": "61e55b4dc167a653fe9d5a9b33f7d1a7c25e4a3bd26f0d4bcd95d06f0fd6bd4c",
+   "price_return_adjustment_policy": "v3",
+   "sealed_input_sha256": {
+    "reference/crosswalk.parquet": "c75fe1b1362c4a6243358a1b6d68c6c5896f0823a7efe234ed0db5244dce3b16",
+    "reference/predecessor_overrides.parquet": "1395263b28a24c1a68af8acaf474b4c285fa313009482004b4c1b6855d8fc2ac",
+    "reference/security_sector_overrides.parquet": "0790f1c5fd1ce360633c4d48cade8b591169452143c6d392109c95c5d997b5bd",
+    "reference/sic_mapping.parquet": "292c36a82896169f5420932af4351a822452f3a909df69b8306e3e48d2d62035",
+    "validation/actions.parquet": "5707558f11c4f12bc19ab3ab5cfb309207e7e0429c1469904d83ec619c6b9fc4",
+    "validation/anchors.parquet": "68d5132fb39edb5c1c42d41d85ba5f2d955845aaa059de4edf0acd757589e2f1",
+    "validation/etf_prices.parquet": "a3da952c15c9cd976639513e821a9a7fc1d5236724f6763c325770fc507b3557",
+    "validation/prices.parquet": "9417d05ebdd54f34172cc3ad3dcbb4e1710b1f36923f98ec98b8fb82fe951de2",
+    "validation/sic_observations.parquet": "67dc057ffd7faa93bf630ecc8de3b46f243b345116b9a6ed1c09494229822144",
+    "validation/universe.parquet": "f369f9f6601a281b7fbe6faace8ccb14e95a5d5b020a97bd869ba57512c6b857"
+   },
+   "sector_etf_proxy_mapping_table": "e2bf0d41445e4f4cb93f6a18dd43256b70647f1ec811536bd4059f0b25a37a79",
+   "sector_etf_source_series": "b51daaf30b6d139269299c487cf880242cd4c7a2aaf82c3baa4481d452f42229",
+   "spy_total_return_series": "503ff556afdf942ac8d25af0ee3a8eed97b357cbcf57f57633aa017d6001367a"
+  },
+  "run_id": "MR002-SPQ1-P3B-VALIDATION-V1",
+  "runtime_facts": {
+   "boto3": "1.43.70",
+   "botocore": "1.43.70",
+   "host_instance_id": "i-00c1034f7026db45e",
+   "image_digest": "sha256:194efbdf96ee11c19f3554dcf1b1097958cdc347bcdc1637504b441237432f51",
+   "numpy": "2.2.6",
+   "pandas": "3.0.5",
+   "pyarrow": "20.0.0",
+   "python_version": "3.13.14",
+   "scipy": "1.18.0"
+  },
+  "window": "validation"
+ },
+ "generated_not_authored": "every field is a projection of a governed artifact or a live materialization observation. A field whose provenance cannot be traced REFUSES; there is no best-available fallback.",
+ "provenance": {
+  "config_mapping": {
+   "artifact": "mr002_valoos_portfolio_identity.Z_ENTRY, inside the bound evaluator image sha256:194efbdf96ee11c19f3554dcf1b1097958cdc347bcdc1637504b441237432f51",
+   "field": "Z_ENTRY"
+  },
+  "contract_identities": {
+   "corrected_development_reconciliation": {
+    "artifact": "docs/review/mr002/phase3bc/MR002_Phase3B_CorrectedDevelopmentReconciliation_v1.0.json",
+    "artifact_file_sha256": "acbcd63deb4efa3bada68c75fcbed7be57bbbe48bf905968bd46c2f67c03fea2",
+    "field": "record_identity_sha256"
+   },
+   "earnings_control_census": {
+    "artifact": "docs/review/mr002/phase3bc/MR002_Phase3B_EarningsControlStructuralCensus_v1.0.json",
+    "artifact_file_sha256": "4e776ebe97e06b011d7c96d0e85dba883496f9eb1f5a94f81e5b9fe33c47e0fd",
+    "field": "record_identity_sha256"
+   },
+   "execution_boundary_clarification": {
+    "artifact": "docs/review/mr002/phase3bc/MR002_Phase3B_ExecutionBoundaryClarification_v1.0.json",
+    "artifact_file_sha256": "e07f7b666d37c035c1c1ac1caef62890b36b7b1b355f593509a3974e5a0f3889",
+    "field": "record_identity_sha256"
+   },
+   "p12_authorization_grant": {
+    "artifact": "docs/review/mr002/phase3bc/MR002_Phase3BC_P12AuthorizationGrant_v1.0.json",
+    "artifact_file_sha256": "1aef7bcb5eeebadc92ea9dee525b43244cd14d160e37f43b0edab7fd45addbf9",
+    "field": "grant_identity_sha256"
+   },
+   "reference_manifest": {
+    "artifact": "docs/review/mr002/phase3bc/MR002_Phase3B_ReferenceManifest_v1.0.json",
+    "artifact_file_sha256": "fc8e91e9bc78faa6936dc68b82414a6a0a500f0c41c4d303419a2157a7ce7d35",
+    "field": "record_identity_sha256"
+   },
+   "registered_session_list": {
+    "artifact": "docs/review/mr002/phase3bc/MR002_Phase3B_RegisteredSessionList_Provenance_v1.0.json",
+    "artifact_file_sha256": "ac401d47e094ef97b8d4216e0a9302eef31d55bf34d6cdbf5b10427eed1c9665",
+    "field": "record_identity_sha256"
+   },
+   "run_specification": {
+    "artifact": "docs/review/mr002/phase3bc/MR002_Phase3B_RunSpecification_v1.0.json",
+    "artifact_file_sha256": "b515e29ec7a25fb98c6725c5bb366d6e11dd3038ceda3f80f27d0738552984af",
+    "field": "record_identity_sha256"
+   },
+   "validation_input_identity_registration": {
+    "artifact": "docs/review/mr002/phase3bc/MR002_Phase3B_ValidationInputIdentityRegistration_v1.0.json",
+    "artifact_file_sha256": "1bdcbcfa00ac61fb26d03d05306da34f743aea8cd5a8744c7a5f008346f0af92",
+    "field": "record_identity_sha256"
+   }
+  },
+  "identities": {
+   "code_identity": {
+    "artifact": "live code mount",
+    "field": "closure_files"
+   },
+   "governing_identity": {
+    "artifact": "docs/review/mr002/phase3bc/MR002_Phase3B_RunSpecification_v1.0.json",
+    "field": "record_identity_sha256"
+   },
+   "runtime_identity": {
+    "artifact": "live runtime",
+    "field": "image_digest"
+   }
+  },
+  "observed_identities": {
+   "dependency_bundle_sha256": {
+    "artifact": "live observation of the read-only dependency mount",
+    "field": "dependency_bundle.wheels"
+   },
+   "eligibility_evidence_sources": {
+    "artifact": "docs/review/mr002/phase3bc/MR002_Phase3B_ValidationInputIdentityRegistration_v1.0.json",
+    "field": "slots.eligibility_evidence_sources.identity"
+   },
+   "execution_closure_sha256": {
+    "artifact": "live observation of the read-only code mount",
+    "derivation": "sha256 over the canonicalised {path: sha256} map, digests taken from git blob bytes so the working tree cannot influence identity",
+    "field": "closure_files"
+   },
+   "pit_identity_registry": {
+    "artifact": "docs/review/mr002/phase3bc/MR002_Phase3B_ValidationInputIdentityRegistration_v1.0.json",
+    "field": "slots.pit_identity_registry.identity"
+   },
+   "pit_sector_source": {
+    "artifact": "docs/review/mr002/phase3bc/MR002_Phase3B_ValidationInputIdentityRegistration_v1.0.json",
+    "field": "slots.pit_sector_source.identity"
+   },
+   "price_return_adjustment_policy": {
+    "artifact": "docs/review/mr002/phase3bc/MR002_Phase3B_ValidationInputIdentityRegistration_v1.0.json",
+    "field": "slots.price_return_adjustment_policy.identity"
+   },
+   "sealed_input_sha256": {
+    "artifact": "docs/review/mr002/phase3bc/MR002_SealedStoreUploadManifest_v1.0.json",
+    "field": "objects"
+   },
+   "sector_etf_proxy_mapping_table": {
+    "artifact": "docs/review/mr002/phase3bc/MR002_Phase3B_ValidationInputIdentityRegistration_v1.0.json",
+    "field": "slots.sector_etf_proxy_mapping_table.identity"
+   },
+   "sector_etf_source_series": {
+    "artifact": "docs/review/mr002/phase3bc/MR002_Phase3B_ValidationInputIdentityRegistration_v1.0.json",
+    "field": "slots.sector_etf_source_series.identity"
+   },
+   "spy_total_return_series": {
+    "artifact": "docs/review/mr002/phase3bc/MR002_Phase3B_ValidationInputIdentityRegistration_v1.0.json",
+    "field": "slots.spy_total_return_series.identity"
+   }
+  },
+  "runtime_facts": {
+   "boto3": {
+    "artifact": "live materialization observation inside the bound image",
+    "field": "boto3"
+   },
+   "botocore": {
+    "artifact": "live materialization observation inside the bound image",
+    "field": "botocore"
+   },
+   "host_instance_id": {
+    "artifact": "live materialization observation inside the bound image",
+    "field": "host_instance_id"
+   },
+   "image_digest": {
+    "artifact": "live materialization observation inside the bound image",
+    "field": "image_digest"
+   },
+   "numpy": {
+    "artifact": "live materialization observation inside the bound image",
+    "field": "numpy"
+   },
+   "pandas": {
+    "artifact": "live materialization observation inside the bound image",
+    "field": "pandas"
+   },
+   "pyarrow": {
+    "artifact": "live materialization observation inside the bound image",
+    "field": "pyarrow"
+   },
+   "python_version": {
+    "artifact": "live materialization observation inside the bound image",
+    "field": "python_version"
+   },
+   "scipy": {
+    "artifact": "live materialization observation inside the bound image",
+    "field": "scipy"
+   }
+  }
+ },
+ "published_at_policy": {
+  "independence": "signal, eligibility, enrichment, admissibility, selection, configuration identity and authorization identity do not depend on it",
+  "present_in_configuration": false,
+  "rationale": "the frozen contract could not have known it prospectively; it is publication metadata, not a research configuration parameter",
+  "retry": "an existing publication record refuses rather than restamping",
+  "stamped_by": "publish.publish_run at the durable publication transition"
+ },
+ "rebind": {
+  "changed_fields": [
+   "configuration.identities.code_identity",
+   "configuration.observed_identities.execution_closure_sha256"
+  ],
+  "code_checkpoint": "06db800884477f955fa70cc5b527fc0389365cc8",
+  "generated_at": "2026-08-14T03:11:35Z",
+  "reason": "v3.4 final bounded correction: independent provenance for contract identities and the A/B/C mapping, and removal of production string compatibility in the date-bound guard.",
+  "supersedes": "MR002_Phase3B_ExecutionManifest_v1.2.json",
+  "unchanged": "dependency bundle, P10 image, reader transition, input identities, governing identities, sealed input identities",
+  "version": "1.3"
+ },
+ "record_identity_sha256": "f9c4cd67331e2043c17ad049c5edf8ed58cda3ca91a504d32d68db2993b51dd6",
+ "record_type": "MR002_Phase3B_ExecutionManifest",
+ "run_id": "MR002-SPQ1-P3B-VALIDATION-V1",
+ "version": "1.0",
+ "window": "validation"
+}
