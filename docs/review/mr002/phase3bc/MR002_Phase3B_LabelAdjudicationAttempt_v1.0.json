@@ -1,0 +1,81 @@
+{
+ "answers_against": {
+  "frame": "MR002_Phase3B_ProspectiveLabelAdjudication_v1.0",
+  "frame_identity": "ed56601ce90352b29840c70c2fb094aa72ff9951a2157698572f6d7647d2a7d8"
+ },
+ "artifact_kind": "ADJUDICATION_ATTEMPT",
+ "custody": "termination protection was ENABLED on i-00c1034f7026db45e (DisableApiTermination=true), converting the owner's do-not-terminate constraint into an enforced API control. The host remains STOPPED and the three large run-4 deliverables remain on EBS vol-074b501ce685e1d94, which is DeleteOnTermination=true.",
+ "grants": "NOTHING.",
+ "outcome": {
+  "behaviour_unchanged": "both keep their current unit-scoped CANDIDATE_REFUSED:ACTION_KIND_UNADJUDICATED refusal. No code changes. No gate changes.",
+  "relation": "REMAINS KNOWN_UNADJUDICATED",
+  "spinoff": "REMAINS KNOWN_UNADJUDICATED",
+  "verdict": "INCOMPLETE - NO MAPPING ADJUDICATED",
+  "why": "Q1 - the vendor's own semantic definition - could not be answered from admissible evidence for either label. Q2, Q3 and Q4 all rest on Q1, so none of them can be answered either. Under the frame, the correct output is to say so."
+ },
+ "produced_at": "2026-08-14T00:00:00Z",
+ "q1_vendor_meaning": {
+  "explicitly_not_used": "a search-engine summary paraphrased Sharadar as covering 'relations between different securities from the same issuer'. That phrasing does NOT appear on any vendor page actually fetched, so it is recorded here as UNVERIFIED and was not used as the basis for any answer. A search snippet is not a data dictionary.",
+  "finding": "the vendor publishes no data dictionary enumerating the `action` values. The narrative list on the prices page names categories - ticker changes, stock splits, cash dividends, spinoffs, ADR ratio changes, listing dates, delisting dates, delist reasons, acquisition counterparties - but does not map them onto the literal label strings the feed emits, and does not mention `relation` at all.",
+  "status": "UNANSWERED for both labels",
+  "what_was_consulted": [
+   "sharadar.com/prices - describes the actions table in narrative form only; its metadata table confirms `value` (numeric) and `contraticker` exist as columns but does not say what either holds per action type",
+   "sharadar.com/docs/actions - documents query parameters, with `action=split` as the only example; contains NO enumeration of action values and NO per-value definitions",
+   "quantrocket.com/sharadar - dataset overview only; no ACTIONS field documentation"
+  ],
+  "what_would_resolve_it": [
+   "the full vendor ACTIONS data dictionary, if one exists behind the subscriber documentation or the Nasdaq Data Link table description",
+   "a direct written answer from the vendor"
+  ]
+ },
+ "q5_evidence_gathered": {
+  "boundary": "DEVELOPMENT partition only, hard-bounded 2013-01-02..2019-10-02, structure only. No price was read. No validation row was read.",
+  "neighbours_for_contrast_only": {
+   "spinoffdividend": "65 rows, value 65 distinct, range 0.58492 to 336.428",
+   "spunofffrom": "14 rows, value 9 distinct, range 0.0 to 1.0"
+  },
+  "note": "structural evidence WAS admissible and was gathered. It is recorded because it genuinely narrows the future adjudication - but it does not answer Q1, and it must not be mistaken for a mapping.",
+  "relation": {
+   "co_occurrence": "88 of 98 appear alone on their (ticker, session); otherwise delisted 5, acquisitionby 3, dividend 2",
+   "contraname_populated": "98 of 98",
+   "contraticker_populated": "98 of 98",
+   "distinct_tickers": 54,
+   "rows": 98,
+   "rows_per_ticker": 1.81,
+   "value_populated": "0 of 98 - the label NEVER carries a numeric value"
+  },
+  "spinoff": {
+   "co_occurrence": "spinoffdividend 69, tickerchangefrom 4, tickerchangeto 4, split 4",
+   "contraticker_populated": "75 of 75",
+   "distinct_tickers": 63,
+   "rows": 75,
+   "value_populated": "75 of 75, 30 distinct values, range 0.0 to 5.6796"
+  }
+ },
+ "q6_refusal_condition": {
+  "note": "the frame states that a mapping with no defined refusal condition is assumption masquerading as classification. Since no mapping is proposed, no refusal condition is proposed either - which is the consistent outcome, not an oversight.",
+  "status": "UNANSWERED, and its absence is itself decisive"
+ },
+ "recommended_next_step_NOT_TAKEN": "obtaining the vendor data dictionary is an owner action - it needs a subscriber documentation route or a direct vendor inquiry, neither of which is an engineering task and neither of which is authorized here. NOTHING is proposed beyond stating that.",
+ "record_identity_sha256": "3734734166b468324dad4fb8ce356bb96091f9bc9f0814366d0a808fb1e9ed49",
+ "record_type": "MR002_Phase3B_LabelAdjudicationAttempt",
+ "unchanged": {
+  "ANCHOR-ACCEPTANCE-SCOPE": "separate, unresolved",
+  "HALT-EVIDENCE-INPUT-GAP": "trading_halt remains zero BY CONSTRUCTION",
+  "MISSING-PRICE-REFUSAL-TYPING": "separate, unresolved",
+  "fifth_opening": "NOT requested, NOT authorized",
+  "gate": "RETAINED UNCHANGED",
+  "openings_spent": 4,
+  "research_verdict": "NONE"
+ },
+ "version": "1.0",
+ "what_this_costs_and_does_not_cost": {
+  "does_cost": "a fifth opening cannot pass the KNOWN_UNADJUDICATED gate while these two labels remain unadjudicated, because the same 30 securities would breach the 5-symbol limb again. Resolving Q1 is therefore on the critical path to any admissible validation evidence.",
+  "does_not_cost": "nothing regresses. Both labels already refuse at unit scope, the run already completes, and the census already reports their incidence. The system is in a correct fail-closed state, not a broken one."
+ },
+ "why_the_structure_is_not_enough": {
+  "the_same_applies_to_spinoff": "69 of 75 co-occurrences with spinoffdividend make Q4 unavoidable, but they do not reveal whether `spinoff` is the event and `spinoffdividend` the consideration, whether they are redundant encodings, or whether they are independent facts that happen to share a session. The value ranges differ in character - 0.0 to 5.68 against 0.58 to 336.43 - which is suggestive and nothing more. Name similarity to `spinoffdividend` and `spunofffrom` is prohibited as evidence, and magnitude patterns are not a substitute for a definition.",
+  "the_tempting_inference": "`relation` never carries a value and always carries a contraticker, so it looks like a non-economic annotation - which would make Q3 'NONE' and close the label quickly.",
+  "why_that_is_refused": "absence of a numeric value does NOT imply absence of execution consequence. An identity-changing event carries no value either, and identity changes have among the largest execution consequences in this contract - STOP_IDENTITY_CONFLICT outranks everything except future-information. A label that links two tickers is exactly the shape an identity or lineage event takes. Treating it as inert on the strength of a null column would be the same class of error as inferring a halt from a missing close: reading a semantic conclusion off a structural absence."
+ }
+}
