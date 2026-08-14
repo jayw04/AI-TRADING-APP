@@ -1,0 +1,72 @@
+{
+ "artifact_kind": "EXECUTION_IDENTITY_REBIND_AND_STAGING",
+ "authorized_by": "owner ruling 2026-08-14 (PM, fourth set): v3.5 ACCEPTED FOR STAGING; proceed with Step 10 rebind + stage as ONE unit, then Step 11.",
+ "boundary": "Staging and identity verification ONLY. The Phase 3B entrypoint was NEVER invoked. No sealed object was opened, no reader was assumed, nothing was consumed. Openings spent remains 3; research verdict remains NONE.",
+ "four_way_identity_proof": {
+  "additional_checks": {
+   "closure_file_count": "41 live == 41 archive == 41 declared",
+   "config_mapping_equals_frozen_authority": true,
+   "contract_identities_equal_frozen_authority": true,
+   "no_CR_bytes_in_the_staged_config": true,
+   "superseded_v34_identity_absent_from_the_config": true
+  },
+  "executed": "INSIDE the bound image, --network=none",
+  "image": "mr002-evaluator-runtime:candidate = sha256:194efbdf96ee11c19f3554dcf1b1097958cdc347bcdc1637504b441237432f51, which equals the configuration's runtime_identity and runtime_facts.image_digest",
+  "result": "ALL FOUR EQUAL ef12de6d...",
+  "sources": {
+   "1_config_declared": "identities.code_identity",
+   "2_config_observed": "observed_identities.execution_closure_sha256",
+   "3_archive_derived": "members re-hashed from INSIDE the staged tarball, independent of the extracted tree",
+   "4_live_mount": "roster.closure_identity() over the bytes that would actually execute"
+  },
+  "why_four_and_not_two": "the sources must be genuinely independent. On 2026-08-14 the entrypoint passed R.verify() its own current_roster(), so the check compared the live closure against ITSELF and was structurally incapable of failing; a stale configuration passed S1 and the opening was spent before anything noticed."
+ },
+ "grants": "NOTHING. Staging evidence only.",
+ "not_done_and_deliberately_so": {
+  "dry_preflight_to_S7": "NOT RUN. The v3.4 staging included a dry launch to S7_PRE_ACCESS_READY plus three negative controls. It is available and it does not consume an opening - the runner takes stop_at for exactly this - but it invokes the entrypoint and the credential path, and it was not part of what Step 10 was asked to do. Offered rather than taken.",
+  "host_state": "the host was ALREADY RUNNING when this work began and was left running. Standing practice is to stop it when idle; it was not stopped here because Step 11 may follow immediately, and that is the owner's call, not a default.",
+  "step_11": "the fourth-opening request is NOT made by this record."
+ },
+ "package": {
+  "archive": "code_v35.tar.gz",
+  "archive_bytes": 68548,
+  "archive_sha256": "32800572384cbaa37f5909c06df9b2d12d17646959abb328bdbeb5248810bb9e",
+  "code_checkpoint": "cdbe43f - feat(mr-002): v3.5 bridge repair",
+  "member_root": "apps/backend (the directory containing the app package)",
+  "members": 41
+ },
+ "produced_at": "2026-08-14T00:00:00Z",
+ "record_identity_sha256": "f2fcebef169aef1ebb1b7fdb3802bf3d12ec660ff51e899928e38647702d7c83",
+ "record_type": "MR002_Phase3B_StagingRecord",
+ "staged_as_one_operation": {
+  "host": "i-00c1034f7026db45e (mr002-phase3c-run-host, c6a.xlarge)",
+  "mechanics": "one SSM invocation: refuse if /opt/mr002/v35 exists; decode the archive; verify its sha256 AFTER transfer before extracting; extract; copy the v34 inputs; patch the two scalars; re-read and hash.",
+  "staged_tree": "/opt/mr002/v35 - apps/backend, inputs, code_v35.tar.gz",
+  "why": "v3.2 staged code and configuration independently, a stale configuration went undetected, and the run spent a governed opening while declaring an identity that was not the one executing. Archive and configuration now land together or not at all."
+ },
+ "staged_configuration": {
+  "bytes": 3896,
+  "fields_patched": [
+   "identities.code_identity",
+   "observed_identities.execution_closure_sha256"
+  ],
+  "guard": "the patch refused unless EXACTLY two occurrences of the superseded identity were present, and refused on any CR byte before or after the write.",
+  "how_it_was_changed": "PATCHED, not replaced: a literal substitution of the two 64-hex identity scalars, leaving every other byte untouched. The staged config is NOT the ExecutionConfiguration - it also carries run_id, window, runtime_facts and the sealed input digests - and a JSON round-trip would have rewritten bytes no ruling authorised anyone to touch. The byte length is unchanged at 3896 precisely because the substitution is hex-for-hex.",
+  "path": "/opt/mr002/v35/inputs/config.json",
+  "sha256": "16a25ac9d41e44d397169cb35bdb3924291f234f50299c25f8f0516ba50bc1f7",
+  "superseded_config_sha256": "c78d5c63cd053eaa4f4d011fc36cd61755b97de3751bc16e284ecaac8816f272"
+ },
+ "state": {
+  "fourth_opening": "NOT granted, NOT requested",
+  "openings_spent": 3,
+  "research_verdict": "NONE",
+  "v35": "STAGED AND BOUND"
+ },
+ "supersedes": {
+  "classification": "SUPERSEDED_BRIDGE_SEMANTICS_DEFECTIVE",
+  "v34_code_identity": "7c97245505b8048b83a5ea5757fcd965784a49081964b2ad76ed4163d119d994",
+  "why": "v3.4 aborted the whole run at candidate construction on a corporate-action row whose economics had no bearing on it. The bridge, not the producer, was defective."
+ },
+ "v35_execution_identity": "ef12de6dcabd8a46a1dfcb69993693bfe316e4b76ecaf8f8dbc45f08669fc25d",
+ "version": "3.5"
+}
