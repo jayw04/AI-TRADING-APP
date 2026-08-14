@@ -1,0 +1,98 @@
+{
+ "NEW_OPEN_QUESTION": {
+  "must_be_resolved_from": "the frozen preregistration / edge-case specification and existing Phase-2B semantics - NOT from intuition about BKR",
+  "question": "Which frozen semantic channel do tickerchangefrom / tickerchangeto belong to BEFORE the bridge compresses them into one scalar fact?",
+  "two_legitimate_answers": [
+   "if crosswalk / PIT lineage is the authoritative identity-transition source, ticker-change action rows may be non-economic metadata for this enrichment path and should not enter the scalar corporate-action map at all",
+   "if the frozen edge-case specification intended ticker-change actions to trigger identity_transition, then filtering them out would SILENTLY DISABLE a frozen protection, and the complementary pair must instead be normalized into ONE identity-transition event"
+  ],
+  "why_it_blocks_the_repair": "ExecutionFacts carries identity_transition, and _classify() gives that condition high precedence, mapping it to STOP_IDENTITY_CONFLICT. But the production _facts() constructor in candidates.py does not populate identity_transition at all - it remains the dataclass default False - and retrieves only a single corporate_action_kind and corporate_action_identity."
+ },
+ "actions_taken_and_not_taken": {
+  "code_changed": "NONE - diagnosis is directed before any repair",
+  "preserved": "/opt/mr002/preserved_attempt3/ (three published records + container log, hashes recorded); container mr002exec_v34 retained",
+  "preserved_bytes_are_evidence_only": "the retained container and data are NOT to be used as a free non-consuming test environment. Advancing incrementally through the real validation partition after each fix would let validation-path outcomes be learned without being counted as trials.",
+  "retry": "NOT PERFORMED",
+  "sealed_census": "NOT PERFORMED - the sealed partition was not reopened to count how many sessions carry complementary action pairs"
+ },
+ "artifact_kind": "INCIDENT_EVIDENCE",
+ "authorization": {
+  "authorization_count": 1,
+  "bound_execution_identity": "7c97245505b8048b83a5ea5757fcd965784a49081964b2ad76ed4163d119d994",
+  "classification": "REPLACEMENT_FOR_PRE_RESEARCH_EXECUTION_REFUSAL",
+  "record": "MR002_Phase3B_ReplacementOpeningAuthorization_v2.0.json",
+  "record_identity_sha256": "4b4a1d765a3a27613f1f89081f6bb15d2d2c51c7f4bfab6def22a8ce71873a2d"
+ },
+ "containment": {
+  "byte_identical_to_pre_release_capture": true,
+  "host_never_had_direct_sealed_access": "host to sealed remained explicitDeny throughout, including while the latch was open",
+  "latch_released_for_the_run": true,
+  "oos": "never accessed; reader to OOS remained explicitDeny throughout",
+  "policy_canonical_sha256_before_and_after": "44f5549a97042d2829a3027e764105b0ab272774ec3bb343d224bfba999fab48",
+  "post_restore_verified": {
+   "host_to_reader": "explicitDeny",
+   "host_to_sealed": "explicitDeny"
+  },
+  "released_by": "removal of DenyAssumingTheValidationReaderRole only",
+  "restored_immediately_on_terminal_completion": true
+ },
+ "headline": "Third replacement opening SPENT. REFUSED at S9 during candidate-source construction. No research result. NO RETRY performed. Containment restored.",
+ "outcome": {
+  "deliverables_not_produced": 6,
+  "deliverables_produced": [],
+  "disposition": "REFUSED",
+  "error": "CandidateSourceRefused: conflicting corporate-action kinds for ('BKR', '2019-10-20'): tickerchangefrom and tickerchangeto",
+  "exit_code": 2,
+  "finished_utc": "2026-08-14T12:00:32.123231Z",
+  "no_research_result": "no Sharpe, return, ranking, configuration comparison or other interpretable validation result was produced or observed",
+  "opening_consumed": true,
+  "partial_run": true,
+  "started_utc": "2026-08-14T12:00:21.193823Z",
+  "state": "S9_OPENING_CONSUMED",
+  "state_history": [
+   "S0_INIT",
+   "S1_CODE_IDENTITY_VERIFIED",
+   "S2_CONTRACT_IDENTITY_VERIFIED",
+   "S3_CONFIG_BOUND",
+   "S4_RUNTIME_VERIFIED",
+   "S5_INPUTS_STAGED",
+   "S6_OUTPUTS_PREPARED",
+   "S7_PRE_ACCESS_READY",
+   "S8_READER_ASSUMED",
+   "S9_OPENING_CONSUMED"
+  ],
+  "wall_seconds": 10.93
+ },
+ "prior_openings": {
+  "all_pre_research": "none of the three produced a Sharpe, return, ranking, configuration comparison or any other interpretable research result",
+  "progression": "attempt #1 destroyed its own primary failure; attempt #2 refused at the structural decode; attempt #3 cleared the decode and refused at candidate construction. Each reached materially further.",
+  "total_spent": 3
+ },
+ "produced_at": "2026-08-14T12:25:33Z",
+ "record_identity_sha256": "14f7f01322051a7b69dc06baebfb0f509ebec6a49f7f4a37af30f02a2d1c3afd",
+ "record_type": "MR002_Phase3B_ReplacementAttempt3_TerminalEvidence",
+ "the_refusal": {
+  "EXPLICITLY_NOT_CLAIMED": "that ticker-change rows are benign, economically irrelevant, or safe to ignore. That is NOT established and must not be recorded as a finding.",
+  "HYPOTHESIS_not_finding": "the raw-kind uniqueness guard is OVER-BROAD: it enforces ambiguity rules on raw action labels rather than on effective semantics. Supporting evidence: neither tickerchangefrom nor tickerchangeto appears in enrichment._CORPORATE_ACTION_KINDS, the set whose membership actually gates the corporate-action stop, so a kind the enrichment rule does not consume can nevertheless abort the whole validation during input construction.",
+  "mechanism": "the function collapses every (ticker, session) to ONE scalar (kind, identity) and refuses immediately if another row on that key carries a different kind. The conflict check runs BEFORE asking whether either kind has any execution meaning.",
+  "observed_pair": "('BKR', '2019-10-20') carries tickerchangefrom and tickerchangeto",
+  "raised_by": "app/research/mr002/phase3b/candidates.py :: corporate_actions()"
+ },
+ "version": "1.0",
+ "what_this_does_not_establish": [
+  "any research result",
+  "that ticker-change actions are benign or ignorable",
+  "how many sessions in the sealed partition carry complementary or conflicting action pairs",
+  "eligibility for a fourth opening"
+ ],
+ "what_this_run_PROVED_on_real_sealed_data": {
+  "parquet_date_bound_repair_works_on_sealed_data": {
+   "significance": "the run passed the structural decode that refused attempt #2 in four seconds, including sic_observations with its TIMESTAMP WITH TIME ZONE availability column, and reached candidate-source construction. The v3.4 date-bound correction is validated against the real partition, not merely against fixtures."
+  },
+  "pre_access_machinery_is_clean": "S1 through S7 passed with the frozen-authority checks active: closure identity, contract identities and the A/B/C mapping were all verified against independent authorities before the reader was assumed.",
+  "v34_identity_attribution_is_correct": {
+   "published_code_identity": "7c97245505b8048b83a5ea5757fcd965784a49081964b2ad76ed4163d119d994",
+   "significance": "the publication record names the package that ACTUALLY RAN. Attempt #2 named a superseded identity because a stale configuration went undetected. The v3.3/v3.4 closure enforcement closed that, and this is the first sealed run to demonstrate it."
+  }
+ }
+}

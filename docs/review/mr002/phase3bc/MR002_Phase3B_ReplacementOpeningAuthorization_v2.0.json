@@ -1,0 +1,68 @@
+{
+ "artifact_kind": "AUTHORIZATION_RECORD",
+ "authorization_count": 1,
+ "bound_execution_identity": "7c97245505b8048b83a5ea5757fcd965784a49081964b2ad76ed4163d119d994",
+ "bound_to": {
+  "code_archive_sha256": "a77f3460712cb11f37dc2a0a29ba0e9ad5c86716a67ff685e16f81a38bea9b4a",
+  "code_checkpoint": "06db800884477f955fa70cc5b527fc0389365cc8",
+  "configuration": "frozen A=1.75 B=2.00 C=2.25, verified against FROZEN_CONFIG_MAPPING",
+  "contract_identities": "verified against FROZEN_CONTRACT_IDENTITIES",
+  "dependency_bundle_sha256": "d5d21eadb52ee5bccc85df832d35a060105327a7787808c5c1a6126e7ed9b5a1",
+  "execution_identity": "7c97245505b8048b83a5ea5757fcd965784a49081964b2ad76ed4163d119d994",
+  "host_capacity": "c6a.xlarge",
+  "instance": "i-00c1034f7026db45e",
+  "numeric_runtime_identity": "74acfb45eb5b8a8b806e21fa77b6a6f5c3f9921d2ea6d0dac9dd9f2474e98c90",
+  "p10_image": "sha256:194efbdf96ee11c19f3554dcf1b1097958cdc347bcdc1637504b441237432f51",
+  "privilege_transition": "the v3.1 mr002-validation-reader design, retained unchanged",
+  "staged_config_sha256": "c78d5c63cd053eaa4f4d011fc36cd61755b97de3751bc16e284ecaac8816f272"
+ },
+ "classification": "REPLACEMENT_FOR_PRE_RESEARCH_EXECUTION_REFUSAL",
+ "consumption_rule": {
+  "automatic_retry": "PROHIBITED",
+  "consumed_by": "the FIRST SUCCESSFUL PINNED VALIDATION GetObject",
+  "first_consuming_read": "validation/actions.parquet",
+  "first_read": "reference/crosswalk.parquet - reference, does NOT consume",
+  "if_it_refuses_before_the_first_validation_read": "the opening REMAINS UNSPENT",
+  "if_the_first_validation_object_is_read": "the opening is SPENT regardless of what follows",
+  "read_order": "sorted by key, so the four reference objects precede the six validation ones",
+  "runtime_pinned_objects": 8
+ },
+ "granted_at_utc": "2026-08-14T11:57:46Z",
+ "granted_by": "owner ruling 2026-08-14, following commit 3434b7a (v3.4, 10/10 qualified)",
+ "is_a_third_statistical_trial": false,
+ "oos": "PROHIBITED - remains sealed",
+ "post_run_obligations": [
+  "restore DenyAssumingTheValidationReaderRole IMMEDIATELY on terminal completion, whether PASS, REFUSED or failure",
+  "verify the host policy is BYTE-IDENTICAL to the pre-release capture",
+  "do NOT open OOS. Report the validation outcome under the frozen preregistration first, including A/B/C results and the prescribed validation gates; whether Config B earns the right to cross into OOS is a separate owner decision."
+ ],
+ "previous_openings": {
+  "attempt_1": {
+   "execution_identity": "f35e8209bcaac16a23b58ec2c0d75aae338721ab895a5b5d91e6c168506426b2",
+   "outcome": "eight pinned objects read, then nothing produced: the output directory was never created and the publication exception replaced the primary failure, destroying the real cause.",
+   "spent_at_utc": "2026-08-13T00:14:23Z"
+  },
+  "attempt_2": {
+   "execution_identity": "487c7f8ddad1904b725747ef37c1b963f5283f887f0d4d9b5c6ba2be2c0b7c34",
+   "outcome": "REFUSED at S9 in 4.12 s on a date-bound guard that compared a timezone-aware timestamp against a date-granularity commitment. The data and the commitment were both correct.",
+   "spent_at_utc": "2026-08-14T01:34:14Z"
+  },
+  "count": 2,
+  "history_not_mutated": "both prior openings remain permanently recorded as spent. Nothing here reclassifies either as unspent.",
+  "no_interpretable_result_ever_existed": "no Sharpe, return, ranking, configuration comparison or other validation result was produced or observed under either opening. Both failures were pre-research execution mechanics.",
+  "research_observations_from_them": "NONE",
+  "status": "both SPENT / TECHNICALLY_VOID"
+ },
+ "record_identity_sha256": "4b4a1d765a3a27613f1f89081f6bb15d2d2c51c7f4bfab6def22a8ce71873a2d",
+ "record_type": "MR002_Phase3B_ReplacementOpeningAuthorization",
+ "version": "2.0",
+ "what_this_does_not_grant": [
+  "a third statistical validation trial",
+  "any OOS access",
+  "more than one execution",
+  "automatic retry past the first successful validation read",
+  "any parameter, gate, economics or configuration change",
+  "resurrection of either spent opening"
+ ],
+ "window": "validation ONLY"
+}

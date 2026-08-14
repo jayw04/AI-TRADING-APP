@@ -1,0 +1,50 @@
+{
+ "artifact_kind": "PRIVILEGE_TRANSITION_EVENT",
+ "authorization": {
+  "authorization_count": 1,
+  "classification": "REPLACEMENT_FOR_PRE_RESEARCH_EXECUTION_REFUSAL",
+  "record": "MR002_Phase3B_ReplacementOpeningAuthorization_v2.0.json",
+  "record_identity_sha256": "4b4a1d765a3a27613f1f89081f6bb15d2d2c51c7f4bfab6def22a8ce71873a2d"
+ },
+ "bound_execution_identity": "7c97245505b8048b83a5ea5757fcd965784a49081964b2ad76ed4163d119d994",
+ "change_applied": {
+  "method": "every surviving statement asserted byte-identical and order-preserved before put-role-policy",
+  "policy": "mr002-phase3c-qualification-only",
+  "pre_release_policy_canonical_sha256": "44f5549a97042d2829a3027e764105b0ab272774ec3bb343d224bfba999fab48",
+  "removed_exactly": "DenyAssumingTheValidationReaderRole",
+  "role": "mr002-phase3c-run-host",
+  "statements_after": 7,
+  "statements_before": 8
+ },
+ "host": "i-00c1034f7026db45e",
+ "invariant_retained": "the host NEVER gains direct sealed access. Releasing the latch only permits assuming the governed reader; host to sealed remains explicitDeny throughout.",
+ "method": "iam simulate-principal-policy with per-resource ResourceSpecificResults. No live AssumeRole probe and no live sealed read established these verdicts.",
+ "obligation": "restore DenyAssumingTheValidationReaderRole IMMEDIATELY on terminal completion and verify the policy is byte-identical to the pre-release capture.",
+ "preflight_all_green": {
+  "config_mapping_vs_frozen_authority": "equal (A=1.75 B=2.0 C=2.25)",
+  "containment_before_release": {
+   "host_to_reader": "explicitDeny",
+   "host_to_sealed": "explicitDeny"
+  },
+  "contract_identities_vs_frozen_authority": "equal",
+  "dependency_lockfile_sha256": "bb38b685... unchanged",
+  "destination": "/v34/out_exec absent - fresh",
+  "four_way_identity": "config code_identity == config execution_closure_sha256 == archive-derived == live mount == 7c972455...",
+  "numeric_runtime_identity": "74acfb45... reproduced",
+  "p10_image": "sha256:194efbdf... resolved",
+  "resources": "27,060 MiB disk, 7,266 MiB MemAvailable, swap 0"
+ },
+ "purpose": "release the IAM latch for ONE replacement validation execution bound to execution identity 7c972455..., under MR002_Phase3B_ReplacementOpeningAuthorization_v2.0.json",
+ "record_identity_sha256": "1cb6db0acf894609cb88ec9f40778d9575b857946c4de8d9c504505b6c464704",
+ "record_type": "MR002_Phase3B_LatchReleaseEvent",
+ "released_at_utc": "2026-08-14T12:00:06Z",
+ "state_after_release": {
+  "host_to_reader": "allowed",
+  "host_to_sealed_GetObject": "explicitDeny",
+  "host_to_sealed_ListBucket": "explicitDeny",
+  "reader_to_oos": "explicitDeny",
+  "reader_to_reference": "allowed",
+  "reader_to_validation": "allowed"
+ },
+ "version": "4.0"
+}

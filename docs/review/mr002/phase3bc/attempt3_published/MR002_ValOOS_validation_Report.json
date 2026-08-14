@@ -1,0 +1,33 @@
+{
+ "deliverable_sha256": {},
+ "deliverables_not_produced": [
+  "ExecutionEnrichmentEdgeCaseCensus_v1.0.json",
+  "ValidationDecisionExecutionBindingReport_v1.0.json",
+  "ValidationExecutionEnrichmentManifest_v1.0.json",
+  "ValidationOpenedObjectLedger_v1.0.json",
+  "ValidationSealVerificationReport_v1.0.json",
+  "ValidationUnitReconciliation_v1.0.json"
+ ],
+ "deliverables_produced": [],
+ "disposition": "REFUSED",
+ "enrichment_census": null,
+ "error": "CandidateSourceRefused: conflicting corporate-action kinds for ('BKR', '2019-10-20'): tickerchangefrom and tickerchangeto",
+ "integrity_census": null,
+ "partial_run": true,
+ "record_type": "MR002_ValOOS_Report",
+ "run_id": "MR002-SPQ1-P3B-VALIDATION-V1",
+ "seam": null,
+ "state_history": [
+  "S0_INIT",
+  "S1_CODE_IDENTITY_VERIFIED",
+  "S2_CONTRACT_IDENTITY_VERIFIED",
+  "S3_CONFIG_BOUND",
+  "S4_RUNTIME_VERIFIED",
+  "S5_INPUTS_STAGED",
+  "S6_OUTPUTS_PREPARED",
+  "S7_PRE_ACCESS_READY",
+  "S8_READER_ASSUMED",
+  "S9_OPENING_CONSUMED"
+ ],
+ "window": "validation"
+}

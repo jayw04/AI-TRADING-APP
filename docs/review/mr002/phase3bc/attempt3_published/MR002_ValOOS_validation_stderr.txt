@@ -1,0 +1,1 @@
+CandidateSourceRefused: conflicting corporate-action kinds for ('BKR', '2019-10-20'): tickerchangefrom and tickerchangeto
