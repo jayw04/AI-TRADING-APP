@@ -1,0 +1,75 @@
+{
+ "admissible_evidence": [
+  "the vendor's own documentation or data dictionary for the ACTIONS table",
+  "the local DEVELOPMENT-partition snapshot, hard-bounded to 2013-01-02..2019-10-02, for STRUCTURAL facts only - which columns these rows populate, whether they carry a value or a contraticker, what they co-occur with",
+  "existing repository code and frozen records that already reference the labels, cited by path and line",
+  "the published opening-4 census, for INCIDENCE only - counts of units and symbols"
+ ],
+ "after_the_answers": "implement, test, rebind, stage and dry-preflight - in that order, as before. A fifth opening should not even be CONSIDERED until all of that is done. Nothing in this record requests or anticipates one.",
+ "artifact_kind": "PROSPECTIVE_ADJUDICATION_FRAME",
+ "authorized_by": "owner adjudication 2026-08-14 following opening 4: outcome C stands, the gate is retained unchanged, and the breach is to be treated as a SEMANTIC-ADJUDICATION problem rather than a threshold problem. Next authorized work is the prospective semantic adjudication of `relation` and `spinoff` ONLY.",
+ "grants": "NOTHING. This record poses questions and fixes an evidential standard.",
+ "inadmissible_evidence": [
+  "price gaps, missing opens, or any price behaviour around the affected sessions - semantics must never be inferred from prices, which is the same prohibition that keeps an absent close classified as UNEXPLAINED_HOLE rather than reinterpreted as a halt",
+  "how the affected securities performed in opening 4, or any performance statistic from that run - none has been read and none may be used here",
+  "the identities of the 30 affected symbols as a basis for reasoning about what the labels mean",
+  "any read of the VALIDATION partition beyond the already-published census",
+  "name similarity to an already-classified label. `spinoff` is NOT `spinoffdividend` and is NOT `spunofffrom`; that inference was explicitly prohibited in v1.1 and remains prohibited here."
+ ],
+ "preservation_note": {
+  "evidence_survives": "/opt/mr002 is on the EBS root volume vol-074b501ce685e1d94, the instance's only block device, so the opening-4 output survives the stop.",
+  "flagged_not_acted_on": "that volume carries DeleteOnTermination=true. A STOP is safe; a TERMINATE would destroy the three multi-megabyte deliverables that exist only on the host. Recorded as a preservation risk, not repaired here.",
+  "host": "i-00c1034f7026db45e STOPPED under the standing idle practice"
+ },
+ "produced_at": "2026-08-14T00:00:00Z",
+ "questions_frozen_per_label": {
+  "Q1_vendor_meaning": "What does the vendor label mean semantically? State it from the vendor's own definition, not from what the rows appear to do.",
+  "Q2_category": "Is it economic, identity-changing, delisting-like, inert/context-only, or composition-dependent? Exactly one primary category, or an explicit statement that the label is overloaded and why.",
+  "Q3_execution_consequence": "What execution consequence should it have at t+1, if any? Including explicitly: NONE is a permitted answer and must be stated as a decision rather than left as a default.",
+  "Q4_coexistence": "Can multiple such actions coexist on the same unit, and what precedence or composition rule applies? A composition rule may be authorized ONLY where these two labels specifically require it - no general composition rule is in scope.",
+  "Q5_evidence": "What evidence supports that mapping, cited to a source?",
+  "Q6_refusal_condition": "What result would make the mapping REFUSE rather than classify? A mapping with no refusal condition is not adjudicated, it is assumed."
+ },
+ "record_identity_sha256": "ed56601ce90352b29840c70c2fb094aa72ff9951a2157698572f6d7647d2a7d8",
+ "record_type": "MR002_Phase3B_ProspectiveLabelAdjudication",
+ "required_form_of_an_answer": "each label needs all six answered. A partial mapping is not an adjudication and must not be implemented. Where a question cannot be answered from admissible evidence, the correct output is to say so and leave the label KNOWN_UNADJUDICATED - which keeps its current unit-scoped refusal behaviour rather than inventing a classification.",
+ "run_4_disposition_frozen": {
+  "classification": "COMPLETED / qualification FAIL / evidence inadmissible / no verdict",
+  "gate": "RETAINED UNCHANGED",
+  "oos": "UNOPENED",
+  "opening_4": "SPENT",
+  "performance_interpretation": "NOT AUTHORIZED and not performed"
+ },
+ "scope": {
+  "labels_explicitly_out_of_scope": "everything else. `bankruptcyliquidation` and `listed` remain KNOWN_UNADJUDICATED and are NOT adjudicated here - neither appeared in the inspected validation vocabulary, and widening the frame to labels this run did not surface would repeat the pattern of adjudicating from field names rather than from evidence.",
+  "labels_in_scope": [
+   "relation",
+   "spinoff"
+  ],
+  "no_general_composition_rule": "no new composition rule beyond what these two labels specifically require. The frozen no-composition default stands everywhere else.",
+  "the_gate_is_not_in_scope": "the disjunctive materiality gate is RETAINED UNCHANGED. It is not to be relaxed, re-tuned or reinterpreted as part of resolving this. It caught a systematic cross-security semantic gap that a percentage-only rule would have passed, and changing it after seeing that result is precisely the move this frame exists to prevent."
+ },
+ "status": "OPEN - questions frozen, NO ANSWERS RECORDED",
+ "unchanged_open_limitations": {
+  "ANCHOR-ACCEPTANCE-SCOPE": "separate, unresolved, not folded in",
+  "HALT-EVIDENCE-INPUT-GAP": "trading_halt remains zero BY CONSTRUCTION",
+  "MISSING-PRICE-REFUSAL-TYPING": "separate, unresolved, not folded in"
+ },
+ "version": "1.0",
+ "what_opening_4_established_that_is_usable": {
+  "coexistence_is_a_real_question_not_hypothetical": "the development-partition census recorded spinoff co-occurring with spinoffdividend on 69 sessions and with split on 4. Q4 is therefore load-bearing for `spinoff` in particular.",
+  "incidence": "ACTION_KIND_UNADJUDICATED|KNOWN_UNADJUDICATED reached 68 units across 30 unique symbols, breaching the 5-symbol limb while the 0.027% fraction stayed far under the 1% limb.",
+  "inspected_vocabulary": [
+   "acquisitionby",
+   "acquisitionof",
+   "delisted",
+   "dividend",
+   "relation",
+   "spinoff",
+   "spinoffdividend",
+   "split"
+  ],
+  "zero_unregistered_labels": "the closed classifier was complete against what the run inspected, so this is a gap in ADJUDICATION, not a gap in the roster."
+ },
+ "why_prospective": "opening 4 has already run and its population is known. An adjudication written after inspecting which securities were affected, or how they behaved, would be reverse-engineered from the outcome rather than derived from the vendor semantics. Freezing the questions and the evidential standard BEFORE any answer is attempted is what makes the eventual mapping independent of the result that motivated it."
+}
