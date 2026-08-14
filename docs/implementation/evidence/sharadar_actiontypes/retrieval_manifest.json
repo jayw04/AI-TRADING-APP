@@ -1,0 +1,48 @@
+{
+  "source": "Sharadar official descriptions API",
+  "base_endpoint": "https://api.sharadar.com/v1.0/data/descriptions",
+  "truststore_injected": true,
+  "authentication": "API key used, value not recorded",
+  "records": [
+    {
+      "name": "relation",
+      "retrieved_at_utc": "2026-08-14T21:15:26.037188+00:00",
+      "sanitized_request": "https://api.sharadar.com/v1.0/data/descriptions?tablename=actiontypes&indicator=relation&format=json&api_key=<REDACTED>",
+      "http_status": 200,
+      "auth_variant_used": "api_key query param",
+      "sha256": "f97be8cba6113c719c25422b41eadc765122462d748ae25a810fce61b332eb2d",
+      "bytes": 450,
+      "file": "docs\\implementation\\evidence\\sharadar_actiontypes\\relation.json"
+    },
+    {
+      "name": "spinoff",
+      "retrieved_at_utc": "2026-08-14T21:15:26.444617+00:00",
+      "sanitized_request": "https://api.sharadar.com/v1.0/data/descriptions?tablename=actiontypes&indicator=spinoff&format=json&api_key=<REDACTED>",
+      "http_status": 200,
+      "auth_variant_used": "api_key query param",
+      "sha256": "0b6a8bbd75600aa4561cfadccb85efee2c14009a9b57aba76cbec29596aad531",
+      "bytes": 592,
+      "file": "docs\\implementation\\evidence\\sharadar_actiontypes\\spinoff.json"
+    },
+    {
+      "name": "spinoffdividend",
+      "retrieved_at_utc": "2026-08-14T21:15:26.722201+00:00",
+      "sanitized_request": "https://api.sharadar.com/v1.0/data/descriptions?tablename=actiontypes&indicator=spinoffdividend&format=json&api_key=<REDACTED>",
+      "http_status": 200,
+      "auth_variant_used": "api_key query param",
+      "sha256": "93debb3a8699246e5a8d2415b4351882e2ed1397c7acbb9a047af21221e4ad42",
+      "bytes": 612,
+      "file": "docs\\implementation\\evidence\\sharadar_actiontypes\\spinoffdividend.json"
+    },
+    {
+      "name": "actiontypes_full",
+      "retrieved_at_utc": "2026-08-14T21:15:26.985572+00:00",
+      "sanitized_request": "https://api.sharadar.com/v1.0/data/descriptions?tablename=actiontypes&format=json&api_key=<REDACTED>",
+      "http_status": 200,
+      "auth_variant_used": "api_key query param",
+      "sha256": "70c4379471b1366e6e8e9ca2a4eecd07e8a2f9242cf95ebeb012368acb2a123b",
+      "bytes": 9779,
+      "file": "docs\\implementation\\evidence\\sharadar_actiontypes\\actiontypes_full.json"
+    }
+  ]
+}

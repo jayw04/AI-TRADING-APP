@@ -1,0 +1,44 @@
+{
+  "source": "Sharadar official descriptions API",
+  "base_endpoint": "https://api.sharadar.com/v1.0/data/descriptions",
+  "truststore_injected": true,
+  "authentication": "API key used, value not recorded",
+  "records": [
+    {
+      "name": "sep_full",
+      "sanitized_request": "https://api.sharadar.com/v1.0/data/descriptions?tablename=SEP&format=json&api_key=<REDACTED>",
+      "retrieved_at_utc": "2026-08-14T21:35:30.619820+00:00",
+      "http_status": 200,
+      "sha256": "2d89d22ece49414976a5b77bbbe54af051d791fbe060dee51b82f9b8dca2868a",
+      "bytes": 21,
+      "file": "docs/implementation/evidence/sharadar_actiontypes/sep_full.json"
+    },
+    {
+      "name": "sfp_full",
+      "sanitized_request": "https://api.sharadar.com/v1.0/data/descriptions?tablename=SFP&format=json&api_key=<REDACTED>",
+      "retrieved_at_utc": "2026-08-14T21:35:30.987250+00:00",
+      "http_status": 200,
+      "sha256": "2d89d22ece49414976a5b77bbbe54af051d791fbe060dee51b82f9b8dca2868a",
+      "bytes": 21,
+      "file": "docs/implementation/evidence/sharadar_actiontypes/sfp_full.json"
+    },
+    {
+      "name": "actions_table",
+      "sanitized_request": "https://api.sharadar.com/v1.0/data/descriptions?tablename=actions&format=json&api_key=<REDACTED>",
+      "retrieved_at_utc": "2026-08-14T21:35:31.251747+00:00",
+      "http_status": 200,
+      "sha256": "fa266274b6c6663e073a905ed6371511e245dfaa2d43e6994f9517cff9b7395d",
+      "bytes": 1725,
+      "file": "docs/implementation/evidence/sharadar_actiontypes/actions_table.json"
+    },
+    {
+      "name": "spunofffrom",
+      "sanitized_request": "https://api.sharadar.com/v1.0/data/descriptions?tablename=actiontypes&indicator=spunofffrom&format=json&api_key=<REDACTED>",
+      "retrieved_at_utc": "2026-08-14T21:35:31.505946+00:00",
+      "http_status": 200,
+      "sha256": "965bc4d854c7f602554a157437523771df59a10e36c8e2eb8adf6739801b385c",
+      "bytes": 585,
+      "file": "docs/implementation/evidence/sharadar_actiontypes/spunofffrom.json"
+    }
+  ]
+}
