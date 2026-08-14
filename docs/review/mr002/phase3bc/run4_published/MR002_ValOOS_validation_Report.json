@@ -1,0 +1,176 @@
+{
+ "deliverable_sha256": {
+  "ExecutionEnrichmentEdgeCaseCensus_v1.0.json": "deb67f6effe82db3e0ec79755570bdb3f263ee13acdf16662b9b820d774d206c",
+  "ValidationDecisionExecutionBindingReport_v1.0.json": "aabeb538bd59344e7968d0c7d0b3fcdb84c753c9195ef95186e5041fa8f7af18",
+  "ValidationExecutionEnrichmentManifest_v1.0.json": "647bb04b0dba80ddd4f0f5602661ab893f141e50d9e8041a36a25bae43747f48",
+  "ValidationOpenedObjectLedger_v1.0.json": "3303b4e7c06db20b7ac3cbeda4a9674e93d1b2007ec91bc7635298a8e302d132",
+  "ValidationSealVerificationReport_v1.0.json": "808641aa35363dcfe23bd229b814fb1dc471cbca52e3f5459a6db6a9df9353ab",
+  "ValidationUnitReconciliation_v1.0.json": "4037defeaaaceadf7a02c5378744ad0b9157f8137c0fb2d56b8c891119bd6f06",
+  "ValidationUnitRefusalCensus_v1.0.json": "4a157d7d4b891b69e700dd9ee6aa9513cc2c2cab44f837bd9042c09f9726df35"
+ },
+ "deliverables_not_produced": [],
+ "deliverables_produced": [
+  "ExecutionEnrichmentEdgeCaseCensus_v1.0.json",
+  "ValidationDecisionExecutionBindingReport_v1.0.json",
+  "ValidationExecutionEnrichmentManifest_v1.0.json",
+  "ValidationOpenedObjectLedger_v1.0.json",
+  "ValidationSealVerificationReport_v1.0.json",
+  "ValidationUnitReconciliation_v1.0.json",
+  "ValidationUnitRefusalCensus_v1.0.json"
+ ],
+ "disposition": "FAIL",
+ "enrichment_census": {
+  "by_census_category": {
+   "corporate-action transition": 0,
+   "delisting": 22,
+   "future-information stop": 0,
+   "halt": 0,
+   "identity conflict": 0,
+   "missing source": 0,
+   "no-open": 386,
+   "price conflict": 0,
+   "successful enrichment": 250149
+  },
+  "by_code": {
+   "EXECUTION_ENRICHMENT_STOP:CORPORATE_ACTION_UNRESOLVED": 0,
+   "EXECUTION_ENRICHMENT_STOP:DELISTING": 22,
+   "EXECUTION_ENRICHMENT_STOP:IDENTITY_CONFLICT": 0,
+   "EXECUTION_ENRICHMENT_STOP:NO_OFFICIAL_OPEN": 386,
+   "EXECUTION_ENRICHMENT_STOP:PRICE_CONFLICT": 0,
+   "EXECUTION_ENRICHMENT_STOP:SOURCE_MISSING": 0,
+   "EXECUTION_ENRICHMENT_STOP:TRADING_HALT": 0,
+   "EXECUTION_ENRICHMENT_SUCCESS": 250149,
+   "INTEGRITY_STOP:FUTURE_INFORMATION_DETECTED": 0
+  },
+  "one_terminal_code_per_record": true,
+  "records_examined": 250557,
+  "reserved_codes": {
+   "EXECUTION_ENRICHMENT_STOP:SOURCE_MISSING": 0
+  }
+ },
+ "error": null,
+ "evidence_admissible": false,
+ "execution_status": "COMPLETED",
+ "integrity_census": {
+  "all_gates_zero": true,
+  "decision_record_mutations": 0,
+  "duplicate_enrichment_identities": 0,
+  "future_information_violations": 0,
+  "missing_decision_enrichment_bindings": 0,
+  "oos_reads": 0,
+  "records_examined": 250557,
+  "unreconciled_validation_units": 0,
+  "unregistered_data_source_reads": 0,
+  "vacuity_check": "records_examined > 0 required for the zeros to mean anything"
+ },
+ "partial_run": false,
+ "qualification_status": "FAIL",
+ "record_type": "MR002_ValOOS_Report",
+ "run_id": "MR002-SPQ1-P3B-VALIDATION-V1",
+ "seam": {
+  "adjudications_examined": 250557,
+  "admitted": 247632,
+  "duplicate_adjudications": 0,
+  "duplicate_enrichment_identities": 0,
+  "economically_adjudicated": 250149,
+  "missing_decision_enrichment_bindings": 0,
+  "not_adjudicated": 408,
+  "not_admitted_gap_filter": 2517,
+  "orphan_adjudications": 0,
+  "orphan_enriched_records": 0,
+  "records_examined": 250557,
+  "state_violations": 0
+ },
+ "state_history": [
+  "S0_INIT",
+  "S1_CODE_IDENTITY_VERIFIED",
+  "S2_CONTRACT_IDENTITY_VERIFIED",
+  "S3_CONFIG_BOUND",
+  "S4_RUNTIME_VERIFIED",
+  "S5_INPUTS_STAGED",
+  "S6_OUTPUTS_PREPARED",
+  "S7_PRE_ACCESS_READY",
+  "S8_READER_ASSUMED",
+  "S9_OPENING_CONSUMED",
+  "S10_ENRICHED"
+ ],
+ "unit_refusal_census": {
+  "any_materiality_gate_breached": true,
+  "eligible_candidate_units": 252412,
+  "fraction_refused_by_reason": {
+   "CANDIDATE_REFUSED:ACTION_COMPOSITION_UNRESOLVED": 7.923553555298481e-06,
+   "CANDIDATE_REFUSED:ACTION_KIND_UNADJUDICATED|KNOWN_UNADJUDICATED": 0.00026940082088014835,
+   "CANDIDATE_REFUSED:IDENTITY_UNRESOLVED": 0.007071771548103894
+  },
+  "fraction_refused_overall": 0.007349095922539341,
+  "materiality_gate_results_by_reason": {
+   "CANDIDATE_REFUSED:ACTION_COMPOSITION_UNRESOLVED": {
+    "breached": false,
+    "fraction": 7.923553555298481e-06,
+    "max_fraction": 0.01,
+    "max_unique_symbols": 5,
+    "unique_symbols": 1,
+    "units": 2
+   },
+   "CANDIDATE_REFUSED:ACTION_KIND_UNADJUDICATED|KNOWN_UNADJUDICATED": {
+    "breached": true,
+    "fraction": 0.00026940082088014835,
+    "max_fraction": 0.01,
+    "max_unique_symbols": 5,
+    "unique_symbols": 30,
+    "units": 68
+   },
+   "CANDIDATE_REFUSED:ACTION_KIND_UNADJUDICATED|UNKNOWN_VOCABULARY": {
+    "breached": false,
+    "max_incidence": 0,
+    "unique_symbols": 0,
+    "units": 0,
+    "unregistered_kinds_observed": []
+   },
+   "CANDIDATE_REFUSED:IDENTITY_UNRESOLVED": {
+    "breached": false,
+    "fraction": 0.007071771548103894,
+    "max_fraction": 0.02,
+    "max_unique_symbols": 10,
+    "unique_symbols": 2,
+    "units": 1785
+   }
+  },
+  "observed_action_vocabulary": [
+   "acquisitionby",
+   "acquisitionof",
+   "delisted",
+   "dividend",
+   "relation",
+   "spinoff",
+   "spinoffdividend",
+   "split"
+  ],
+  "reconciliation": {
+   "balances": true,
+   "identity": "units_enumerated == units_producer_refused + units_bridge_refused + units_accepted"
+  },
+  "unique_symbols_affected_by_code": {
+   "CANDIDATE_REFUSED:ACTION_COMPOSITION_UNRESOLVED": 1,
+   "CANDIDATE_REFUSED:ACTION_KIND_UNADJUDICATED|KNOWN_UNADJUDICATED": 30,
+   "CANDIDATE_REFUSED:IDENTITY_UNRESOLVED": 2
+  },
+  "units_accepted": 250557,
+  "units_bridge_refused": 1855,
+  "units_bridge_refused_by_code": {
+   "CANDIDATE_REFUSED:ACTION_COMPOSITION_UNRESOLVED": 2,
+   "CANDIDATE_REFUSED:ACTION_KIND_UNADJUDICATED": 68,
+   "CANDIDATE_REFUSED:IDENTITY_UNRESOLVED": 1785
+  },
+  "units_bridge_refused_by_code_and_vocabulary_state": {
+   "CANDIDATE_REFUSED:ACTION_COMPOSITION_UNRESOLVED": 2,
+   "CANDIDATE_REFUSED:ACTION_KIND_UNADJUDICATED|KNOWN_UNADJUDICATED": 68,
+   "CANDIDATE_REFUSED:IDENTITY_UNRESOLVED": 1785
+  },
+  "units_enumerated": 331600,
+  "units_producer_refused": 79188,
+  "unregistered_action_kinds_observed": [],
+  "vocabulary_coverage_limit": "the bridge inspects only rows relevant to a unit, so a kind appearing exclusively on tickers or sessions no unit reaches is NOT counted here. This evidences the INSPECTED vocabulary, never the partition's full vocabulary."
+ },
+ "window": "validation"
+}

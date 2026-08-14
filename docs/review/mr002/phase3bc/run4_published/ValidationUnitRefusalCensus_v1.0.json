@@ -1,0 +1,79 @@
+{
+ "any_materiality_gate_breached": true,
+ "eligible_candidate_units": 252412,
+ "fraction_refused_by_reason": {
+  "CANDIDATE_REFUSED:ACTION_COMPOSITION_UNRESOLVED": 7.923553555298481e-06,
+  "CANDIDATE_REFUSED:ACTION_KIND_UNADJUDICATED|KNOWN_UNADJUDICATED": 0.00026940082088014835,
+  "CANDIDATE_REFUSED:IDENTITY_UNRESOLVED": 0.007071771548103894
+ },
+ "fraction_refused_overall": 0.007349095922539341,
+ "materiality_gate_results_by_reason": {
+  "CANDIDATE_REFUSED:ACTION_COMPOSITION_UNRESOLVED": {
+   "breached": false,
+   "fraction": 7.923553555298481e-06,
+   "max_fraction": 0.01,
+   "max_unique_symbols": 5,
+   "unique_symbols": 1,
+   "units": 2
+  },
+  "CANDIDATE_REFUSED:ACTION_KIND_UNADJUDICATED|KNOWN_UNADJUDICATED": {
+   "breached": true,
+   "fraction": 0.00026940082088014835,
+   "max_fraction": 0.01,
+   "max_unique_symbols": 5,
+   "unique_symbols": 30,
+   "units": 68
+  },
+  "CANDIDATE_REFUSED:ACTION_KIND_UNADJUDICATED|UNKNOWN_VOCABULARY": {
+   "breached": false,
+   "max_incidence": 0,
+   "unique_symbols": 0,
+   "units": 0,
+   "unregistered_kinds_observed": []
+  },
+  "CANDIDATE_REFUSED:IDENTITY_UNRESOLVED": {
+   "breached": false,
+   "fraction": 0.007071771548103894,
+   "max_fraction": 0.02,
+   "max_unique_symbols": 10,
+   "unique_symbols": 2,
+   "units": 1785
+  }
+ },
+ "observed_action_vocabulary": [
+  "acquisitionby",
+  "acquisitionof",
+  "delisted",
+  "dividend",
+  "relation",
+  "spinoff",
+  "spinoffdividend",
+  "split"
+ ],
+ "reconciliation": {
+  "balances": true,
+  "identity": "units_enumerated == units_producer_refused + units_bridge_refused + units_accepted"
+ },
+ "record_type": "ValidationUnitRefusalCensus",
+ "unique_symbols_affected_by_code": {
+  "CANDIDATE_REFUSED:ACTION_COMPOSITION_UNRESOLVED": 1,
+  "CANDIDATE_REFUSED:ACTION_KIND_UNADJUDICATED|KNOWN_UNADJUDICATED": 30,
+  "CANDIDATE_REFUSED:IDENTITY_UNRESOLVED": 2
+ },
+ "units_accepted": 250557,
+ "units_bridge_refused": 1855,
+ "units_bridge_refused_by_code": {
+  "CANDIDATE_REFUSED:ACTION_COMPOSITION_UNRESOLVED": 2,
+  "CANDIDATE_REFUSED:ACTION_KIND_UNADJUDICATED": 68,
+  "CANDIDATE_REFUSED:IDENTITY_UNRESOLVED": 1785
+ },
+ "units_bridge_refused_by_code_and_vocabulary_state": {
+  "CANDIDATE_REFUSED:ACTION_COMPOSITION_UNRESOLVED": 2,
+  "CANDIDATE_REFUSED:ACTION_KIND_UNADJUDICATED|KNOWN_UNADJUDICATED": 68,
+  "CANDIDATE_REFUSED:IDENTITY_UNRESOLVED": 1785
+ },
+ "units_enumerated": 331600,
+ "units_producer_refused": 79188,
+ "unregistered_action_kinds_observed": [],
+ "vocabulary_coverage_limit": "the bridge inspects only rows relevant to a unit, so a kind appearing exclusively on tickers or sessions no unit reaches is NOT counted here. This evidences the INSPECTED vocabulary, never the partition's full vocabulary."
+}

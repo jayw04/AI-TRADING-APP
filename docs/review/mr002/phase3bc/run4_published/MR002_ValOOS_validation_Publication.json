@@ -1,0 +1,30 @@
+{
+ "boundary": "publication control only; the result is published verbatim",
+ "deliverable_sha256": {
+  "ExecutionEnrichmentEdgeCaseCensus_v1.0.json": "deb67f6effe82db3e0ec79755570bdb3f263ee13acdf16662b9b820d774d206c",
+  "ValidationDecisionExecutionBindingReport_v1.0.json": "aabeb538bd59344e7968d0c7d0b3fcdb84c753c9195ef95186e5041fa8f7af18",
+  "ValidationExecutionEnrichmentManifest_v1.0.json": "647bb04b0dba80ddd4f0f5602661ab893f141e50d9e8041a36a25bae43747f48",
+  "ValidationOpenedObjectLedger_v1.0.json": "3303b4e7c06db20b7ac3cbeda4a9674e93d1b2007ec91bc7635298a8e302d132",
+  "ValidationSealVerificationReport_v1.0.json": "808641aa35363dcfe23bd229b814fb1dc471cbca52e3f5459a6db6a9df9353ab",
+  "ValidationUnitReconciliation_v1.0.json": "4037defeaaaceadf7a02c5378744ad0b9157f8137c0fb2d56b8c891119bd6f06",
+  "ValidationUnitRefusalCensus_v1.0.json": "4a157d7d4b891b69e700dd9ee6aa9513cc2c2cab44f837bd9042c09f9726df35"
+ },
+ "disposition": "FAIL",
+ "exit_code": 1,
+ "exit_disposition_agreement": true,
+ "identities": {
+  "code_identity": "ef12de6dcabd8a46a1dfcb69993693bfe316e4b76ecaf8f8dbc45f08669fc25d",
+  "governing_identity": "2a1fb7755a57b97f9831cf257c6e60c8bd5baf77eab39541b75ae88c27cb5b43",
+  "runtime_identity": "sha256:194efbdf96ee11c19f3554dcf1b1097958cdc347bcdc1637504b441237432f51"
+ },
+ "no_overwrite": true,
+ "partial_run": false,
+ "published_at": "2026-08-14T19:40:43Z",
+ "record_type": "MR002_ValOOS_PublicationRecord",
+ "report_file": "MR002_ValOOS_validation_Report.json",
+ "report_sha256": "1285a11068d03a4c35da9b2d496201cc499fbe0c8df4c3bfbea6fc48513da9d1",
+ "retry_after_publication": "PROHIBITED",
+ "stderr_file": null,
+ "stderr_sha256": null,
+ "version": "1.0"
+}

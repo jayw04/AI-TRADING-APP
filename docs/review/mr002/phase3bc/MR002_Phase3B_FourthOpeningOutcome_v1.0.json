@@ -1,0 +1,127 @@
+{
+ "artifact_kind": "OPENING_OUTCOME_CLASSIFICATION",
+ "classification": {
+  "definition": "COMPLETED + EVIDENCE-ADMISSIBILITY GATE FAIL",
+  "evidence_admissible": false,
+  "opening_spent": true,
+  "outcome": "C",
+  "research_verdict": "NONE",
+  "why_C_and_not_B": "this is NOT an execution abort. disposition=FAIL with error=null is the governed gate-breach path: execution_status COMPLETED, qualification_status FAIL, evidence_admissible false. Every deliverable was produced and partial_run is false.",
+  "why_C_and_not_D": "the run completed and published every deliverable, but one frozen materiality gate breached, so the population is not admissible as validation evidence and no verdict may be derived from it."
+ },
+ "consumed_objects": {
+  "oos_reads": 0,
+  "pinned_version_ids": {
+   "reference/crosswalk.parquet": "ux3JpvSp7lSneFcMHhxRZ_Tp6_gx60eK",
+   "reference/sic_mapping.parquet": "_wAa1EJ0wECpUcd4DH7KhrYsYl765kWL",
+   "validation/actions.parquet": "wJ6QFkebGAidGzoWO.qzUMYjy.b6zLrx",
+   "validation/anchors.parquet": "7Br5aFGWFabpIJmPgwUBQRgdhQwc2GIK",
+   "validation/etf_prices.parquet": ".mZyHPHgamUNlHpdePGQZq.djUapjrpo",
+   "validation/prices.parquet": "eC8XZGBPXa6vPDW_WKPvwV8HtF05_tty",
+   "validation/sic_observations.parquet": "OkvwAKSX8W8W3HJiBoxZ9KC4ON6Vgj5t",
+   "validation/universe.parquet": "8Le8rLdT2wvdSenjEQdPaUAgdmSzx3ZO"
+  },
+  "reader_kind": "S3",
+  "sealed_reads": 8
+ },
+ "containment": {
+  "byte_identical_to_pre_release_capture": true,
+  "canonical_sha256_after": "44f5549a97042d2829a3027e764105b0ab272774ec3bb343d224bfba999fab48",
+  "latch_released_for": "the single execution only",
+  "oos": "NEVER OPENED - 0 reads, remains sealed",
+  "restored": true,
+  "simulate_sts_assume_role_after": "explicitDeny"
+ },
+ "enrichment_census": {
+  "corporate_action_transition": 0,
+  "delisting": 22,
+  "delisting_note": "22 STOP_DELISTING records are the first time channel 2 has ever fired. The fact was unpopulated before v3.5 wired it.",
+  "future_information": 0,
+  "halt_note": "the 0 under trading_halt is ZERO BY CONSTRUCTION, per the open HALT-EVIDENCE-INPUT-GAP. It is NOT an observation that no halts occurred.",
+  "identity_conflict": 0,
+  "missing_source": 0,
+  "no_official_open": 386,
+  "one_terminal_code_per_record": true,
+  "price_conflict": 0,
+  "records_examined": 250557,
+  "successful_enrichment": 250149,
+  "trading_halt": 0
+ },
+ "evidence": {
+  "host_path": "/opt/mr002/v35/out_exec_run4",
+  "published_here": "docs/review/mr002/phase3bc/run4_published/ - six small governed files, each verified against the publication record's bound sha256",
+  "retained_on_host_and_bound_by_hash": {
+   "ValidationDecisionExecutionBindingReport_v1.0.json": "aabeb538... 17,539,122 B",
+   "ValidationExecutionEnrichmentManifest_v1.0.json": "647bb04b... 121,956,346 B",
+   "ValidationUnitReconciliation_v1.0.json": "4037defe... 77,387,899 B"
+  }
+ },
+ "executed_under": "owner GRANT 2026-08-14: FOURTH OPENING #4 GRANTED, bound to REPLACEMENT_FOR_PRE_RESEARCH_EXECUTION_REFUSAL, code_identity ef12de6d..., checkpoint b93e770, request commit d30ecc4, request identity 7f0ecc62...",
+ "execution": {
+  "disposition": "FAIL",
+  "ended_utc": "2026-08-14T19:40:45Z",
+  "error": null,
+  "exit_code": 1,
+  "first_end_to_end_completion": "this is the FIRST time any MR-002 Phase 3B package has executed end to end. Openings 1, 2 and 3 never produced a deliverable set. Everything from S8 onward was first-use territory and it traversed.",
+  "opening_consumed": true,
+  "partial_run": false,
+  "published_at_utc": "2026-08-14T19:40:43Z",
+  "started_utc": "2026-08-14T18:50:46Z",
+  "state": "S11_PUBLISHED",
+  "wall_clock": "approximately 50 minutes"
+ },
+ "gates_that_did_not_breach": {
+  "ACTION_COMPOSITION_UNRESOLVED": {
+   "breached": false,
+   "unique_symbols": 1,
+   "units": 2
+  },
+  "IDENTITY_UNRESOLVED": {
+   "breached": false,
+   "fraction": 0.007071771548103894,
+   "max_fraction": 0.02,
+   "max_unique_symbols": 10,
+   "note": "1,785 units on only 2 symbols - concentrated, which is why it passed the symbol limb. Under the pre-v3.5 code EVERY ONE of these would have aborted the whole run.",
+   "unique_symbols": 2,
+   "units": 1785
+  },
+  "UNKNOWN_VOCABULARY": {
+   "breached": false,
+   "significance": "ZERO unregistered labels. The eight inspected kinds - acquisitionby, acquisitionof, delisted, dividend, relation, spinoff, spinoffdividend, split - are all registered. The closed classifier was complete against what this run actually inspected.",
+   "units": 0,
+   "unregistered_kinds_observed": []
+  }
+ },
+ "grants": "NOTHING. Outcome evidence only.",
+ "population_accounting": {
+  "eligible_candidate_units": 252412,
+  "identity": "331600 == 79188 + 1855 + 250557",
+  "reconciliation_balances": true,
+  "units_accepted": 250557,
+  "units_bridge_refused": 1855,
+  "units_enumerated": 331600,
+  "units_producer_refused": 79188
+ },
+ "produced_at": "2026-08-14T19:40:45Z",
+ "record_identity_sha256": "7868113b62dd5c0f5be774ce72979264c2b28f7849d6ed52e6980230ce51acd9",
+ "record_type": "MR002_Phase3B_FourthOpeningOutcome",
+ "state_after": {
+  "admissible_validation_evidence": "NONE",
+  "next": "owner adjudication. The open question is what to do about KNOWN_UNADJUDICATED reaching 30 securities: adjudicate `relation` and `spinoff` semantics, or rule on the gate. NOTHING is proposed here and no further opening is requested.",
+  "openings_spent": 4,
+  "research_verdict": "NONE"
+ },
+ "the_breach": {
+  "driver": "the KNOWN_UNADJUDICATED class contains exactly the labels the development-partition census discovered and Matrix B had never named. The inspected validation vocabulary includes `relation` and `spinoff`; both are feed-present, both reach candidates, and neither has adjudicated Phase-3B semantics.",
+  "fraction": 0.00026940082088014835,
+  "max_fraction": 0.01,
+  "max_unique_symbols": 5,
+  "reason": "CANDIDATE_REFUSED:ACTION_KIND_UNADJUDICATED | KNOWN_UNADJUDICATED",
+  "unique_symbols": 30,
+  "units": 68,
+  "which_limb": "the UNIQUE-SYMBOL limb. The fraction is 0.027% against a 1% ceiling - nowhere near it. The disjunctive gate caught a condition that a percentage-only gate would have missed entirely: a small number of units spread across 30 distinct securities is a SYSTEMATIC semantic gap, not incidental attrition, and the symbol count is what reveals that."
+ },
+ "version": "1.0",
+ "what_the_stop_rules_bought": "two of this session's refusals to proceed are directly visible in this run. Had v3.5 shipped as originally frozen - before the development-partition census falsified Matrix B - `relation` and `spinoff` would have been UNKNOWN vocabulary under a whole-run REFUSE, and opening 4 would have died as a fourth pre-research refusal. And had refusal stayed run-scoped, the 1,785 IDENTITY_UNRESOLVED units would have aborted it independently. Instead the run completed and produced a measured, published account of exactly which semantics remain unadjudicated and how far they reach.",
+ "what_was_deliberately_not_read": "no performance statistic was extracted, inspected or reported. Classification precedes interpretation, the classification is C, and under C no verdict may be derived - so reading a result now would contaminate any future adjudication about whether this population may be used. Separately, Phase 3B produces enriched EXECUTION records rather than performance statistics; the research-verdict stage is downstream and was never authorized or reached."
+}
