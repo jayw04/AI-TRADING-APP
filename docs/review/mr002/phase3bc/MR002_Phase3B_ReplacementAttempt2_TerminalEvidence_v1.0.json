@@ -1,0 +1,107 @@
+{
+ "DEFECT_IN_THIS_EVIDENCE_DISCLOSED": {
+  "cause": "the run was given /opt/mr002/v32/inputs/config.json, extracted from the host's staged inputs.tar.gz, which carries ExecutionConfiguration v1.0. MR002_Phase3B_ExecutionConfiguration_v1.1.json was generated in the repository during the rebind but was NEVER STAGED TO THE HOST. This was an operator omission, not a code fault.",
+  "impact_on_the_evidence": "MATERIAL. The published record misattributes which package ran and must not be read as evidence that v3.1 was executed.",
+  "impact_on_the_refusal": "NONE. parquet.py is byte-identical between v3.1 and v3.2, so the refusal would have occurred identically under either configuration.",
+  "what": "the published Publication record states code_identity f35e8209bcaac16a23b58ec2c0d75aae338721ab895a5b5d91e6c168506426b2 - the SUPERSEDED v3.1 identity - while the code actually executed was v3.2, 487c7f8d...",
+  "what_actually_executed": "the mount closure was verified immediately before launch as 487c7f8ddad1904b725747ef37c1b963f5283f887f0d4d9b5c6ba2be2c0b7c34 over 41 files. The executing bytes were v3.2.",
+  "why_no_gate_caught_it": "this is precisely the known_limitation carried forward unfixed from v3.1: execution_closure_sha256 is RECORDED but NOT REFERENCED by any runtime module, so S1_CODE_IDENTITY_VERIFIED does not compare the declared closure against the live mount. A stale config therefore passes undetected."
+ },
+ "actions_taken_and_not_taken": {
+  "nothing_optimized_resized_or_restaged": true,
+  "preserved": "container mr002exec retained (not --rm), full logs, the three published records, the output root, and the pre/post IAM policy documents",
+  "retry": "NOT PERFORMED - the failure occurred after the first successful validation read, so the standing rule is no automatic retry, preserve everything, stop for adjudication"
+ },
+ "artifact_kind": "INCIDENT_EVIDENCE",
+ "containment": {
+  "host_never_had_direct_sealed_access": "host->sealed remained explicitDeny throughout, including while the latch was open",
+  "latch_released_for_the_run": true,
+  "oos": "never accessed; reader->oos remained explicitDeny throughout",
+  "policy_now_identical_to_pre_release_capture": true,
+  "post_restore_verified": {
+   "host_to_reader": "explicitDeny",
+   "host_to_sealed_GetObject": "explicitDeny",
+   "host_to_sealed_ListBucket": "explicitDeny"
+  },
+  "released_by": "removal of DenyAssumingTheValidationReaderRole only",
+  "restored_after_terminal_completion": true
+ },
+ "headline": "The replacement opening is SPENT. The run REFUSED at S9 on a structural commitment check. No research result exists. NO RETRY was performed.",
+ "outcome": {
+  "deliverables_not_produced": 6,
+  "deliverables_produced": [],
+  "disposition": "REFUSED",
+  "error": "ParquetRefused: sic_observations: date bounds 2019-10-03 10:03:29+00:00..2023-02-16 22:32:22+00:00 != committed 2019-10-03..2023-02-16",
+  "exit_code": 2,
+  "finished_utc": "2026-08-14T01:34:14.827172493Z",
+  "no_research_result": "no Sharpe, return, ranking or configuration outcome was produced or observed",
+  "opening_consumed": true,
+  "partial_run": true,
+  "started_utc": "2026-08-14T01:34:10.710726166Z",
+  "state": "S9_OPENING_CONSUMED",
+  "state_history": [
+   "S0_INIT",
+   "S1_CODE_IDENTITY_VERIFIED",
+   "S2_CONTRACT_IDENTITY_VERIFIED",
+   "S3_CONFIG_BOUND",
+   "S4_RUNTIME_VERIFIED",
+   "S5_INPUTS_STAGED",
+   "S6_OUTPUTS_PREPARED",
+   "S7_PRE_ACCESS_READY",
+   "S8_READER_ASSUMED",
+   "S9_OPENING_CONSUMED"
+  ],
+  "wall_seconds": 4.12
+ },
+ "owner_decisions_required": [
+  "Adjudicate the ParquetRefused: the guard's timestamp-vs-date comparison is defective while the data and the commitment are both correct. Fixing _verify_date_bounds changes parquet.py and therefore the execution closure - another code-identity cycle.",
+  "Adjudicate whether a further replacement opening is warranted, given that this attempt again produced no interpretable research result and the cause is again execution mechanics rather than anything about the strategy.",
+  "Decide whether the known_limitation should now be fixed - a runtime check that the live closure equals the declared code_identity would have caught the stale config before the opening was spent.",
+  "Note that the staged host inputs must be refreshed to ExecutionConfiguration v1.1 before any further execution, independently of the above."
+ ],
+ "produced_at": "2026-08-14T01:39:06Z",
+ "record_identity_sha256": "8cac623e354e0e685d79d48e1d387c23e4a96cf84e3678ddccceb2233d825071",
+ "record_type": "MR002_Phase3B_ReplacementAttempt2_TerminalEvidence",
+ "relationship_to_attempt_1": {
+  "hypothesis": "attempt #1's DESTROYED primary failure was probably this same ParquetRefused",
+  "not_proven": "attempt #1's primary error was destroyed by the publication defect, so this cannot be established from its evidence. It is a strong hypothesis, not a finding.",
+  "significance": "if correct, the v3.2 recovery did exactly what it was built to do: it surfaced the real cause that the publication defect had previously destroyed.",
+  "support": [
+   "parquet.py is one of the 39 files UNCHANGED between v3.1 and v3.2, so the defect was present in attempt #1 verbatim",
+   "attempt #1 read all eight pinned objects successfully and then died - the structural decode is the very next thing after the reads",
+   "attempt #1 is recorded as dying 'in four seconds'; this run died in 4.12 seconds at the same state"
+  ]
+ },
+ "root_cause": {
+  "classification": "COMPARISON-GRANULARITY DEFECT in the structural guard. The DATA is correct and the COMMITMENT is correct.",
+  "committed_structure": {
+   "availability_column": "accepted_utc",
+   "distinct_availability_dates": 755,
+   "distinct_cik": 660,
+   "first": "2019-10-03",
+   "last": "2023-02-16",
+   "row_count": 8470
+  },
+  "function": "_verify_date_bounds",
+  "mechanism": "values = [str(v) for v in column.to_pylist()]; then min/max compared as STRINGS against a date-granularity commitment. For a TIMESTAMP column str(v) yields '2019-10-03 10:03:29+00:00', which can never equal '2019-10-03'.",
+  "module": "app/research/mr002/phase3b/parquet.py",
+  "module_sha256": "d6612f341f706c98bcf834a331c7709ab5d2d1f1e83af27c20c394dbe8945527",
+  "the_data_is_right": "the observed first and last AVAILABILITY DATES are 2019-10-03 and 2023-02-16 - exactly the registered validation window and exactly what the structural manifest commits. Only the time-of-day component makes the string comparison fail.",
+  "why_only_this_table": "sic_observations is the only committed table whose availability column is a timestamp: accepted_utc, declared TIMESTAMP WITH TIME ZONE in schema_identity. Every other table's availability column is a DATE, for which the string comparison happens to work."
+ },
+ "the_repaired_mechanics_worked": {
+  "contrast_with_attempt_1": "attempt #1 created no output directory and its publication exception replaced the primary failure. This run created the root, preserved the primary error verbatim, and published it as evidence.",
+  "no_overwrite": true,
+  "output_root_created": true,
+  "primary_error_preserved_and_published": true,
+  "records_written": [
+   "MR002_ValOOS_validation_Report.json",
+   "MR002_ValOOS_validation_Publication.json",
+   "MR002_ValOOS_validation_stderr.txt"
+  ],
+  "report_sha256": "bfc68f406c7c689e574bd5869252ec66d3875f735e8ee15a89448ed1655d7ce3",
+  "retry_after_publication": "PROHIBITED",
+  "stderr_sha256": "e24e2e5ca5e0bb36372148bac6bff9303f2fc1928d8b22df760a580b6f36b580"
+ },
+ "version": "1.0"
+}

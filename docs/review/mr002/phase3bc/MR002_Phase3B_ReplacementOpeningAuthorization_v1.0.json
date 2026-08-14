@@ -1,0 +1,74 @@
+{
+ "artifact_kind": "AUTHORIZATION_RECORD",
+ "bound_to": {
+  "code_archive_sha256": "6b75daf6549bbaf2efeb049a9087ea5b3c807623e10246956b13142afb69f4f1",
+  "code_checkpoint": "899d6456cfa4b3ddcbbaa2c5b64628ff9d6a0240",
+  "configuration": "frozen A=1.75 B=2.0 C=2.25 and all existing research rules",
+  "dependency_bundle_sha256": "d5d21eadb52ee5bccc85df832d35a060105327a7787808c5c1a6126e7ed9b5a1",
+  "execution_identity": "487c7f8ddad1904b725747ef37c1b963f5283f887f0d4d9b5c6ba2be2c0b7c34",
+  "execution_package": "v3.2 repaired 41-file closure (MR002_Phase3B_SupplementalExecutionIdentity_v3.2.json)",
+  "host_capacity": "c6a.xlarge",
+  "instance": "i-00c1034f7026db45e",
+  "numeric_runtime_identity": "74acfb45eb5b8a8b806e21fa77b6a6f5c3f9921d2ea6d0dac9dd9f2474e98c90",
+  "oos": "NO ACCESS",
+  "p10_image": "sha256:194efbdf96ee11c19f3554dcf1b1097958cdc347bcdc1637504b441237432f51",
+  "partition": "validation ONLY",
+  "pinned_objects": "the existing validation/reference objects and their recorded VersionIds",
+  "privilege_transition": "the existing mr002-validation-reader transition (v3.1 design, retained)"
+ },
+ "classification": "REPLACEMENT_FOR_TECHNICALLY_VOID_EXECUTION",
+ "consumption_rule": {
+  "consequence_of_failure_after_first_validation_read": "NO automatic retry. Preserve everything and STOP for adjudication.",
+  "consequence_of_failure_before_first_validation_read": "the replacement opening REMAINS UNSPENT",
+  "consumed_by": "the FIRST SUCCESSFUL PINNED VALIDATION GetObject",
+  "first_consuming_read": "validation/actions.parquet (read 5th of 8)",
+  "first_read": "reference/crosswalk.parquet (reference - does NOT consume)",
+  "read_order": "sorted by key, so reference/* precede validation/*",
+  "runtime_pinned_objects": 8
+ },
+ "granted_at_utc": "2026-08-14T01:31:04Z",
+ "granted_by": "owner ruling 2026-08-13, following commit c87ab0b (429x850 capacity PASS)",
+ "grants_oos_access": false,
+ "is_a_second_statistical_trial": false,
+ "post_run_obligations": [
+  "restore DenyAssumingTheValidationReaderRole after terminal completion",
+  "re-verify containment: host->reader explicitDeny, host->sealed explicitDeny",
+  "do NOT proceed to OOS merely because execution succeeded - adjudicate the validation artifacts under the frozen preregistration first, with Config B the sole eventual OOS candidate and the existing validation gates applied exactly as frozen"
+ ],
+ "preflight_findings_disclosed_before_grant_was_spent": {
+  "capacity_evidence_is_fixture_based": "the 3.42 GiB peak was measured on the synthetic fixture world with a 21.8% producer-refusal rate (159,342 of 729,300 units). Real sealed data may refuse at a different rate, and the two largest deliverables scale with PUBLISHED records. 3.42 GiB is a well-founded estimate for the sealed run, NOT a proven bound. Headroom is 4,240 MiB, so a substantial divergence still fits.",
+  "config_lists_10_sealed_inputs_but_runtime_pins_8": "sealed_input_sha256 records 10 objects; pinned_inputs() resolves 8. reference/predecessor_overrides.parquet and reference/security_sector_overrides.parquet are recorded but absent from the reference manifest's committed structure, so they are never pinned or read. Consistent with v3.1's pinned_input_count=8 and attempt #1's 8/8 reads.",
+  "reader_transition_failure_does_not_consume": "because reference/* sorts first, a broken STS assumption or S3 construction fails on a reference read, leaving the opening unspent."
+ },
+ "prior_opening": {
+  "execution_identity": "f35e8209bcaac16a23b58ec2c0d75aae338721ab895a5b5d91e6c168506426b2",
+  "history_not_mutated": "the prior opening is recorded as SPENT and its attempt as VOID. Nothing in this record or elsewhere reclassifies it as unspent, and no attempt has been made to make it look unspent.",
+  "spent_at_utc": "2026-08-13T00:14:23Z",
+  "status": "SPENT / TECHNICALLY_VOID",
+  "what_happened": "eight pinned objects were read successfully, then the run produced nothing: the output directory was never created and the publication exception replaced the computation's primary failure, destroying the real cause."
+ },
+ "reason_for_replacement": {
+  "cause": "execution mechanics failure BEFORE any interpretable validation result existed",
+  "no_result_was_available_for_decision_making": {
+   "any_other_validation_result": null,
+   "configuration_outcome": null,
+   "ranking": null,
+   "returns": null,
+   "sharpe": null,
+   "statement": "no Sharpe, return, ranking, configuration outcome or other validation result from attempt #1 was produced, observed, or available for decision-making. The primary failure was destroyed rather than interpreted. This is what makes a replacement defensible without it constituting a second statistical trial."
+  },
+  "oos_untouched": "no OOS object was opened, listed, or read under the prior opening"
+ },
+ "record_identity_sha256": "76a60af6333fc644f551f7aa376e45d6534bc8584eb704b18488f152fec25f1c",
+ "record_type": "MR002_Phase3B_ReplacementOpeningAuthorization",
+ "replacement_opening_count": 1,
+ "version": "1.0",
+ "what_this_authorization_does_not_grant": [
+  "a second statistical validation trial",
+  "any OOS access",
+  "any parameter, gate, economics or configuration change",
+  "resurrection of the spent opening",
+  "more than one replacement execution",
+  "automatic retry after a failure that occurs past the first successful validation read"
+ ]
+}

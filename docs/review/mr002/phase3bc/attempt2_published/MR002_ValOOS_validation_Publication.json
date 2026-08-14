@@ -1,0 +1,22 @@
+{
+ "boundary": "publication control only; the result is published verbatim",
+ "deliverable_sha256": {},
+ "disposition": "REFUSED",
+ "exit_code": 2,
+ "exit_disposition_agreement": true,
+ "identities": {
+  "code_identity": "f35e8209bcaac16a23b58ec2c0d75aae338721ab895a5b5d91e6c168506426b2",
+  "governing_identity": "2a1fb7755a57b97f9831cf257c6e60c8bd5baf77eab39541b75ae88c27cb5b43",
+  "runtime_identity": "sha256:194efbdf96ee11c19f3554dcf1b1097958cdc347bcdc1637504b441237432f51"
+ },
+ "no_overwrite": true,
+ "partial_run": true,
+ "published_at": "2026-08-14T01:34:14Z",
+ "record_type": "MR002_ValOOS_PublicationRecord",
+ "report_file": "MR002_ValOOS_validation_Report.json",
+ "report_sha256": "bfc68f406c7c689e574bd5869252ec66d3875f735e8ee15a89448ed1655d7ce3",
+ "retry_after_publication": "PROHIBITED",
+ "stderr_file": "MR002_ValOOS_validation_stderr.txt",
+ "stderr_sha256": "e24e2e5ca5e0bb36372148bac6bff9303f2fc1928d8b22df760a580b6f36b580",
+ "version": "1.0"
+}

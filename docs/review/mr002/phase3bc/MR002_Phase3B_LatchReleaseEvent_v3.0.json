@@ -1,0 +1,46 @@
+{
+ "artifact_kind": "PRIVILEGE_TRANSITION_EVENT",
+ "authorization": {
+  "classification": "REPLACEMENT_FOR_TECHNICALLY_VOID_EXECUTION",
+  "record": "MR002_Phase3B_ReplacementOpeningAuthorization_v1.0.json",
+  "record_identity_sha256": "76a60af6333fc644f551f7aa376e45d6534bc8584eb704b18488f152fec25f1c",
+  "replacement_opening_count": 1
+ },
+ "bound_execution_identity": "487c7f8ddad1904b725747ef37c1b963f5283f887f0d4d9b5c6ba2be2c0b7c34",
+ "change_applied": {
+  "method": "every surviving statement asserted byte-identical and order-preserved before put-role-policy",
+  "nothing_else_changed": true,
+  "policy": "mr002-phase3c-qualification-only",
+  "removed_exactly": "DenyAssumingTheValidationReaderRole",
+  "removed_statement": {
+   "Action": "sts:AssumeRole",
+   "Effect": "Deny",
+   "Resource": "arn:aws:iam::219024422756:role/mr002-validation-reader",
+   "Sid": "DenyAssumingTheValidationReaderRole"
+  },
+  "role": "mr002-phase3c-run-host",
+  "statements_after": 7,
+  "statements_before": 8
+ },
+ "host": "i-00c1034f7026db45e",
+ "invariant_retained": "the host NEVER gains direct sealed access. Releasing the latch only permits assuming the governed reader; host->sealed remains explicitDeny throughout.",
+ "method": "iam simulate-principal-policy with per-resource ResourceSpecificResults. No live AssumeRole probe and no live sealed read were used to establish these verdicts.",
+ "obligation": "restore DenyAssumingTheValidationReaderRole after terminal completion and re-verify containment.",
+ "purpose": "release the IAM latch for ONE replacement validation execution bound to execution identity 487c7f8d..., under MR002_Phase3B_ReplacementOpeningAuthorization_v1.0.json",
+ "record_identity_sha256": "631be6b57de3fcb766ab5ee177b51f9d2efdadaaf0d766fa6f2beffad0820443",
+ "record_type": "MR002_Phase3B_LatchReleaseEvent",
+ "released_at_utc": "2026-08-14T01:33:53Z",
+ "state_after_release": {
+  "host_to_reader": "allowed",
+  "host_to_sealed_s3_GetObject": "explicitDeny",
+  "host_to_sealed_s3_ListBucket": "explicitDeny",
+  "reader_to_oos": "explicitDeny",
+  "reader_to_reference": "allowed",
+  "reader_to_validation": "allowed"
+ },
+ "state_before_release": {
+  "host_to_reader": "explicitDeny",
+  "host_to_sealed_s3": "explicitDeny"
+ },
+ "version": "3.0"
+}
