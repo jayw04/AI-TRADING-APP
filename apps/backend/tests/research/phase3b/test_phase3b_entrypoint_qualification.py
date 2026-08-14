@@ -13,12 +13,17 @@ import hashlib
 import io
 import json
 import os
+from datetime import UTC, date, datetime
 
 import pytest
 
 pa = pytest.importorskip("pyarrow")
 import pyarrow.parquet as pq  # noqa: E402
 
+from app.research.mr002.phase3b import (  # noqa: E402
+    FROZEN_CONFIG_MAPPING,
+    FROZEN_CONTRACT_IDENTITIES,
+)
 from app.research.mr002.phase3b import entrypoint as EP  # noqa: E402
 from app.research.mr002.phase3b import publish as P  # noqa: E402
 from app.research.mr002.phase3b import roster as R  # noqa: E402
@@ -38,6 +43,35 @@ REFERENCE_TABLES = ("sic_mapping", "crosswalk")
 
 ANCHOR_SESSION = F.SESSIONS[40]  # early enough that its 70-day blackout lands in-window
 MIDWINDOW_LINEAGE_START = F.SESSIONS[5]  # a crosswalk interval opening INSIDE the window
+
+
+def _d(values):
+    """A real Arrow DATE column from ISO ``YYYY-MM-DD`` strings.
+
+    The sealed partition declares five availability columns DATE and one TIMESTAMP WITH TIME ZONE.
+    Writing them as strings, as this fixture did until v3.4, made the fixture world structurally
+    weaker than the sealed one: the timestamp branch of the date-bound guard was unreachable, so a
+    six-hour 429x850 qualification could pass while the sealed partition refused in four seconds.
+    """
+    return pa.array([date.fromisoformat(v) for v in values], type=pa.date32())
+
+
+def _ts(values):
+    """A real Arrow TIMESTAMP('us', tz='UTC') column from ISO-8601 strings."""
+    out = []
+    for v in values:
+        dt = datetime.fromisoformat(v.replace("Z", "+00:00"))
+        out.append(dt if dt.tzinfo else dt.replace(tzinfo=UTC))
+    return pa.array(out, type=pa.timestamp("us", tz="UTC"))
+
+
+def _utc_date_string(value) -> str:
+    """The UTC date of an availability value, at the granularity P9 commits."""
+    if isinstance(value, datetime):
+        return value.astimezone(UTC).date().isoformat()
+    if isinstance(value, date):
+        return value.isoformat()
+    return str(value)[:10]
 
 
 def _tables() -> dict:
@@ -67,7 +101,7 @@ def _tables() -> dict:
         "prices": pa.table(
             {
                 "ticker": [r[0] for r in prices],
-                "date": [r[1] for r in prices],
+                "date": _d([r[1] for r in prices]),
                 "open": [r[4] - 0.25 for r in prices],
                 "high": [r[2] + 1.0 for r in prices],
                 "low": [r[2] - 1.0 for r in prices],
@@ -80,13 +114,13 @@ def _tables() -> dict:
         "etf_prices": pa.table(
             {
                 "ticker": [r[0] for r in etfs],
-                "date": [r[1] for r in etfs],
+                "date": _d([r[1] for r in etfs]),
                 "adjclose": [r[2] for r in etfs],
             }
         ),
         "actions": pa.table(
             {
-                "date": [F.SESSIONS[F.SCORE_T + 1]],
+                "date": _d([F.SESSIONS[F.SCORE_T + 1]]),
                 "ticker": ["HEALTHY"],
                 "action": ["dividend"],
                 "value": [0.40],
@@ -95,14 +129,14 @@ def _tables() -> dict:
         "sic_observations": pa.table(
             {
                 "cik": [c for c, *_ in [(v, 0) for v in F.CIK_BY_SYMBOL.values()]],
-                "accepted_utc": ["2019-10-04T12:00:00Z"] * len(F.CIK_BY_SYMBOL),
+                "accepted_utc": _ts(["2019-10-04T12:00:00Z"] * len(F.CIK_BY_SYMBOL)),
                 "sic": ["2500"] * len(F.CIK_BY_SYMBOL),
                 "accession": [f"sic-{v}" for v in F.CIK_BY_SYMBOL.values()],
             }
         ),
         "universe": pa.table(
             {
-                "universe_month": [r[0] for r in universe_rows],
+                "universe_month": _d([r[0] for r in universe_rows]),
                 "ticker": [r[1] for r in universe_rows],
                 "permaticker": [r[2] for r in universe_rows],
                 "siccode": [2500] * len(universe_rows),
@@ -117,7 +151,7 @@ def _tables() -> dict:
                 "ticker": [r[0] for r in anchor_rows],
                 "cik": [r[1] for r in anchor_rows],
                 "accession": [r[2] for r in anchor_rows],
-                "session_date": [r[3] for r in anchor_rows],
+                "session_date": _d([r[3] for r in anchor_rows]),
                 "availability_class": [r[4] for r in anchor_rows],
                 "is_amendment_origin": [False] * len(anchor_rows),
                 "acceptance_utc": [r[5] for r in anchor_rows],
@@ -156,16 +190,35 @@ def _payload(table) -> bytes:
     return buf.getvalue()
 
 
+#: The availability column each window table commits bounds on, exactly as the SEALED structural
+#: manifest declares it. The fixture previously emitted date_bounds only for tables having a
+#: literal "date" column, so sic_observations, universe and anchors were never bound-checked at
+#: all -- a second way the fixture world was structurally weaker than the sealed one.
+AVAILABILITY_COLUMN = {
+    "prices": "date",
+    "etf_prices": "date",
+    "actions": "date",
+    "sic_observations": "accepted_utc",
+    "universe": "universe_month",
+    "anchors": "session_date",
+}
+
+
 def _manifest(tables: dict, names: tuple[str, ...]) -> dict:
     schema, structure = {}, {}
     for name in names:
         t = tables[name]
         schema[name] = [{"name": c, "type": "ANY"} for c in t.column_names]
         entry: dict = {"row_count": t.num_rows}
-        if "date" in t.column_names:
-            vals = [str(v) for v in t.column("date").to_pylist() if v is not None]
+        col = AVAILABILITY_COLUMN.get(name)
+        if col and col in t.column_names:
+            # Bounds are committed at DATE granularity, as P9 commits them -- so a timestamp
+            # column contributes its UTC date, which is what the production guard compares.
+            vals = [
+                _utc_date_string(v) for v in t.column(col).to_pylist() if v is not None
+            ]
             entry["date_bounds"] = {
-                "availability_column": "date",
+                "availability_column": col,
                 "first": min(vals),
                 "last": max(vals),
             }
@@ -203,7 +256,9 @@ CONFIG = {
     "observed_identities": dict(F.OBSERVED_IDENTITIES),
     "runtime_facts": {"python": "3.13.14"},
     "expected_runtime_facts": {"python": "3.13.14"},
-    "contract_identities": {"ExecutionEnrichmentSchema": "5b2480c1"},
+    # What a real execution CONFIGURATION asserts. It must match the frozen authority the entry
+    # point now checks against independently; a placeholder here would only prove the check fires.
+    "contract_identities": dict(FROZEN_CONTRACT_IDENTITIES),
     "identities": {
         "code_identity": "roster",
         "runtime_identity": "p10",
@@ -482,3 +537,59 @@ def test_the_bound_reference_manifest_identity_matches_the_generated_artifact():
     assert os.path.exists(artifact), f"reference manifest artifact not found at {artifact}"
     with open(artifact, "rb") as fh:
         assert hashlib.sha256(fh.read()).hexdigest() == EP.REFERENCE_MANIFEST_SHA256
+
+
+# ---------------------------------------------------------------------------------------------
+# v3.4: independent-provenance checks. Both of these compared the configuration against ITSELF
+# until v3.4, so a mutated configuration could not be detected. Each mutation must refuse before
+# the reader is constructed, before STS, before S8 and before S9, with the opening unspent.
+# ---------------------------------------------------------------------------------------------
+
+def _assert_refused_pre_access(runner, outcome, fragment):
+    """A negative case is only useful if it proves WHERE it stopped."""
+    assert outcome.disposition == P.REFUSED, outcome.error
+    assert fragment in (outcome.error or ""), outcome.error
+    assert outcome.opening_consumed is False
+    assert outcome.state not in (S.S8_READER_ASSUMED, S.S9_OPENING_CONSUMED)
+    # the reader was never used, and no object was opened
+    assert runner.reader.reads == []
+    assert runner.guard.counts()["sealed_reads"] == 0
+
+
+def test_the_entry_point_takes_expected_values_from_the_frozen_authorities_not_the_config(tmp_path):
+    """The wiring itself: the expected side must not come from the configuration."""
+    runner = _runner(tmp_path)
+    assert runner.expected_contract_identities == FROZEN_CONTRACT_IDENTITIES
+    assert runner.expected_config_mapping == FROZEN_CONFIG_MAPPING
+
+
+@pytest.mark.parametrize("key", sorted(FROZEN_CONTRACT_IDENTITIES))
+def test_a_mutated_contract_identity_refuses_before_any_access(tmp_path, key):
+    tables, froot, upload = _world(tmp_path)
+    out = tmp_path / "out"
+    out.mkdir(parents=True, exist_ok=True)
+    cfg = _config_declaring_the_live_closure()
+    cfg["contract_identities"] = dict(cfg["contract_identities"])
+    cfg["contract_identities"][key] = "0" * 64          # one identity, mutated
+    runner = EP.build_runner(
+        reader=FixtureReader(froot), output_root=str(out), sessions=list(F.SESSIONS),
+        upload_manifest=upload, structural_manifest=_manifest(tables, WINDOW_TABLES),
+        reference_manifest=_reference_manifest(tables, REFERENCE_TABLES), **cfg,
+    )
+    _assert_refused_pre_access(runner, runner.run(), "contract identity drift")
+
+
+@pytest.mark.parametrize("key,bad", [("A", 1.76), ("B", 2.01), ("C", 2.24)])
+def test_a_mutated_config_mapping_refuses_before_any_access(tmp_path, key, bad):
+    tables, froot, upload = _world(tmp_path)
+    out = tmp_path / "out"
+    out.mkdir(parents=True, exist_ok=True)
+    cfg = _config_declaring_the_live_closure()
+    cfg["config_mapping"] = dict(cfg["config_mapping"])
+    cfg["config_mapping"][key] = bad                     # B: 2.00 -> 2.01
+    runner = EP.build_runner(
+        reader=FixtureReader(froot), output_root=str(out), sessions=list(F.SESSIONS),
+        upload_manifest=upload, structural_manifest=_manifest(tables, WINDOW_TABLES),
+        reference_manifest=_reference_manifest(tables, REFERENCE_TABLES), **cfg,
+    )
+    _assert_refused_pre_access(runner, runner.run(), "configuration mismatch")

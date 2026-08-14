@@ -110,17 +110,24 @@ def test_a_naive_timestamp_refuses_rather_than_being_assumed_utc():
     assert "naive" in str(exc.value).lower()
 
 
-def test_a_rendered_timestamp_string_refuses_rather_than_being_parsed():
-    """The incident's own shape, as a STRING, must not be quietly accepted.
+@pytest.mark.parametrize("value", [
+    "2019-10-03 10:03:29+00:00",   # the incident's own shape, rendered
+    "2019-10-03T10:03:29Z",
+    "2019-10-03",                  # a BARE date literal is refused too, as of v3.4
+])
+def test_every_string_availability_value_refuses(value):
+    """Production is type-strict: no string is accepted, not even a bare ``YYYY-MM-DD``.
 
-    A bare ``YYYY-MM-DD`` literal is allowed for fixture compatibility, but anything carrying a
-    time component has to arrive as a real datetime so its zone is explicit rather than parsed out
-    of a rendering.
+    v3.3 briefly accepted bare date literals so the fixture suite would keep passing. That was
+    backwards -- the fixtures wrote ISO strings where the sealed data carries real temporal types,
+    which is exactly why a six-hour fixture qualification passed while the sealed partition refused
+    in four seconds. The fixtures were corrected to emit real Arrow logical types instead of
+    production being widened to accept test artifacts.
     """
-    table = _Table("accepted_utc", ["2019-10-03 10:03:29+00:00"])
+    table = _Table("accepted_utc", [value])
     with pytest.raises(PQ.ParquetRefused) as exc:
         PQ._verify_date_bounds(table, _commitment())
-    assert "not a bare YYYY-MM-DD date literal" in str(exc.value)
+    assert "unexpected type" in str(exc.value) and "str" in str(exc.value)
 
 
 def test_a_non_date_type_refuses():

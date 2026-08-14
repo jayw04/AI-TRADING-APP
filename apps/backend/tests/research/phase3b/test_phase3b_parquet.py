@@ -7,6 +7,8 @@ decoder that only checks checksums proves the bytes arrived, not that they are t
 
 from __future__ import annotations
 
+from datetime import date
+
 import pytest
 
 pa = pytest.importorskip("pyarrow")
@@ -56,7 +58,9 @@ def _prices(rows=None) -> bytes:
     table = pa.table(
         {
             "ticker": [r[0] for r in rows],
-            "date": [r[1] for r in rows],
+            # A real Arrow DATE column: the sealed partition declares this column DATE, and a
+            # string fixture is what made the suite structurally weaker than the sealed data.
+            "date": pa.array([date.fromisoformat(r[1]) for r in rows], type=pa.date32()),
             "close": [r[2] for r in rows],
         }
     )
@@ -65,7 +69,8 @@ def _prices(rows=None) -> bytes:
 
 def _actions() -> bytes:
     return _to_bytes(
-        pa.table({"date": ["2019-10-03", "2019-10-04"], "action": ["dividend", "split"]})
+        pa.table({"date": pa.array([date(2019, 10, 3), date(2019, 10, 4)], type=pa.date32()),
+                  "action": ["dividend", "split"]})
     )
 
 
@@ -99,7 +104,8 @@ def test_undecodable_payload_is_refused():
 
 def test_reordered_columns_are_refused():
     table = pa.table(
-        {"date": ["2019-10-03"], "ticker": ["AAA"], "close": [10.0]}  # order swapped
+        {"date": pa.array([date(2019, 10, 3)], type=pa.date32()),
+         "ticker": ["AAA"], "close": [10.0]}  # order swapped
     )
     with pytest.raises(ParquetRefused, match="column order"):
         decode(_to_bytes(table), _commitment())

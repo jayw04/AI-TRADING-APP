@@ -101,28 +101,17 @@ def _availability_date(value: Any, table_name: str) -> str:
         return value.astimezone(UTC).date().isoformat()
     if isinstance(value, date):
         return value.isoformat()
-    if isinstance(value, str):
-        # Fixture compatibility, deliberately narrow. The sealed partition declares five
-        # availability columns ``DATE`` and one ``TIMESTAMP WITH TIME ZONE``, for which pyarrow
-        # yields ``date`` and aware ``datetime`` objects respectively -- never a string. The
-        # fixture suite, however, represents DATE columns as ISO date strings, which is why no
-        # fixture run could ever have caught the 2026-08-14 timestamp defect.
-        #
-        # Only an EXACT ``YYYY-MM-DD`` literal is accepted: it carries no time and no zone, so
-        # nothing is being assumed on its behalf. Anything longer -- notably
-        # ``'2019-10-03 10:03:29+00:00'``, the shape that caused the incident -- is refused,
-        # because a value with a time component must arrive as a real datetime so its zone is
-        # explicit rather than parsed out of a rendering.
-        try:
-            parsed = date.fromisoformat(value)
-        except ValueError:
-            parsed = None
-        if parsed is not None and len(value) == 10:
-            return parsed.isoformat()
-        raise ParquetRefused(
-            f"{table_name}: availability value {value!r} is not a bare YYYY-MM-DD date literal; "
-            "a value carrying a time component must be a timezone-aware datetime, not a string"
-        )
+    # Strings are REFUSED, including a bare ``YYYY-MM-DD``. The sealed partition declares five
+    # availability columns ``DATE`` and one ``TIMESTAMP WITH TIME ZONE``, for which pyarrow yields
+    # ``date`` and aware ``datetime`` objects -- never a string. A string here means the payload's
+    # logical type is not the committed one, which is exactly the substitution this module exists
+    # to catch.
+    #
+    # v3.3 briefly accepted bare date literals so the fixture suite would keep passing. That was
+    # the wrong direction: the fixtures wrote ISO strings where the sealed data carries real
+    # temporal types, which is precisely why a six-hour fixture qualification could pass while the
+    # sealed partition refused in four seconds. The fixtures were corrected to emit real Arrow
+    # logical types instead of production being widened to accept test artifacts.
     raise ParquetRefused(
         f"{table_name}: availability value {value!r} of unexpected type "
         f"{type(value).__name__}; expected date or timezone-aware datetime"

@@ -26,7 +26,7 @@ from typing import Any
 
 from ..spq1.calendar import RegisteredCalendar
 from ..spq1.identities import GOVERNING_IDENTITIES, InputIdentityRegistry
-from . import RUN_ID, WINDOW
+from . import FROZEN_CONFIG_MAPPING, FROZEN_CONTRACT_IDENTITIES, RUN_ID, WINDOW
 from . import states as S
 from .candidates import ProducerCandidateSource
 from .guard import VALIDATION
@@ -225,10 +225,14 @@ def build_runner(
         registered_objects={VALIDATION: {o.key for o in inputs}},
         inputs=inputs,
         bound_roster=current_roster(),
+        # INDEPENDENT PROVENANCE on both of these. The left side is what the staged CONFIGURATION
+        # asserts; the right side comes from the frozen authorities inside the hash-bound closure.
+        # Supplying the configuration to both -- as this did until v3.4 -- made each check a
+        # self-comparison that could not fail.
         contract_identities=dict(contract_identities),
-        expected_contract_identities=dict(contract_identities),
+        expected_contract_identities=dict(FROZEN_CONTRACT_IDENTITIES),
         config_mapping=dict(config_mapping),
-        expected_config_mapping=dict(config_mapping),
+        expected_config_mapping=dict(FROZEN_CONFIG_MAPPING),
         runtime_facts=dict(runtime_facts),
         expected_runtime_facts=dict(expected_runtime_facts),
         identities=dict(identities),

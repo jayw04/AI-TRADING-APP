@@ -17,11 +17,28 @@ import io
 import json
 import os
 import stat
+from datetime import UTC, date, datetime
 
 import pytest
 
 pa = pytest.importorskip("pyarrow")
 import pyarrow.parquet as pq  # noqa: E402
+
+
+def _d(values):
+    """A real Arrow DATE column, matching the sealed partition's declared logical type."""
+    return pa.array([date.fromisoformat(str(v)[:10]) for v in values], type=pa.date32())
+
+
+def _ts(values):
+    """A real Arrow TIMESTAMP('us', tz='UTC') column, as sic_observations.accepted_utc is declared."""
+    out = []
+    for v in values:
+        dt = datetime.fromisoformat(str(v).replace("Z", "+00:00"))
+        out.append(dt if dt.tzinfo else dt.replace(tzinfo=UTC))
+    return pa.array(out, type=pa.timestamp("us", tz="UTC"))
+
+
 
 from app.research.mr002.phase3b import candidates as CS  # noqa: E402
 from app.research.mr002.phase3b import enrichment as E  # noqa: E402
@@ -51,7 +68,7 @@ def _arrow_tables() -> dict[str, object]:
         "prices": pa.table(
             {
                 "ticker": [r[0] for r in prices],
-                "date": [r[1] for r in prices],
+                "date": _d([r[1] for r in prices]),
                 "open": [r[4] - 0.25 for r in prices],
                 "high": [r[2] + 1.0 for r in prices],
                 "low": [r[2] - 1.0 for r in prices],
@@ -64,13 +81,13 @@ def _arrow_tables() -> dict[str, object]:
         "etf_prices": pa.table(
             {
                 "ticker": [r[0] for r in etfs],
-                "date": [r[1] for r in etfs],
+                "date": _d([r[1] for r in etfs]),
                 "adjclose": [r[2] for r in etfs],
             }
         ),
         "actions": pa.table(
             {
-                "date": [F.SESSIONS[F.SCORE_T + 1]],
+                "date": _d([F.SESSIONS[F.SCORE_T + 1]]),
                 "ticker": ["HEALTHY"],
                 "action": ["dividend"],
                 "value": [0.40],
@@ -79,7 +96,7 @@ def _arrow_tables() -> dict[str, object]:
         "sic_observations": pa.table(
             {
                 "cik": [r[0] for r in SIC_OBS_ROWS],
-                "accepted_utc": [r[1] for r in SIC_OBS_ROWS],
+                "accepted_utc": _ts([r[1] for r in SIC_OBS_ROWS]),
                 "sic": [r[2] for r in SIC_OBS_ROWS],
                 "accession": [r[3] for r in SIC_OBS_ROWS],
             }
@@ -104,7 +121,7 @@ def _manifest(tables: dict, names: tuple[str, ...]) -> dict:
         schema[name] = [{"name": c, "type": "ANY"} for c in table.column_names]
         entry: dict = {"row_count": table.num_rows}
         if "date" in table.column_names:
-            values = [str(v) for v in table.column("date").to_pylist() if v is not None]
+            values = [str(v)[:10] for v in table.column("date").to_pylist() if v is not None]
             entry["date_bounds"] = {
                 "availability_column": "date",
                 "first": min(values),
