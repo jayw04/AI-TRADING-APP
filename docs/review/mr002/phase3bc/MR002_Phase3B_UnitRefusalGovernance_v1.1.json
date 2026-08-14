@@ -1,0 +1,90 @@
+{
+ "artifact_kind": "REFUSAL_GOVERNANCE_FREEZE",
+ "authorized_by": "owner ruling 2026-08-14 (PM, third set) closing GATE-TIMING",
+ "authorized_implementation_order": [
+  "1. move ACTIONS interpretation to _facts() unit scope",
+  "2. implement the three exclusive channels: economic scalar, terminal delisting, identity/audit",
+  "3. implement the closed five-class vocabulary treatment",
+  "4. add the separate CANDIDATE_REFUSED:* mechanism",
+  "5. MOVE/WIDEN the catch boundary around _facts() rather than merely adding exception types to the existing earlier try",
+  "6. apply the separately frozen CIK IDENTITY_UNRESOLVED unit behaviour",
+  "7. produce the mandatory refusal census",
+  "8. evaluate qualification / materiality gates",
+  "9. run semantic-path qualification fixtures",
+  "10. rebind and stage ONLY if all qualification tests pass",
+  "11. request opening #4"
+ ],
+ "boundary": "Zero-data. NO sealed access. No code changed to produce this record.",
+ "confirmations_of_v10": {
+  "denominators": "CONFIRMED. Publishing units_enumerated, units_producer_refused and eligible_candidate_units together prevents a downstream reader from seeing '1.2% refused' without knowing how much of the original population disappeared earlier. The reconciliation identity must make silent shrinkage impossible.",
+  "discriminator_vs_fourth_code": "FROZEN as the discriminator; the fourth-code alternative is REJECTED. Owner rationale: it separates WHY the unit was refused (action semantics unavailable) from WHY the semantics are unavailable (known-but-unadjudicated versus genuinely unseen vocabulary), letting the gate key on refusal_code + vocabulary_state without polluting the top-level refusal namespace."
+ },
+ "custody_note": "owner confirmed: do not commit orphaned negation rules against ignore rules absent from HEAD. The .gitignore carve-out travels with ADR-0050's own change. The governing records are already tracked, so custody is not presently endangered.",
+ "gate_timing_freeze": {
+  "1_fixtures_prove_mechanics_not_incidence": {
+   "must_prove_before_the_fourth_opening": [
+    "every CANDIDATE_REFUSED:* path is reachable",
+    "vocabulary_state KNOWN_UNADJUDICATED and UNKNOWN_VOCABULARY are distinguishable",
+    "each threshold calculation is correct",
+    "the disjunctive percent-OR-unique-symbol logic fires correctly",
+    "the reconciliation identities balance",
+    "a gate breach sets the correct evidence disposition",
+    "global-integrity failures still refuse the RUN"
+   ],
+   "rule": "fixture incidence is NOT evidence about the governed population and must never be reported as if it were."
+  },
+  "2_the_governed_run_measures_actual_incidence": {
+   "invariant": "a candidate refusal must not abort independent units.",
+   "per_unit_flow_frozen": "enumerate unit -> producer-level refusal counted separately -> _facts() -> bridge refusal classified as ACTION_KIND_UNADJUDICATED (+ vocabulary_state), ACTION_COMPOSITION_UNRESOLVED or IDENTITY_UNRESOLVED -> record the refusal and CONTINUE."
+  },
+  "3_three_status_fields": {
+   "disposition_mapping": "a gate breach publishes disposition FAIL (exit 1), which is already a registered disposition in publish.py and was previously unused. No new disposition is minted. PASS keeps exit 0; REFUSED and INTEGRITY_STOP are unchanged.",
+   "fields": {
+    "evidence_admissible": "true | false",
+    "execution_status": "COMPLETED | REFUSED | INTEGRITY_STOP",
+    "qualification_status": "PASS | FAIL"
+   },
+   "the_legitimate_combination": "execution_status=COMPLETED, qualification_status=FAIL, evidence_admissible=false is NOT contradictory. The computation succeeded; the resulting research population failed its preregistered coverage requirement.",
+   "why_this_must_be_explicit": "otherwise a later reader reports 'run completed successfully' while omitting that its evidence failed qualification. The two facts must not be separable in the published record."
+  },
+  "4_a_breach_does_not_unspend_an_opening": {
+   "frozen_consequences": [
+    "the opening is SPENT",
+    "the run itself may COMPLETE",
+    "census and breach evidence are PRESERVED",
+    "the research result is INADMISSIBLE",
+    "NO research verdict may be derived from that population",
+    "the next step is governed adjudication before another opening"
+   ],
+   "worked_example": "if opening #4 finds KNOWN_UNADJUDICATED at 1.8% against a 1% gate, the run may complete and publish, and its result is still not a research verdict."
+  },
+  "5_do_not_abort_on_the_first_unknown_vocabulary_row": {
+   "only_terminates_the_run": "the frozen global-integrity conditions.",
+   "rule": "'unknown vocabulary incidence > 0 means qualification FAIL' does NOT mean 'terminate on the first unknown row'. Refuse that unit; continue censusing the remaining independent units.",
+   "why": "the governed result is already destined to be inadmissible, so completing the bounded run costs nothing and answers the question that matters: is the problem ISOLATED or SYSTEMIC? 'UNKNOWN_VOCABULARY: 1 unit, 1 symbol' is evidence; 'at least 1, remainder unknown because execution stopped' is not."
+  },
+  "6_gates_may_be_evaluated_incrementally": {
+   "percentage_thresholds": "where the final denominator is not yet known, the AUTHORITATIVE disposition is computed only when enumeration is complete.",
+   "rule": "gate_breached may be set as soon as a breach is PROVABLE - UNKNOWN_VOCABULARY > 0 is provable on first occurrence. Read the incremental flag as 'qualification already cannot PASS', NEVER as 'stop processing'."
+  },
+  "headline": "POST-POPULATION EVIDENCE-ADMISSIBILITY GATING, NOT PRE-OPENING AUTHORIZATION.",
+  "why_it_could_not_be_otherwise": "the incidence a gate measures exists only once the authorized partition is evaluated. Requiring the threshold to be known before the opening would require reading the very data the opening controls. The gates therefore protect whether a result is ADMISSIBLE as governed evidence; they cannot protect the opening."
+ },
+ "grants": "NOTHING. Adjudication only.",
+ "implementation_status": {
+  "fourth_opening": "NOT granted and NOT requested",
+  "openings_spent": 3,
+  "research_verdict": "NONE",
+  "state": "AUTHORIZED - all governance items frozen, no open items"
+ },
+ "produced_at": "2026-08-14T00:00:00Z",
+ "record_identity_sha256": "1a557a640de0c1b69a5186f3969dd11c91444423c32bafe145f4c2235514540c",
+ "record_type": "MR002_Phase3B_UnitRefusalGovernance",
+ "standing_stop_rule_retained": "any new per-unit-to-whole-run escalation discovered during implementation is RECORDED and ADJUDICATED, never generalised automatically, unless already covered by a frozen refusal class.",
+ "supersedes": {
+  "reason": "v1.0 froze four items and left GATE-TIMING open. This record closes it. Everything else in v1.0 is carried forward unchanged and remains in force.",
+  "record": "MR002_Phase3B_UnitRefusalGovernance_v1.0",
+  "record_identity_sha256": "d03ae6677812cc8f5975fc6ae9ed5ab638730a5ab6d740f7c123fde0676b49ec"
+ },
+ "version": "1.1"
+}
