@@ -1,0 +1,140 @@
+{
+ "artifact_kind": "QUALIFICATION_EVIDENCE",
+ "authorizes": "NOTHING. The further replacement opening is a separate owner authorization and remains WITHHELD.",
+ "boundary": "Zero-data. No sealed object, no credential, no reader assumption, no opening. Every host check ran with --network=none and AWS_EC2_METADATA_DISABLED=true. The IAM latch is CLOSED and was never released for any of this.",
+ "full_regression": {
+  "result": "PASS",
+  "suite": "tests/research/phase3b/",
+  "totals": {
+   "errors": 0,
+   "failures": 0,
+   "skipped": 0,
+   "tests": 285
+  }
+ },
+ "narrowness": {
+  "archive_reproduces_from_git": "_gen_v33_rebind_archive.py reproduces both the closure identity and the archive sha256 from any checkout and exits non-zero on drift",
+  "changed": [
+   "app/research/mr002/phase3b/entrypoint.py",
+   "app/research/mr002/phase3b/parquet.py",
+   "app/research/mr002/phase3b/roster.py",
+   "app/research/mr002/phase3b/runner.py"
+  ],
+  "closure_members_changed": 4,
+  "closure_set_unchanged": "static_closure() over the corrected tree yields the SAME 41-file set; the corrections introduced no new import"
+ },
+ "produced_at": "2026-08-14T02:23:50Z",
+ "qualifies": {
+  "code_archive": "ba6b58706b83cba3d6725a2a088b4052d0e56a4de7488eed4551cfd9e5f8057e",
+  "code_checkpoint": "b7c7369aaeb6812201e047a0ecb1b3e7c6fcc6b8",
+  "code_identity": "d25296205b5fc3a79f9f3037486a124f6e5392591192f6ce7bd2d3491304c49e",
+  "supplement": "MR002_Phase3B_SupplementalExecutionIdentity_v3.3.json"
+ },
+ "record_type": "MR002_Phase3B_V33_RebindQualification",
+ "required_proofs": {
+  "1_parquet_timestamp_and_date_bound_tests_pass": {
+   "cases": [
+    "test_a_date_column_still_passes_unchanged",
+    "test_a_missing_availability_timestamp_is_refused_not_defaulted",
+    "test_a_naive_timestamp_refuses_rather_than_being_assumed_utc",
+    "test_a_rendered_timestamp_string_refuses_rather_than_being_parsed",
+    "test_a_timestamp_whose_utc_date_falls_outside_the_commitment_refuses",
+    "test_an_anchor_without_an_acceptance_timestamp_is_refused",
+    "test_an_empty_availability_column_still_refuses",
+    "test_an_unregistered_availability_class_is_refused_not_defaulted",
+    "test_anchors_are_grouped_with_their_availability_timestamps",
+    "test_availability_values_reduce_to_the_utc_date[value0-2019-10-03]",
+    "test_availability_values_reduce_to_the_utc_date[value1-2023-02-16]",
+    "test_availability_values_reduce_to_the_utc_date[value2-2020-01-01]",
+    "test_availability_values_reduce_to_the_utc_date[value3-2019-10-04]",
+    "test_mutating_either_committed_endpoint_refuses[2019-10-03-2023-02-15]",
+    "test_mutating_either_committed_endpoint_refuses[2019-10-04-2023-02-16]",
+    "test_off_calendar_anchor_maps_to_the_first_open_after_availability",
+    "test_real_timestamp_shape_decodes_past_the_date_bound_guard",
+    "test_real_timestamp_shape_still_refuses_an_out_of_window_endpoint",
+    "test_shifted_date_bounds_are_refused",
+    "test_the_exact_incident_timestamps_now_normalise_to_the_committed_dates"
+   ],
+   "result": "PASS",
+   "suite": "tests/research/phase3b/test_phase3b_date_bounds_and_closure_identity.py"
+  },
+  "2_real_sic_observations_shape_reaches_past_the_guard": {
+   "also_asserted": "the decoded values really are timezone-aware datetimes, not strings",
+   "cases": [
+    "test_real_timestamp_shape_decodes_past_the_date_bound_guard",
+    "test_real_timestamp_shape_still_refuses_an_out_of_window_endpoint"
+   ],
+   "endpoints_used": "the incident's own: 2019-10-03T10:03:29+00:00 and 2023-02-16T22:32:22+00:00",
+   "method": "a non-sealed parquet built at the true sic_observations schema (cik BIGINT, accession VARCHAR, form VARCHAR, accepted_utc TIMESTAMP('us', tz='UTC'), sic VARCHAR), decoded through the whole PQ.decode path - not just the guard function",
+   "result": "PASS"
+  },
+  "3_stale_config_refuses_before_sts": {
+   "on_the_host": {
+    "error": "RunRefused: execution closure identity mismatch: live mount d25296205b5fc3a79f9f3037486a124f6e5392591192f6ce7bd2d3491304c49e != declared f35e8209... The configuration names a different execution package than the one executing; refusing before any credential or sealed access.",
+    "method": "the production entry point, in the bound image, on the resized host, with the v3.3 mount and a config mutated to declare the superseded f35e8209...",
+    "observed": {
+     "disposition": "REFUSED",
+     "exit_code": 2,
+     "opening_consumed": false,
+     "state": "S0_INIT"
+    },
+    "significance": "it refuses at S0_INIT - before S1 even advances, therefore before reader construction, before STS, and before any object could be opened. Under the previous package this same combination reached S9_OPENING_CONSUMED and spent a governed opening."
+   },
+   "result": "PASS",
+   "unit_level": "test_THE_INCIDENT_stale_config_refuses_before_any_credential_or_sealed_access"
+  },
+  "4_correct_config_and_exact_mount_reaches_pre_access_ready": {
+   "negative_control": "--network=none AND AWS_EC2_METADATA_DISABLED=true",
+   "on_the_host": {
+    "disposition": "PASS",
+    "exit_code": 0,
+    "opening_consumed": false,
+    "state": "S7_PRE_ACCESS_READY"
+   },
+   "result": "PASS"
+  },
+  "5_publication_and_primary_error_repairs_remain_green": {
+   "result": "PASS",
+   "suite": "tests/research/phase3b/test_phase3b_publication_recovery.py"
+  },
+  "6_reader_transition_tests_remain_green": {
+   "properties": [
+    "lazy STS",
+    "reader ARN a module constant",
+    "S3 built from temporary credentials only",
+    "no ambient fallback"
+   ],
+   "result": "PASS",
+   "suite": "tests/research/phase3b/test_phase3b_reader_assumption.py"
+  },
+  "7_no_429_repeat_required": {
+   "owner_ruling": "neither date normalisation nor a one-time pre-access identity comparison materially changes memory or runtime scaling; a narrower full-path fixture qualification is enough",
+   "result": "NOT REQUIRED",
+   "supporting": "the 429x850 measurement (5.92 h, 3,499.2 MiB peak, 45.2% of envelope) stands. The corrections add one hash comparison before S1 and change a per-value conversion inside an existing loop."
+  }
+ },
+ "staging_control": {
+  "config_was_patched_not_replaced": "the staged config.json carries run_id, window and runtime_facts that the ExecutionConfiguration does not, so exactly two scalars were swapped and the diff was asserted to contain only those two",
+  "method": "the code archive and the configuration were transferred and written in ONE staging operation, then both re-read from the host and hashed",
+  "requirement": "no more independent code staging and config staging that can drift apart",
+  "staged_archive_sha256": "ba6b58706b83cba3d6725a2a088b4052d0e56a4de7488eed4551cfd9e5f8057e",
+  "staged_config_sha256": "b64346c92b81d1acb4dbbedc7f887e38d479298bcfedd1bcce2debf06ab54f44",
+  "three_way_identity_proof": {
+   "all_three_agree": true,
+   "live_mount_closure_identity": "d25296205b5fc3a79f9f3037486a124f6e5392591192f6ce7bd2d3491304c49e",
+   "observed_where": "in the bound image on the resized host, after staging",
+   "staged_config_code_identity": "d25296205b5fc3a79f9f3037486a124f6e5392591192f6ce7bd2d3491304c49e",
+   "staged_config_execution_closure_sha256": "d25296205b5fc3a79f9f3037486a124f6e5392591192f6ce7bd2d3491304c49e"
+  }
+ },
+ "still_open_for_adjudication": {
+  "fixture_type_fidelity": "every fixture writes DATE availability columns as ISO strings, so no fixture run - including the six-hour 429x850 qualification - ever executed the timestamp branch that refused the sealed partition. A real-parquet round-trip now covers sic_observations, but the wider fixture suite still does not reproduce the sealed column types.",
+  "further_self_comparisons": "contract_identities/expected_contract_identities and config_mapping/expected_config_mapping are each built from a single source, so _verify_contract_identity and _bind_config also cannot fail. NOT fixed here - outside the authorized scope."
+ },
+ "version": "1.0",
+ "what_this_does_not_establish": [
+  "eligibility to consume a further replacement opening - a separate owner authorization",
+  "that the sealed partition will decode past every OTHER structural check; only the date-bound guard was at fault and only it was corrected",
+  "any research result"
+ ]
+}
