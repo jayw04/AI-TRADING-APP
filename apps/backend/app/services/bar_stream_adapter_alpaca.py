@@ -17,7 +17,6 @@ from typing import Any
 import structlog
 
 from app.brokers.alpaca.credentials import load_credentials
-from app.config import get_settings
 from app.services.bar_stream import StreamedBar
 from app.services.bar_stream_adapter import BarCallback
 
@@ -38,12 +37,10 @@ class AlpacaBarStreamAdapter:
         from alpaca.data.live import StockDataStream
 
         creds = load_credentials()
-        settings = get_settings()
-        feed_name = (getattr(settings, "alpaca_data_feed", None) or "iex").lower()
-        try:
-            feed = DataFeed(feed_name)
-        except ValueError:
-            feed = DataFeed.IEX
+        # Explicit-feed rule (Strategy proposals v1.4.1 §3.1/§3.4): governed paths
+        # name their feed in code; no env/entitlement default may pick it. Moving
+        # this stream to SIP is a governed migration (§3.3), not a config flip.
+        feed = DataFeed.IEX
 
         self._stream = StockDataStream(
             creds.api_key, creds.api_secret, feed=feed
