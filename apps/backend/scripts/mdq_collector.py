@@ -102,11 +102,24 @@ def cmd_sample(args: argparse.Namespace) -> int:
         return 0
     client = _bootstrap_client(pins)
     cycles = 0
+    consecutive_failures = 0
     while True:
         recs = sample_quotes_cycle(client, universe)
         for feed, records in recs.items():
             store.append_jsonl(PartitionRef(feed=feed, session=today), "quotes", records)
         cycles += 1
+        # Frozen retry policy (registration §8): continue on transient failure,
+        # abort only on sustained failure so a dead network doesn't spin all day.
+        if all(len(r) == 1 and "feed_error" in r[0] for r in recs.values()):
+            consecutive_failures += 1
+            if consecutive_failures >= args.max_consecutive_failures:
+                print(
+                    f"aborting after {consecutive_failures} consecutive fully-failed "
+                    f"cycles (~{consecutive_failures * args.cadence}s of outage)"
+                )
+                return 1
+        else:
+            consecutive_failures = 0
         if args.once or (args.max_cycles and cycles >= args.max_cycles):
             break
         if datetime.now(UTC) >= close:
@@ -218,6 +231,12 @@ def main() -> int:
     p.add_argument("--until-close", action="store_true")
     p.add_argument("--cadence", type=int, default=60, help="seconds between cycles")
     p.add_argument("--max-cycles", type=int, default=0)
+    p.add_argument(
+        "--max-consecutive-failures",
+        type=int,
+        default=30,
+        help="abort after this many fully-failed cycles (frozen retry policy)",
+    )
     p.set_defaults(fn=cmd_sample)
 
     p = sub.add_parser("eod", help="end-of-session 1-min bars, both feeds")

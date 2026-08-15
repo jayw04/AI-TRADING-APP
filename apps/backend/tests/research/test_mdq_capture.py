@@ -223,3 +223,26 @@ def test_capture_package_http_boundary_is_structural() -> None:
             assert hit.startswith("/v2/account"), f"non-identity /v2/ endpoint {hit} in {path.name}"
         trading_import = re.compile(r"^\s*(from|import)\s+alpaca\.trading", re.MULTILINE)
         assert not trading_import.search(text), f"trading SDK import in {path.name}"
+        # No order-path or broker-module imports: the package imports nothing
+        # from app.* outside itself (plan v0.3 §4.5 — structural, not reviewed).
+        app_import = re.compile(r"^\s*(?:from|import)\s+(app\.[\w.]+)", re.MULTILINE)
+        for mod in app_import.findall(text):
+            assert mod.startswith("app.research.capture"), (
+                f"foreign app import {mod} in {path.name}"
+            )
+
+
+def test_sample_cycle_isolates_per_feed_failures() -> None:
+    """A transient failure on one feed must not lose the other feed's cycle;
+    the failed feed gets a single auditable error record (frozen retry policy)."""
+
+    class _FlakyClient(_FakeClient):
+        def get_stock_latest_quote(self, req):
+            if str(req.feed.value) == "sip":
+                raise ConnectionError("transient")
+            return super().get_stock_latest_quote(req)
+
+    out = sample_quotes_cycle(_FlakyClient(), ("SPY",))
+    assert out["iex"][0]["bid"] == 99.0
+    assert len(out["sip"]) == 1 and "feed_error" in out["sip"][0]
+    assert "ConnectionError" in out["sip"][0]["feed_error"]

@@ -64,9 +64,18 @@ def sample_quotes_cycle(
     cycle_ts = datetime.now(UTC).isoformat()
     out: dict[str, list[dict[str, Any]]] = {}
     for feed in feeds:
-        quotes = client.get_stock_latest_quote(
-            StockLatestQuoteRequest(symbol_or_symbols=list(universe), feed=DataFeed(feed))
-        )
+        # Per-feed error isolation: a transient failure on one feed must not
+        # lose the other feed's observation for this cycle. The error record
+        # keeps the cycle's slot in the partition auditable (frozen §8 retry
+        # policy: continue on transient failure; the CLI aborts only on
+        # sustained failure).
+        try:
+            quotes = client.get_stock_latest_quote(
+                StockLatestQuoteRequest(symbol_or_symbols=list(universe), feed=DataFeed(feed))
+            )
+        except Exception as exc:  # noqa: BLE001 - recorded, never silently dropped
+            out[feed] = [{"cycle_ts": cycle_ts, "feed_error": f"{type(exc).__name__}: {exc}"}]
+            continue
         records: list[dict[str, Any]] = []
         for symbol in universe:
             q = quotes.get(symbol)
