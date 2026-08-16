@@ -68,6 +68,42 @@ def test_default_pins_are_the_account7_latch() -> None:
     assert pins.key_fingerprint == "5b6f39e5198d"
 
 
+def test_account_getter_surfaces_only_the_account_number(monkeypatch) -> None:
+    """Payload discipline (plan v0.5 §3.1): /v2/account returns execution-plane
+    state alongside the broker id; only account_number may leave the HTTP
+    boundary — equity, buying power, etc. are discarded, never propagated."""
+    import httpx
+
+    from app.research.capture.identity import _get_account_number
+
+    payload = {
+        "account_number": "PA3BGKRLH2AP",
+        "equity": "123456.78",
+        "buying_power": "246913.56",
+        "cash": "1.00",
+        "status": "ACTIVE",
+    }
+
+    class _FakeResponse:
+        def raise_for_status(self) -> None:
+            return None
+
+        def json(self) -> dict:
+            return payload
+
+    captured: dict = {}
+
+    def fake_get(url, headers=None, timeout=None):
+        captured["url"] = url
+        return _FakeResponse()
+
+    monkeypatch.setattr(httpx, "get", fake_get)
+    result = _get_account_number("https://paper-api.alpaca.markets", "K", "S")
+    assert result == "PA3BGKRLH2AP"
+    assert isinstance(result, str)  # a scalar, not the payload
+    assert captured["url"].endswith("/v2/account")
+
+
 # --- store --------------------------------------------------------------------
 
 

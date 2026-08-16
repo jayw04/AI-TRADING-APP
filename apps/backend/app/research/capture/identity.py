@@ -12,6 +12,11 @@ The account check uses a plain HTTPS GET — deliberately not the alpaca.trading
 SDK, which research-plane code must not import (ADR 0051 Decision 3,
 check_research_plane_no_broker_capability.sh). Reading the account number is an
 identity latch, not broker capability.
+
+Payload discipline (implementation-plan v0.5 §3.1): the /v2/account response
+carries execution-plane state (equity, buying power, ...) alongside the broker
+id. Exactly one field — ``account_number`` — leaves the HTTP boundary; the
+remainder is never logged, returned, or persisted into the research archive.
 """
 
 from __future__ import annotations
@@ -81,6 +86,12 @@ def verify_identity(
 
 
 def _get_account_number(base_url: str, api_key: str, api_secret: str) -> str:
+    """Return ONLY the account number from the read-only GET /v2/account.
+
+    The rest of the payload (equity, buying power, and other execution-plane
+    state) is discarded here, inside the HTTP boundary — it must never be
+    logged or persisted into the research archive (plan v0.5 §3.1).
+    """
     import httpx
 
     resp = httpx.get(
