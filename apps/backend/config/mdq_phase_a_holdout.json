@@ -1,0 +1,20 @@
+{
+ "artifact": "MDQ001_EXPLORATION_HOLDOUT",
+ "holdout_symbols": [
+  "AMZN",
+  "EFA",
+  "KMLM",
+  "MSTR",
+  "NBIS",
+  "NOW",
+  "TSLA",
+  "XLK",
+  "XLV",
+  "XOM"
+ ],
+ "period_holdout_dates": "STAMPED_AT_FIRST_ADMISSIBLE_CAPTURE",
+ "period_holdout_rule": "final 12 calendar days of the 60-day review window",
+ "rule": "plan v0.8 4.10.2: symbol holdout = 10/50 (20%) drawn by random.Random(int(sha256(universe_symbols_file_LF),16)).sample(sorted_universe,10); period holdout = final 20% (last 12 calendar days) of the 60-day review window, dates stamped when the review clock stamps at first admissible governed capture. Holdout is quarantined from ALL exploratory/value-extraction access; a graduating hypothesis is evaluated on it once.",
+ "universe_symbols_sha256": "0c57bd71c0b73565328ec27036c6573f11b87594acb49ca461458a7d947f88d4",
+ "version": 1
+}
