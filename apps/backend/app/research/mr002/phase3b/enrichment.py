@@ -152,6 +152,10 @@ class EnrichedRecord:
 _CORPORATE_ACTION_KINDS = {
     "split",
     "dividend",
+    # LabelAdjudication v2.0 (5647549e...) / Matrix v1.3 SPINOFF-COMPOSITE: `spinoff` is the
+    # composite structural event's kind; `spinoffdividend` is the same event's dollar-value
+    # component, normalized away by the bridge when the pair co-occurs and refused when alone.
+    "spinoff",
     "spinoffdividend",
     "merger",
     "mergerto",

@@ -7,7 +7,8 @@ REAL bridge (real-typed parquet -> decode -> candidate construction -> _facts() 
 asks one question the previous suites never asked: what does this row DO?
 
 Frozen by MR002_Phase3B_SemanticReconciliationMatrix_v1.1 (95ae21ba...) and
-MR002_Phase3B_UnitRefusalGovernance_v1.0/v1.1 (d03ae667... / 1a557a64...).
+MR002_Phase3B_UnitRefusalGovernance_v1.0/v1.1 (d03ae667... / 1a557a64...); section 10 by
+MR002_Phase3B_LabelAdjudication_v2.0 (5647549e...) / SemanticReconciliationMatrix_v1.3 (865064f5...).
 """
 
 from __future__ import annotations
@@ -214,10 +215,11 @@ def test_an_unknown_kind_refuses_the_unit_and_not_the_run(tmp_path):
 
 @pytest.mark.parametrize("kind", sorted(CS.KNOWN_UNADJUDICATED))
 def test_a_known_unadjudicated_kind_refuses_the_unit_with_its_own_state(tmp_path, kind):
-    """listed / relation / spinoff / bankruptcyliquidation are feed-present and unadjudicated.
+    """listed / bankruptcyliquidation are feed-present and unadjudicated.
 
-    They are NOT aliased to their look-alikes: spinoff is not spinoffdividend, and
-    bankruptcyliquidation is not bankruptcy. Name similarity is not adjudication.
+    They are NOT aliased to their look-alikes: bankruptcyliquidation is not bankruptcy. Name
+    similarity is not adjudication. (`relation` and `spinoff` left this set under
+    LabelAdjudication v2.0 - section 10 below covers their adjudicated behaviour.)
     """
     source, payloads = _source(tmp_path, [(T1, SUBJECT, kind, None)])
     source.candidates(payloads)
@@ -260,6 +262,110 @@ def test_the_same_economic_kind_twice_is_not_a_conflict(tmp_path):
     code, facts = _outcome_for(source, payloads)
     assert code == E.SUCCESS
     assert facts.cash_distribution == pytest.approx(0.40), "two distributions are two distributions"
+
+
+# --------------------------------------------------------------- 10. adjudicated 2026-08-17
+# LabelAdjudication v2.0 (5647549e...) / SemanticReconciliationMatrix v1.3 (865064f5...): `relation`
+# is informational linkage (channel 3 only), and spinoff+spinoffdividend are ONE composite event.
+def test_relation_alone_is_audit_visible_but_has_no_effect(tmp_path):
+    """Informational issuer/security linkage: no scalar, no refusal, channel-3 identity only."""
+    source, payloads = _source(tmp_path, [(T1, SUBJECT, "relation", None)])
+    code, facts = _outcome_for(source, payloads)
+    assert code == E.SUCCESS
+    assert facts.corporate_action_kind is None
+    assert facts.corporate_action_identity == f"actions:{SUBJECT}:{T1}:relation"
+    assert not _bridge_refusals(source)
+
+
+def test_relation_contributes_no_identity_precedence(tmp_path):
+    """A linkage beside an economic action neither conflicts nor displaces its identity."""
+    source, payloads = _source(
+        tmp_path, [(T1, SUBJECT, "relation", None), (T1, SUBJECT, "dividend", 0.40)]
+    )
+    code, facts = _outcome_for(source, payloads)
+    assert code == E.SUCCESS
+    assert facts.corporate_action_kind == "dividend"
+    assert facts.corporate_action_identity == f"actions:{SUBJECT}:{T1}:dividend"
+    assert not _bridge_refusals(source)
+
+
+def test_a_populated_relation_value_reverts_the_unit_to_unadjudicated(tmp_path):
+    """RELATION-VALUE-PREMISE: 0/98 in the bounded evidence; a populated value is outside the
+    adjudicated premise and must fail closed rather than be silently reinterpreted."""
+    source, payloads = _source(tmp_path, [(T1, SUBJECT, "relation", 1.0)])
+    pairs = source.candidates(payloads)
+    refusals = _bridge_refusals(source)
+    assert {r[2] for r in refusals} == {CS.REFUSED_ACTION_KIND}
+    assert {r[3] for r in refusals} == {CS.VOCAB_KNOWN_UNADJUDICATED}
+    assert pairs, "independent units continue"
+
+
+def test_the_spinoff_pair_is_one_composite_event_not_a_conflict(tmp_path):
+    """65/75 bounded spinoffs carry both records: one event in two denominations, not a conflict.
+
+    The structural kind is the scalar and the identity; the dollar value joins the registered
+    distribution term without the event collapsing into an ordinary cash dividend.
+    """
+    source, payloads = _source(
+        tmp_path, [(T1, SUBJECT, "spinoff", 0.25), (T1, SUBJECT, "spinoffdividend", 3.81)]
+    )
+    code, facts = _outcome_for(source, payloads)
+    assert not _bridge_refusals(source)
+    assert code == E.SUCCESS
+    assert facts.corporate_action_kind == "spinoff"
+    assert facts.corporate_action_identity == f"actions:{SUBJECT}:{T1}:spinoff"
+    assert facts.cash_distribution == pytest.approx(3.81)
+
+
+def test_a_spinoff_without_a_dollar_value_is_valid_and_unadjusted(tmp_path):
+    """10/75 bounded spinoffs publish no dollar value: 'value unavailable', never 'event invalid'.
+    The ratio is NEVER summed into the distribution term."""
+    source, payloads = _source(tmp_path, [(T1, SUBJECT, "spinoff", 0.25)])
+    code, facts = _outcome_for(source, payloads)
+    assert not _bridge_refusals(source)
+    assert code == E.SUCCESS
+    assert facts.corporate_action_kind == "spinoff"
+    assert facts.cash_distribution == 0.0
+
+
+def test_spinoffdividend_alone_is_unresolved_composition(tmp_path):
+    """A value component without its structural event - zero observed in the bounded window -
+    refuses the unit rather than being consumed as a free-standing action."""
+    source, payloads = _source(tmp_path, [(T1, SUBJECT, "spinoffdividend", 3.81)])
+    pairs = source.candidates(payloads)
+    assert {r[2] for r in _bridge_refusals(source)} == {CS.REFUSED_ACTION_COMPOSITION}
+    assert pairs, "independent units continue"
+
+
+def test_the_spinoff_composite_beside_another_economic_kind_still_refuses(tmp_path):
+    """The composite is the ONLY authorized composition - spinoff+split (dev census x4) still
+    refuses. No general composition rule exists."""
+    source, payloads = _source(
+        tmp_path,
+        [
+            (T1, SUBJECT, "spinoff", 0.25),
+            (T1, SUBJECT, "spinoffdividend", 3.81),
+            (T1, SUBJECT, "split", 2.0),
+        ],
+    )
+    source.candidates(payloads)
+    assert {r[2] for r in _bridge_refusals(source)} == {CS.REFUSED_ACTION_COMPOSITION}
+
+
+def test_delisting_still_outranks_the_spinoff_composite(tmp_path):
+    """AUDIT-IDENTITY-PRECEDENCE is unchanged for the first three classes."""
+    source, payloads = _source(
+        tmp_path,
+        [
+            (T1, SUBJECT, "spinoff", 0.25),
+            (T1, SUBJECT, "spinoffdividend", 3.81),
+            (T1, SUBJECT, "delisted", None),
+        ],
+    )
+    code, facts = _outcome_for(source, payloads)
+    assert code == E.STOP_DELISTING
+    assert facts.corporate_action_kind == "spinoff"
+    assert facts.corporate_action_identity == f"actions:{SUBJECT}:{T1}:delisted"
 
 
 # --------------------------------------------------------------- 8. identity at unit scope

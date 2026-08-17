@@ -69,7 +69,7 @@ class CandidateSourceRefused(Exception):
 
 
 # --- the frozen ACTIONS semantic model ---------------------------------------------------------
-# MR002_Phase3B_SemanticReconciliationMatrix_v1.1 (95ae21ba...). Five classes, three channels, one
+# MR002_Phase3B_SemanticReconciliationMatrix_v1.3 (865064f5...). Six classes, three channels, one
 # consuming channel per kind. The classes exist because the previous design answered "what kind is
 # on this (ticker, session)?" once and used that single answer as the economic scalar, the published
 # audit identity, the conflict subject AND the run's life-or-death condition. Three governed
@@ -89,17 +89,23 @@ UPSTREAM_IDENTITY_LINEAGE: frozenset[str] = frozenset({"tickerchangefrom", "tick
 # Channel 3 only. Recognized, auditable, identity-preserving, and OUT of the economic conflict guard.
 # "Inert" cannot mean "no economic effect but still causes economic conflict".
 EXPLICITLY_INERT: frozenset[str] = frozenset({"bankruptcy", "regulatorychange", "spunofffrom"})
-# Observed in the governed feed, unadjudicated in Phase 3B. NEVER aliased: spinoff is not
-# spinoffdividend and bankruptcyliquidation is not bankruptcy. Name similarity is not adjudication.
-KNOWN_UNADJUDICATED: frozenset[str] = frozenset(
-    {"bankruptcyliquidation", "listed", "relation", "spinoff"}
-)
+# Channel 3 only, adjudicated separately from EXPLICITLY_INERT so the v1.1 membership of that class
+# is not retroactively rewritten. LabelAdjudication v2.0 (5647549e...): informational issuer/security
+# linkage; no t+1, economic or identity consequence; contributes no identity precedence of its own.
+# Conditional on the vendor premise that relation.value is never populated - a populated value on a
+# relevant session reverts the label to KNOWN_UNADJUDICATED for that unit (RELATION-VALUE-PREMISE).
+KNOWN_INFORMATIONAL_LINKAGE: frozenset[str] = frozenset({"relation"})
+# Observed in the governed feed, unadjudicated in Phase 3B. NEVER aliased: bankruptcyliquidation is
+# not bankruptcy. Name similarity is not adjudication. (`relation` and `spinoff` left this set under
+# LabelAdjudication v2.0; `spinoff` is now economic via the enrichment set, `relation` above.)
+KNOWN_UNADJUDICATED: frozenset[str] = frozenset({"bankruptcyliquidation", "listed"})
 
 REGISTERED_ACTION_VOCABULARY: frozenset[str] = (
     ECONOMICALLY_ADJUDICATED
     | TERMINAL_DELISTING
     | UPSTREAM_IDENTITY_LINEAGE
     | EXPLICITLY_INERT
+    | KNOWN_INFORMATIONAL_LINKAGE
     | KNOWN_UNADJUDICATED
 )
 
@@ -138,7 +144,7 @@ class CandidateRefused(Exception):
 
 
 def classify_action_kind(kind: str) -> str:
-    """The closed five-class classifier. An unregistered label is UNKNOWN, never guessed at."""
+    """The closed six-class classifier. An unregistered label is UNKNOWN, never guessed at."""
     if kind in ECONOMICALLY_ADJUDICATED:
         return "ECONOMICALLY_ADJUDICATED"
     if kind in TERMINAL_DELISTING:
@@ -147,6 +153,8 @@ def classify_action_kind(kind: str) -> str:
         return "UPSTREAM_IDENTITY_LINEAGE"
     if kind in EXPLICITLY_INERT:
         return "EXPLICITLY_INERT"
+    if kind in KNOWN_INFORMATIONAL_LINKAGE:
+        return "KNOWN_INFORMATIONAL_LINKAGE"
     if kind in KNOWN_UNADJUDICATED:
         return "KNOWN_UNADJUDICATED"
     return "UNKNOWN_VOCABULARY"
@@ -178,6 +186,13 @@ def sic_observations_by_cik(table: Any) -> dict[int, list[tuple]]:
     return out
 
 
+# The two vendor kinds whose value is a USD/share distribution the registered gap consumes.
+# SPINOFF-COMPOSITE (Matrix v1.3): the spinoffdividend dollar value feeds the same distribution
+# machinery as a cash dividend, WITHOUT collapsing the event identity into "dividend" - the
+# published identity remains the spinoff composition's. The spinoff RATIO is never summed here.
+_DISTRIBUTION_VALUE_KINDS: frozenset[str] = frozenset({"dividend", "spinoffdividend"})
+
+
 def cash_distributions(table: Any) -> dict[tuple[str, str], float]:
     """(ticker, session) -> summed cash distribution, for the registered economic gap.
 
@@ -190,11 +205,30 @@ def cash_distributions(table: Any) -> dict[tuple[str, str], float]:
         raise CandidateSourceRefused(f"actions: registered columns absent: {missing}")
     out: dict[tuple[str, str], float] = {}
     for date, ticker, action, value in _rows(table, cols):
-        if str(action) != "dividend" or value is None:
+        if str(action) not in _DISTRIBUTION_VALUE_KINDS or value is None:
             continue
         key = (str(ticker), str(date))
         out[key] = out.get(key, 0.0) + float(value)
     return out
+
+
+def relation_value_keys(table: Any) -> frozenset[tuple[str, str]]:
+    """Every (ticker, session) where a `relation` row carries a POPULATED value.
+
+    RELATION-VALUE-PREMISE (Matrix v1.3): the relation adjudication is conditional on the vendor
+    premise that relation.value is never populated (0/98 in the bounded evidence). A populated
+    value is outside that premise, so the unit it is relevant to must refuse rather than have the
+    row silently reinterpreted as informational.
+    """
+    cols = ("date", "ticker", "action", "value")
+    missing = sorted(set(cols) - set(table.column_names))
+    if missing:
+        raise CandidateSourceRefused(f"actions: registered columns absent: {missing}")
+    return frozenset(
+        (str(ticker), str(date))
+        for date, ticker, action, value in _rows(table, cols)
+        if str(action) == "relation" and value is not None
+    )
 
 
 def actions_by_key(table: Any) -> dict[tuple[str, str], tuple[str, ...]]:
@@ -282,6 +316,7 @@ class ProducerCandidateSource:
         distributions = cash_distributions(tables["actions"])
         actions = actions_by_key(tables["actions"])
         delistings = delistings_by_ticker(tables["actions"])
+        self._relation_valued = relation_value_keys(tables["actions"])
         prices = ASM.price_series_by_symbol(tables["prices"], self.calendar)
 
         market = ASM.market_data(
@@ -412,6 +447,18 @@ class ProducerCandidateSource:
                 f"({unit.symbol}, {session_t1})",
                 vocabulary_state=VOCAB_UNKNOWN,
             )
+        # RELATION-VALUE-PREMISE (Matrix v1.3): a populated relation.value is outside the
+        # adjudicated premise, so the label reverts to KNOWN_UNADJUDICATED for THIS unit - fail
+        # closed, never silent reinterpretation.
+        if by_class.get("KNOWN_INFORMATIONAL_LINKAGE") and (
+            (unit.symbol, session_t1) in getattr(self, "_relation_valued", frozenset())
+        ):
+            raise CandidateRefused(
+                REFUSED_ACTION_KIND,
+                f"relation row with a populated value on ({unit.symbol}, {session_t1}) is outside "
+                f"the adjudicated premise",
+                vocabulary_state=VOCAB_KNOWN_UNADJUDICATED,
+            )
         if by_class.get("KNOWN_UNADJUDICATED"):
             raise CandidateRefused(
                 REFUSED_ACTION_KIND,
@@ -421,9 +468,24 @@ class ProducerCandidateSource:
             )
 
         economic = by_class.get("ECONOMICALLY_ADJUDICATED", [])
+        # SPINOFF-COMPOSITE (Matrix v1.3): the ONLY authorized composition. spinoff and
+        # spinoffdividend on one relevant session are complementary records of ONE event - the
+        # structural kind and its dollar denomination - and normalize to a single economic
+        # consumption BEFORE the uniqueness guard. A value component without its structural event
+        # is unresolved composition, never observed in the bounded evidence, and refuses.
+        if "spinoffdividend" in economic:
+            if "spinoff" in economic:
+                economic = [k for k in economic if k != "spinoffdividend"]
+            else:
+                raise CandidateRefused(
+                    REFUSED_ACTION_COMPOSITION,
+                    f"spinoffdividend without its parent-side spinoff structural event on "
+                    f"({unit.symbol}, {session_t1})",
+                    vocabulary_state=None,
+                )
         if len(economic) > 1:
-            # No composition semantics are defined and none is invented - no ordering, no combined
-            # return. Only the SCOPE of this refusal changed.
+            # No further composition semantics are defined and none is invented - no ordering, no
+            # combined return. spinoff beside a DIFFERENT economic kind still refuses here.
             raise CandidateRefused(
                 REFUSED_ACTION_COMPOSITION,
                 f"differing economically adjudicated kinds {economic} on "
@@ -437,8 +499,11 @@ class ProducerCandidateSource:
         # Channel 3, the published audit identity. Precedence follows `_classify`'s own ordering -
         # delisting outranks corporate action - so the identity names the action that actually drove
         # the disposition rather than one that did not. Upstream lineage is never published here.
+        # AUDIT-IDENTITY-PRECEDENCE extension (Matrix v1.3): informational linkage contributes no
+        # precedence of its own, so it publishes only when it is the sole class present.
         delisting = by_class.get("TERMINAL_DELISTING", [])
         inert = by_class.get("EXPLICITLY_INERT", [])
+        linkage = by_class.get("KNOWN_INFORMATIONAL_LINKAGE", [])
         identity = None
         if delisting:
             identity = identity_for(delisting[0])
@@ -446,6 +511,8 @@ class ProducerCandidateSource:
             identity = identity_for(economic[0])
         elif inert:
             identity = identity_for(sorted(inert)[0])
+        elif linkage:
+            identity = identity_for(sorted(linkage)[0])
         return (economic[0] if economic else None), identity
 
     def _facts(
