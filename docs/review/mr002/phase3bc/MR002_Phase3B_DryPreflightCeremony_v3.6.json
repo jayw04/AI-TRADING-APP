@@ -1,0 +1,104 @@
+{
+ "affirmative_zero_access_evidence": {
+  "cloudtrail_windowed": "lookup-events, EventName=AssumeRole, window 2026-08-17T22:40:00Z..23:05:00Z: exactly two events, both the unrelated workbench-paper instance-role refresh on i-084f47fe4e69192e9 at 22:48:47Z. ZERO events name mr002-validation-reader or the mr002 host role.",
+  "iam_latch": "simulate-principal-policy: role/mr002-phase3c-run-host -> sts:AssumeRole on role/mr002-validation-reader = explicitDeny AT CEREMONY TIME. The only sanctioned path to a sealed object is that assumption; it was structurally impossible.",
+  "positive_delivery_control": "the unrelated events arrived FROM INSIDE the ceremony minute (22:48), proving CloudTrail was delivering for this exact window - the absence of mr002 events is evidence of absence, not consistency lag.",
+  "structural": "4 of 6 cases ran --network=none; the runner returns before _assume_reader(); the reader is lazy; zero artifacts in every output root; no S8/S9 in any case",
+  "sts_calls": 0,
+  "successful_sealed_getobject_calls": 0,
+  "why_recorded": "owner requirement: the absence of a successful sealed GetObject must be RECORDED operationally, not inferred from stop_at=S7. The v3.5 ceremony's CloudTrail check was a 20-most-recent sample and correctly self-labelled CORROBORATING ONLY; this one is windowed with a positive delivery control."
+ },
+ "artifact_kind": "NON_CONSUMING_EXECUTION_CEREMONY_REHEARSAL",
+ "authorized_by": "owner authorization 2026-08-17 (Steps 5-9 as one uninterrupted host ceremony)",
+ "bound_package": {
+  "archive_sha256": "024db8fa9df03bebc4d9e441bb37ad8a4212e3d2bb64999e545fe30fc389c074",
+  "checkpoint": "961c38a",
+  "code_identity": "c4852231019531f58d3f213c782d11dfc375e5b974ea9568e271144f6212b85a",
+  "host": "i-00c1034f7026db45e",
+  "image": "sha256:194efbdf96ee11c19f3554dcf1b1097958cdc347bcdc1637504b441237432f51",
+  "staged_config_sha256": "1959dcd3fa1208ec5c7b5deec4c2a32a00dd0b19face8f3ca17a936c02a6aea9"
+ },
+ "boundary": "NON-CONSUMING BY CONSTRUCTION AND PROVEN OPERATIONALLY. --mode dry stops at S7_PRE_ACCESS_READY, before _assume_reader(); s3_reader() is lazy. Openings spent remains 4; research verdict remains NONE.",
+ "grants": "NOTHING. Rehearsal evidence only. The next opening remains NOT granted.",
+ "post_ceremony_rehash": {
+  "archive_unchanged": "024db8fa... byte-identical",
+  "four_way_re_proven": "all four equal c4852231..., counts 41",
+  "host_stopped_after": true,
+  "negative_control_copies": "each negative ran from its OWN copy under /opt/mr002/qual/v36/dry; the staged tree was mounted read-only throughout",
+  "ssm_command_id_step9": "(fourway re-run + input rehash in one invocation)",
+  "staged_config_unchanged": "1959dcd3... byte-identical after the full ceremony"
+ },
+ "produced_at": "2026-08-17T00:00:00Z",
+ "record_identity_sha256": "fc4a65bd9c354758b97ae92e5753658b6a618081523b31ede28596c291f8c234",
+ "record_type": "MR002_Phase3B_DryPreflightCeremony",
+ "results": {
+  "1a_correct_offline": {
+   "artifacts_written": 0,
+   "disposition": "PASS",
+   "exit_code": 0,
+   "network": "none",
+   "opening_consumed": false,
+   "state": "S7_PRE_ACCESS_READY"
+  },
+  "1b_correct_networked": {
+   "artifacts_written": 0,
+   "disposition": "PASS",
+   "exit_code": 0,
+   "network": "ENABLED - full ceremony fidelity",
+   "opening_consumed": false,
+   "state": "S7_PRE_ACCESS_READY"
+  },
+  "2_stale_identity": {
+   "artifacts_written": 0,
+   "disposition": "REFUSED",
+   "error": "execution closure identity mismatch: live mount c4852231... != declared ef12de6d...",
+   "exit_code": 2,
+   "mutation": "BOTH scalars -> the superseded staged v3.5 package identity ef12de6d... - internally CONSISTENT, catchable only by the live-mount comparison",
+   "network": "none",
+   "opening_consumed": false,
+   "state": "S0_INIT"
+  },
+  "3_self_disagreement": {
+   "artifacts_written": 0,
+   "disposition": "REFUSED",
+   "error": "configuration disagrees with itself",
+   "exit_code": 2,
+   "mutation": "identities.code_identity alone -> ef12de6d...",
+   "network": "none",
+   "opening_consumed": false,
+   "state": "S0_INIT"
+  },
+  "4_contract_drift": {
+   "artifacts_written": 0,
+   "disposition": "REFUSED",
+   "error": "contract identity drift",
+   "exit_code": 2,
+   "mutation": "contract_identities.corrected_development_reconciliation zeroed",
+   "network": "none",
+   "opening_consumed": false,
+   "state": "S1_CODE_IDENTITY_VERIFIED"
+  },
+  "5_config_drift": {
+   "artifacts_written": 0,
+   "disposition": "REFUSED",
+   "error": "configuration mismatch",
+   "exit_code": 2,
+   "mutation": "config_mapping B 2.00 -> 2.01",
+   "network": "none",
+   "opening_consumed": false,
+   "state": "S2_CONTRACT_IDENTITY_VERIFIED"
+  }
+ },
+ "ssm_command_id": "5d82397a-3dea-4ef2-8872-314f49084742",
+ "staging_record_identity": "a1e198e78a6c5072b0f4bf6daab11907f161501925911a50ec36ae55b9721b57",
+ "state": {
+  "openings_spent": 4,
+  "research_verdict": "NONE",
+  "v36": "STAGED, BOUND, AND REHEARSED"
+ },
+ "version": "3.6",
+ "window_utc": [
+  "2026-08-17T22:48:12Z",
+  "2026-08-17T22:48:18Z"
+ ]
+}

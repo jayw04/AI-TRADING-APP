@@ -1,0 +1,82 @@
+{
+ "artifact_kind": "EXECUTION_IDENTITY_REBIND_AND_STAGING",
+ "authorized_by": "owner authorization 2026-08-17: v3.6 ceremony Steps 2-9 on the corrected tree, after the bounded v3.5 provenance diagnostic closed (V35ProvenanceCorrection_v1.0, 047131fe...).",
+ "boundary": "Staging and identity verification plus the NON-CONSUMING dry ceremony. No sealed object opened, no reader assumed, nothing consumed. Openings spent remains 4; research verdict remains NONE.",
+ "closure_derivation": {
+  "byte_origin": "RAW GIT BLOB BYTES via `git cat-file blob` - never a filesystem checkout (core.autocrlf=true makes checkout CRLF-unsafe; this is the exact defect class that invalidated the v3.5 commit attribution)",
+  "changed_members_vs_v35_content": [
+   "app/research/mr002/phase3b/candidates.py",
+   "app/research/mr002/phase3b/enrichment.py"
+  ],
+  "checkpoint": "961c38aba578112bac48884ec31f12cbf357075a (correct(mr-002): spinoffdividend OUT of the gap term)",
+  "independent_recomputation": "a second computation importing NO production code rebuilt every hash from git cat-file and re-derived the identity - EQUAL",
+  "member_authority": "the checkpoint's OWN roster.enumerate_closure()/closure_identity(), executed against the materialized blob tree with import-provenance asserted - not a hand-maintained list",
+  "member_set": "identical to the v3.5/v3.4 closure member sets",
+  "members": 41,
+  "no_cr_guard": "zero CR bytes in every member, asserted at materialization, at archive build, and at host staging"
+ },
+ "four_way_identity_proof": {
+  "counts": "41 live == 41 archive == 41 declared",
+  "executed": "INSIDE the bound image, --network=none (SSM 14408d3e-3f04-4bd6-bd8d-0bde8a824929; re-proven post-ceremony)",
+  "image": "ECR repo digest sha256:194efbdf... == configuration runtime_facts.image_digest == identities.runtime_identity; local image ID sha256:226643c4...; the candidate tag is the same image",
+  "result": "ALL FOUR EQUAL c4852231019531f5... - config-declared, config-observed, archive-derived (re-hashed from inside the tarball), live mount (roster.closure_identity() over the executing bytes)",
+  "unchanged_set_reconfirmed": {
+   "config_mapping": "{A: 1.75, B: 2.00, C: 2.25} == FROZEN_CONFIG_MAPPING",
+   "contract_identities": "== FROZEN_CONTRACT_IDENTITIES (in-closure authorities)",
+   "reader_transition_authority": "VALIDATION_READER_ROLE_ARN constant inside the bound closure (entrypoint.py unchanged)",
+   "runtime_P10": "runtime identity unchanged; no capacity rerun, no requalification (owner)",
+   "sealed_input_digests": "carried in the byte-identical manifests and the non-scalar config bytes",
+   "superseded_identities_absent": "neither ef12de6d... nor 7c972455... appears in the staged config"
+  }
+ },
+ "grants": "NOTHING. Staging evidence only.",
+ "package": {
+  "archive": "code_v36.tar.gz",
+  "archive_bytes": 69406,
+  "archive_derived_identity": "c4852231019531f58d3f213c782d11dfc375e5b974ea9568e271144f6212b85a",
+  "archive_sha256": "024db8fa9df03bebc4d9e441bb37ad8a4212e3d2bb64999e545fe30fc389c074",
+  "deterministic_build": "built twice (mtime=0, uid/gid=0, sorted members, gzip mtime=0) - byte-identical SHA-256 both times",
+  "member_root": "apps/backend (extraction target; tar member names are app/...)",
+  "members": 41
+ },
+ "produced_at": "2026-08-17T00:00:00Z",
+ "record_identity_sha256": "a1e198e78a6c5072b0f4bf6daab11907f161501925911a50ec36ae55b9721b57",
+ "record_type": "MR002_Phase3B_StagingRecord",
+ "staged_as_one_operation": {
+  "host": "i-00c1034f7026db45e (mr002-phase3c-run-host, c6a.xlarge)",
+  "mechanics": "one SSM invocation: refuse if /opt/mr002/v36 exists; verify the transferred archive sha AFTER transfer before extracting; extract; verify extracted==archive members and tree identity; copy the v3.5 governed inputs (source config verified against its bound sha 16a25ac9... first); patch the two scalars; re-read and hash.",
+  "ssm_command_id": "b76fc9da-b627-46b5-b2d9-7c3b40a01d43",
+  "staged_tree": "/opt/mr002/v36 - apps/backend, inputs, code_v36.tar.gz",
+  "v35_untouched": "config 16a25ac9... and archive 32800572... byte-identical after all operations"
+ },
+ "staged_configuration": {
+  "bytes": 3896,
+  "carried_forward_inputs_byte_identical": {
+   "reference_manifest.json": "fc8e91e9... (equals the entrypoint-bound REFERENCE_MANIFEST_SHA256)",
+   "sessions.json": "66d080fe...",
+   "structural_manifest.json": "6b81a319...",
+   "upload_manifest.json": "b16bc89f..."
+  },
+  "fields_patched": [
+   "identities.code_identity",
+   "observed_identities.execution_closure_sha256"
+  ],
+  "guard": "refused unless EXACTLY two occurrences of the superseded identity; byte length unchanged at 3896; zero CR before and after; post-patch counts new=2 old=0; byte-diff vs v3.5 = 20 spans / 110 bytes, ALL inside the two 64-hex scalar spans",
+  "path": "/opt/mr002/v36/inputs/config.json",
+  "sha256": "1959dcd3fa1208ec5c7b5deec4c2a32a00dd0b19face8f3ca17a936c02a6aea9",
+  "superseded_config_sha256": "16a25ac9d41e44d397169cb35bdb3924291f234f50299c25f8f0516ba50bc1f7"
+ },
+ "state": {
+  "next_opening": "NOT granted, NOT requested",
+  "openings_spent": 4,
+  "research_verdict": "NONE",
+  "v36": "STAGED AND BOUND"
+ },
+ "supersedes": {
+  "classification": "SUPERSEDED_SEMANTICS_ADJUDICATED (relation/spinoff adjudication + owner corrigendum) AND provenance-corrected",
+  "v35_staged_package_identity": "ef12de6dcabd8a46a1dfcb69993693bfe316e4b76ecaf8f8dbc45f08669fc25d",
+  "wording": "v3.6 supersedes the staged v3.5 package identity ef12de6d..., whose Git checkpoint attribution was subsequently found non-reproducible (V35ProvenanceCorrection_v1.0). NOT 'v3.5 ef12de6d @ b93e770'."
+ },
+ "v36_execution_identity": "c4852231019531f58d3f213c782d11dfc375e5b974ea9568e271144f6212b85a",
+ "version": "3.6"
+}
