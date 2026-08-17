@@ -1,0 +1,67 @@
+{
+ "artifact_kind": "SEMANTIC_RECONCILIATION",
+ "authorized_by": "owner adjudication 2026-08-17 (MR002_Phase3B_LabelAdjudication_v2.0)",
+ "boundary": "Zero-data. NO sealed access. Derived entirely from the v2.0 adjudication.",
+ "derived_from_adjudication_record_identity": "5647549efa44dcfb7347be475f16612f26263bbda927c6a57d1260f133dcd38a",
+ "frozen_rule_audit_identity_precedence_extension": {
+  "id": "AUDIT-IDENTITY-PRECEDENCE (extended)",
+  "the_rule": "TERMINAL_DELISTING > ECONOMICALLY_ADJUDICATED > EXPLICITLY_INERT > KNOWN_INFORMATIONAL_LINKAGE",
+  "why": "derived from the owner's ruling that relation 'contributes no precedence of its own': a linkage identity is published only when it is the sole class present, so it never displaces the action that determined the disposition. The v1.2 ordering among the first three classes is unchanged."
+ },
+ "frozen_rule_spinoff_composite": {
+  "id": "SPINOFF-COMPOSITE",
+  "implemented_at": "candidates.py::ProducerCandidateSource._resolve_actions and candidates.py::cash_distributions",
+  "the_rule": "on a unit's relevant session, {spinoff, spinoffdividend} normalize to ONE economic event whose structural kind is 'spinoff' BEFORE the economic uniqueness guard runs; a spinoffdividend without its parent-side spinoff refuses the unit (ACTION_COMPOSITION_UNRESOLVED); the composite beside any other economic kind refuses as before. The published spinoffdividend dollar value joins the registered cash-distribution term (USD/share, summed exactly like a dividend value); the spinoff RATIO is never summed into that term.",
+  "why_not_a_general_composition_rule": "the frame's Q4 carve-out authorizes composition ONLY where these labels require it. Nothing else composes; differing economic kinds still refuse."
+ },
+ "grants": "NOTHING. Adjudication reconciliation only.",
+ "membership_changes": {
+  "ECONOMICALLY_ADJUDICATED": {
+   "now": "enrichment._CORPORATE_ACTION_KINDS including 'spinoff'",
+   "single_authority_preserved": "candidates.ECONOMICALLY_ADJUDICATED continues to IMPORT the enrichment set, so the set gating STOP_CORPORATE_ACTION and the set classified as economic cannot disagree",
+   "was": "enrichment._CORPORATE_ACTION_KINDS without 'spinoff'"
+  },
+  "EXPLICITLY_INERT": "unchanged: bankruptcy, regulatorychange, spunofffrom (owner confirms spunofffrom: child-side metadata, no independent economic action)",
+  "KNOWN_INFORMATIONAL_LINKAGE": {
+   "now": [
+    "relation"
+   ],
+   "semantics": "a SIXTH vocabulary class: channel 3 only, outside the economic conflict guard, outside the uniqueness guard, no execution/economic/identity effect. Distinct from EXPLICITLY_INERT so the v1.1 frozen membership of that class is not retroactively rewritten and the adjudication basis (vendor-directed data review) stays legible per class.",
+   "was": "class did not exist"
+  },
+  "KNOWN_UNADJUDICATED": {
+   "now": [
+    "bankruptcyliquidation",
+    "listed"
+   ],
+   "was": [
+    "bankruptcyliquidation",
+    "listed",
+    "relation",
+    "spinoff"
+   ]
+  },
+  "TERMINAL_DELISTING": "unchanged",
+  "UPSTREAM_IDENTITY_LINEAGE": "unchanged"
+ },
+ "open_items_carried_forward": {
+  "ANCHOR-ACCEPTANCE-SCOPE": "carried forward, OPEN, unchanged",
+  "CONTAINMENT-LOCAL-SNAPSHOT": "carried forward, OPEN",
+  "HALT-EVIDENCE-INPUT-GAP": "carried forward, OPEN and unchanged",
+  "MISSING-PRICE-REFUSAL-TYPING": "carried forward, OPEN, unchanged"
+ },
+ "produced_at": "2026-08-17T00:00:00Z",
+ "record_identity_sha256": "865064f51210663a994ff53d1ff4de338f36dcb8a429f7b24347fcef8289c0af",
+ "record_type": "MR002_Phase3B_SemanticReconciliationMatrix",
+ "relation_premise_guard": {
+  "id": "RELATION-VALUE-PREMISE",
+  "implemented_at": "candidates.py::relation_value_keys and candidates.py::ProducerCandidateSource._resolve_actions",
+  "the_rule": "a relation row on the unit's relevant session with a populated value reverts the label to KNOWN_UNADJUDICATED for that unit (fail closed, ACTION_KIND_UNADJUDICATED|KNOWN_UNADJUDICATED). The adjudication is conditional on the 0/98 bounded observation; a populated value is outside its premise."
+ },
+ "supersedes": {
+  "record": "MR002_Phase3B_SemanticReconciliationMatrix_v1.2",
+  "record_identity_sha256_of_file": "0783775880d7c8ed3ffe50b2bae82a48b05ba1e57d9b464d5be782b3c3604aed",
+  "scope_of_change": "membership and two frozen rules. Everything else - the three channels, the refusal scope, the relevance definition, Matrix A, AUDIT-IDENTITY-PRECEDENCE's existing ordering - carries forward verbatim in substance."
+ },
+ "version": "1.3"
+}

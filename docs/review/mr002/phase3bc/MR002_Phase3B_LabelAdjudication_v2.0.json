@@ -1,0 +1,67 @@
+{
+ "artifact_kind": "OWNER_ADJUDICATION",
+ "authorized_by": "owner adjudication 2026-08-17, given in full after reviewing the vendor-directed data review. Verbatim dispositions: 'relation -> KNOWN_INFORMATIONAL_LINKAGE / NO_PHASE3B_EXECUTION_EFFECT'; 'spinoff -> ECONOMICALLY_CONSUMED structural event'; 'spinoffdividend -> ECONOMICALLY_CONSUMED value component of the same event'; 'spunofffrom -> UPSTREAM/CHILD-SIDE METADATA, no independent economic effect'; 'Further Sharadar inquiry: NOT REQUIRED before implementation'; 'No validation/opening state changes from this adjudication alone.'",
+ "evidence_bound_by_sha256": {
+  "actiontypes_relation_786f22e": "f97be8cba6113c719c25422b41eadc765122462d748ae25a810fce61b332eb2d",
+  "actiontypes_spinoff_786f22e": "0b6a8bbd75600aa4561cfadccb85efee2c14009a9b57aba76cbec29596aad531",
+  "actiontypes_spinoffdividend_786f22e": "93debb3a8699246e5a8d2415b4351882e2ed1397c7acbb9a047af21221e4ad42",
+  "actiontypes_spunofffrom_786f22e": "965bc4d854c7f602554a157437523771df59a10e36c8e2eb8adf6739801b385c",
+  "indicators_actions": "6ccd6f471966defd50eca578f50ad8c4700d437c5476113271055db4c71eb4c9",
+  "indicators_actiontypes": "f85a744315881ed133186ca04170378e12eabe3bf47b751b50caaa81c6c4c931",
+  "indicators_retrieval_manifest": "7d6fb60db8008dd007cc668aef0a40ec4a09425a16818d2429f15fe5f530961b",
+  "structural_facts_devbound": "6c2d9c8e253b8675d87e1ab7d21666db0f4213ac54612e2c67d8bffa8a3725c3",
+  "vendor_directed_review_doc": "0f6167e618be1a710d3520ea40a432b4f257e65a49f9e711cb21367263cb32b5"
+ },
+ "frame": {
+  "conformance": "both in-scope labels answered on all six frozen questions; evidence cited to admissible sources only; refusal conditions stated; the gate untouched; bankruptcyliquidation and listed remain KNOWN_UNADJUDICATED and are NOT adjudicated",
+  "record": "MR002_Phase3B_ProspectiveLabelAdjudication_v1.0",
+  "record_identity_sha256_of_file": "69bc4fc9b97f05b8beb2420ecb437e7af02c412f7182e313707a55953a685849"
+ },
+ "grants": "the semantic mappings above, for implementation. NOTHING else - no opening, no gate change, no verdict.",
+ "labels": {
+  "relation": {
+   "Q1_vendor_meaning": "'Provides linkage between multiple securities issued by the same issuer. The ticker field represents what we consider to be the primary security from the issuer. The contraticker field represents the ticker that is related to the primary ticker.' (INDICATORS, verbatim; unittype N/A). Per the vendor reply, this definition is complete.",
+   "Q2_category": "inert/context-only: informational issuer/security linkage. NOT identity-changing: it does not establish predecessor/successor continuity and does not replace the ticker-change lineage channel.",
+   "Q3_execution_consequence": "NONE, stated as a decision: no t+1 execution consequence, no economic consequence, no identity consequence by itself. Channel 3 only - observable, auditable, never economic.",
+   "Q4_coexistence": "may coexist with economically meaningful actions (bounded incidence: 7/98 rows co-date with delisted/acquisitionby/dividend) and contributes NO precedence of its own: the channel-3 audit identity names a relation only when no delisting, economic or inert kind is present on the session.",
+   "Q5_evidence": "convergent, not merely suggestive: relation.value populated in 0/98 bounded rows; name==contraname in 98/98 (always same-issuer); observed relationship classes are parallel securities (share classes, preferred series, listed units/notes), not lineage transitions; ticker-change remains the separate vendor mechanism carrying the only explicit conjunction rule. Sources: indicators_actiontypes (sha bound), structural_facts_devbound (sha bound), vendor reply 2026-08-17.",
+   "Q6_refusal_condition": "a relation row on a unit's relevant session carrying a POPULATED value is outside the adjudicated premise: the unit refuses as CANDIDATE_REFUSED:ACTION_KIND_UNADJUDICATED|KNOWN_UNADJUDICATED - fail closed, new adjudication required, never silent reinterpretation. relation.date is retained only as the vendor-record date and must not be assigned execution meaning; the meaning of a standalone relation.date remains vendor-undocumented and is deliberately given NO execution semantics.",
+   "classification": "KNOWN_INFORMATIONAL_LINKAGE / NO_PHASE3B_EXECUTION_EFFECT"
+  },
+  "spinoff": {
+   "Q1_vendor_meaning": "spinoff: parent in ticker, spun-off company in contraticker, value = number of child shares issued per parent share (ratio). spinoffdividend: same event shape, value = dollar value of child shares issued per parent share (USD/share). spunofffrom: the child-side record, same ratio. (INDICATORS, verbatim in the bound evidence.)",
+   "Q2_category": "economic, composition-dependent: one spinoff EVENT may be published as up to three vendor rows (parent structural + parent value + child mirror). The scalar one-kind-per-(ticker,session) abstraction is definitively inadequate here; the normalizer must recognize the composite.",
+   "Q3_execution_consequence": "consumed by the economic channel as ONE event whose structural kind is 'spinoff': (a) an unconstructible adjusted open on the event session stops the record (STOP_CORPORATE_ACTION), exactly as for other economic kinds - 'spinoff' joins enrichment._CORPORATE_ACTION_KINDS; (b) a published spinoffdividend dollar value is consumed by the registered distribution term of the economic gap (same USD/share machinery as a cash dividend) WITHOUT collapsing the event identity into 'dividend' - the published corporate_action_identity remains the spinoff composition's; (c) a spinoff with NO published dollar value is a VALID event with the value component absent - it must NOT refuse, and the distribution term is 0.0. Owner caution recorded verbatim: 'do not collapse spinoffdividend into an ordinary cash dividend... the event identity must remain a spinoff composition so the parent/child semantics are not lost.'",
+   "Q4_coexistence": "the ONLY authorized composition rule, per the frame's Q4 carve-out: spinoff + spinoffdividend on one relevant session are complementary records of one event and normalize to a single economic consumption. NO general composition rule is created: a spinoff co-occurring with a DIFFERENT economic kind (dev census: spinoff+split x4) still refuses as ACTION_COMPOSITION_UNRESOLVED. spunofffrom never creates a second economic action and never conflicts with the parent-side event.",
+   "Q5_evidence": "full-key (ticker,date,contraticker) join over the bounded window: 65/75 spinoff rows have a matching spinoffdividend, 10 are spinoff-only, ZERO spinoffdividend rows exist alone; values are the two denominations of the same distribution; 13/75 spunofffrom child mirrors, same date AND identical ratio in 13/13. Sources: structural_facts_devbound (sha bound), indicators_actiontypes (sha bound), vendor reply 2026-08-17. The owner rules the 10 spinoff-only rows 'value unavailable/not published', NOT 'event invalid'.",
+   "Q6_refusal_condition": "(a) spinoffdividend on a relevant session WITHOUT its parent-side spinoff row - never observed in the bounded window - is a value component without its structural event and refuses the unit as CANDIDATE_REFUSED:ACTION_COMPOSITION_UNRESOLVED; (b) the spinoff composite beside any OTHER economically adjudicated kind refuses as before; (c) neither condition may be silently reinterpreted - widening either needs new adjudication.",
+   "classification": "ECONOMICALLY_ADJUDICATED composite structural event (parent-side), with spinoffdividend as the value component of the SAME event and spunofffrom as child-side metadata (EXPLICITLY_INERT, unchanged)"
+  }
+ },
+ "produced_at": "2026-08-17T00:00:00Z",
+ "record_identity_sha256": "5647549efa44dcfb7347be475f16612f26263bbda927c6a57d1260f133dcd38a",
+ "record_type": "MR002_Phase3B_LabelAdjudication",
+ "residuals_dispositioned_without_vendor_followup": {
+  "further_sharadar_inquiry": "NOT REQUIRED before implementation (owner ruling)",
+  "relation_value_outside_bounded_window": "does not alter current semantics; if encountered, the Q6 refusal fires - fail closed or new adjudication, never silent reinterpretation",
+  "spinoff_without_dollar_value": "valid structural event with the value component absent; must not refuse",
+  "standalone_relation_date_meaning": "no execution meaning assigned; vendor-undocumented; recorded, not blocking"
+ },
+ "supersedes": {
+  "record": "MR002_Phase3B_LabelAdjudicationAttempt_v1.0",
+  "record_identity_sha256_of_file": "cf90ab78fabd8d68c12f576ddf60dbfe0f4206aa334f95fe36d72b1cb576bf6d",
+  "why": "the v1.0 attempt concluded INCOMPLETE on the then-true premise that no authoritative vendor semantics were available. The vendor has since published-and-pointed: the descriptions/INDICATORS metadata (786f22e) plus the vendor-directed underlying-data review close the evidential gap. v1.0 is preserved, not rewritten."
+ },
+ "unchanged": {
+  "materiality_gate": "RETAINED UNCHANGED, including the 1%/5-unique-symbol disjunctive limbs",
+  "openings": "4 spent; none requested or granted here; the frame's ordering stands: implement, test, rebind, stage, dry-preflight before a fifth opening is even considered",
+  "run_4": "COMPLETED / qualification FAIL / evidence inadmissible / no verdict - unchanged",
+  "still_KNOWN_UNADJUDICATED": [
+   "bankruptcyliquidation",
+   "listed"
+  ],
+  "validation_and_oos": "untouched"
+ },
+ "vendor_reply": "Sharadar support, 2026-08-17, in response to the five escalated questions: 'They are answered by reviewing SHARADAR/INDICATORS and looking at the underlying data.' The reply is itself a semantic fact: the vendor deems the published INDICATORS definitions complete and data-level structure an authorized basis for the remaining answers. The owner ACCEPTED that basis for these labels specifically; the frame's general prohibition on inferring semantics from co-occurrence is NOT withdrawn elsewhere.",
+ "version": "2.0"
+}
