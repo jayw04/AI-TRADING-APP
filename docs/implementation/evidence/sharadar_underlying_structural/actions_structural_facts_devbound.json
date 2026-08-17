@@ -1,0 +1,408 @@
+{
+  "frame": "ProspectiveLabelAdjudication_v1.0 ed56601c",
+  "snapshot": "apps/backend/data/mr002_research.duckdb (read_only)",
+  "bound": [
+    "2013-01-02",
+    "2019-10-02"
+  ],
+  "queries": {
+    "relation_value_population": {
+      "sql": "count(*), count(value), count(distinct value) for action='relation' in bound",
+      "result": [
+        98,
+        0,
+        0
+      ],
+      "distinct_values": []
+    },
+    "relation_coexistence_same_ticker_date": {
+      "sql": "join relation rows to other bounded rows on (ticker,date), group by other.action",
+      "result": [
+        [
+          "delisted",
+          5
+        ],
+        [
+          "acquisitionby",
+          3
+        ],
+        [
+          "dividend",
+          2
+        ]
+      ]
+    },
+    "relation_rows_standing_alone": {
+      "sql": "relation rows with NO other bounded action row on same (ticker,date)",
+      "result": [
+        91
+      ]
+    },
+    "relation_contra_side_same_date": {
+      "sql": "actions on (contraticker, same date), group by action",
+      "result": [
+        [
+          "relation",
+          4
+        ],
+        [
+          "delisted",
+          3
+        ],
+        [
+          "acquisitionby",
+          1
+        ]
+      ]
+    },
+    "relation_issuer_name_equality": {
+      "sql": "name vs contraname exact equality among bounded relation rows",
+      "result": [
+        [
+          true,
+          98
+        ]
+      ]
+    },
+    "relation_ticker_string_patterns": {
+      "sql": "structural ticker/contraticker string relations",
+      "result": [
+        [
+          1,
+          2,
+          0,
+          98
+        ]
+      ]
+    },
+    "relation_sample_rows": {
+      "sql": "20 bounded relation rows verbatim (dev window; admissible)",
+      "result": [
+        [
+          "2013-09-24",
+          "WWAV",
+          "WHITEWAVE FOODS CO",
+          "WWAV.B",
+          "WHITEWAVE FOODS CO",
+          null
+        ],
+        [
+          "2015-03-12",
+          "PSA",
+          "PUBLIC STORAGE",
+          "PSA-PO1",
+          "PUBLIC STORAGE",
+          null
+        ],
+        [
+          "2015-06-01",
+          "MET",
+          "METLIFE INC",
+          "MET-PB",
+          "METLIFE INC",
+          null
+        ],
+        [
+          "2015-06-25",
+          "BAC",
+          "BANK OF AMERICA CORP",
+          "DFF",
+          "BANK OF AMERICA CORP",
+          null
+        ],
+        [
+          "2015-07-30",
+          "BAC",
+          "BANK OF AMERICA CORP",
+          "MHM",
+          "BANK OF AMERICA CORP",
+          null
+        ],
+        [
+          "2015-07-31",
+          "RTX",
+          "RTX CORP",
+          "UTX-PA",
+          "RTX CORP",
+          null
+        ],
+        [
+          "2015-09-04",
+          "PSA",
+          "PUBLIC STORAGE",
+          "PSA-PP1",
+          "PUBLIC STORAGE",
+          null
+        ],
+        [
+          "2015-09-23",
+          "OCR",
+          "OMNICARE INC",
+          "OCR-PA",
+          "OMNICARE INC",
+          null
+        ],
+        [
+          "2015-09-25",
+          "OCR",
+          "OMNICARE INC",
+          "OCR-PB",
+          "OMNICARE INC",
+          null
+        ],
+        [
+          "2015-10-15",
+          "GS",
+          "GOLDMAN SACHS GROUP INC",
+          "GSF",
+          "GOLDMAN SACHS GROUP INC",
+          null
+        ],
+        [
+          "2015-11-16",
+          "SWK",
+          "STANLEY BLACK & DECKER INC",
+          "SWU",
+          "STANLEY BLACK & DECKER INC",
+          null
+        ],
+        [
+          "2015-12-11",
+          "CMCSA",
+          "COMCAST CORP",
+          "CMCSK",
+          "COMCAST CORP",
+          null
+        ],
+        [
+          "2015-12-11",
+          "CMCSK",
+          "COMCAST CORP",
+          "CMCSA",
+          "COMCAST CORP",
+          null
+        ],
+        [
+          "2016-03-15",
+          "PSA",
+          "PUBLIC STORAGE",
+          "PSA-PQ1",
+          "PUBLIC STORAGE",
+          null
+        ],
+        [
+          "2016-03-31",
+          "D",
+          "DOMINION ENERGY INC",
+          "DCUA",
+          "DOMINION ENERGY INC",
+          null
+        ],
+        [
+          "2016-04-15",
+          "FWONA",
+          "LIBERTY MEDIA CORP",
+          "FWONB",
+          "LIBERTY MEDIA CORP",
+          null
+        ],
+        [
+          "2016-06-21",
+          "PSA",
+          "PUBLIC STORAGE",
+          "PSA-PR1",
+          "PUBLIC STORAGE",
+          null
+        ],
+        [
+          "2016-06-30",
+          "D",
+          "DOMINION ENERGY INC",
+          "DCUB",
+          "DOMINION ENERGY INC",
+          null
+        ],
+        [
+          "2016-06-30",
+          "WY",
+          "WEYERHAEUSER CO",
+          "WY-PA",
+          "WEYERHAEUSER CO",
+          null
+        ],
+        [
+          "2016-07-13",
+          "BAC",
+          "BANK OF AMERICA CORP",
+          "BAC-PZ",
+          "BANK OF AMERICA CORP",
+          null
+        ]
+      ]
+    },
+    "spinoff_family_counts": {
+      "result": [
+        [
+          "spinoff",
+          75,
+          75
+        ],
+        [
+          "spinoffdividend",
+          65,
+          65
+        ],
+        [
+          "spunofffrom",
+          14,
+          14
+        ]
+      ]
+    },
+    "spinoff_vs_spinoffdividend_overlap": {
+      "sql": "FULL OUTER JOIN on (ticker,date,contraticker) between bounded spinoff and spinoffdividend rows",
+      "result": [
+        [
+          65,
+          10,
+          0
+        ]
+      ]
+    },
+    "spinoff_pair_value_sample": {
+      "sql": "co-occurring pairs: ratio (spinoff.value) vs USD (spinoffdividend.value), 15 samples",
+      "result": [
+        [
+          "2013-01-02",
+          "ABT",
+          "ABBV",
+          1.0,
+          34.64972
+        ],
+        [
+          "2013-01-14",
+          "STRZA",
+          "FWONA",
+          1.0,
+          109.0
+        ],
+        [
+          "2013-05-02",
+          "VLO",
+          "CST",
+          0.11111,
+          3.35555
+        ],
+        [
+          "2013-05-24",
+          "DFODQ",
+          "WWAV",
+          0.25544,
+          9.7022
+        ],
+        [
+          "2013-05-24",
+          "DFODQ",
+          "WWAV.B",
+          0.3638,
+          13.8178
+        ],
+        [
+          "2013-07-01",
+          "COV",
+          "MNKKQ",
+          0.125,
+          5.5
+        ],
+        [
+          "2013-07-01",
+          "TFCFA",
+          "NWS",
+          0.25,
+          3.8125
+        ],
+        [
+          "2013-07-01",
+          "TFCF",
+          "NWSA",
+          0.25,
+          3.845
+        ],
+        [
+          "2013-09-03",
+          "MUR",
+          "MUSA",
+          0.25,
+          9.2375
+        ],
+        [
+          "2013-11-04",
+          "PENN",
+          "GLPI",
+          1.0,
+          45.64
+        ],
+        [
+          "2013-12-02",
+          "TT",
+          "ALLE",
+          0.3333,
+          14.4133
+        ],
+        [
+          "2014-02-03",
+          "OKE",
+          "OGS",
+          0.25,
+          8.53
+        ],
+        [
+          "2014-03-03",
+          "DOV",
+          "KN",
+          0.5,
+          15.85757
+        ],
+        [
+          "2014-05-01",
+          "SLM",
+          "NAVI",
+          1.0,
+          15.0
+        ],
+        [
+          "2014-05-29",
+          "SPG",
+          "WPGGQ",
+          0.5,
+          10.015
+        ]
+      ]
+    },
+    "spunofffrom_mirror_of_spinoff": {
+      "sql": "spinoff (parent P, child C, date D) matched to spunofffrom (ticker=C, contraticker=P); date offset + value equality",
+      "result": [
+        [
+          75,
+          13,
+          13,
+          13
+        ]
+      ]
+    },
+    "spunofffrom_without_parent_spinoff": {
+      "sql": "bounded spunofffrom rows with no bounded parent-side spinoff within 7 days",
+      "result": [
+        1
+      ]
+    },
+    "spinoffdividend_child_mirror": {
+      "result": [
+        [
+          65,
+          11
+        ]
+      ]
+    }
+  }
+}

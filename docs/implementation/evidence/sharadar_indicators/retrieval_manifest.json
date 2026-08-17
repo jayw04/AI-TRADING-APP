@@ -1,0 +1,33 @@
+{
+  "source": "Nasdaq Data Link datatable SHARADAR/INDICATORS (vendor-cited, support reply 2026-08-17)",
+  "authentication": "API key used, value not recorded",
+  "records": [
+    {
+      "name": "indicators_actions",
+      "sanitized_request": "https://data.nasdaq.com/api/v3/datatables/SHARADAR/INDICATORS?table=ACTIONS&api_key=<REDACTED>",
+      "retrieved_at_utc": "2026-08-17T17:22:11.166542+00:00",
+      "http_status": 200,
+      "sha256": "6ccd6f471966defd50eca578f50ad8c4700d437c5476113271055db4c71eb4c9",
+      "bytes": 1449,
+      "file": "docs/implementation/evidence/sharadar_indicators/indicators_actions.json"
+    },
+    {
+      "name": "indicators_actiontypes",
+      "sanitized_request": "https://data.nasdaq.com/api/v3/datatables/SHARADAR/INDICATORS?table=ACTIONTYPES&api_key=<REDACTED>",
+      "retrieved_at_utc": "2026-08-17T17:22:11.573120+00:00",
+      "http_status": 200,
+      "sha256": "f85a744315881ed133186ca04170378e12eabe3bf47b751b50caaa81c6c4c931",
+      "bytes": 8526,
+      "file": "docs/implementation/evidence/sharadar_indicators/indicators_actiontypes.json"
+    },
+    {
+      "name": "indicators_tables_list",
+      "sanitized_request": "https://data.nasdaq.com/api/v3/datatables/SHARADAR/INDICATORS?qopts.columns=table&api_key=<REDACTED>",
+      "retrieved_at_utc": "2026-08-17T17:22:12.029758+00:00",
+      "http_status": 200,
+      "sha256": "2053b2b0e0359f8a27a3bd79a52b9e71e99b24fe8a9b929944fe48499d5e7a26",
+      "bytes": 4080,
+      "file": "docs/implementation/evidence/sharadar_indicators/indicators_tables_list.json"
+    }
+  ]
+}
