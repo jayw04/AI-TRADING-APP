@@ -125,39 +125,66 @@ Scope boundary this document deliberately does not cross: migrating the **live s
 Signing freezes §4 values (including the K3 metric, the K5 population/matching policy and `N_min` floor, the K6 evaluability choice, and the partition-completeness thresholds), the §6.5 ceiling and free-space floor, the §6.4 durability choice, the sampler cadence/retry policy, the review-date anchor, and the §7 assignment. After signature, thresholds are immutable for the life of MDQ-001; the only later dispositions are the §5 verdicts.
 
 ```
-K1–K6 / C1 values:        [ ] accepted as proposed   [ ] adjusted at registration to: ____________
-Collector ceiling (§6.5): [ ] accepted as proposed   [ ] adjusted to: ____________
-K5 population/matching:   [ ] denominator = all paper fills, Phase-A symbols only;
+K1–K6 / C1 values:        [X] accepted as proposed   [ ] adjusted at registration to: ____________
+Collector ceiling (§6.5): [X] accepted as proposed   [ ] adjusted to: ____________
+K5 population/matching:   [X] denominator = all paper fills, Phase-A symbols only;
                               quote match = at-or-before, max age 5s; no-quote fills
                               excluded from numerator AND denominator (proposed)
                           [ ] adjusted to: ____________
-K5 minimum fills N_min:   [ ] 50 (proposed; below it K5 = NOT EVALUABLE)
+K5 minimum fills N_min:   [X] 50 (proposed; below it K5 = NOT EVALUABLE)
                           [ ] adjusted to: ____________
-K6 evaluability:          [ ] (a) NOT EVALUABLE unless >= 1 IEX stub-quote occurrence
+K6 evaluability:          [X] (a) NOT EVALUABLE unless >= 1 IEX stub-quote occurrence
                               in the admissible corpus (Recommended)
                           [ ] (b) executor spread-gate rejection log admitted as the
                               IEX-side occurrence source — rejection-log schema,
                               match tolerance, and log admissibility frozen here: ____
-Partition completeness:   [ ] >= 98% observed/expected cycles per partition per feed,
+Partition completeness:   [X] >= 98% observed/expected cycles per partition per feed,
                               max contiguous gap 10 min; feed_error counts toward the
                               denominator only (proposed)   [ ] adjusted to: ____
-Free-space floor:         [ ] max(10 GB, 20% of volume), checked before each write
+Free-space floor:         [X] max(10 GB, 20% of volume), checked before each write
                               cycle and before EOD/freeze; abort-and-alert on breach
                               (proposed)   [ ] adjusted to: ____________
-Review-date anchor:       [ ] 60-day clock from the FIRST ADMISSIBLE GOVERNED CAPTURE;
-                              resulting review date computed and frozen here: ________
-Durability (§6.4):        [ ] S3 byte-for-byte mirror after verify (Recommended)
+Review-date anchor:       [X] 60-day clock from the FIRST ADMISSIBLE GOVERNED CAPTURE;
+                              the RULE is frozen here; the concrete review date is
+                              computed and stamped in the deployment record on the day
+                              the first admissible partition freezes (owner 2026-08-17;
+                              the date cannot exist before that capture does)
+Durability (§6.4):        [X] S3 byte-for-byte mirror after verify (Recommended)
                           [ ] accept local-volume loss risk this cycle
-Sampler cadence/retry:    [ ] 60s cadence; per-feed error capture; continue on
+Sampler cadence/retry:    [X] 60s cadence; per-feed error capture; continue on
                               transient failure; abort after 30 consecutive
                               failed cycles (proposed)   [ ] adjusted to: ____
 Architecture (§7):        [X] Option 2A adopted by owner ruling 2026-08-15 — account-7 collector,
                               immutable local store on the AWS box, MDQ offline/read-only,
                               no MDQ Alpaca credentials; K2 deferred to Phase B.
-Phase-A capture universe: [ ] as proposed (SPY/QQQ/IWM + sector ETFs + acct-7 transition set
-                              + predeclared scanner sample ≤ 50 symbols)   [ ] adjusted to: ____
-P-2 real-time tier:       [ ] verified 2026-08-17 RTH   [ ] verified via dashboard
-Registered by / date:     ______________________
+Phase-A capture universe: [X] as proposed, MATERIALIZED as the frozen universe files
+                              (50 symbols = BASE 22: SPY/QQQ/IWM + 11 sector SPDRs +
+                              acct-7 transition set; + SAMPLE 28: top-28 by 60-session
+                              avg dollar volume from Sharadar SEP as of 2026-06-12,
+                              close >= $5, mechanical rule, no discretionary selection):
+                              apps/backend/config/mdq_phase_a_universe.json
+                                sha256 d6248e2b7055aec6ba77fc8ce4056840713830695a08ff61f4236cb780f77a45
+                              apps/backend/config/mdq_phase_a_universe_symbols.json
+                                (deployable --universe-file array)
+                                sha256 0c57bd71c0b73565328ec27036c6573f11b87594acb49ca461458a7d947f88d4
+Cross-program evidence:   [X] MDQ corpus ONLY (plan v0.6 §8 item 14) — the sealed
+                              account-7 records (v1 FAIL c7b9371d…, v2 proof 67c400d3…,
+                              CA diag a892edf4…) are citable context, never scored
+                              toward K1/K6.
+ATP value extraction:     [X] plan v0.7 §8 item 15 APPROVED as proposed — MOM-SIP-0,
+                              CEE, SIP feature library, DISC-001, RANGE-SIP-OBS-001
+                              per ATP_ValueExtraction_Spec_Pack_v0_1.md; observation-
+                              only against frozen admissible partitions after G2;
+                              priority order MOM-SIP-0 -> CEE -> feature library ->
+                              DISC-001 -> RANGE-SIP-OBS-001 (Phase-A-supported
+                              branches only; auction branch NOT EVALUABLE; no capture
+                              expansion, no L1/L2, no reopened programs).
+P-2 real-time tier:       [X] verified 2026-08-17 RTH — v2 proof (script sha
+                              959c5399…, evidence sha 67c400d3…, R1–R4 all PASS);
+                              v1 preserved as mechanical FAIL (c7b9371d…).
+Registered by / date:     Jay Wang (owner) — 2026-08-17, authorization issued in
+                          session ("Owner authorization — 2026-08-17", items B/E);
+                          applied to this document by the developer session same day.
 ```
 
 ## 9. Authority
