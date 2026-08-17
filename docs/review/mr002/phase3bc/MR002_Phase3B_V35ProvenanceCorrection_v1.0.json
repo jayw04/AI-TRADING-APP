@@ -1,0 +1,62 @@
+{
+ "accurate_v35_representation_going_forward": {
+  "claimed_git_checkpoint": "b93e770",
+  "commit_correspondence": "INVALID / DOES NOT REPRODUCE (byte level)",
+  "methodology_validation": "the bound v3.4 identity 7c972455... DOES reproduce exactly from Git blob bytes (commits 39a6d6c..6e64e35), so the encoding and blob-based procedure are sound; the v3.5 basis alone was working-tree-contaminated.",
+  "package_provenance": "host-staged bytes; internally self-consistent between archive, tree and configuration, but not reproducible from the claimed or any examined committed tree",
+  "run_4_disposition": "UNCHANGED - outcome C, qualification FAIL, evidence inadmissible, opening spent",
+  "semantic_mitigation": "LF-normalization makes all four members byte-exact to b93e770, and Python treats CRLF and LF sources identically, so run 4 EXECUTED the b93e770 logic. The four-way ceremony proved what it proved - the running package matched its staged archive/config identity; what it failed to prove was Git custody correspondence.",
+  "v35_staged_execution_package_identity": "ef12de6dcabd8a46a1dfcb69993693bfe316e4b76ecaf8f8dbc45f08669fc25d"
+ },
+ "artifact_kind": "PROVENANCE_CORRECTION",
+ "authorized_by": "owner authorization 2026-08-17: bounded read-only v3.5 provenance diagnostic on i-00c1034f7026db45e before v3.6 Steps 3-9; strictly limited to existing local EBS artifacts; no entrypoint, no reader assumption, no sealed S3, no patch, no extraction, no v3.6 staging.",
+ "diagnostic_evidence": {
+  "archive_sha256_matches_bound": "32800572... VERIFIED on host",
+  "boundary": "READ ONLY - hash and read; nothing written, patched, extracted or staged",
+  "host": "i-00c1034f7026db45e (mr002-phase3c-run-host, c6a.xlarge)",
+  "ssm_command_ids": {
+   "hash_sweep": "16192493-22e6-4ce4-bc5c-9b3611e447b9",
+   "member_reads": "four per-file AWS-RunShellScript reads (gzip|base64 to stdout)"
+  },
+  "staged_config_sha256_matches_bound": "16a25ac9... VERIFIED on host",
+  "tree_equals_tarball": "TRUE - all 41 members hash identically in /opt/mr002/v35/apps/backend and inside code_v35.tar.gz (archive read without modification); both derive ef12de6d... The staging-integrity stop condition did NOT fire."
+ },
+ "exact_member_deltas": {
+  "byte_identical_to_b93e770": "37 of 41 members",
+  "characterization": "pure line-ending byte-custody drift on exactly the four files freshly written on the Windows working tree (core.autocrlf=true) when the v3.5 archive was built from the working tree rather than from Git blob bytes. Content is line-for-line identical.",
+  "differing_members": {
+   "app/research/__init__.py": {
+    "b93e770_sha256": "ced96b0efddea52ce59e22ad82b3e727b1ec5bf465fe7cd73efe8617c1f88e04",
+    "delta": "CRLF x7 lines; LF-normalized bytes == blob EXACTLY; zero stray CR",
+    "staged_sha256": "71b8c4dc057a8e3e5a633d7aea5fa2ff1001f21a74cc9d0f8e9b162f9eabd362"
+   },
+   "app/research/mr002/phase3b/candidates.py": {
+    "b93e770_sha256": "9bef81814dcd0db7795683a99b2f2d8bbf9f61adf617a7f804bf8c1b4dee5d28",
+    "delta": "CRLF x782 lines; LF-normalized bytes == blob EXACTLY; zero stray CR",
+    "staged_sha256": "cddd3ef512c3b564765a1ef92b4027b897457da3aa88771ce19995aeb60e6c26"
+   },
+   "app/research/mr002/phase3b/publish.py": {
+    "b93e770_sha256": "53d8452ffbdd2fc2ff841e15a61da6b9983a64236f5ef27afe34978a0485df09",
+    "delta": "CRLF x193 lines; LF-normalized bytes == blob EXACTLY; zero stray CR",
+    "staged_sha256": "97226556c8f921cf4783b1453ad719b2035e557a0cd012470625747e5a66911f"
+   },
+   "app/research/mr002/phase3b/runner.py": {
+    "b93e770_sha256": "3fb34537b99bf193e7deb2805b8a27e64c49bb8c82f2d27a4452a0bbedbafe02",
+    "delta": "CRLF x387 lines; LF-normalized bytes == blob EXACTLY; zero stray CR",
+    "staged_sha256": "723a2caa7310e86f490447d6aeb00d2f1ccfa2e096bd97ec367a7facd06f5ced"
+   }
+  },
+  "no_commit_matches": "for each of the four members, every commit that ever touched the file was swept; no blob reproduces the staged bytes - expected, since Git stores the LF form."
+ },
+ "finding_being_corrected": "the v3.5 execution identity has been represented as 'ef12de6d... @ b93e770', a commit-bound claim. Local blob sweeps (every commit 259b751..df2d5b5, and per-member sweeps over every commit touching the four differing files) prove NO committed tree reproduces ef12de6d... The claim is RETIRED as a commit-bound identity.",
+ "grants": "NOTHING. Provenance correction only. Openings spent: 4. Next opening: NOT granted.",
+ "produced_at": "2026-08-17T00:00:00Z",
+ "record_identity_sha256": "047131fe99f9abfd2df923360795af37ed4df25e410e9b7aef1a0e4ca4646509",
+ "record_type": "MR002_Phase3B_V35ProvenanceCorrection",
+ "rules_for_v36": {
+  "new_guard": "the v3.6 archive build and staging verify NO CR byte in any closure member, so this defect class cannot recur silently.",
+  "supersession_wording": "v3.6 supersedes the staged v3.5 package identity ef12de6d..., whose Git checkpoint attribution was subsequently found non-reproducible. It must NOT say 'supersedes v3.5 ef12de6d @ b93e770' as though that pair were valid.",
+  "v36_origin": "the v3.6 executable tree/archive originates ONLY from raw Git blob bytes at 961c38a (identity c4852231019531f58d3f213c782d11dfc375e5b974ea9568e271144f6212b85a, derived twice independently). Closure bytes are NEVER copied from /opt/mr002/v35. Only non-code bound inputs that are already independently governed may be copied forward."
+ },
+ "version": "1.0"
+}
