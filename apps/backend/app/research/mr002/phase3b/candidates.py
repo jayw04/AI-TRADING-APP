@@ -186,18 +186,18 @@ def sic_observations_by_cik(table: Any) -> dict[int, list[tuple]]:
     return out
 
 
-# The two vendor kinds whose value is a USD/share distribution the registered gap consumes.
-# SPINOFF-COMPOSITE (Matrix v1.3): the spinoffdividend dollar value feeds the same distribution
-# machinery as a cash dividend, WITHOUT collapsing the event identity into "dividend" - the
-# published identity remains the spinoff composition's. The spinoff RATIO is never summed here.
-_DISTRIBUTION_VALUE_KINDS: frozenset[str] = frozenset({"dividend", "spinoffdividend"})
-
-
 def cash_distributions(table: Any) -> dict[tuple[str, str], float]:
     """(ticker, session) -> summed cash distribution, for the registered economic gap.
 
     Summed rather than last-wins: two distributions on one session are two distributions, and
     silently keeping one would understate the adjustment the gap filter depends on.
+
+    `dividend` ONLY - frozen. The owner correction 2026-08-17 (LabelAdjudication Corrigendum v1.0)
+    ruled that the spinoffdividend dollar value is NOT AUTHORIZED to enter the registered gap's
+    distribution term: whether that value is a cash distribution actually received by the holder,
+    or a valuation/reference amount describing distributed stock, is a SEPARATE open
+    economic-semantics finding (SPINOFF-GAP-SEMANTICS). The composite event recognition in
+    `_resolve_actions` is unaffected.
     """
     cols = ("date", "ticker", "action", "value")
     missing = sorted(set(cols) - set(table.column_names))
@@ -205,7 +205,7 @@ def cash_distributions(table: Any) -> dict[tuple[str, str], float]:
         raise CandidateSourceRefused(f"actions: registered columns absent: {missing}")
     out: dict[tuple[str, str], float] = {}
     for date, ticker, action, value in _rows(table, cols):
-        if str(action) not in _DISTRIBUTION_VALUE_KINDS or value is None:
+        if str(action) != "dividend" or value is None:
             continue
         key = (str(ticker), str(date))
         out[key] = out.get(key, 0.0) + float(value)

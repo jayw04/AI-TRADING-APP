@@ -1,0 +1,42 @@
+{
+ "accepted_unchanged": [
+  "composite recognition: spinoff + spinoffdividend are one composite corporate-action event, not conflicting kinds",
+  "relation adjudication: KNOWN_INFORMATIONAL_LINKAGE / NO_PHASE3B_EXECUTION_EFFECT",
+  "spinoff / spinoffdividend composition machinery, including the standalone-spinoffdividend unit refusal",
+  "spunofffrom: EXPLICITLY_INERT child-side metadata",
+  "relation.value fail-closed premise guard (RELATION-VALUE-PREMISE)",
+  "AUDIT-IDENTITY-PRECEDENCE extension",
+  "the spinoff identity remains the composite event exactly as implemented"
+ ],
+ "artifact_kind": "OWNER_CORRECTION",
+ "authorized_by": "owner correction 2026-08-17 (PM), verbatim in substance: 'revert the cash_distributions() change that adds spinoffdividend to the economic-gap cash adjustment. My prior wording - \"its value may feed the same economic-adjustment machinery\" - was descriptive caution, not authorization to change the frozen gap economics.'",
+ "corrects": {
+  "MR002_Phase3B_LabelAdjudication_v2.0": {
+   "clause_superseded": "labels.spinoff.Q3_execution_consequence limb (b) - 'a published spinoffdividend dollar value is consumed by the registered distribution term of the economic gap'. SUPERSEDED: NOT AUTHORIZED. Limbs (a) and (c) and every other answer stand.",
+   "record_identity_sha256_of_file": "4b23bcf5bf2a951ed8f4cd31cb804d520db73be6f0cd91fe5f318b935633ef5a"
+  },
+  "MR002_Phase3B_SemanticReconciliationMatrix_v1.3": {
+   "clause_superseded": "frozen_rule_spinoff_composite, the sentence 'The published spinoffdividend dollar value joins the registered cash-distribution term (USD/share, summed exactly like a dividend value)'. SUPERSEDED: the distribution term remains `dividend` ONLY. The rest of SPINOFF-COMPOSITE - the normalization, the standalone-spinoffdividend refusal, the no-general-composition boundary, the never-sum-the-ratio clause - stands unchanged.",
+   "record_identity_sha256_of_file": "4964d3e26b7df643f101e98bd081c5dd240c7689336364dded6debaba82558cd"
+  }
+ },
+ "grants": "NOTHING beyond the correction itself.",
+ "implementation_disposition": {
+  "capacity": "no new 429x850 capacity run required (owner)",
+  "rebind_rule": "the correction lands BEFORE rebind - one clean v3.6 identity; the tree containing the unauthorized behaviour is never bound",
+  "requalification": "no host/runtime/P10 requalification required while the closure changes stay confined to this bridge-semantics work and the bound runtime is unchanged (owner)",
+  "revert_scope": "cash_distributions() returns to `dividend` ONLY, plus the one dependent test assertion. The composition machinery is NOT undone.",
+  "validation_oos": "sealed; no opening considered until the corrected v3.6 package is staged and passes the non-consuming ceremony"
+ },
+ "open_finding_registered": {
+  "folds_in": "the 2026-08-14 'spurious-negative-gap' observation (786f22e): SEP open/close are not spinoff-adjusted, so a spinoff session can carry a mechanical negative gap. That remains an OPEN economic-semantics finding under this id, adjudicated by the owner before any gap-formula change - never repaired implicitly.",
+  "governing_question": "whether the vendor's spinoffdividend value is a cash distribution actually received by the holder and therefore belongs additively in known_cash_distribution, or is instead a valuation/reference amount describing distributed stock. The structural evidence (e.g. ABT->ABBV ratio 1.0 with $34.65) is NOT sufficient by itself to establish the first interpretation.",
+  "id": "SPINOFF-GAP-SEMANTICS",
+  "status": "OPEN - blocks nothing in the current package; blocks any future wiring of spinoffdividend into the gap"
+ },
+ "produced_at": "2026-08-17T00:00:00Z",
+ "record_identity_sha256": "e227e128a4a8aac344cd8515cd2fd01a887d75e14ebe0af9865216d9bc97613b",
+ "record_type": "MR002_Phase3B_LabelAdjudication_Corrigendum",
+ "version": "1.0",
+ "why_the_gap_term_is_out_of_scope": "the adjudication establishes (1) one composite event and (2) a value component associated with it. It does not by itself establish that this value belongs in the preregistered gap formula (open_t+1 + known_cash_distribution_t+1) / close_t - 1, which was frozen around the governed cash-distribution semantics. Treating spinoffdividend USD/share as equivalent to an ordinary cash dividend would change entry admissibility and therefore potentially validation returns - that requires a separate economic-semantics ruling, not an implementation inference."
+}

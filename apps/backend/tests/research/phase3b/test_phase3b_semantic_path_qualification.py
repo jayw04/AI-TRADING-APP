@@ -303,8 +303,10 @@ def test_a_populated_relation_value_reverts_the_unit_to_unadjudicated(tmp_path):
 def test_the_spinoff_pair_is_one_composite_event_not_a_conflict(tmp_path):
     """65/75 bounded spinoffs carry both records: one event in two denominations, not a conflict.
 
-    The structural kind is the scalar and the identity; the dollar value joins the registered
-    distribution term without the event collapsing into an ordinary cash dividend.
+    The structural kind is the scalar and the identity. The dollar value does NOT enter the
+    registered distribution term - owner correction 2026-08-17 (Corrigendum v1.0): whether it is
+    cash actually received or a valuation of distributed stock is the OPEN SPINOFF-GAP-SEMANTICS
+    finding, and the frozen gap economics do not change on an implementation inference.
     """
     source, payloads = _source(
         tmp_path, [(T1, SUBJECT, "spinoff", 0.25), (T1, SUBJECT, "spinoffdividend", 3.81)]
@@ -314,7 +316,7 @@ def test_the_spinoff_pair_is_one_composite_event_not_a_conflict(tmp_path):
     assert code == E.SUCCESS
     assert facts.corporate_action_kind == "spinoff"
     assert facts.corporate_action_identity == f"actions:{SUBJECT}:{T1}:spinoff"
-    assert facts.cash_distribution == pytest.approx(3.81)
+    assert facts.cash_distribution == 0.0, "spinoffdividend value must NOT reach the gap term"
 
 
 def test_a_spinoff_without_a_dollar_value_is_valid_and_unadjusted(tmp_path):
