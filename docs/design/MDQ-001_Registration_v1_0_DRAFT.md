@@ -192,7 +192,7 @@ Registered by / date:     Jay Wang (owner) — 2026-08-17, authorization issued 
 Plan v0.8 (§4.10.1–§4.10.3, §4.11) added three sign-off requirements after the §8 block above was signed. They are recorded here as **open decisions** — the signed block above is not edited. Proposed defaults follow the plan text.
 
 ```
-Evidence firewall (4.10.1):   [ ] RATIFY — value-extraction outputs (MOM-SIP-0, CEE,
+Evidence firewall (4.10.1):   [X] RATIFIED (owner 2026-08-17) — value-extraction outputs (MOM-SIP-0, CEE,
                                   DISC-001, RANGE-SIP-OBS-001, feature library) are
                                   INADMISSIBLE to K1–K6; no K definition, threshold,
                                   tolerance, denominator, or evaluability clause may be
@@ -200,7 +200,7 @@ Evidence firewall (4.10.1):   [ ] RATIFY — value-extraction outputs (MOM-SIP-0
                                   that a K definition was poorly chosen is preserved and
                                   versioned prospectively for a FUTURE cycle (the P-2
                                   precedent), never retuned mid-window.
-Discovery ledger + holdout    [ ] RATIFY — DISC-001/feature-library maintain an
+Discovery ledger + holdout    [X] RATIFIED (owner 2026-08-17) — DISC-001/feature-library maintain an
 (4.10.2):                         append-only discovery ledger (every condition examined,
                                   dated, disposition); any pre-registration drawn from
                                   exploration must cite its ledger entry and the number
@@ -214,7 +214,7 @@ Discovery ledger + holdout    [ ] RATIFY — DISC-001/feature-library maintain a
                                   60-day window; dates stamp when the review clock stamps.
                                   Exploration never reads holdout symbols/period; a
                                   graduating hypothesis is evaluated on them once.
-Verdict reachability (4.11):  [ ] RATIFY — enumerated worst case UNDER THE CHOICES SIGNED
+Verdict reachability (4.11):  [X] RATIFIED (owner 2026-08-17) — enumerated worst case UNDER THE CHOICES SIGNED
                                   ABOVE (item 14 = MDQ corpus only; K6 = option (a);
                                   G10 closed; Stage 0 awaiting G4; fills < N_min
                                   plausible while MR-002 holds): K1, K2, K4, K5, K6 can
@@ -229,7 +229,15 @@ Sequencing (4.10.3):          [X] Already ordered by the owner 2026-08-17 (autho
                                   features MOM-SIP-0/CEE consume) -> DISC-001 ->
                                   RANGE-SIP-OBS-001; the latter two gated on the former
                                   producing output or an explicit owner time-box.
-Ratified by / date:           ______________________
+Ratified by / date:           Jay Wang (owner) — 2026-08-17, ratification issued in
+                              session ("I ratify §8.1 in full, using all three proposed
+                              defaults"); GO floor stated verbatim: GO requires at least
+                              two of K1–K6 to be BOTH evaluable AND PASS; fewer than two
+                              evaluable => HOLD with the required extension stated
+                              explicitly. Holdout stays quarantined from discovery and
+                              exploratory tuning until its governed release point.
+                              Additive ratification only — the signed §8 block above is
+                              not reopened. Applied by the developer session same day.
 ```
 
 ## 9. Authority
