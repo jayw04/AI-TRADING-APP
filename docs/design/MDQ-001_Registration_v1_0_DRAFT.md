@@ -187,6 +187,51 @@ Registered by / date:     Jay Wang (owner) — 2026-08-17, authorization issued 
                           applied to this document by the developer session same day.
 ```
 
+### 8.1 v0.8 addendum — value-extraction guardrails *(PROPOSED 2026-08-17, pending owner ratification)*
+
+Plan v0.8 (§4.10.1–§4.10.3, §4.11) added three sign-off requirements after the §8 block above was signed. They are recorded here as **open decisions** — the signed block above is not edited. Proposed defaults follow the plan text.
+
+```
+Evidence firewall (4.10.1):   [ ] RATIFY — value-extraction outputs (MOM-SIP-0, CEE,
+                                  DISC-001, RANGE-SIP-OBS-001, feature library) are
+                                  INADMISSIBLE to K1–K6; no K definition, threshold,
+                                  tolerance, denominator, or evaluability clause may be
+                                  revised once value-extraction work begins. A finding
+                                  that a K definition was poorly chosen is preserved and
+                                  versioned prospectively for a FUTURE cycle (the P-2
+                                  precedent), never retuned mid-window.
+Discovery ledger + holdout    [ ] RATIFY — DISC-001/feature-library maintain an
+(4.10.2):                         append-only discovery ledger (every condition examined,
+                                  dated, disposition); any pre-registration drawn from
+                                  exploration must cite its ledger entry and the number
+                                  of conditions examined in that family. Holdout reserve
+                                  MATERIALIZED (deterministic, zero discretion):
+                                  apps/backend/config/mdq_phase_a_holdout.json
+                                    sha256 6c6cf03a80598f54df89b599f2ffbbda09ea44af8f3596421d6c58104e2393bb
+                                  symbol holdout (10/50, PRNG seeded by the universe
+                                  list sha): AMZN EFA KMLM MSTR NBIS NOW TSLA XLK XLV XOM
+                                  period holdout RULE: final 12 calendar days of the
+                                  60-day window; dates stamp when the review clock stamps.
+                                  Exploration never reads holdout symbols/period; a
+                                  graduating hypothesis is evaluated on them once.
+Verdict reachability (4.11):  [ ] RATIFY — enumerated worst case UNDER THE CHOICES SIGNED
+                                  ABOVE (item 14 = MDQ corpus only; K6 = option (a);
+                                  G10 closed; Stage 0 awaiting G4; fills < N_min
+                                  plausible while MR-002 holds): K1, K2, K4, K5, K6 can
+                                  all be NOT EVALUABLE simultaneously, leaving GO
+                                  reachable on K3 ALONE. Proposed floor: a GO verdict
+                                  requires >= 2 of K1–K6 evaluated PASS; if fewer than 2
+                                  criteria are evaluable at the review date, disposition
+                                  is HOLD WITH A STATED EXTENSION — never a default
+                                  Cancel on unevaluability, never a single-criterion GO.
+Sequencing (4.10.3):          [X] Already ordered by the owner 2026-08-17 (authorization
+                                  item E): MOM-SIP-0 -> CEE -> feature library (scoped to
+                                  features MOM-SIP-0/CEE consume) -> DISC-001 ->
+                                  RANGE-SIP-OBS-001; the latter two gated on the former
+                                  producing output or an explicit owner time-box.
+Ratified by / date:           ______________________
+```
+
 ## 9. Authority
 
 Planning/qualification governance only. If this document conflicts with a frozen pre-registration, sealed verdict, owner ruling, hash-bound design, ADR, or promotion gate, the governed program artifact controls. MR-002 HOLD and the GAPPER v2.1.1 §9 sequencing are unaffected by anything here.
