@@ -1,0 +1,41 @@
+{
+ "artifact_kind": "OWNER_GRANT",
+ "authorized_by": "owner GRANT 2026-08-17, verbatim in substance",
+ "conditions": {
+  "ci": "Tier 3 CI green for the pushed batch before release. Feature-branch pushes do not trigger the workflow by design, so the certification is a manual workflow_dispatch FULL run on the branch at f7fad57 (Actions run 32078434247). If red for a relevant MR-002 correctness failure: do not open; diagnose only that blocking failure.",
+  "execution_discipline": "no tuning, no retries, no alternate configurations, no manual data inspection, no mid-run intervention",
+  "not_authorized": "no new infrastructure, classifier expansion, general governance cleanup, additional data exploration, or unrelated MR-002 research",
+  "post_result_decision_tree": {
+   "config_b_fails": "inspect the economic result only enough to determine whether a specifically justified strategy improvement exists; otherwise STOP MR-002",
+   "config_b_passes_frozen_validation_gates": "adjudicate the result -> proceed to the already-governed OOS step"
+  },
+  "pre_release_reconfirmation": [
+   "staged config sha 1959dcd3...",
+   "archive sha 024db8fa...",
+   "code identity c4852231... (four-way)",
+   "runtime identity 194efbdf...",
+   "config mapping {A: 1.75, B: 2.00, C: 2.25}",
+   "containment/latch in the expected pre-release state (host->reader explicitDeny, host->sealed explicitDeny)"
+  ],
+  "release_scope": "ONE replacement opening for this identity only",
+  "run_stop_conditions": {
+   "refusal_before_interpretable_result": "preserve evidence, restore containment; another replacement opening is NOT automatically authorized",
+   "valid_abc_outputs": "the execution/governance phase is OVER; no new engineering cycle for incidental imperfections"
+  }
+ },
+ "grant": {
+  "authorization_count": 1,
+  "bound_execution_identity": "c4852231019531f58d3f213c782d11dfc375e5b974ea9568e271144f6212b85a",
+  "ceremony_evidence_checkpoint": "f7fad57283eb56446a4c084dad047f06c203d4ba",
+  "classification": "REPLACEMENT_FOR_PRE_RESEARCH_EXECUTION_REFUSAL",
+  "disposition": "GRANTED, subject to Tier 3 CI green before release",
+  "git_source_checkpoint": "961c38aba578112bac48884ec31f12cbf357075a",
+  "primary_economic_verdict_configuration": "Config B = 2.00"
+ },
+ "grants": "ONE replacement validation execution bound to the identity above, under the conditions above.",
+ "produced_at": "2026-08-17T00:00:00Z",
+ "record_identity_sha256": "7d037e750927c4a40a43600d1c7926b49ad2c3325f68bed03389f18b75def68e",
+ "record_type": "MR002_Phase3B_ReplacementOpeningAuthorization",
+ "request_record_identity": "899baf208d24fd62f2a09186dfdef1f8491fbbec54108f0709d9543f305f0ba3",
+ "version": "3.0"
+}

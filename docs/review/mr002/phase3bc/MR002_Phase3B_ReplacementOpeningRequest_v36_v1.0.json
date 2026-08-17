@@ -1,0 +1,26 @@
+{
+ "artifact_kind": "OPENING_REQUEST",
+ "bound_to": {
+  "archive_sha256": "024db8fa9df03bebc4d9e441bb37ad8a4212e3d2bb64999e545fe30fc389c074",
+  "ceremony_evidence_checkpoint": "f7fad57283eb56446a4c084dad047f06c203d4ba",
+  "ceremony_record": "MR002_Phase3B_DryPreflightCeremony_v3.6 (fc4a65bd...)",
+  "execution_identity": "c4852231019531f58d3f213c782d11dfc375e5b974ea9568e271144f6212b85a",
+  "git_source_checkpoint": "961c38aba578112bac48884ec31f12cbf357075a",
+  "provenance_correction": "MR002_Phase3B_V35ProvenanceCorrection_v1.0 (047131fe...)",
+  "runtime_identity": "sha256:194efbdf96ee11c19f3554dcf1b1097958cdc347bcdc1637504b441237432f51",
+  "staged_config_sha256": "1959dcd3fa1208ec5c7b5deec4c2a32a00dd0b19face8f3ca17a936c02a6aea9",
+  "staging_record": "MR002_Phase3B_StagingRecord_v3.6 (a1e198e7...)"
+ },
+ "classification": "REPLACEMENT_FOR_PRE_RESEARCH_EXECUTION_REFUSAL",
+ "grants": "NOTHING. A request grants nothing.",
+ "opening_history_recorded_separately": {
+  "historical_count_of_spent_openings": 4,
+  "ordinal_naming_deliberately_avoided": "named by classification and bound identity (owner instruction 2026-08-17)",
+  "research_verdict_before_this_request": "NONE"
+ },
+ "produced_at": "2026-08-17T00:00:00Z",
+ "purpose": "Obtain the first interpretable MR-002 validation result under the frozen Config A/B/C specification, with Config B as the primary profitability verdict configuration, solely to determine whether MR-002 merits OOS progression toward paper trading. This opening does not authorize additional exploratory tuning, new configurations, or unrelated research.",
+ "record_identity_sha256": "899baf208d24fd62f2a09186dfdef1f8491fbbec54108f0709d9543f305f0ba3",
+ "record_type": "MR002_Phase3B_ReplacementOpeningRequest",
+ "version": "v36-1.0"
+}
