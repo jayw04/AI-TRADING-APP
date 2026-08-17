@@ -365,6 +365,10 @@ jobs:
         if: matrix.p.project == 'backend'
         run: bash apps/backend/scripts/check_llm_optin_bypass_gated.sh
 
+      - name: Market-data feed-pinning invariant check (backend)
+        if: matrix.p.project == 'backend'
+        run: bash apps/backend/scripts/check_marketdata_feed_pinning.sh
+
   # The FULL Python suite, one matrix entry PER PROJECT that must run FULL this event (see the FULL
   # matrix). pytest + coverage for each; the backend entry additionally runs the risk/P2/P3 branch-
   # coverage gates. Runs on every push / dispatch / schedule AND on a PR for each project the classifier
