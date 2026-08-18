@@ -31,9 +31,8 @@ FINGERPRINT_HEX_LEN = 12
 def key_fingerprint(api_key_id: str) -> str:
     """sha256 of the API key id, truncated to 12 hex chars.
 
-    Matches the fingerprint scheme used by the account-7 identity-latch records
-    (e.g. the ``ALPACA_PAPER_6`` key pins to ``5b6f39e5198d``). Reveals nothing
-    recoverable about the key; safe for manifests and logs.
+    Matches the fingerprint scheme used by the account-7 identity-latch records.
+    Reveals nothing recoverable about the key; safe for manifests and logs.
     """
     return hashlib.sha256(api_key_id.encode()).hexdigest()[:FINGERPRINT_HEX_LEN]
 
@@ -44,9 +43,24 @@ class AcquisitionPins:
 
     Rotating the credential intentionally breaks the pin — re-pinning is a
     deliberate, reviewed change, never an automatic fallback.
+
+    Re-pin history:
+
+    ``5b6f39e5198d`` -> ``b56421a28128``, owner-authorized 2026-08-18. The
+    ``ALPACA_PAPER_6`` key was rotated on the box at 2026-08-17 21:32 EDT,
+    roughly two hours after this collector was deployed and pinned. The broker
+    identity is unchanged -- a read-only ``GET /v2/account`` on the new key
+    returns ``PA3BGKRLH2AP``, ACTIVE -- so this is a key rotation on the same
+    account, not a change of acquisition identity.
+
+    The latch behaved as designed: ``mdq-eod`` refused to acquire on 2026-08-18
+    rather than capture under an unverified credential. It surfaced late only
+    because that morning's free-space guard tripped first and masked it -- two
+    independent faults, discovered in sequence, and no partition was written
+    under either.
     """
 
-    key_fingerprint: str = "5b6f39e5198d"
+    key_fingerprint: str = "b56421a28128"
     account_number: str = "PA3BGKRLH2AP"
     cred_env_key: str = "ALPACA_PAPER_6_API_KEY"
     cred_env_secret: str = "ALPACA_PAPER_6_API_SECRET"
