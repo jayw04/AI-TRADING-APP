@@ -1,0 +1,68 @@
+{
+ "affirmations": {
+  "access_restriction_changed": false,
+  "cost_or_D_decision_changed": false,
+  "dsr_trial_count_changed": false,
+  "economic_rule_changed": false,
+  "gate_threshold_changed": false,
+  "oos_bytes_read": false,
+  "performance_computed": false,
+  "validation_bytes_read": false,
+  "window_or_seam_or_fold_changed": false
+ },
+ "anticipated_by": "MR002_DevPlan_v1_3_ReviewMemo_v1_0.md warned that section 4.2 reproduces the primary OOS Sharpe gate and must not be read as the validation gate.",
+ "artifact_kind": "SUBORDINATE_RECORD_CORRECTION",
+ "authorized_by": "owner ruling 2026-08-18 (see MR002_Phase3C_OwnerRulings_v1.0.json)",
+ "correction": {
+  "from": "MR002_Phase3BC_ExecutionGateTable_v1.0.json",
+  "from_sha256": "f113a232c0536e0e130a11d9d6a3dbe01610e1ee70b9fc7633ab87e8ac290ff3",
+  "to": "MR002_Phase3BC_ExecutionGateTable_v1.1.json",
+  "to_sha256": "628b0ce252677274413d42add7c7136038a3767a4b61680085a52e74761a66d0"
+ },
+ "defect_class": "stage mis-anchoring - an OOS-stage gate transcribed as the validation-stage gate. Same class as the bootstrap transcription drift corrected at prereg v1.0.4.",
+ "explicit_statement": "MR002_Phase3BC_ExecutionGateTable_v1.0.json named 'Config B net Sharpe >= 0.70' as the primary_validation_gate. Sharpe >= 0.70 is a sealed-OOS gate. Following that line would have caused an OOS primary gate to be computed on validation data - a preregistration breach - and would have spent the meaning of the OOS seal.",
+ "grants": "NOTHING. A correction of a subordinate record.",
+ "machine_diff_proof": {
+  "added_keys": [
+   "supersedes",
+   "supersession_note"
+  ],
+  "changed_keys": [
+   "metric_roles",
+   "version"
+  ],
+  "invariants_byte_equal": [
+   "null_model_binding",
+   "oos_note",
+   "phase_3b_integrity_gates",
+   "phase_3c_controls",
+   "record_type",
+   "source",
+   "verdict_domain"
+  ],
+  "method": "json.loads both files; compare top-level keys",
+  "metric_roles_subkeys_replaced": [
+   "primary_validation_gate -> primary_validation_gates + primary_oos_gate"
+  ],
+  "metric_roles_subkeys_unchanged": [
+   "binding",
+   "diagnostics_are_not_gates",
+   "stage_separation"
+  ],
+  "removed_keys": []
+ },
+ "produced_at": "2026-08-18T00:00:00Z",
+ "record_identity_sha256": "fad0356022510e9dc994c42da27118439874e74593cbc95641fb5b466c95ade2",
+ "record_status": "IMMUTABLE",
+ "record_type": "MR002_PHASE3BC_EXECUTIONGATETABLE_CORRECTION",
+ "self_contradiction": "v1.0 line 'stage_separation' already asserted that OOS primary gates are PROHIBITED as validation-stage decision metrics, directly contradicting its own primary_validation_gate line.",
+ "superior_authorities_contradicted": [
+  "MR002_ValidationOOS_Preregistration_v1.0.4.json - sharpe_sample = 'sealed OOS'; the containing key is literally named 'oos_pass_requires_BOTH'",
+  "phase3a/MR002_Phase3A_MetricRoleRegistry_v1.0.json - net_oos_sharpe_ge_0.70 carries sample_stage = 'OOS'",
+  "phase3a/MR002_Phase3A_ValidationStageDecisionSpecification_v1.0.json - net_oos_sharpe_ge_0.70 is listed under oos_only_metrics_prohibited_during_validation",
+  "phase3a/ValidationMetricSpecification_v1.0.json - every gate carries an explicit *_sample binding; sharpe_sample, bootstrap_sample and dsr_sample are all 'sealed OOS'"
+ ],
+ "version": "1.0",
+ "what_did_not_change": "no gate THRESHOLD moved. 0.70 is still 0.70 and the two validation gates are still the ones the preregistration always specified. Only the STAGE at which each is evaluated is restated correctly.",
+ "why_subordinate": "the record's own 'source' field describes it as derived from a development PLAN and 'governed by preregistration v1.0.4'. A derived operational table cannot override the preregistration it declares itself governed by."
+}
