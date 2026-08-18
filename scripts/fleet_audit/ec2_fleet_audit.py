@@ -43,11 +43,11 @@ AUTHORIZED_RUNNING = {
         "reason": "Separate GlobalComplyAI lab project (not Trading Workbench); owner-acknowledged 2026-08-16.",
         "authorized_until": None,
     },
-    "i-0fff7076ad461aa9a": {
-        "name": "adr0043-canary-ws5-52b3ff136196",
-        "reason": "ADR-0043 WSS governed clean lapse — owner ruled resource state untouched until the last authorization expires; terminate after final preservation check.",
-        "authorized_until": "2026-08-18T21:41:00+00:00",
-    },
+    # ADR-0043 WSS (i-0fff7076ad461aa9a) removed 2026-08-18: the authorization lapsed
+    # unexercised at 21:41:00Z, the post-lapse census confirmed no substrate or trading
+    # authority was ever exercised, and the CloudFormation stack was deleted at 22:41Z.
+    # The evidence volume vol-0710769fb6981102d is retained by DeletionPolicy and is a
+    # separate owner decision.
 }
 
 for _iid, _entry in AUTHORIZED_RUNNING.items():
