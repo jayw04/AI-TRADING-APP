@@ -1425,6 +1425,14 @@ def test_module_holds_no_write_or_network_primitives() -> None:
 
     Complements the package-wide invariant in test_mdq_capture.py, which already
     forbids foreign app imports, mutating HTTP verbs and the trading SDK.
+
+    Router-token containment is deliberately NOT restated here. ADR 0002 leg 2
+    (scripts/check_adr0002.sh) already greps every file outside the router and
+    adapter seam for the token name, this module included, and it does so more
+    thoroughly than a per-module assertion could. Restating it also could not
+    work: that check cannot distinguish "leaks the token" from "asserts the
+    token is absent", so naming the token here to forbid it made this file the
+    violation. An invariant with a dedicated checker belongs to that checker.
     """
     import app.research.capture.admissibility as mod
 
@@ -1449,7 +1457,6 @@ def test_module_holds_no_write_or_network_primitives() -> None:
         "urllib",
         "socket",
         "alpaca",
-        "ROUTER_TOKEN",
     )
     for token in forbidden:
         assert token not in source, f"admissibility.py must not contain {token!r}"
