@@ -272,7 +272,9 @@ THRESHOLD_SOURCES: dict[str, str] = {
     ),
     "credential_fingerprint": (
         "app/research/capture/identity.py AcquisitionPins.key_fingerprint "
-        f"('5b6f39e5198d'); corroborated by {REGISTRATION_DOC} §7 probe table "
+        f"('b56421a28128', owner-authorized re-pin 2026-08-18 superseding "
+        f"'5b6f39e5198d' -- key rotated on the box 2026-08-17 21:32 EDT, same "
+        f"broker account); corroborated by {REGISTRATION_DOC} §7 probe table "
         f"(ALPACA_PAPER_6 = workbench account 7) and §2 P-2"
     ),
     "account_number": (

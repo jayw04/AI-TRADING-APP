@@ -69,9 +69,17 @@ def test_verify_identity_passes_and_returns_account() -> None:
 
 
 def test_default_pins_are_the_account7_latch() -> None:
+    """The broker account is the stable half of the latch; the key is not.
+
+    ``key_fingerprint`` was re-pinned 2026-08-18 (``5b6f39e5198d`` ->
+    ``b56421a28128``) after an authorized key rotation. ``account_number`` did
+    NOT move and must not: a change there would mean the collector had been
+    pointed at a different acquisition identity, which is a different event
+    entirely from rotating a key on the same account.
+    """
     pins = AcquisitionPins()
     assert pins.account_number == "PA3BGKRLH2AP"
-    assert pins.key_fingerprint == "5b6f39e5198d"
+    assert pins.key_fingerprint == "b56421a28128"
 
 
 def test_account_getter_surfaces_only_the_account_number(monkeypatch) -> None:

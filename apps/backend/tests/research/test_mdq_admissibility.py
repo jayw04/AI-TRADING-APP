@@ -663,7 +663,7 @@ def test_identity_provenance_must_be_the_pinned_acquisition_identity(tmp_path: P
 def test_identity_expectations_are_the_account7_latch(tmp_path: Path) -> None:
     build_admissible_corpus(tmp_path, cycles=5)
     report = assess(tmp_path)
-    assert report.thresholds["expected_credential_fingerprint"] == "5b6f39e5198d"
+    assert report.thresholds["expected_credential_fingerprint"] == "b56421a28128"
     assert report.thresholds["expected_account_number"] == "PA3BGKRLH2AP"
 
 
