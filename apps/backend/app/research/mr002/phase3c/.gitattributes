@@ -1,0 +1,5 @@
+# The Phase 3C code identity is bound by sha256 in
+# docs/review/mr002/phase3bc/MR002_Phase3C_ExecutableIdentityAndQualification_v1.0.json.
+# core.autocrlf would rewrite these files to CRLF on checkout and the bound identity would stop
+# reproducing, so LF is pinned in the working tree as well as in the blob.
+* text eol=lf

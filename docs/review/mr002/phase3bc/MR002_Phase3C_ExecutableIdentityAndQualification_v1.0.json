@@ -1,0 +1,146 @@
+{
+ "affirmations": {
+  "all_fixtures_synthetic": true,
+  "network_disabled_during_qualification": true,
+  "oos_bytes_read": false,
+  "performance_of_any_sealed_partition_computed": false,
+  "sealed_opening_granted": false,
+  "sealed_opening_requested": false,
+  "validation_bytes_read": false
+ },
+ "artifact_kind": "PRE_OPENING_QUALIFICATION_EVIDENCE",
+ "authorized_by": "MR002_Phase3C_OwnerRulings_v1.2.json - Phase 3C implementation and non-sealed qualification AUTHORIZED; sealed validation opening NOT GRANTED",
+ "bound_upstream": {
+  "adopted_mechanics_block_lines": "251-276",
+  "adopted_mechanics_block_sha256": "02d9ea7571046419694ec46782c1fdd0e308bfc279c3ca4715681e487bb347b2",
+  "adopted_runner": "apps/backend/scripts/mr002_development_run.py",
+  "adopted_runner_sha256": "b1f990e20550a3a964063b0cf4a0c204125b6e0cfc8df6c10d407c26206791f9",
+  "binding_is_enforced_in_code": "app/research/mr002/phase3c/adopted.py re-hashes the adopted runner AND the mechanics block at import and raises AdoptionBindingViolation on any drift, so the R5A adoption cannot rot silently",
+  "frozen_primitives": "apps/backend/app/research/mr002/execution.py",
+  "frozen_primitives_sha256": "988fb59a24609efd8d7ff4db4ac468ed0002ab9bfb3c4c82926a602b4646a3b7",
+  "governing_construction": "apps/backend/app/research/mr002/joint_portfolio.py",
+  "governing_construction_sha256": "7e9b55c33746faa48b4c6520a54ffb72232ffdec8b02aba1507efb1d8027ba5b"
+ },
+ "coverage_against_the_owner_required_list": {
+  "commission_on_reduced_notional": "test_reduction_charges_commission_on_the_reduced_notional",
+  "deterministic_replay": "test_replay_is_deterministic",
+  "differential_vs_accepted_development_runner": "test_phase3c_agrees_with_the_accepted_development_runner - parameterized over five regimes: no trim, partial trim, larger partial trim, short-side trim, and full coupling liquidation",
+  "full_coupling_liquidation_reduce_to_zero": "test_reduce_to_zero_coupling_is_recorded_as_an_exit",
+  "full_retention_y_eq_1": "test_full_retention_leaves_positions_untouched",
+  "nav_pnl_reconciles_through_the_trim": "test_nav_reconciles_through_the_trim",
+  "partial_retention_0_lt_y_lt_1": "test_partial_coupling_reduction_trims_without_closing",
+  "r6_drift_still_integrity_failure": "test_synthetic_post_execution_drift_is_an_integrity_failure",
+  "retained_share_quantity_correct": "test_retained_quantity_is_the_untrimmed_remainder",
+  "short_borrow_basis_follows_remaining_shares": "test_short_borrow_basis_follows_the_remaining_shares"
+ },
+ "defects_found_and_fixed_during_qualification": [
+  {
+   "consequence_if_shipped": "a false-positive INTEGRITY_FAILURE would have halted a perfectly valid replay, and the halt would have looked like a genuine governance finding",
+   "defect": "the R6 post-execution drift check used an exact ratio test",
+   "fix": "compare in the solver's own homogeneous weight units against its frozen primal feasibility tolerance PRIMAL_RESIDUAL_MAX (1e-9), not by exact ratio",
+   "regression_test": "test_drift_check_does_not_fire_at_the_band_boundary",
+   "symptom": "it fired at |net|/gross == 0.050000 exactly, where the solver had legitimately brought the book to the band boundary"
+  }
+ ],
+ "differential_result": {
+  "agreement": "EXACT",
+  "compared": "the accepted development runner's run_config against Phase 3C's run_config_validation, on identical synthetic non-sealed inputs",
+  "fields_compared": [
+   "reductions",
+   "entries_long",
+   "entries_short",
+   "exits",
+   "exit_reasons",
+   "traded_notional",
+   "costs",
+   "borrow",
+   "nav_curve",
+   "daily_ret",
+   "session_hashes",
+   "per-trade reason",
+   "per-trade net_pnl"
+  ],
+  "significance": "this is the evidence that the thin adapter did not move the already-exercised economics. It is worth more than a general test suite because it compares against the implementation that produced the accepted v1.1 development evidence.",
+  "tolerance": "none - equality, including the per-session determinism hashes"
+ },
+ "executable_identity": {
+  "modules": {
+   "apps/backend/app/research/mr002/phase3c/__init__.py": {
+    "bytes": 3517,
+    "sha256": "ec3a8c3129e58ee1ff00bf125cfaff13e50ec2befa0ad6fe1047b513aedbcbd7"
+   },
+   "apps/backend/app/research/mr002/phase3c/adopted.py": {
+    "bytes": 4107,
+    "sha256": "834867795f89724aa83d4c79e330ab0a6c1dc2a1e8175f207bc7bbebdb161dfa"
+   },
+   "apps/backend/app/research/mr002/phase3c/exits.py": {
+    "bytes": 2859,
+    "sha256": "2724f372ef62a6b6a0c15173c7d6146cf9a44748940f759773dca61219bde7d7"
+   },
+   "apps/backend/app/research/mr002/phase3c/folds.py": {
+    "bytes": 3568,
+    "sha256": "e925799c099c5cfd17ab60917a94f806370165acd905422f5828c3a2db984bb9"
+   },
+   "apps/backend/app/research/mr002/phase3c/gates.py": {
+    "bytes": 6666,
+    "sha256": "3782ecf59189dacbbfa04a57cf6f503118721db6a40271a0a2994e15fd377ad3"
+   },
+   "apps/backend/app/research/mr002/phase3c/replay.py": {
+    "bytes": 15503,
+    "sha256": "0c09e28012aa138af436d1c1848819e601f8e2ac5e3111fc804b80bc16acf000"
+   }
+  },
+  "phase3c_code_identity_sha256": "7788ada561625bf160f9a569a26eac9fc28ceb7d12032e61c0f6f69ee67c3bc7",
+  "phase3c_plus_tests_identity_sha256": "b0997e2710dc0a87ef6c2b02561c8f9642ff389f818f2665d95722e8943d75d7",
+  "tests": {
+   "apps/backend/tests/research/phase3c/test_phase3c_qualification.py": {
+    "bytes": 9782,
+    "sha256": "56e6a3971b6f0160bfb3961588293f6a4332dbdfe09074b54f10e23fd1325999"
+   },
+   "apps/backend/tests/research/phase3c/test_phase3c_reductions.py": {
+    "bytes": 11953,
+    "sha256": "5cf4465eef4d2b055b41b8f29576f0fb6053dfbfa45233fe04807864a4f093a3"
+   }
+  }
+ },
+ "grants": "NOTHING. Qualification evidence only.",
+ "not_yet_done": [
+  "no run against the sealed validation partition - the opening is NOT granted",
+  "the DSR trial-dispersion artifact is emitted only once a real replay produces the A/B/C annualized net Sharpes",
+  "a full-window dry run against a development-window FrozenDataset has not been executed here; the differential used synthetic fixtures spanning all five reduction regimes"
+ ],
+ "produced_at": "2026-08-18T00:00:00Z",
+ "purpose": "owner step 6 - the executable identity and non-sealed qualification evidence that must exist BEFORE a new sealed validation opening is requested",
+ "qualification_run": {
+  "command": "docker run --rm --network=none -e PYTHONPATH=/work/apps/backend -v <repo>:/work -w /work/apps/backend mr002-research:v1.4 python -m pytest tests/research/phase3c --noconftest -v",
+  "conftest_note": "--noconftest is required because the repo-wide backend conftest imports pytest_asyncio, which the research image does not carry. No Phase 3C test uses a conftest fixture.",
+  "exit_code": 0,
+  "log_bytes": 1157,
+  "log_retained": "session scratchpad (not committed; the summary and hash are the record)",
+  "log_sha256": "0624a66f9938decb269fefa2053248b97a18e52024b62263ba2ab544fc5b1fec",
+  "tests_failed": 0,
+  "tests_passed": 194
+ },
+ "record_identity_sha256": "597b17d36c11c9fd1f2bb7608bd9c384a7237e102d1af0eec8010501222099d4",
+ "record_type": "MR002_Phase3C_ExecutableIdentityAndQualification",
+ "rulings_implemented": {
+  "integrity_stop_is_not_an_economic_verdict": "gates.evaluate short-circuits to INTEGRITY_FAILURE and never returns VALIDATION_DO_NOT_ADVANCE for a replay-definition failure",
+  "ruling_1_retired_3p5_sigma_trigger": "phase3c/exits.exit_reason_validation takes NO confirm parameter and has no +/-3.5 rung; equivalence with the frozen ladder at confirm=False is proven across a parameter sweep",
+  "ruling_2_joint_construction_governing": "phase3c/replay calls joint_portfolio.build_joint; the superseded v1.0 cascade is never invoked",
+  "ruling_3_configs_A_B_C": "the runner is parameterized by CONFIGS[A|B|C]; no parameter search exists",
+  "ruling_4_replay_integrity_reserved": "no replay_integrity metric, threshold or composite score was invented; integrity is expressed through already-frozen invariants and the typed IntegrityFailure",
+  "ruling_R5A_coupling_reduction_adoption": "the adopted mechanics are reused verbatim and hash-bound at import",
+  "ruling_R6_drift_quantity_undefined": "a surviving drift breach records the frozen ordering with quantity=None and raises INTEGRITY_FAILURE; coupling semantics are never borrowed for it"
+ },
+ "runtime": {
+  "image": "mr002-research:v1.4",
+  "image_id": "sha256:aa930021c072d01a5a14f389b53bea9d338e53b71e2aac08550972060a08610a",
+  "network": "none",
+  "solver_pin_verified": {
+   "artifact_sha256": "cc1996a0e3de1d423f8662fe21368948afdc91d851910b77320caaf7c15357ff",
+   "quadprog": "0.1.13"
+  },
+  "why_the_image_is_required": "joint_portfolio._assert_registered_solver refuses to run unless /manifest/pip_report.json pins quadprog to the registered artifact cc1996a0...; that refusal is a control, so the qualification runs inside the frozen image rather than weakening it"
+ },
+ "version": "1.0"
+}
