@@ -1,0 +1,219 @@
+{
+ "authorized_host": "i-00c1034f7026db45e",
+ "bundle_v12_build": {
+  "ADDITIVE_ONLY": true,
+  "added_file_count": 35,
+  "added_files": [
+   "dateutil/__init__.py",
+   "dateutil/_common.py",
+   "dateutil/_version.py",
+   "dateutil/easter.py",
+   "dateutil/parser/__init__.py",
+   "dateutil/parser/_parser.py",
+   "dateutil/parser/isoparser.py",
+   "dateutil/relativedelta.py",
+   "dateutil/rrule.py",
+   "dateutil/tz/__init__.py",
+   "dateutil/tz/_common.py",
+   "dateutil/tz/_factories.py",
+   "dateutil/tz/tz.py",
+   "dateutil/tz/win.py",
+   "dateutil/tzwin.py",
+   "dateutil/utils.py",
+   "dateutil/zoneinfo/__init__.py",
+   "dateutil/zoneinfo/dateutil-zoneinfo.tar.gz",
+   "dateutil/zoneinfo/rebuild.py",
+   "python_dateutil-2.9.0.post0.dist-info/INSTALLER",
+   "python_dateutil-2.9.0.post0.dist-info/LICENSE",
+   "python_dateutil-2.9.0.post0.dist-info/METADATA",
+   "python_dateutil-2.9.0.post0.dist-info/RECORD",
+   "python_dateutil-2.9.0.post0.dist-info/REQUESTED",
+   "python_dateutil-2.9.0.post0.dist-info/WHEEL",
+   "python_dateutil-2.9.0.post0.dist-info/top_level.txt",
+   "python_dateutil-2.9.0.post0.dist-info/zip-safe",
+   "six-1.17.0.dist-info/INSTALLER",
+   "six-1.17.0.dist-info/LICENSE",
+   "six-1.17.0.dist-info/METADATA",
+   "six-1.17.0.dist-info/RECORD",
+   "six-1.17.0.dist-info/REQUESTED",
+   "six-1.17.0.dist-info/WHEEL",
+   "six-1.17.0.dist-info/top_level.txt",
+   "six.py"
+  ],
+  "added_top_level": [
+   "dateutil",
+   "python_dateutil-2.9.0.post0.dist-info",
+   "six-1.17.0.dist-info",
+   "six.py"
+  ],
+  "pyc": [],
+  "pycache": [],
+  "tests": [
+   "pyarrow/tests/__init__.py",
+   "pyarrow/tests/arrow_16597.py",
+   "pyarrow/tests/arrow_39313.py",
+   "pyarrow/tests/arrow_7980.py",
+   "pyarrow/tests/bound_function_visit_strings.pyx"
+  ],
+  "v11_files": 2919,
+  "v11_files_CHANGED_in_v12": [],
+  "v11_files_missing_from_v12": [],
+  "v11_inventory_digest": "d3a323ca04eda5937724ba86e8dedbbd8b955cbd87cac97b51d06f985909f807",
+  "v12_files": 2954,
+  "v12_inventory_digest": "cbf588cb482edd96847f2f5016dbb6dfe03f5e435c921d620c0031e97ea92919",
+  "zero_pyc": true,
+  "zero_pycache": true,
+  "zero_test_contamination": false
+ },
+ "closure_census_note": "in the REFERENCE composition (evaluator image + v1.1) boto3 imported SUCCESSFULLY; these are the distributions the IMAGE supplied that v1.1 never carried",
+ "composition_qualification": {
+  "all_from_projection": true,
+  "native_not_shadowed": true,
+  "native_provenance": {
+   "duckdb": "/usr/local/lib/python3.13/site-packages/duckdb/__init__.py",
+   "numpy": "/usr/local/lib/python3.13/site-packages/numpy/__init__.py",
+   "piqp": "/usr/local/lib/python3.13/site-packages/piqp/piqp_python_avx2.cpython-313-x86_64-linux-gnu.so",
+   "quadprog": "/usr/local/lib/python3.13/site-packages/quadprog.cpython-313-x86_64-linux-gnu.so",
+   "scipy": "/usr/local/lib/python3.13/site-packages/scipy/__init__.py"
+  },
+  "native_versions": {
+   "duckdb": "1.1.3",
+   "numpy": "2.2.6",
+   "piqp": "0.6.3",
+   "quadprog": "0.1.13",
+   "scipy": "1.18.0"
+  },
+  "phase3c_not_shadowed": true,
+  "phase3c_provenance": {
+   "materialize": "/work/apps/backend/app/research/mr002/phase3c/materialize.py",
+   "replay": "/work/apps/backend/app/research/mr002/phase3c/replay.py"
+  },
+  "provenance": {
+   "boto3": "/opt/mr002/deps/boto3/__init__.py",
+   "botocore": "/opt/mr002/deps/botocore/__init__.py",
+   "dateutil": "/opt/mr002/deps/dateutil/__init__.py",
+   "jmespath": "/opt/mr002/deps/jmespath/__init__.py",
+   "s3transfer": "/opt/mr002/deps/s3transfer/__init__.py",
+   "six": "/opt/mr002/deps/six.py",
+   "urllib3": "/opt/mr002/deps/urllib3/__init__.py"
+  },
+  "reader_passed_version_id": true,
+  "reader_reads_pinned_object": true,
+  "reader_refuses_bad_checksum": true,
+  "reader_refuses_unpinned": true,
+  "readers_module": "/work/apps/backend/app/research/mr002/phase3b/readers.py",
+  "thread_env": {
+   "MKL_NUM_THREADS": "1",
+   "NUMEXPR_NUM_THREADS": "1",
+   "OMP_NUM_THREADS": "1",
+   "OPENBLAS_CORETYPE": "HASWELL",
+   "OPENBLAS_NUM_THREADS": "1"
+  },
+  "thread_env_ok": true,
+  "versions": {
+   "boto3": "1.43.70",
+   "botocore": "1.43.70",
+   "jmespath": "1.1.0",
+   "python-dateutil": "2.9.0.post0",
+   "s3transfer": "0.19.2",
+   "six": "1.17.0",
+   "urllib3": "2.7.0"
+  }
+ },
+ "dependency_closure_census": {
+  "dateutil": {
+   "distribution": "python-dateutil",
+   "version": "2.9.0.post0"
+  },
+  "six": {
+   "distribution": "six",
+   "version": "1.17.0"
+  }
+ },
+ "image_custody_preflight": {
+  "1_archive_bytes": {
+   "pass": true
+  },
+  "1_archive_sha256": {
+   "pass": true
+  },
+  "2_manifest_points_at_config": {
+   "pass": true
+  },
+  "3_config_blob_digest_computed": {
+   "pass": true
+  },
+  "4_config_diffids_ordered": {
+   "pass": true
+  },
+  "5_diffid_aggregate": {
+   "pass": true
+  },
+  "6_platform": {
+   "pass": true
+  },
+  "7_host_id_equals_config_digest": {
+   "pass": true
+  },
+  "8_index_digest_provenance": {
+   "pass": true
+  },
+  "8_index_names_the_tag": {
+   "pass": true
+  },
+  "9_config_Cmd": {
+   "pass": true
+  },
+  "9_config_Entrypoint": {
+   "pass": true
+  },
+  "9_config_Env": {
+   "pass": true
+  },
+  "9_config_WorkingDir": {
+   "pass": true
+  },
+  "9_host_layers_match_config": {
+   "pass": true
+  },
+  "_summary": {
+   "checks": 23,
+   "failed": [
+    "rt_boto3_import"
+   ],
+   "result": "FAIL"
+  },
+  "composed_runtime": {
+   "error": "                                        ^^^^^^^^^^^^^^^^^^^^^\n  File \"/opt/mr002/deps/boto3/__init__.py\", line 17, in <module>\n    from boto3.compat import _warn_deprecated_python\n  File \"/opt/mr002/deps/boto3/compat.py\", line 21, in <module>\n    from s3transfer.manager import TransferConfig\n  File \"/opt/mr002/deps/s3transfer/__init__.py\", line 138, in <module>\n    from botocore.compat import six  # noqa: F401\n    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/opt/mr002/deps/botocore/compat.py\", line 31, in <module>\n    from dateutil.tz import tzlocal\nModuleNotFoundError: No module named 'dateutil'\n"
+  },
+  "dep_file_count_2919": {
+   "pass": true
+  },
+  "dep_inventory_digest": "d3a323ca04eda5937724ba86e8dedbbd8b955cbd87cac97b51d06f985909f807",
+  "dep_mount_is_read_only": {
+   "pass": true
+  },
+  "dep_no_pytest_vendoring": {
+   "pass": true
+  },
+  "dep_zero_pyc": {
+   "pass": true
+  },
+  "dep_zero_pycache": {
+   "pass": true
+  },
+  "no_container_running": {
+   "pass": true
+  },
+  "rt_boto3_import": {
+   "got": "                                        ^^^^^^^^^^^^^^^^^^^^^\n  File \"/opt/mr002/deps/boto3/__init__.py\", line 17, in <module>\n    from boto3.compat import _warn_deprecated_python\n  File \"/opt/mr002/d",
+   "pass": false,
+   "want": "None"
+  }
+ },
+ "latch_during_all_of_this": "CLOSED / explicitDeny; no sealed byte read; no AWS call by the reader (fake client injected)",
+ "produced_at": "2026-08-18T00:00:00Z",
+ "record_type": "MR002_Phase3C_RuntimeCompositionCustodyEvidence",
+ "synthetic_materializer_suite_in_final_composition": "12 passed",
+ "version": "1.0"
+}
