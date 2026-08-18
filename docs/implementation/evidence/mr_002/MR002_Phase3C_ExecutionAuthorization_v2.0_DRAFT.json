@@ -1,0 +1,110 @@
+{
+ "authorized_by": "UNSIGNED \u2014 awaiting owner acceptance",
+ "authorizes": {
+  "automatic_replacement_opening_on_stop": false,
+  "indivisible": true,
+  "reference_objects_not_consuming_the_opening": 4,
+  "runs": 1,
+  "scope": "EXACTLY ONE indivisible Phase 3C validation execution",
+  "sealed_objects_consuming_the_opening": 6,
+  "sequence": [
+   "1. 6 sealed validation reads through the governed validation reader",
+   "2. ValidationOpenedObjectLedger entries for those reads",
+   "3. 4 identity-bound reference reads under their existing reference authority",
+   "4. deterministic 10-table DuckDB materialization",
+   "5. immediate frozen A/B/C Phase 3C replay -- no inspection interval",
+   "6. validation decision",
+   "7. containment restoration"
+  ],
+  "why_indivisible": "materialization itself reveals the sealed validation data, so there is no materialize-now-replay-later split and no manual inspection interval"
+ },
+ "composition_custody_evidence": {
+  "file_blob_sha256": "40f1c74da40a70bfdff4a88ce0c30c526f6c4c5140e337851090cd99c5fbddf1",
+  "path": "docs/implementation/evidence/mr_002/MR002_Phase3C_RuntimeCompositionCustodyEvidence_v1.0.json"
+ },
+ "economic_decision_unchanged": {
+  "VALIDATION_ADVANCE_REQUEST": "Config B >= 3 of 5 folds net-positive AND Config A cumulative net return > 0 AND Config C cumulative net return > 0 AND replay integrity admissible",
+  "config_C_sparsity": "disclose; do NOT reinterpret after seeing the result",
+  "not_an_oos_pass": "VALIDATION_ADVANCE_REQUEST authorizes only returning for the separate decision whether to open the OOS seal",
+  "otherwise": [
+   "VALIDATION_DO_NOT_ADVANCE",
+   "VALIDATION_INCONCLUSIVE",
+   "INTEGRITY_FAILURE"
+  ]
+ },
+ "execution_authorized": false,
+ "grants": "ONE indivisible Phase 3C validation execution, under the sealed countersignature and the bound package. NOTHING else. OOS remains prohibited.",
+ "no_sealed_byte_before_latch_release": "no sealed validation or OOS byte may be read before the latch opens, and none has been",
+ "opening_state": {
+  "consumed": false,
+  "reason": "owner ruling 2026-08-18 \u2014 the opening stays suspended until the corrected binding chain is sealed and reproduced",
+  "suspended": true
+ },
+ "pre_release_requirement": {
+  "on_any_difference": "STOP WITHOUT OPENING",
+  "preflight": [
+   "this authorization record and the sealed countersignature re-derive from pushed Git",
+   "validation package record identity and file blob unchanged",
+   "pushed checkpoint resolves and is an ancestor of the ref",
+   "Phase 3C identity 6fe8ed33... unchanged",
+   "three typed runtime identities reproduce on the authorized host",
+   "dependency bundle v1.2 inventory reproduces; read-only mount; correct PYTHONPATH",
+   "boto3 and governed-reader import succeed in the exact host composition, offline",
+   "native stack unshadowed at the bound versions; frozen thread environment intact",
+   "materialization destination fresh",
+   "6 sealed + 4 reference declarations match the package exactly",
+   "IAM latch still canonical 44f5549a... / explicitDeny immediately before release"
+  ],
+  "rule": "before the latch may move from canonical explicitDeny to the authorized validation-read state, this record must reproduce from PUSHED Git and the complete pre-release preflight must pass again"
+ },
+ "produced_at": "2026-08-18T22:40:00Z",
+ "prohibited": [
+  "any OOS read",
+  "Sharpe >= 0.70 evaluation",
+  "stationary bootstrap",
+  "DSR",
+  "OOS cost-stress gates",
+  "parameter tuning",
+  "changing A/B/C, exits, reduction mechanics, costs, borrow, folds or gates",
+  "solver tolerance/epsilon change, jitter, third attempt, fallback by analogy",
+  "retrying with a modified package",
+  "manual inspection followed by a second validation run"
+ ],
+ "pushed_checkpoint": "a40aad7e5acf840ff19aa3f0c69b85bd7811f3ce",
+ "record_identity_sha256": "cebfd1a69479f8ce3fa37c966e59624337b7baef1f80b6480733dbc3c822c1df",
+ "record_type": "MR002_PHASE3C_EXECUTION_AUTHORIZATION",
+ "sealed_countersignature": {
+  "file_blob_sha256": "24ec73965ba2b1175891b4ad65bbcbe5f50c1ed82e882cd2e9cb51ae3e8f9248",
+  "record": "MR002_Phase3C_ExecutionCountersignature_v2.0_DRAFT.json",
+  "record_identity_sha256": "410627f27c480799b406f7c380c58330f10c25e932a591ae070e3b0561fc71c0"
+ },
+ "source_identity_correction": {
+  "file_blob_sha256": "e7bb57918bcc7e6d9d2ac6d7cde3897d7e61642da331a6ceb029dd0507f60df1",
+  "record": "MR002_SourceIdentityCorrection_v1.0.json",
+  "record_identity_sha256": "16f2305758552a586867fcf7546b9d2aac2f87e760890b9e8352ed6e30b28d9c"
+ },
+ "status": "DRAFT \u2014 NOT EFFECTIVE. Execution authority is the owner's act.",
+ "supersedes": {
+  "file_blob_sha256": "ae8a1033a0d5ea54670ed4f3376ff98236b81e0ac1fa09163daa19c603ae2f7c",
+  "record": "MR002_Phase3C_ExecutionAuthorization_v1.0.json",
+  "record_identity_sha256": "6aa28275ee6be384411d04afa19904ba1b293497c9d96e18b8da4b6775857452",
+  "treatment": "NOT modified. The v1.0 authorization's one-run opening was never consumed: the 2026-08-18 latch cycle refused at import before the reader was constructed, before STS, and before any sealed GetObject. CloudTrail shows zero mr002-validation-reader assumptions. This successor exists because the source identities it would have executed against have been corrected."
+ },
+ "validation_execution_package": {
+  "file_blob_sha256": "be4b7667a6af976d96018aad1e8e11501bf0b51ac800ffa03da0ddedd7060bd2",
+  "record": "MR002_Phase3C_ValidationExecutionPackage_v2.1.json",
+  "record_identity_sha256": "593a908b076e736fc51c4a0b1d4da9bf6fc2a72c4783afd582e90d9def97d4dd"
+ },
+ "version": "2.0",
+ "what_this_changes": [
+  "binds the corrected Phase 3C identity e19e3b44b52655fe...",
+  "binds MR002_SourceIdentityCorrection_v1.0",
+  "binds package v2.1 and countersignature v2.0"
+ ],
+ "what_this_does_not_do": [
+  "does not modify any prior sealed artifact",
+  "does not grant execution authority \u2014 that requires owner acceptance",
+  "does not alter the validation decision rule, the gates, or the input contract",
+  "does not authorize any OOS access"
+ ]
+}
