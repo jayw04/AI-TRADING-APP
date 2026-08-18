@@ -1,0 +1,309 @@
+{
+ "adoption_binding": {
+  "adopted_runner": "apps/backend/scripts/mr002_development_run.py",
+  "bound_by": "MR002_Phase3C_OwnerRulings_v1.2.json / ruling_R5A_coupling_reduction_adoption",
+  "mechanics_block_bytes": 1321,
+  "mechanics_block_lines": "251-276",
+  "mechanics_block_sha256": "02d9ea7571046419694ec46782c1fdd0e308bfc279c3ca4715681e487bb347b2",
+  "runner_bytes": 24002,
+  "runner_sha256": "b1f990e20550a3a964063b0cf4a0c204125b6e0cfc8df6c10d407c26206791f9"
+ },
+ "boundary": {
+  "development_only": true,
+  "oos_start_excluded": "2023-05-30",
+  "sessions": 1700,
+  "validation_oos_reads": 0,
+  "validation_start_excluded": "2019-10-03",
+  "why_zero_is_structural": "no sealed reader is constructed anywhere in this launcher; the only store opened is the development research corpus, and the window bound is asserted before any replay",
+  "window": [
+   "2013-01-02",
+   "2019-10-02"
+  ]
+ },
+ "cascade": {
+  "fallback": "PIQP_P2",
+  "fallback_by_analogy": false,
+  "fallback_invocations_per_instance_max": 1,
+  "jitter": false,
+  "per_instance_routing": false,
+  "primary": "QUADPROG_SQRT",
+  "third_attempt": false,
+  "tolerance_or_epsilon_or_profile_changed": false
+ },
+ "configs": {
+  "A": {
+   "accepted_runner": {
+    "exit_reasons": {
+     "exit_earnings_blackout": 132,
+     "exit_time_stop": 2586,
+     "exit_z_reverted": 1692,
+     "reduce_to_zero_coupling": 643
+    },
+    "exits": 4410,
+    "new_orders": 5054,
+    "reductions": 4644,
+    "result": "COMPLETED",
+    "run_hash": "7cdfc4d8ea586b785bfdbe3d05f64b9d3577deee25e51054a9e6e25fa80cc6f0",
+    "session_outcomes": {
+     "EXECUTION_CONSTRAINED_INFEASIBLE": 222,
+     "FEASIBLE": 521,
+     "TERMINAL_SESSION_NO_EXECUTION_OPEN": 1,
+     "VALID_ZERO_ENTRY_OUTCOME": 956
+    }
+   },
+   "differential": {
+    "EXACT": true,
+    "borrow_equal": true,
+    "costs_equal": true,
+    "daily_ret_equal": true,
+    "exit_reasons_equal": true,
+    "nav_curve_equal": true,
+    "reductions_equal": true,
+    "run_hash_equal": true
+   },
+   "phase3c": {
+    "exit_reasons": {
+     "exit_earnings_blackout": 132,
+     "exit_time_stop": 2586,
+     "exit_z_reverted": 1692,
+     "reduce_to_zero_coupling": 643
+    },
+    "exits": 4410,
+    "new_orders": 5054,
+    "reductions": 4644,
+    "result": "COMPLETED",
+    "run_hash": "7cdfc4d8ea586b785bfdbe3d05f64b9d3577deee25e51054a9e6e25fa80cc6f0"
+   },
+   "r6a": {
+    "P1_eci_marked_r6a_applicable": 0,
+    "P1_eci_sessions_breaching_band": 187,
+    "P1_pass": true,
+    "P2_feasible_sessions_breaching_band": 0,
+    "P2_pass": true,
+    "band_observations": 771
+   },
+   "stage3_accepted_runner": {
+    "all_reconcile_to_a_registered_disposition": true,
+    "by_accepted_by": {
+     "PIQP_P2": 1,
+     "QUADPROG_SQRT": 1426
+    },
+    "by_disposition": {
+     "FALLBACK_QUALIFIED": 1,
+     "PRIMARY_QUALIFIED": 1426
+    },
+    "fallback_invoked": 1,
+    "invocations": 1427,
+    "stop_dispositions": 0,
+    "unrecognized_outcomes": 0
+   },
+   "stage3_phase3c": {
+    "all_reconcile_to_a_registered_disposition": true,
+    "by_accepted_by": {
+     "PIQP_P2": 1,
+     "QUADPROG_SQRT": 1426
+    },
+    "by_disposition": {
+     "FALLBACK_QUALIFIED": 1,
+     "PRIMARY_QUALIFIED": 1426
+    },
+    "fallback_invoked": 1,
+    "invocations": 1427,
+    "stop_dispositions": 0,
+    "unrecognized_outcomes": 0
+   }
+  },
+  "B": {
+   "accepted_runner": {
+    "exit_reasons": {
+     "exit_earnings_blackout": 37,
+     "exit_time_stop": 803,
+     "exit_z_reverted": 574,
+     "reduce_to_zero_coupling": 411
+    },
+    "exits": 1414,
+    "new_orders": 1825,
+    "reductions": 1772,
+    "result": "COMPLETED",
+    "run_hash": "5a7e124f1b86fbe1656a376418e86f84912695f31dfaf4823ab93d040180a009",
+    "session_outcomes": {
+     "EXECUTION_CONSTRAINED_INFEASIBLE": 25,
+     "FEASIBLE": 191,
+     "TERMINAL_SESSION_NO_EXECUTION_OPEN": 1,
+     "VALID_ZERO_ENTRY_OUTCOME": 1483
+    }
+   },
+   "differential": {
+    "EXACT": true,
+    "borrow_equal": true,
+    "costs_equal": true,
+    "daily_ret_equal": true,
+    "exit_reasons_equal": true,
+    "nav_curve_equal": true,
+    "reductions_equal": true,
+    "run_hash_equal": true
+   },
+   "phase3c": {
+    "exit_reasons": {
+     "exit_earnings_blackout": 37,
+     "exit_time_stop": 803,
+     "exit_z_reverted": 574,
+     "reduce_to_zero_coupling": 411
+    },
+    "exits": 1414,
+    "new_orders": 1825,
+    "reductions": 1772,
+    "result": "COMPLETED",
+    "run_hash": "5a7e124f1b86fbe1656a376418e86f84912695f31dfaf4823ab93d040180a009"
+   },
+   "r6a": {
+    "P1_eci_marked_r6a_applicable": 0,
+    "P1_eci_sessions_breaching_band": 17,
+    "P1_pass": true,
+    "P2_feasible_sessions_breaching_band": 0,
+    "P2_pass": true,
+    "band_observations": 234
+   },
+   "stage3_accepted_runner": {
+    "all_reconcile_to_a_registered_disposition": true,
+    "by_accepted_by": {
+     "PIQP_P2": 3,
+     "QUADPROG_SQRT": 1532
+    },
+    "by_disposition": {
+     "FALLBACK_QUALIFIED": 3,
+     "PRIMARY_QUALIFIED": 1532
+    },
+    "fallback_invoked": 3,
+    "invocations": 1535,
+    "stop_dispositions": 0,
+    "unrecognized_outcomes": 0
+   },
+   "stage3_phase3c": {
+    "all_reconcile_to_a_registered_disposition": true,
+    "by_accepted_by": {
+     "PIQP_P2": 3,
+     "QUADPROG_SQRT": 1532
+    },
+    "by_disposition": {
+     "FALLBACK_QUALIFIED": 3,
+     "PRIMARY_QUALIFIED": 1532
+    },
+    "fallback_invoked": 3,
+    "invocations": 1535,
+    "stop_dispositions": 0,
+    "unrecognized_outcomes": 0
+   }
+  },
+  "C": {
+   "accepted_runner": {
+    "exit_reasons": {
+     "exit_earnings_blackout": 6,
+     "exit_time_stop": 330,
+     "exit_z_reverted": 239,
+     "reduce_to_zero_coupling": 135
+    },
+    "exits": 575,
+    "new_orders": 711,
+    "reductions": 569,
+    "result": "COMPLETED",
+    "run_hash": "5b446931c675d6b6dcc5417db2813f2d4a8510fdbba0a3cd1bef6c433c355c07",
+    "session_outcomes": {
+     "EXECUTION_CONSTRAINED_INFEASIBLE": 545,
+     "FEASIBLE": 70,
+     "TERMINAL_SESSION_NO_EXECUTION_OPEN": 1,
+     "VALID_ZERO_ENTRY_OUTCOME": 1084
+    }
+   },
+   "differential": {
+    "EXACT": true,
+    "borrow_equal": true,
+    "costs_equal": true,
+    "daily_ret_equal": true,
+    "exit_reasons_equal": true,
+    "nav_curve_equal": true,
+    "reductions_equal": true,
+    "run_hash_equal": true
+   },
+   "phase3c": {
+    "exit_reasons": {
+     "exit_earnings_blackout": 6,
+     "exit_time_stop": 330,
+     "exit_z_reverted": 239,
+     "reduce_to_zero_coupling": 135
+    },
+    "exits": 575,
+    "new_orders": 711,
+    "reductions": 569,
+    "result": "COMPLETED",
+    "run_hash": "5b446931c675d6b6dcc5417db2813f2d4a8510fdbba0a3cd1bef6c433c355c07"
+   },
+   "r6a": {
+    "P1_eci_marked_r6a_applicable": 0,
+    "P1_eci_sessions_breaching_band": 536,
+    "P1_pass": true,
+    "P2_feasible_sessions_breaching_band": 0,
+    "P2_pass": true,
+    "band_observations": 623
+   },
+   "stage3_accepted_runner": {
+    "all_reconcile_to_a_registered_disposition": true,
+    "by_accepted_by": {
+     "QUADPROG_SQRT": 933
+    },
+    "by_disposition": {
+     "PRIMARY_QUALIFIED": 933
+    },
+    "fallback_invoked": 0,
+    "invocations": 933,
+    "stop_dispositions": 0,
+    "unrecognized_outcomes": 0
+   },
+   "stage3_phase3c": {
+    "all_reconcile_to_a_registered_disposition": true,
+    "by_accepted_by": {
+     "QUADPROG_SQRT": 933
+    },
+    "by_disposition": {
+     "PRIMARY_QUALIFIED": 933
+    },
+    "fallback_invoked": 0,
+    "invocations": 933,
+    "stop_dispositions": 0,
+    "unrecognized_outcomes": 0
+   }
+  }
+ },
+ "counts_are_corroboration_not_threshold": "the governing requirement is semantic completion under the frozen decision table; the feasibility probe's 3,891/4 split is corroboration if reproduced, never an acceptance threshold",
+ "determinism": {
+  "config": "B",
+  "first_run_hash": "5a7e124f1b86fbe1656a376418e86f84912695f31dfaf4823ab93d040180a009",
+  "reproduces": true,
+  "second_run_hash": "5a7e124f1b86fbe1656a376418e86f84912695f31dfaf4823ab93d040180a009",
+  "stage3_second_run": {
+   "all_reconcile_to_a_registered_disposition": true,
+   "by_accepted_by": {
+    "PIQP_P2": 3,
+    "QUADPROG_SQRT": 1532
+   },
+   "by_disposition": {
+    "FALLBACK_QUALIFIED": 3,
+    "PRIMARY_QUALIFIED": 1532
+   },
+   "fallback_invoked": 3,
+   "invocations": 1535,
+   "stop_dispositions": 0,
+   "unrecognized_outcomes": 0
+  }
+ },
+ "failures": [],
+ "is_governed_qualification_run": true,
+ "record_type": "MR002_Stage3_GovernedDevQualification",
+ "result": "PASS",
+ "stage3_totals_accepted_runner": {
+  "FALLBACK_QUALIFIED": 4,
+  "PRIMARY_QUALIFIED": 3891,
+  "invocations": 3895
+ },
+ "version": "1.0"
+}
