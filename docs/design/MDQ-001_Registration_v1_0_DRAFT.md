@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Program | **MDQ-001** |
-| Version | v1.0 **DRAFT — not yet registered** (updated 2026-08-15 per implementation-plan v0.5) |
+| Version | v1.0 **DRAFT — not yet registered** (updated 2026-08-15 per implementation-plan v0.5; **correction set applied 2026-08-18** — owner rulings 1–4, recorded in **§8.2**. Three are consistency corrections to prose a later ratified decision had already superseded; the fourth **adds a disposition** (§5) and is **PENDING EXPLICIT OWNER SIGN-OFF**. The signed §8 block and the ratified §8.1 block are not edited.) |
 | Date | 2026-08-15 |
 | Class | Platform data-qualification track (Research/Analytics plane, ADR 0051). **Not alpha research.** No execution authority; outputs are governed artifacts carrying the standard provenance envelope. |
 | Governing plan | `docs/Strategies/Strategy-proposals-v1_4_1-Algo-Trader-Plus-2026-08-15.md` §1.3, §4, §15 Track A |
@@ -41,7 +41,9 @@ MDQ-001 produces **no** strategy signal, changes **no** strategy behavior, and r
 
 Proposed values below are the plan's §4.3 defaults verbatim; the owner may adjust only in §8.
 
-**Keep the subscription if ANY K criterion is met:**
+**GO — retain the subscription only if at least two of K1–K6 are both EVALUABLE and PASS.** A NOT EVALUABLE criterion neither passes nor fails and cannot contribute toward the GO floor.
+
+> *Edit note — 2026-08-18, owner ruling 2 (**CORRECTION** to stale prose; **not** a reopening).* This line previously read “Keep the subscription if **ANY** K criterion is met.” That wording predates — and contradicts — the later, specifically ratified §8.1 GO floor (“GO requires at least two of K1–K6 to be BOTH evaluable AND PASS”). **§8.1 controls**; the §4 sentence was simply never updated when §8.1 was ratified. The ratified threshold is unchanged and is not reopened here, and neither the signed §8 block nor the ratified §8.1 block is edited. See §8.2 ruling 2.
 
 - **K1 — scanner/decision materiality:** SIP changes SCAN-001 eligibility, ranking, or GAPPER-relevant upstream classification on ≥ **10%** of evaluated session-days, **or** corrects ≥ 1 predeclared gate-material IEX observation defect that would otherwise alter eligibility or risk disposition. ΔVolume is a required diagnostic, **not** a keep trigger.
 - **K2 — streaming reliability:** ≥ **99.5%** session uptime over **20 consecutive sessions** at ≥ **250** symbols, zero unrecovered data gaps. *Under the §7 architecture, K2 is measured on the **collector** (Phase B), which is the only process that streams — and Phase B requires its own separately opened authorization (plan v0.3 gate **G10**: non-contention proof vs account 7, WebSocket feed identity, one-connection/dual-arming analysis, ceiling + abort rule, own session doc). Phase A is REST-only, so unless G10 opens within the MDQ window, K2 is scored **NOT EVALUABLE** — which is not FAIL, and which cannot itself satisfy GO (only a met K criterion can). Same treatment as K4.*
@@ -52,9 +54,23 @@ Proposed values below are the plan's §4.3 defaults verbatim; the owner may adju
 
 **Cancel (C1):** no K criterion met, judged **net of cost** — measured value vs subscription **plus** incremental storage/compute attributable to MDQ-001/OPRA-CAP-001. *Criteria scored NOT EVALUABLE (K2 without G10; K4 without an in-window Stage-0 run; K5 below `N_min`; K6 without an observed occurrence under its option (a)) leave the keep/cancel denominator entirely: they can neither satisfy GO nor count toward Cancel (plan v0.5 §8.8).*
 
+> *Edit note — 2026-08-18, owner ruling 3 (scope clarification here; the **addition** itself lives in §5).* Read with the §8.1 GO floor, C1/STOP is the case **≥ 2 criteria evaluable and 0 PASS**. The bare wording “no K criterion met” is what left the **≥ 2 evaluable and exactly 1 PASS** case with no disposition at all — not GO, not STOP, and not covered by §8.1’s HOLD clause, which addresses *fewer than two evaluable*. The completed disposition table is in **§5**; its fourth row is an **addition awaiting explicit owner sign-off** and is not ratified by this note. The C1 threshold itself is unchanged.
+
 **Pre-registration quarantine:** thresholds freeze **before** data collection, so any capture made before §8 sign-off carries the manifest label `PRE_REGISTRATION_SMOKE` and is **inadmissible** to K1–K6/C1 — engineering/implementation evidence only. The 2026-08-14 collector smoke (IEX 4,818 vs SIP 7,057 one-minute bar rows on the 14-symbol default universe, ≈46% more SIP rows) is exactly such evidence: an encouraging coverage indication, but it measures extra bars, not the K3 missing-bar-rate metric, and it never enters the qualification corpus.
 
 **Admissible corpus (frozen, per plan v0.5 §7):** a partition enters the K1–K6 corpus only if ALL hold — captured after §8 sign-off; credential/account identity latch passed; explicit feed identity present; universe/cadence/session scope match the frozen identity; freeze completed and `verify` passes; the manifest lists all expected files with no unmanifested strays; the collector code identity is approved for the period; no post-freeze mutation; **and the partition meets the frozen completeness thresholds** (plan v0.5 §4.9). Completeness is not integrity: `verify` proves the bytes are the frozen bytes, not that the partition contains the observations it was supposed to contain — at 60-second cadence, the abort-after-30-consecutive-failed-cycles rule permits a ~30-minute hole that still freezes and still passes `verify` (the GAPPER v1 failure mode: records present, sufficiency absent). Define `expected_cycles = f(session_scope, cadence, market calendar)`, `observed_cycles` = admissible non-error observations, `completeness = observed_cycles / expected_cycles`; §8 freezes a **minimum completeness** (proposed **≥ 98%** per partition per feed) and a **maximum contiguous gap** (proposed **10 minutes**) independent of the aggregate rate. `feed_error` records count toward the denominator, never the numerator. Excluded categorically: the pre-registration smoke, scratchpad/manual exploratory captures, unpinned-credential captures, scope-mismatched partitions, unfrozen partitions, failed hash verification, any recovered/reconstructed file whose bytes are not the originally frozen bytes, and partitions failing the completeness thresholds **even where `verify` passes**.
+
+> *Edit note — 2026-08-18, owner ruling 1 (**CORRECTION**: binds a definition this document left unbound; **no threshold changes**).* §8 froze the completeness **threshold** but left `session_scope` inside `expected_cycles = f(session_scope, cadence, market calendar)` unbound, and the only session interval this document names is **04:00–16:00 ET** — which is the **EOD one-minute bar census scope**, *not* the quote-sampler denominator. Using the census interval as the sampler denominator would mechanically fail every healthy partition, and nothing would ever be admissible. The frozen sampler denominator is:
+
+```text
+sampler_start   = 09:25 America/New_York
+sampler_end     = official NYSE close for that session, EXCLUSIVE
+cadence         = 60 seconds
+expected_cycles = count of scheduled cadence slots t such that
+                  sampler_start <= t < sampler_end
+```
+
+> ⇒ **395** cycles on a normal 16:00 close · **215** on a 13:00 early close · **0** on holidays and other non-session days. The **market calendar controls** early closes and non-trading days. The **98% minimum completeness and the 10-minute maximum contiguous gap are UNCHANGED** — the fix is the definition, not the threshold. The bar-census scope stays 04:00–16:00 ET and remains the denominator on the bar side. Full text, including the related scheduler-drift ruling, at **§8.2 ruling 1**.
 
 ## 5. Verdict format
 
@@ -63,6 +79,19 @@ One recorded disposition at the review date, as a governed artifact (ADR 0051 en
 - **GO** — retain subscription; open the governed SIP adoption path (plan §3.3 migration rule per strategy/program).
 - **HOLD** — extend **exactly one** additional period, for a named reason stated at the verdict.
 - **STOP** — cancel; unwind pinned-SIP paths back to `feed=iex`.
+
+**Disposition table — which review result produces which verdict** *(added 2026-08-18, owner ruling 3)*
+
+| Review result | Disposition |
+|---|---|
+| ≥ 2 criteria evaluable and ≥ 2 PASS | **GO** |
+| ≥ 2 criteria evaluable and 0 PASS | **STOP** |
+| Fewer than 2 criteria evaluable | **HOLD**, one stated extension |
+| ≥ 2 criteria evaluable and **exactly 1 PASS** | **HOLD**, one stated extension — ⚠ **NEW DISPOSITION, PENDING EXPLICIT OWNER SIGN-OFF** |
+
+> ⚠ **Read the fourth row separately from the other three.**
+>
+> Rows 1–3 restate decisions that are already ratified: rows 1 and 3 are the §8.1 GO floor verbatim, and row 2 is C1 read with that floor. **Row 4 is different in kind.** The combined rules genuinely left `≥ 2 evaluable and exactly 1 PASS` **undefined** — it is not GO (which needs ≥ 2 passes), it is not STOP under the old “no K criterion met” wording (one criterion *was* met), and it is not covered by §8.1’s HOLD clause (which addresses *fewer than two evaluable*). Assigning it HOLD-with-one-stated-extension therefore **adds a disposition rather than correcting stale prose**, and it is recorded here as **proposed and pending the owner’s explicit sign-off**. It **must be signed before value-extraction work starts** — once exploration touches the corpus, §8.1’s evidence firewall forbids revising an evaluability or verdict clause, so an unsigned gap here becomes unfixable rather than merely open. **Nothing in this document may be read as if row 4 were already ratified.** See §8.2 ruling 3 for the sign-off stanza.
 
 ## 6. Operational constraints (frozen from plan §4.5, restated for the §7 architecture)
 
@@ -239,6 +268,133 @@ Ratified by / date:           Jay Wang (owner) — 2026-08-17, ratification issu
                               Additive ratification only — the signed §8 block above is
                               not reopened. Applied by the developer session same day.
 ```
+
+### 8.2 v1.0 correction set — owner rulings, 2026-08-18 *(three CORRECTIONS; one ADDITION pending sign-off)*
+
+Review of the governed text on 2026-08-18 — after the first scheduled governed capture was **refused by the deployed
+fail-closed free-space guard** (09:25:02 EDT, `9G available < 10G floor`; zero cycles, no partition, **clock not
+started**) and therefore while no admissible partition existed — surfaced four defects. The owner ruled on all four
+the same day.
+
+**Three of the four are consistency corrections**: they bind a definition this document left unbound, or align prose
+that a later, more specific ratified decision had already superseded. They change **no** ratified threshold, and the
+signed §8 block and ratified §8.1 block above are **not edited** — this subsection is additive, exactly as §8.1 was.
+**The fourth adds a disposition that neither block ever defined** and is recorded here as **PENDING EXPLICIT OWNER
+SIGN-OFF**, not as ratified.
+
+#### Ruling 1 — `expected_cycles` denominator *(CORRECTION — binds `session_scope`; thresholds unchanged)*
+
+§8 froze the **threshold** (≥ 98% completeness, ≤ 10-minute maximum contiguous gap) but left `session_scope` inside
+`expected_cycles = f(session_scope, cadence, market calendar)` **unbound**. The only session interval this document
+names is **04:00–16:00 ET**, which is the **EOD one-minute bar census scope** and **not** the quote-sampler
+denominator; adopting it as the sampler denominator would mechanically fail every healthy partition. Frozen:
+
+```text
+sampler_start   = 09:25 America/New_York
+sampler_end     = official NYSE close for that session, EXCLUSIVE
+cadence         = 60 seconds
+expected_cycles = count of scheduled cadence slots t such that
+                  sampler_start <= t < sampler_end
+```
+
+⇒ **395** on a normal 16:00 close · **215** on a 13:00 early close · **0** on holidays and non-session days. The
+**market calendar controls** early closes and non-trading days. The **98% completeness floor and the 10-minute
+maximum contiguous gap are UNCHANGED**: the fix is the **definition**, not the threshold. The bar-census scope
+remains 04:00–16:00 ET and remains the denominator on the bar side; `feed_error` records continue to count toward
+the denominator and never the numerator.
+
+**Related runtime ruling, recorded with it — scheduler drift is a runtime defect, not evidence against the floor.**
+The collector's `cmd_sample` scheduled **fixed-delay** (it slept the cadence *after* doing the work), so the real
+period was `60s + overhead` and a fully healthy capture drifted to roughly **383–389** cycles against a 395-slot
+grid — it could therefore breach the 98% floor on a perfect network. That is **systematic scheduler drift, not
+evidence that the 98% floor is too strict.** The runtime is being corrected to **fixed-rate scheduling against an
+absolute monotonic deadline**, with **no burst / catch-up**, the session close checked **before** each cycle, and a
+persisted `scheduled_slot_ts` / `slot_index` on every cycle so that observed cycles reproduce against the frozen
+grid. **The threshold is not weakened to accommodate a defective runtime.** *(The runtime change is implementation
+work owned elsewhere; it changes the collector code identity — see the program-start record §2.3 — and must be
+re-stamped there before the first admissible capture.)*
+
+#### Ruling 2 — the ANY-K conflict *(CORRECTION to stale prose; the ratified threshold is not reopened)*
+
+§4 still read “Keep the subscription if **ANY** K criterion is met.” The later, specifically ratified §8.1 requires
+**≥ 2 of K1–K6 both evaluable AND PASS**. **§8.1 controls.** §4 now reads equivalently to:
+
+> **GO — retain the subscription only if at least two of K1–K6 are both EVALUABLE and PASS. A NOT EVALUABLE
+> criterion neither passes nor fails and cannot contribute toward the GO floor.**
+
+The §4 sentence was never updated when §8.1 was ratified; this is that update and nothing more. **No threshold, no
+evaluability clause, and no signed block is reopened.**
+
+#### Ruling 3 — the undefined verdict *(⚠ ADDITION — PENDING EXPLICIT OWNER SIGN-OFF)*
+
+The combined rules left **≥ 2 evaluable and exactly 1 PASS** genuinely undefined: not GO (needs ≥ 2 passes), not
+STOP under the old “no K criterion met” wording (one criterion *was* met), and not covered by §8.1’s HOLD clause
+(which addresses *fewer than two evaluable*). The completed table is in **§5**. Its first three rows restate
+already-ratified decisions; **the fourth row assigns a disposition that did not previously exist**, which is why it
+is recorded as proposed rather than applied:
+
+```
+Undefined-verdict disposition
+(>= 2 evaluable, exactly 1 PASS):  [ ] SIGNED — HOLD with one stated extension
+                                   [ ] adjusted to: ____________
+                                   Status at drafting: PROPOSED, UNSIGNED. Rows 1-3 of
+                                   the section 5 table are ratified restatements; THIS
+                                   row is an addition and is not ratified by its
+                                   presence there.
+                                   Must be signed BEFORE value-extraction work begins:
+                                   once exploration touches the corpus, the 8.1 evidence
+                                   firewall forbids revising a verdict/evaluability
+                                   clause, and an unsigned gap becomes unfixable rather
+                                   than merely open.
+Signed by / date:                  ____________________
+```
+
+#### Ruling 4 — holdout boundary and exploration embargo *(CORRECTION — makes the ratified §8.1 rule arithmetically exact)*
+
+§8.1 ratified the period-holdout **rule** (“final 12 calendar days of the 60-day window”) and deferred the **dates**
+to the clock stamp. It did not state the offset arithmetic, and the rule as written admits two readings that differ
+by a day at each end. Frozen:
+
+```text
+review_start_date    = session_date of the first admissible governed capture
+review_end_exclusive = review_start_date + 60 calendar days
+period_holdout_start = review_start_date + 48 calendar days
+
+period holdout       = session_date >= period_holdout_start
+                       AND session_date <  review_end_exclusive
+```
+
+⇒ the **review window is offsets 0–59** and the **holdout is offsets 48–59 — exactly 12 calendar dates**.
+
+**Do not slide the boundary for weekends or holidays.** A non-session date inside the holdout simply contains no
+trading partition. Sliding the boundary would silently convert “the final 20% of the window” into “the final 12
+**trading sessions**” — a different rule, and a materially larger holdout than the one §8.1 ratified.
+
+Exploration embargo, stated as the predicate that governs every value-extraction read:
+
+```text
+exploratory_access_allowed = symbol NOT IN holdout_symbols
+                             AND session_date < period_holdout_start
+```
+
+⇒ the **10 holdout symbols** (§8.1: AMZN EFA KMLM MSTR NBIS NOW TSLA XLK XLV XOM) are quarantined for the **entire**
+window, and **every** symbol is quarantined during the **final 12 calendar dates**. The symbol holdout, its draw
+rule, and the artifact sha `6c6cf03a…` are unchanged; the holdout artifact is **not** rewritten with the dates (that
+would change its hash and break the §8.1 binding) — the stamped dates live in the program-start record.
+
+#### Applied by / status
+
+```
+Rulings 1, 2, 4 (corrections):  APPLIED to this document 2026-08-18 by the developer
+                                session, as owner-stated. Additive only; the signed
+                                section 8 block and the ratified section 8.1 block are
+                                untouched.
+Ruling 3 (addition):            RECORDED, NOT APPLIED AS RATIFIED. Awaiting the owner
+                                sign-off stanza above.
+Ruled by / date:                Jay Wang (owner) — 2026-08-18, rulings issued in session.
+```
+
+---
 
 ## 9. Authority
 
