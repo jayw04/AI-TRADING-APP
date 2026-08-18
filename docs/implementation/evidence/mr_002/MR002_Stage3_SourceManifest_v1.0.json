@@ -9,9 +9,9 @@
   "files": {
     "apps/backend/app/research/mr002/stage3_cascade.py": {
       "role": "cascade_numerical_path",
-      "sha256": "8c151d4b029f8e61bc2d4044d145c125468294c5fb6ae9b111a08efb691c750e",
-      "git_blob": "3551206c46053056102b7bf45737c897a2257803",
-      "byte_length": 43926,
+      "sha256": "1021cc287051a61a088c4a715604922f03ee4dfcff41a334681dab12cb3265ef",
+      "git_blob": "e59f4bc4692bcf4ec3f0af44979ecd640e2106c8",
+      "byte_length": 45030,
       "present": true
     },
     "apps/backend/scripts/mr002_coverage_signed_gap.py": {
@@ -100,9 +100,9 @@
     },
     "apps/backend/scripts/mr002_stage3_population_runner.py": {
       "role": "execution_package_component",
-      "sha256": "9228ebd5cf3ae8f4a5ed17df7e22150019b423292539d22e48c499fef53c9075",
-      "git_blob": "a3d472a8f7e20f286e46d91fb93b573e7dea1309",
-      "byte_length": 78836,
+      "sha256": "297901d7097008416e545c9b6f6f71b7a49ca255ebef6c6b282ab3f6eb624384",
+      "git_blob": "db010fa238cd00c59130eb7765725e43c42e0b6f",
+      "byte_length": 85064,
       "present": true
     },
     "apps/backend/scripts/mr002_stage3_source_manifest.py": {
@@ -135,9 +135,9 @@
     },
     "apps/backend/tests/research/test_mr002_stage3_population_runner.py": {
       "role": "execution_package_component",
-      "sha256": "b833a0555e4f74abb2ae97ced1d6dfd7184f4740ff5a59946f216f24c4ed0354",
-      "git_blob": "898f5151867935f729bd48ebbcede68589dbf817",
-      "byte_length": 58976,
+      "sha256": "ba1951254b9164c6968186afd91ec1c2e8e58832a3e13c75c5467dcd10bbc376",
+      "git_blob": "42d935bf5f9640294835173667f3a02cc345e97b",
+      "byte_length": 78375,
       "present": true
     },
     "apps/backend/tests/research/test_mr002_stage3_input_contract.py": {
