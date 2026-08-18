@@ -1,0 +1,663 @@
+{
+ "authority": "Owner ruling 2026-08-18 \u2014 consolidated MR-002 source-identity correction (16 bindings / 6 files), AUTHORIZED",
+ "bindings": [
+  {
+   "classification": "REPRESENTATION_ONLY_CRLF",
+   "content_drift": false,
+   "corrected_git_blob_sha256": "f9e440c6188582037a7813dc8ffc6f828132d72131ff2d54d6a35056f9e5f741",
+   "enforced_at_runtime": false,
+   "field": ".binds.certifier_and_solver_registry.sha256",
+   "governance_record": "docs/implementation/evidence/mr_002/MR002_Stage3ExecutionCountersignature_v1.0.json",
+   "old_recorded_sha256": "919f496c0a1f5a5d38feb4cb7d16a1b1cd2ce3216e2b83668966ddcc96874d00",
+   "proof": {
+    "byte_equal_after_removing_all_cr": true,
+    "git_blob_bytes": 26582,
+    "git_blob_cr_count": 0,
+    "old_value_equals_working_tree_sha256": true,
+    "working_tree_bytes": 27131,
+    "working_tree_cr_count": 549
+   },
+   "source_path": "apps/backend/scripts/mr002_coverage_signed_gap.py"
+  },
+  {
+   "classification": "REPRESENTATION_ONLY_CRLF",
+   "content_drift": false,
+   "corrected_git_blob_sha256": "06f730895fdf160ba0d15a57d49effee7ffdd2f32f19bb4fb94f40ae15cabfc8",
+   "enforced_at_runtime": false,
+   "field": ".binds.fallback_profile.sha256",
+   "governance_record": "docs/implementation/evidence/mr_002/MR002_Stage3ExecutionCountersignature_v1.0.json",
+   "old_recorded_sha256": "6e3274a38f9f8c200c32df0e4e49dde1d0e2f6daeadd77562c46fc9ea9d0041e",
+   "proof": {
+    "byte_equal_after_removing_all_cr": true,
+    "git_blob_bytes": 20015,
+    "git_blob_cr_count": 0,
+    "old_value_equals_working_tree_sha256": true,
+    "working_tree_bytes": 20457,
+    "working_tree_cr_count": 442
+   },
+   "source_path": "apps/backend/scripts/mr002_piqp.py"
+  },
+  {
+   "classification": "REPRESENTATION_ONLY_CRLF",
+   "content_drift": false,
+   "corrected_git_blob_sha256": "4efd57393e2d99e0733f70ceba5e24d9629fb3d4aa8a18837efc36eb157bac43",
+   "enforced_at_runtime": false,
+   "field": ".binds.governing_construction.sha256",
+   "governance_record": "docs/implementation/evidence/mr_002/MR002_Stage3ExecutionCountersignature_v1.0.json",
+   "old_recorded_sha256": "7e9b55c33746faa48b4c6520a54ffb72232ffdec8b02aba1507efb1d8027ba5b",
+   "proof": {
+    "byte_equal_after_removing_all_cr": true,
+    "git_blob_bytes": 37543,
+    "git_blob_cr_count": 0,
+    "old_value_equals_working_tree_sha256": true,
+    "working_tree_bytes": 38415,
+    "working_tree_cr_count": 872
+   },
+   "source_path": "apps/backend/app/research/mr002/joint_portfolio.py"
+  },
+  {
+   "classification": "REPRESENTATION_ONLY_CRLF",
+   "content_drift": false,
+   "corrected_git_blob_sha256": "d40d7b5bf521bd213b30e2c82fb0f5519dbb0fb00c51d9f6aaa1016bce5d20fe",
+   "enforced_at_runtime": false,
+   "field": ".governing_frozen_sources.session_index_extraction.sha256",
+   "governance_record": "docs/review/mr002/MR002_ValidationOOS_Preregistration_v1.0.4.json",
+   "old_recorded_sha256": "a0218e872783fcf0dbf5c60c1206c024cbf32a83fe123db67f95f38939f5c071",
+   "proof": {
+    "byte_equal_after_removing_all_cr": true,
+    "git_blob_bytes": 3237,
+    "git_blob_cr_count": 0,
+    "old_value_equals_working_tree_sha256": true,
+    "working_tree_bytes": 3353,
+    "working_tree_cr_count": 116
+   },
+   "source_path": "docs/review/mr002/evaluator_prototype/MR002_SessionIndex_Extraction_Output.json"
+  },
+  {
+   "classification": "REPRESENTATION_ONLY_CRLF",
+   "content_drift": false,
+   "corrected_git_blob_sha256": "d40d7b5bf521bd213b30e2c82fb0f5519dbb0fb00c51d9f6aaa1016bce5d20fe",
+   "enforced_at_runtime": false,
+   "field": ".bound_facts.governing_frozen_sources.session_index_extraction.sha256",
+   "governance_record": "docs/review/mr002/phase3a/MR002_Phase3A_GoverningSourceRegistry_v1.0.json",
+   "old_recorded_sha256": "a0218e872783fcf0dbf5c60c1206c024cbf32a83fe123db67f95f38939f5c071",
+   "proof": {
+    "byte_equal_after_removing_all_cr": true,
+    "git_blob_bytes": 3237,
+    "git_blob_cr_count": 0,
+    "old_value_equals_working_tree_sha256": true,
+    "working_tree_bytes": 3353,
+    "working_tree_cr_count": 116
+   },
+   "source_path": "docs/review/mr002/evaluator_prototype/MR002_SessionIndex_Extraction_Output.json"
+  },
+  {
+   "classification": "REPRESENTATION_ONLY_CRLF",
+   "content_drift": false,
+   "corrected_git_blob_sha256": "d40d7b5bf521bd213b30e2c82fb0f5519dbb0fb00c51d9f6aaa1016bce5d20fe",
+   "enforced_at_runtime": false,
+   "field": ".governing_frozen_sources.session_index_extraction.sha256",
+   "governance_record": "docs/review/mr002/phase3a/ValidationInputIdentityManifest_v1.0.json",
+   "old_recorded_sha256": "a0218e872783fcf0dbf5c60c1206c024cbf32a83fe123db67f95f38939f5c071",
+   "proof": {
+    "byte_equal_after_removing_all_cr": true,
+    "git_blob_bytes": 3237,
+    "git_blob_cr_count": 0,
+    "old_value_equals_working_tree_sha256": true,
+    "working_tree_bytes": 3353,
+    "working_tree_cr_count": 116
+   },
+   "source_path": "docs/review/mr002/evaluator_prototype/MR002_SessionIndex_Extraction_Output.json"
+  },
+  {
+   "classification": "REPRESENTATION_ONLY_CRLF",
+   "content_drift": false,
+   "corrected_git_blob_sha256": "4efd57393e2d99e0733f70ceba5e24d9629fb3d4aa8a18837efc36eb157bac43",
+   "enforced_at_runtime": false,
+   "field": ".ruling_2_portfolio_construction.implementing_module.sha256",
+   "governance_record": "docs/review/mr002/phase3bc/MR002_Phase3C_OwnerRulings_v1.0.json",
+   "old_recorded_sha256": "7e9b55c33746faa48b4c6520a54ffb72232ffdec8b02aba1507efb1d8027ba5b",
+   "proof": {
+    "byte_equal_after_removing_all_cr": true,
+    "git_blob_bytes": 37543,
+    "git_blob_cr_count": 0,
+    "old_value_equals_working_tree_sha256": true,
+    "working_tree_bytes": 38415,
+    "working_tree_cr_count": 872
+   },
+   "source_path": "apps/backend/app/research/mr002/joint_portfolio.py"
+  },
+  {
+   "classification": "REPRESENTATION_ONLY_CRLF",
+   "content_drift": false,
+   "corrected_git_blob_sha256": "4efd57393e2d99e0733f70ceba5e24d9629fb3d4aa8a18837efc36eb157bac43",
+   "enforced_at_runtime": false,
+   "field": ".ruling_2_portfolio_construction.implementing_module.sha256",
+   "governance_record": "docs/review/mr002/phase3bc/MR002_Phase3C_OwnerRulings_v1.1.json",
+   "old_recorded_sha256": "7e9b55c33746faa48b4c6520a54ffb72232ffdec8b02aba1507efb1d8027ba5b",
+   "proof": {
+    "byte_equal_after_removing_all_cr": true,
+    "git_blob_bytes": 37543,
+    "git_blob_cr_count": 0,
+    "old_value_equals_working_tree_sha256": true,
+    "working_tree_bytes": 38415,
+    "working_tree_cr_count": 872
+   },
+   "source_path": "apps/backend/app/research/mr002/joint_portfolio.py"
+  },
+  {
+   "classification": "REPRESENTATION_ONLY_CRLF",
+   "content_drift": false,
+   "corrected_git_blob_sha256": "4efd57393e2d99e0733f70ceba5e24d9629fb3d4aa8a18837efc36eb157bac43",
+   "enforced_at_runtime": false,
+   "field": ".ruling_2_portfolio_construction.implementing_module.sha256",
+   "governance_record": "docs/review/mr002/phase3bc/MR002_Phase3C_OwnerRulings_v1.2.json",
+   "old_recorded_sha256": "7e9b55c33746faa48b4c6520a54ffb72232ffdec8b02aba1507efb1d8027ba5b",
+   "proof": {
+    "byte_equal_after_removing_all_cr": true,
+    "git_blob_bytes": 37543,
+    "git_blob_cr_count": 0,
+    "old_value_equals_working_tree_sha256": true,
+    "working_tree_bytes": 38415,
+    "working_tree_cr_count": 872
+   },
+   "source_path": "apps/backend/app/research/mr002/joint_portfolio.py"
+  },
+  {
+   "classification": "REPRESENTATION_ONLY_CRLF",
+   "content_drift": false,
+   "corrected_git_blob_sha256": "4710d3869ec4d1294e9a7a7888d80fab0f85d2cd0176df67bba323ef90365b62",
+   "enforced_at_runtime": false,
+   "field": ".ruling_R5A_coupling_reduction_adoption.bound_source_bytes.supporting_primitives[apps/backend/app/research/mr002/execution.py]",
+   "governance_record": "docs/review/mr002/phase3bc/MR002_Phase3C_OwnerRulings_v1.2.json",
+   "old_recorded_sha256": "988fb59a24609efd8d7ff4db4ac468ed0002ab9bfb3c4c82926a602b4646a3b7",
+   "proof": {
+    "byte_equal_after_removing_all_cr": true,
+    "git_blob_bytes": 8483,
+    "git_blob_cr_count": 0,
+    "old_value_equals_working_tree_sha256": true,
+    "working_tree_bytes": 8693,
+    "working_tree_cr_count": 210
+   },
+   "source_path": "apps/backend/app/research/mr002/execution.py"
+  },
+  {
+   "classification": "REPRESENTATION_ONLY_CRLF",
+   "content_drift": false,
+   "corrected_git_blob_sha256": "4efd57393e2d99e0733f70ceba5e24d9629fb3d4aa8a18837efc36eb157bac43",
+   "enforced_at_runtime": false,
+   "field": ".ruling_R5A_coupling_reduction_adoption.bound_source_bytes.supporting_primitives[apps/backend/app/research/mr002/joint_portfolio.py]",
+   "governance_record": "docs/review/mr002/phase3bc/MR002_Phase3C_OwnerRulings_v1.2.json",
+   "old_recorded_sha256": "7e9b55c33746faa48b4c6520a54ffb72232ffdec8b02aba1507efb1d8027ba5b",
+   "proof": {
+    "byte_equal_after_removing_all_cr": true,
+    "git_blob_bytes": 37543,
+    "git_blob_cr_count": 0,
+    "old_value_equals_working_tree_sha256": true,
+    "working_tree_bytes": 38415,
+    "working_tree_cr_count": 872
+   },
+   "source_path": "apps/backend/app/research/mr002/joint_portfolio.py"
+  },
+  {
+   "classification": "REPRESENTATION_ONLY_CRLF",
+   "content_drift": false,
+   "corrected_git_blob_sha256": "4efd57393e2d99e0733f70ceba5e24d9629fb3d4aa8a18837efc36eb157bac43",
+   "enforced_at_runtime": false,
+   "field": ".ruling_2_portfolio_construction.implementing_module.sha256",
+   "governance_record": "docs/review/mr002/phase3bc/MR002_Phase3C_OwnerRulings_v1.3.json",
+   "old_recorded_sha256": "7e9b55c33746faa48b4c6520a54ffb72232ffdec8b02aba1507efb1d8027ba5b",
+   "proof": {
+    "byte_equal_after_removing_all_cr": true,
+    "git_blob_bytes": 37543,
+    "git_blob_cr_count": 0,
+    "old_value_equals_working_tree_sha256": true,
+    "working_tree_bytes": 38415,
+    "working_tree_cr_count": 872
+   },
+   "source_path": "apps/backend/app/research/mr002/joint_portfolio.py"
+  },
+  {
+   "classification": "REPRESENTATION_ONLY_CRLF",
+   "content_drift": false,
+   "corrected_git_blob_sha256": "4710d3869ec4d1294e9a7a7888d80fab0f85d2cd0176df67bba323ef90365b62",
+   "enforced_at_runtime": false,
+   "field": ".ruling_R5A_coupling_reduction_adoption.bound_source_bytes.supporting_primitives[apps/backend/app/research/mr002/execution.py]",
+   "governance_record": "docs/review/mr002/phase3bc/MR002_Phase3C_OwnerRulings_v1.3.json",
+   "old_recorded_sha256": "988fb59a24609efd8d7ff4db4ac468ed0002ab9bfb3c4c82926a602b4646a3b7",
+   "proof": {
+    "byte_equal_after_removing_all_cr": true,
+    "git_blob_bytes": 8483,
+    "git_blob_cr_count": 0,
+    "old_value_equals_working_tree_sha256": true,
+    "working_tree_bytes": 8693,
+    "working_tree_cr_count": 210
+   },
+   "source_path": "apps/backend/app/research/mr002/execution.py"
+  },
+  {
+   "classification": "REPRESENTATION_ONLY_CRLF",
+   "content_drift": false,
+   "corrected_git_blob_sha256": "4efd57393e2d99e0733f70ceba5e24d9629fb3d4aa8a18837efc36eb157bac43",
+   "enforced_at_runtime": false,
+   "field": ".ruling_R5A_coupling_reduction_adoption.bound_source_bytes.supporting_primitives[apps/backend/app/research/mr002/joint_portfolio.py]",
+   "governance_record": "docs/review/mr002/phase3bc/MR002_Phase3C_OwnerRulings_v1.3.json",
+   "old_recorded_sha256": "7e9b55c33746faa48b4c6520a54ffb72232ffdec8b02aba1507efb1d8027ba5b",
+   "proof": {
+    "byte_equal_after_removing_all_cr": true,
+    "git_blob_bytes": 37543,
+    "git_blob_cr_count": 0,
+    "old_value_equals_working_tree_sha256": true,
+    "working_tree_bytes": 38415,
+    "working_tree_cr_count": 872
+   },
+   "source_path": "apps/backend/app/research/mr002/joint_portfolio.py"
+  },
+  {
+   "classification": "REPRESENTATION_ONLY_CRLF",
+   "content_drift": false,
+   "corrected_git_blob_sha256": "57d0fcac37e466496e62463b4174a430801f1a74100efdb22bd3f0256c367ee9",
+   "enforced_at_runtime": true,
+   "enforcement_note": "re-hashed at import by adopted.verify_binding(); the 2026-08-18 latch cycle refused here (AdoptionBindingViolation) before any sealed read",
+   "field": "ADOPTED_RUNNER_SHA256",
+   "governance_record": "apps/backend/app/research/mr002/phase3c/adopted.py",
+   "old_recorded_sha256": "b1f990e20550a3a964063b0cf4a0c204125b6e0cfc8df6c10d407c26206791f9",
+   "proof": {
+    "byte_equal_after_removing_all_cr": true,
+    "git_blob_bytes": 23453,
+    "git_blob_cr_count": 0,
+    "old_value_equals_working_tree_sha256": true,
+    "working_tree_bytes": 24002,
+    "working_tree_cr_count": 549
+   },
+   "source_path": "apps/backend/scripts/mr002_development_run.py"
+  },
+  {
+   "classification": "REPRESENTATION_ONLY_CRLF",
+   "content_drift": false,
+   "corrected_git_blob_sha256": "2ab94236ea0ad1adc76623b6f20a8a3c955542f4d24fcf1c8799c02dac812ab4",
+   "enforced_at_runtime": true,
+   "enforcement_note": "the frozen CRLF-basis value 02d9ea75... is RETAINED verbatim in adopted.py as MECHANICS_BLOCK_SHA256_FROZEN_CRLF_BASIS (attestation, not enforced); the LF-basis value is what verify_binding() checks against the deployed file",
+   "field": "MECHANICS_BLOCK_SHA256",
+   "governance_record": "apps/backend/app/research/mr002/phase3c/adopted.py",
+   "old_recorded_sha256": "02d9ea7571046419694ec46782c1fdd0e308bfc279c3ca4715681e487bb347b2",
+   "proof": {
+    "byte_equal_after_removing_all_cr": true,
+    "git_blob_bytes": 23453,
+    "git_blob_cr_count": 0,
+    "old_value_equals_working_tree_sha256": true,
+    "working_tree_bytes": 24002,
+    "working_tree_cr_count": 549
+   },
+   "source_path": "apps/backend/scripts/mr002_development_run.py lines 251-276"
+  }
+ ],
+ "defect_class": {
+  "description": "sha256 recorded as a governance/execution binding was computed by reading the file from the Windows working tree, where core.autocrlf yields CRLF. The recorded value is therefore a PLATFORM identity, not a CONTENT identity, and fail-closes against any LF materialization of the same source. All affected values are representation-only: every file is byte-equal to its Git blob after removing carriage returns.",
+  "detected_by": "active-chain governance-hash sweep, 2026-08-18",
+  "first_failure": "2026-08-18 Phase 3C latch cycle \u2014 AdoptionBindingViolation at import, before reader construction, before STS, before any sealed GetObject",
+  "name": "GOVERNANCE_HASH_DERIVED_FROM_WINDOWS_WORKING_TREE",
+  "prior_isolated_corrections_of_the_same_class": [
+   "v3.5 provenance retirement (CRLF custody drift on 4 members)",
+   "*_published/ directories missing '* -text -diff' in .gitattributes",
+   "MR002_Stage3_ExecutionPackage v2.0 -> v2.1 identity correction",
+   "git archive applying CRLF to the Phase 3C launcher (fixed with -c core.eol=lf)"
+  ]
+ },
+ "derivation_rule_now_binding": {
+  "command": "git show <commit>:<path> | sha256sum",
+  "commit": "e3f20b39fb113cc4676bd84455d5fe9e74c35be2",
+  "ref": "origin/research/mr002-preregistration",
+  "rule": "Source-code and source-document governance hashes MUST be derived from Git blob bytes at a named commit or ref, never from a working-tree file."
+ },
+ "explicitly_not_defective": [
+  {
+   "field": "governing_frozen_sources.session_index_extraction.script_sha256",
+   "finding": "field name declares no path, but the value resolves uniquely across the whole ref and working tree to docs/review/mr002/evaluator_prototype/mr002_session_index_extraction.py, whose blob and working-tree bytes are identical. Git-blob-correct. LEFT UNCHANGED per owner ruling.",
+   "value": "908de368968fbb5d012ff456fd7925f541907e2b73a9851a416c9b3b5c1fe646"
+  },
+  {
+   "field": "MR002_Phase3A_GoverningSourceRegistry_v1.0.governing_preregistration.correction_record_sha256",
+   "finding": "identifies MR002_ValidationOOS_CorrectionRecord_v1.0.4.json (named in the sibling correction_record field), not the preregistration named in 'file'. Reproduces from its Git blob. Not a defect. LEFT UNCHANGED.",
+   "value": "33fbb78ce7679aaab2afc514cb0164f09e3331f87b8422b4827a0d2587c91b91"
+  }
+ ],
+ "generator_defect": {
+  "bound_by_any_record": false,
+  "correction": "_sha_file() now derives from `git show <ref>:<path>`; the hardcoded literal is now the Git-blob (LF) basis value.",
+  "finding": "_sha_file() read the WORKING TREE, making this generator a PRODUCER of the defect class rather than only a victim of it. It also carried the frozen CRLF-basis mechanics-block value as a hardcoded literal.",
+  "note": "Bound by nothing, so correcting it invalidates no identity. Left uncorrected it would regenerate the defect on the next run.",
+  "path": "docs/review/mr002/phase3bc/_gen_phase3c_qualification.py"
+ },
+ "historical_artifacts": {
+  "immutable": true,
+  "treatment": "This record SUPERSEDES the affected identity fields FOR CURRENT EXECUTION PURPOSES ONLY. No historical evidence record is rewritten. Superseded records legitimately retain the old values as defect provenance."
+ },
+ "occurrence_census": {
+  "dispositions": {
+   "ACTIVE_REFERENCE_SUPERSEDED_BY_THIS_CORRECTION": "an active-chain record whose identity field this record supersedes for current execution purposes; the record itself is not rewritten",
+   "DEFECT_PROVENANCE": "deliberately retained as was_bound / defect history",
+   "ENFORCED_MUST_CORRECT": "a live runtime comparison against a source file -- must be corrected; this correction leaves ZERO of these",
+   "NON_ENFORCED_CODE_REFERENCE": "appears in code but is compared against nothing",
+   "SUPERSEDED": "an explicitly superseded version of a record"
+  },
+  "purpose": "ACTIVE AUTHORITY CLOSURE: every surviving occurrence of a defective value in the MR-002 corpus, with its disposition. Proves no defective hash can trigger a later refusal from a forgotten record or enforcement constant.",
+  "records": [
+   {
+    "disposition": "ACTIVE_REFERENCE_SUPERSEDED_BY_THIS_CORRECTION",
+    "occurrences": {
+     "6e3274a38f9f8c200c32df0e4e49dde1d0e2f6daeadd77562c46fc9ea9d0041e": [
+      ".binds.fallback_profile.sha256"
+     ],
+     "7e9b55c33746faa48b4c6520a54ffb72232ffdec8b02aba1507efb1d8027ba5b": [
+      ".binds.governing_construction.sha256"
+     ],
+     "919f496c0a1f5a5d38feb4cb7d16a1b1cd2ce3216e2b83668966ddcc96874d00": [
+      ".binds.certifier_and_solver_registry.sha256"
+     ]
+    },
+    "reason": "active-chain record; identity fields superseded for current execution purposes",
+    "record": "docs/implementation/evidence/mr_002/MR002_Stage3ExecutionCountersignature_v1.0.json"
+   },
+   {
+    "disposition": "ACTIVE_REFERENCE_SUPERSEDED_BY_THIS_CORRECTION",
+    "occurrences": {
+     "02d9ea7571046419694ec46782c1fdd0e308bfc279c3ca4715681e487bb347b2": [
+      ".adoption_binding.mechanics_block_sha256"
+     ],
+     "b1f990e20550a3a964063b0cf4a0c204125b6e0cfc8df6c10d407c26206791f9": [
+      ".adoption_binding.runner_sha256"
+     ]
+    },
+    "reason": "active-chain record; identity fields superseded for current execution purposes",
+    "record": "docs/implementation/evidence/mr_002/MR002_Stage3_GovernedDevQualification_v1.0.json"
+   },
+   {
+    "disposition": "ACTIVE_REFERENCE_SUPERSEDED_BY_THIS_CORRECTION",
+    "occurrences": {
+     "6e3274a38f9f8c200c32df0e4e49dde1d0e2f6daeadd77562c46fc9ea9d0041e": [
+      ".files.apps/backend/scripts/mr002_piqp.py.sha256"
+     ],
+     "7e9b55c33746faa48b4c6520a54ffb72232ffdec8b02aba1507efb1d8027ba5b": [
+      ".files.apps/backend/app/research/mr002/joint_portfolio.py.sha256"
+     ],
+     "b1f990e20550a3a964063b0cf4a0c204125b6e0cfc8df6c10d407c26206791f9": [
+      ".files.apps/backend/scripts/mr002_development_run.py.sha256"
+     ]
+    },
+    "reason": "active-chain record; identity fields superseded for current execution purposes",
+    "record": "docs/review/mr002/MR002_Stage3_SourceManifest_v1.0.json"
+   },
+   {
+    "disposition": "ACTIVE_REFERENCE_SUPERSEDED_BY_THIS_CORRECTION",
+    "occurrences": {
+     "a0218e872783fcf0dbf5c60c1206c024cbf32a83fe123db67f95f38939f5c071": [
+      ".governing_frozen_sources.session_index_extraction.sha256"
+     ]
+    },
+    "reason": "active-chain record; identity fields superseded for current execution purposes",
+    "record": "docs/review/mr002/MR002_ValidationOOS_Preregistration_v1.0.4.json"
+   },
+   {
+    "disposition": "ACTIVE_REFERENCE_SUPERSEDED_BY_THIS_CORRECTION",
+    "occurrences": {
+     "a0218e872783fcf0dbf5c60c1206c024cbf32a83fe123db67f95f38939f5c071": [
+      ".bound_facts.governing_frozen_sources.session_index_extraction.sha256"
+     ]
+    },
+    "reason": "active-chain record; identity fields superseded for current execution purposes",
+    "record": "docs/review/mr002/phase3a/MR002_Phase3A_GoverningSourceRegistry_v1.0.json"
+   },
+   {
+    "disposition": "ACTIVE_REFERENCE_SUPERSEDED_BY_THIS_CORRECTION",
+    "occurrences": {
+     "a0218e872783fcf0dbf5c60c1206c024cbf32a83fe123db67f95f38939f5c071": [
+      ".governing_frozen_sources.session_index_extraction.sha256"
+     ]
+    },
+    "reason": "active-chain record; identity fields superseded for current execution purposes",
+    "record": "docs/review/mr002/phase3a/ValidationInputIdentityManifest_v1.0.json"
+   },
+   {
+    "disposition": "ACTIVE_REFERENCE_SUPERSEDED_BY_THIS_CORRECTION",
+    "occurrences": {
+     "988fb59a24609efd8d7ff4db4ac468ed0002ab9bfb3c4c82926a602b4646a3b7": [
+      ".verification.hashes.apps/backend/app/research/mr002/execution.py"
+     ]
+    },
+    "reason": "active-chain record; identity fields superseded for current execution purposes",
+    "record": "docs/review/mr002/phase3bc/MR002_Phase3B_A1_PriceBasisEvidence_v1.0.json"
+   },
+   {
+    "disposition": "ACTIVE_REFERENCE_SUPERSEDED_BY_THIS_CORRECTION",
+    "occurrences": {
+     "02d9ea7571046419694ec46782c1fdd0e308bfc279c3ca4715681e487bb347b2": [
+      ".bound_upstream.adopted_mechanics_block_sha256"
+     ],
+     "7e9b55c33746faa48b4c6520a54ffb72232ffdec8b02aba1507efb1d8027ba5b": [
+      ".bound_upstream.governing_construction_sha256"
+     ],
+     "988fb59a24609efd8d7ff4db4ac468ed0002ab9bfb3c4c82926a602b4646a3b7": [
+      ".bound_upstream.frozen_primitives_sha256"
+     ],
+     "b1f990e20550a3a964063b0cf4a0c204125b6e0cfc8df6c10d407c26206791f9": [
+      ".bound_upstream.adopted_runner_sha256"
+     ]
+    },
+    "reason": "active-chain record; identity fields superseded for current execution purposes",
+    "record": "docs/review/mr002/phase3bc/MR002_Phase3C_ExecutableIdentityAndQualification_v1.0.json"
+   },
+   {
+    "disposition": "ACTIVE_REFERENCE_SUPERSEDED_BY_THIS_CORRECTION",
+    "occurrences": {
+     "7e9b55c33746faa48b4c6520a54ffb72232ffdec8b02aba1507efb1d8027ba5b": [
+      ".ruling_2_portfolio_construction.implementing_module.sha256"
+     ]
+    },
+    "reason": "active-chain record; identity fields superseded for current execution purposes",
+    "record": "docs/review/mr002/phase3bc/MR002_Phase3C_OwnerRulings_v1.0.json"
+   },
+   {
+    "disposition": "ACTIVE_REFERENCE_SUPERSEDED_BY_THIS_CORRECTION",
+    "occurrences": {
+     "7e9b55c33746faa48b4c6520a54ffb72232ffdec8b02aba1507efb1d8027ba5b": [
+      ".ruling_2_portfolio_construction.implementing_module.sha256"
+     ]
+    },
+    "reason": "active-chain record; identity fields superseded for current execution purposes",
+    "record": "docs/review/mr002/phase3bc/MR002_Phase3C_OwnerRulings_v1.1.json"
+   },
+   {
+    "disposition": "ACTIVE_REFERENCE_SUPERSEDED_BY_THIS_CORRECTION",
+    "occurrences": {
+     "02d9ea7571046419694ec46782c1fdd0e308bfc279c3ca4715681e487bb347b2": [
+      ".ruling_R5A_coupling_reduction_adoption.bound_source_bytes.mechanics_block_sha256"
+     ],
+     "7e9b55c33746faa48b4c6520a54ffb72232ffdec8b02aba1507efb1d8027ba5b": [
+      ".ruling_2_portfolio_construction.implementing_module.sha256",
+      ".ruling_R5A_coupling_reduction_adoption.bound_source_bytes.supporting_primitives.apps/backend/app/research/mr002/joint_portfolio.py"
+     ],
+     "988fb59a24609efd8d7ff4db4ac468ed0002ab9bfb3c4c82926a602b4646a3b7": [
+      ".ruling_R5A_coupling_reduction_adoption.bound_source_bytes.supporting_primitives.apps/backend/app/research/mr002/execution.py"
+     ],
+     "b1f990e20550a3a964063b0cf4a0c204125b6e0cfc8df6c10d407c26206791f9": [
+      ".ruling_R5A_coupling_reduction_adoption.bound_source_bytes.runner_sha256"
+     ]
+    },
+    "reason": "active-chain record; identity fields superseded for current execution purposes",
+    "record": "docs/review/mr002/phase3bc/MR002_Phase3C_OwnerRulings_v1.2.json"
+   },
+   {
+    "disposition": "ACTIVE_REFERENCE_SUPERSEDED_BY_THIS_CORRECTION",
+    "occurrences": {
+     "02d9ea7571046419694ec46782c1fdd0e308bfc279c3ca4715681e487bb347b2": [
+      ".ruling_R5A_coupling_reduction_adoption.bound_source_bytes.mechanics_block_sha256"
+     ],
+     "7e9b55c33746faa48b4c6520a54ffb72232ffdec8b02aba1507efb1d8027ba5b": [
+      ".ruling_2_portfolio_construction.implementing_module.sha256",
+      ".ruling_R5A_coupling_reduction_adoption.bound_source_bytes.supporting_primitives.apps/backend/app/research/mr002/joint_portfolio.py"
+     ],
+     "988fb59a24609efd8d7ff4db4ac468ed0002ab9bfb3c4c82926a602b4646a3b7": [
+      ".ruling_R5A_coupling_reduction_adoption.bound_source_bytes.supporting_primitives.apps/backend/app/research/mr002/execution.py"
+     ],
+     "b1f990e20550a3a964063b0cf4a0c204125b6e0cfc8df6c10d407c26206791f9": [
+      ".ruling_R5A_coupling_reduction_adoption.bound_source_bytes.runner_sha256"
+     ]
+    },
+    "reason": "active-chain record; identity fields superseded for current execution purposes",
+    "record": "docs/review/mr002/phase3bc/MR002_Phase3C_OwnerRulings_v1.3.json"
+   },
+   {
+    "disposition": "NON_ENFORCED_CODE_REFERENCE",
+    "occurrences": {
+     "02d9ea7571046419694ec46782c1fdd0e308bfc279c3ca4715681e487bb347b2": [
+      "MECHANICS_BLOCK_SHA256_FROZEN_CRLF_BASIS"
+     ]
+    },
+    "reason": "appears in code but is not compared against a live source file",
+    "record": "apps/backend/app/research/mr002/phase3c/adopted.py"
+   },
+   {
+    "disposition": "SUPERSEDED",
+    "occurrences": {
+     "6e3274a38f9f8c200c32df0e4e49dde1d0e2f6daeadd77562c46fc9ea9d0041e": [
+      ".package_binds.fallback_profile.sha256"
+     ],
+     "7e9b55c33746faa48b4c6520a54ffb72232ffdec8b02aba1507efb1d8027ba5b": [
+      ".package_binds.governing_construction.sha256"
+     ],
+     "919f496c0a1f5a5d38feb4cb7d16a1b1cd2ce3216e2b83668966ddcc96874d00": [
+      ".package_binds.certifier_and_solver_registry.sha256"
+     ]
+    },
+    "reason": "superseded by MR002_Stage3_ExecutionPackage_v2.1 (identity correction, already applied)",
+    "record": "docs/implementation/evidence/mr_002/MR002_Stage3_ExecutionPackage_v2.0.json"
+   },
+   {
+    "disposition": "SUPERSEDED",
+    "occurrences": {
+     "a0218e872783fcf0dbf5c60c1206c024cbf32a83fe123db67f95f38939f5c071": [
+      ".governing_frozen_sources.session_index_extraction.sha256"
+     ]
+    },
+    "reason": "superseded by v1.0.4",
+    "record": "docs/review/mr002/MR002_ValidationOOS_Preregistration_v1.0-RC1.json"
+   },
+   {
+    "disposition": "SUPERSEDED",
+    "occurrences": {
+     "a0218e872783fcf0dbf5c60c1206c024cbf32a83fe123db67f95f38939f5c071": [
+      ".governing_frozen_sources.session_index_extraction.sha256"
+     ]
+    },
+    "reason": "superseded by v1.0.4",
+    "record": "docs/review/mr002/MR002_ValidationOOS_Preregistration_v1.0.1.json"
+   },
+   {
+    "disposition": "SUPERSEDED",
+    "occurrences": {
+     "a0218e872783fcf0dbf5c60c1206c024cbf32a83fe123db67f95f38939f5c071": [
+      ".governing_frozen_sources.session_index_extraction.sha256"
+     ]
+    },
+    "reason": "superseded by v1.0.4",
+    "record": "docs/review/mr002/MR002_ValidationOOS_Preregistration_v1.0.2.json"
+   },
+   {
+    "disposition": "SUPERSEDED",
+    "occurrences": {
+     "a0218e872783fcf0dbf5c60c1206c024cbf32a83fe123db67f95f38939f5c071": [
+      ".governing_frozen_sources.session_index_extraction.sha256"
+     ]
+    },
+    "reason": "superseded by v1.0.4",
+    "record": "docs/review/mr002/MR002_ValidationOOS_Preregistration_v1.0.3.json"
+   },
+   {
+    "disposition": "SUPERSEDED",
+    "occurrences": {
+     "a0218e872783fcf0dbf5c60c1206c024cbf32a83fe123db67f95f38939f5c071": [
+      ".governing_frozen_sources.session_index_extraction.sha256"
+     ]
+    },
+    "reason": "superseded by v1.0.4",
+    "record": "docs/review/mr002/MR002_ValidationOOS_Preregistration_v1.0.json"
+   },
+   {
+    "disposition": "DEFECT_PROVENANCE",
+    "occurrences": {
+     "6e3274a38f9f8c200c32df0e4e49dde1d0e2f6daeadd77562c46fc9ea9d0041e": [
+      ".defect_1_working_tree_crlf_identities.members.fallback_profile.was_bound"
+     ],
+     "7e9b55c33746faa48b4c6520a54ffb72232ffdec8b02aba1507efb1d8027ba5b": [
+      ".defect_1_working_tree_crlf_identities.members.governing_construction.was_bound"
+     ],
+     "919f496c0a1f5a5d38feb4cb7d16a1b1cd2ce3216e2b83668966ddcc96874d00": [
+      ".defect_1_working_tree_crlf_identities.members.certifier_and_solver_registry.was_bound"
+     ]
+    },
+    "reason": "records the values as 'was_bound' -- this IS the prior correction of the same defect class",
+    "record": "docs/implementation/evidence/mr_002/MR002_Stage3_CountersignatureIdentityCorrection_v1.0.json"
+   }
+  ]
+ },
+ "produced_at_utc": "2026-08-18T22:05:00Z",
+ "r5a_adoption_correction": {
+  "corrected_whole_file_sha256": "57d0fcac37e466496e62463b4174a430801f1a74100efdb22bd3f0256c367ee9",
+  "mandatory_assertion": {
+   "basis_note": "The frozen value and the whole-file value are both SHA-256 over the bytes of the SAME representation. A 26-line block loses exactly 26 carriage returns under LF, so the two values cannot move independently: no LF materialization can reproduce 02d9ea75... A guard requiring the whole-file hash to change while the block hash stays fixed is therefore unsatisfiable by construction. The assertion is discharged instead by (a) the frozen CRLF-basis value still reproducing from the basis it was frozen against, proving no drift since freezing, and (b) character identity across bases. Both are recorded above and both hold.",
+   "block_line_count": 26,
+   "character_identical_across_bases": true,
+   "cr_delta_between_bases": 26,
+   "extraction_semantics": "raw.split(b'\\n')[250:276] joined with b'\\n'; unchanged",
+   "frozen_crlf_basis_reproduces_today": true,
+   "frozen_crlf_basis_sha256": "02d9ea7571046419694ec46782c1fdd0e308bfc279c3ca4715681e487bb347b2",
+   "lf_basis_sha256": "2ab94236ea0ad1adc76623b6f20a8a3c955542f4d24fcf1c8799c02dac812ab4",
+   "statement": "the adopted mechanics block remains exactly the frozen mechanics block"
+  },
+  "old_whole_file_sha256": "b1f990e20550a3a964063b0cf4a0c204125b6e0cfc8df6c10d407c26206791f9",
+  "ruling": "MR002_Phase3C_OwnerRulings_v1.2.json / ruling_R5A_coupling_reduction_adoption",
+  "substantively_in_force": true,
+  "what_changes": "the identity BASIS of the whole-file binding only",
+  "what_does_not_change": "the adopted coupling-reduction mechanics, the share and rounding behaviour, and every economic semantic frozen by R5A"
+ },
+ "record_identity_sha256": "16f2305758552a586867fcf7546b9d2aac2f87e760890b9e8352ed6e30b28d9c",
+ "record_type": "MR002_SourceIdentityCorrection",
+ "scope": {
+  "content_drift_found": 0,
+  "corrected_bindings": 16,
+  "distinct_source_files": 6,
+  "files": {
+   "apps/backend/app/research/mr002/execution.py": [
+    ".ruling_R5A_coupling_reduction_adoption.bound_source_bytes.supporting_primitives[apps/backend/app/research/mr002/execution.py]",
+    ".ruling_R5A_coupling_reduction_adoption.bound_source_bytes.supporting_primitives[apps/backend/app/research/mr002/execution.py]"
+   ],
+   "apps/backend/app/research/mr002/joint_portfolio.py": [
+    ".binds.governing_construction.sha256",
+    ".ruling_2_portfolio_construction.implementing_module.sha256",
+    ".ruling_2_portfolio_construction.implementing_module.sha256",
+    ".ruling_2_portfolio_construction.implementing_module.sha256",
+    ".ruling_2_portfolio_construction.implementing_module.sha256",
+    ".ruling_R5A_coupling_reduction_adoption.bound_source_bytes.supporting_primitives[apps/backend/app/research/mr002/joint_portfolio.py]",
+    ".ruling_R5A_coupling_reduction_adoption.bound_source_bytes.supporting_primitives[apps/backend/app/research/mr002/joint_portfolio.py]"
+   ],
+   "apps/backend/scripts/mr002_coverage_signed_gap.py": [
+    ".binds.certifier_and_solver_registry.sha256"
+   ],
+   "apps/backend/scripts/mr002_development_run.py": [
+    "ADOPTED_RUNNER_SHA256",
+    "MECHANICS_BLOCK_SHA256"
+   ],
+   "apps/backend/scripts/mr002_piqp.py": [
+    ".binds.fallback_profile.sha256"
+   ],
+   "docs/review/mr002/evaluator_prototype/MR002_SessionIndex_Extraction_Output.json": [
+    ".bound_facts.governing_frozen_sources.session_index_extraction.sha256",
+    ".governing_frozen_sources.session_index_extraction.sha256",
+    ".governing_frozen_sources.session_index_extraction.sha256"
+   ]
+  },
+  "unresolved_source_path_ambiguity": 0
+ },
+ "version": "1.0"
+}

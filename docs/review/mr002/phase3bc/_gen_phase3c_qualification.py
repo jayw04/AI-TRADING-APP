@@ -12,6 +12,7 @@ import hashlib
 import json
 import os
 import re
+import subprocess
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
 REPO = os.path.abspath(os.path.join(_HERE, "..", "..", "..", ".."))
@@ -30,9 +31,19 @@ def _canonical(obj: dict) -> bytes:
     return (json.dumps(obj, sort_keys=True, indent=1, ensure_ascii=True) + "\n").encode("ascii")
 
 
+GIT_REF = "HEAD"
+
+
 def _sha_file(rel: str) -> tuple[str, int]:
-    with open(os.path.join(REPO, rel), "rb") as fh:
-        raw = fh.read()
+    """Derive the identity from the GIT BLOB, never the working tree.
+
+    Reading the working tree on Windows yields CRLF, so the hash is a platform identity that
+    fail-closes against any LF materialization of the same source. That defect produced 41
+    occurrences across 21 MR-002 records and refused a governed validation run at import on
+    2026-08-18; see MR002_SourceIdentityCorrection_v1.0.json.
+    """
+    raw = subprocess.run(["git", "-C", REPO, "show", f"{GIT_REF}:{rel}"],
+                         capture_output=True, check=True).stdout
     return hashlib.sha256(raw).hexdigest(), len(raw)
 
 
@@ -100,8 +111,10 @@ def main() -> None:
             "adopted_runner_sha256": _sha_file(
                 "apps/backend/scripts/mr002_development_run.py")[0],
             "adopted_mechanics_block_lines": "251-276",
+            # Git-blob (LF) basis, per MR002_SourceIdentityCorrection_v1.0.json. The frozen
+            # CRLF-basis value 02d9ea75... is retained as an attestation in adopted.py only.
             "adopted_mechanics_block_sha256":
-                "02d9ea7571046419694ec46782c1fdd0e308bfc279c3ca4715681e487bb347b2",
+                "2ab94236ea0ad1adc76623b6f20a8a3c955542f4d24fcf1c8799c02dac812ab4",
             "governing_construction": "apps/backend/app/research/mr002/joint_portfolio.py",
             "governing_construction_sha256": _sha_file(
                 "apps/backend/app/research/mr002/joint_portfolio.py")[0],

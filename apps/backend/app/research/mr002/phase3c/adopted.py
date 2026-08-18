@@ -23,12 +23,31 @@ import sys
 from pathlib import Path
 from types import ModuleType
 
-# Bound by MR002_Phase3C_OwnerRulings_v1.2.json -> ruling_R5A_coupling_reduction_adoption
+# Bound by MR002_Phase3C_OwnerRulings_v1.2.json -> ruling_R5A_coupling_reduction_adoption,
+# as corrected by MR002_SourceIdentityCorrection_v1.0.json (identity basis only; R5A's economic
+# semantics are untouched and remain substantively in force).
+#
+# Both constants below were originally computed by reading the file off the Windows working tree,
+# where core.autocrlf yields CRLF -- a PLATFORM identity, not a CONTENT identity. They therefore
+# fail closed against any LF materialization of the same source, which is exactly what happened on
+# 2026-08-18: the governed validation run refused here at import, before the reader was built and
+# before any sealed byte was read. Governance hashes are now derived from Git blob bytes at a named
+# commit; see the correction record for the full 16-binding / 6-file scope.
 ADOPTED_RUNNER = "apps/backend/scripts/mr002_development_run.py"
-ADOPTED_RUNNER_SHA256 = "b1f990e20550a3a964063b0cf4a0c204125b6e0cfc8df6c10d407c26206791f9"
+ADOPTED_RUNNER_SHA256 = "57d0fcac37e466496e62463b4174a430801f1a74100efdb22bd3f0256c367ee9"
 MECHANICS_BLOCK_FIRST_LINE = 251
 MECHANICS_BLOCK_LAST_LINE = 276
-MECHANICS_BLOCK_SHA256 = "02d9ea7571046419694ec46782c1fdd0e308bfc279c3ca4715681e487bb347b2"
+MECHANICS_BLOCK_SHA256 = "2ab94236ea0ad1adc76623b6f20a8a3c955542f4d24fcf1c8799c02dac812ab4"
+
+# Retained verbatim, NOT enforced: the value R5A froze, over the bytes of the CRLF representation.
+# It is kept because it is the attestation that the mechanics have not drifted since freezing --
+# it still reproduces from the basis it was frozen against. It cannot also be the enforced value:
+# both constants are SHA-256 over the bytes of the SAME representation, and a 26-line block loses
+# exactly 26 carriage returns under LF, so no LF checkout can reproduce it.
+MECHANICS_BLOCK_SHA256_FROZEN_CRLF_BASIS = (
+    "02d9ea7571046419694ec46782c1fdd0e308bfc279c3ca4715681e487bb347b2"
+)
+IDENTITY_CORRECTION = "MR002_SourceIdentityCorrection_v1.0.json"
 
 _MODULE_NAME = "mr002_adopted_development_run"
 
@@ -78,7 +97,10 @@ def verify_binding() -> dict:
         "mechanics_block_lines": f"{MECHANICS_BLOCK_FIRST_LINE}-{MECHANICS_BLOCK_LAST_LINE}",
         "mechanics_block_sha256": block_sha,
         "mechanics_block_bytes": len(block),
+        "mechanics_block_frozen_crlf_basis": MECHANICS_BLOCK_SHA256_FROZEN_CRLF_BASIS,
+        "identity_basis": "git_blob",
         "bound_by": "MR002_Phase3C_OwnerRulings_v1.2.json / ruling_R5A_coupling_reduction_adoption",
+        "identity_corrected_by": IDENTITY_CORRECTION,
     }
 
 
