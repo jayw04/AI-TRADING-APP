@@ -1,0 +1,57 @@
+{
+ "authorized_by": "owner authorization 2026-08-18 (push-then-reproduce-from-pushed-Git step)",
+ "corrected_package": {
+  "path": "docs/implementation/evidence/mr_002/MR002_Stage3_ExecutionPackage_v2.1.json",
+  "sha256": "e5c6a419a3f42c952127f6a832b0181db67d07adc75540f86fc5b98d3526efd1"
+ },
+ "countersignature_id_unchanged": "MR002_Stage3ExecutionCountersignature_v1.0",
+ "defect_1_working_tree_crlf_identities": {
+  "class": "CHECKOUT ARTIFACT, not source drift",
+  "corroboration": "the Phase-A source manifest, generated from the CLEAN worktree, already carried the correct LF values -- which is why manifest_describes_pushed_source_exactly PASSED while these three failed",
+  "detail": "three members were bound at working-tree hashes carrying CRLF because they were computed on a Windows checkout. Their Git blobs are LF and LF-normalise to an exact match.",
+  "members": {
+   "certifier_and_solver_registry": {
+    "cause": "working-tree CRLF; the blob is LF and LF-normalises to an exact match",
+    "corrected_to_git_blob": "f9e440c6188582037a7813dc8ffc6f828132d72131ff2d54d6a35056f9e5f741",
+    "path": "apps/backend/scripts/mr002_coverage_signed_gap.py",
+    "source_bytes_changed": false,
+    "was_bound": "919f496c0a1f5a5d38feb4cb7d16a1b1cd2ce3216e2b83668966ddcc96874d00"
+   },
+   "fallback_profile": {
+    "cause": "working-tree CRLF; the blob is LF and LF-normalises to an exact match",
+    "corrected_to_git_blob": "06f730895fdf160ba0d15a57d49effee7ffdd2f32f19bb4fb94f40ae15cabfc8",
+    "path": "apps/backend/scripts/mr002_piqp.py",
+    "source_bytes_changed": false,
+    "was_bound": "6e3274a38f9f8c200c32df0e4e49dde1d0e2f6daeadd77562c46fc9ea9d0041e"
+   },
+   "governing_construction": {
+    "cause": "working-tree CRLF; the blob is LF and LF-normalises to an exact match",
+    "corrected_to_git_blob": "4efd57393e2d99e0733f70ceba5e24d9629fb3d4aa8a18837efc36eb157bac43",
+    "path": "apps/backend/app/research/mr002/joint_portfolio.py",
+    "source_bytes_changed": false,
+    "was_bound": "7e9b55c33746faa48b4c6520a54ffb72232ffdec8b02aba1507efb1d8027ba5b"
+   }
+  }
+ },
+ "defect_2_superseded_phase3c_identity": {
+  "class": "STALE VALUE",
+  "corrected_to": "c26230b6023fc596dc5ceb051473cf449405368945e881099b25efe78f606a6f",
+  "detail": "7788ada5... was computed at commit 4b1df12, BEFORE the owner-authorized R6A change at 4274912 modified phase3c/replay.py. replay.py is LF in both blob and worktree, so this is not a CRLF issue -- the recorded value was simply superseded.",
+  "source_bytes_changed_by_this_correction": false,
+  "was_bound": "7788ada561625bf160f9a569a26eac9fc28ceb7d12032e61c0f6f69ee67c3bc7"
+ },
+ "found_by": "re-deriving every bound identity from the pushed remote-tracking ref instead of the local working tree -- the step exists precisely to catch this, and it did",
+ "generalization": "identities bound for governance must be derived from Git blobs, never from a Windows working tree. This is the third occurrence of the CRLF custody class in MR-002 -- after the v3.5 provenance retirement and the *_published evidence directories.",
+ "grants": "NOTHING. An identity correction.",
+ "produced_at": "2026-08-18T00:00:00Z",
+ "record_identity_sha256": "392b9e1c1f2c41ae5eae7ebd830e17327b8e9fc5f4969f91cc57066cc65f9d98",
+ "record_status": "IMMUTABLE",
+ "record_type": "MR002_STAGE3_COUNTERSIGNATURE_IDENTITY_CORRECTION",
+ "superseded": {
+  "countersignature_record": "docs/implementation/evidence/mr_002/MR002_Stage3ExecutionCountersignature_v1.0.json",
+  "package": "docs/implementation/evidence/mr_002/MR002_Stage3_ExecutionPackage_v2.0.json",
+  "retained": "both are unedited and retained"
+ },
+ "version": "1.0",
+ "why_the_governed_run_still_stands": "the countersignature ID is the authorization token the code enforces (stage3_route.routed refuses without it), and it is unchanged. The artifacts the governed qualification ran against are byte-identical; only their RECORDED identities were wrong. No numerical parameter, scope, or artifact changed."
+}
