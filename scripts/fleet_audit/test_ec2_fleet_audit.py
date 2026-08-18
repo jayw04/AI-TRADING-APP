@@ -75,25 +75,47 @@ def test_stopped_unlisted_instance_is_not_a_violation():
     assert verdict == "PASS"
 
 
-def test_expired_authorization_fails_while_instance_runs():
-    expiring = [
-        iid for iid, e in audit.AUTHORIZED_RUNNING.items() if e["authorized_until"]
-    ]
-    assert expiring, "test requires at least one time-boxed allowlist entry"
-    verdict, findings = audit.run_checks(StubEC2(instances=_fleet()), AFTER_WS5_LAPSE)
+SYNTHETIC_EXPIRING = {
+    "i-0synthetic0expiry0": {
+        "name": "synthetic-time-boxed",
+        "reason": "Test fixture: exercises the expiry checks without depending on whichever entries the production allowlist happens to carry.",
+        "authorized_until": "2026-08-18T21:41:00+00:00",
+    },
+}
+
+
+def _with_expiring(monkeypatch):
+    """Install a time-boxed allowlist entry for the duration of one test.
+
+    The expiry checks used to be exercised by whatever time-boxed entry the real
+    allowlist happened to hold — ADR-0043 WS5, until it was pruned at closeout.
+    Pruning it left zero time-boxed entries, so those tests either failed on their
+    own precondition or silently stopped asserting anything. The fixture makes the
+    coverage independent of production data.
+    """
+    combined = {**audit.AUTHORIZED_RUNNING, **SYNTHETIC_EXPIRING}
+    monkeypatch.setattr(audit, "AUTHORIZED_RUNNING", combined)
+    return combined
+
+
+def test_expired_authorization_fails_while_instance_runs(monkeypatch):
+    combined = _with_expiring(monkeypatch)
+    expiring = [iid for iid, e in combined.items() if e["authorized_until"]]
+    assert expiring, "fixture must supply a time-boxed allowlist entry"
+    fleet = [_instance(iid) for iid in combined]
+    verdict, findings = audit.run_checks(StubEC2(instances=fleet), AFTER_WS5_LAPSE)
     assert verdict == "FAIL"
     bad = _by_name(findings)["no_expired_authorization"]
     assert bad["status"] == "FAIL"
     assert expiring[0] in bad["detail"]
 
 
-def test_expired_entry_for_terminated_instance_does_not_fail():
-    states = {
-        iid: "terminated"
-        for iid, e in audit.AUTHORIZED_RUNNING.items()
-        if e["authorized_until"]
-    }
-    _, findings = audit.run_checks(StubEC2(instances=_fleet(states)), AFTER_WS5_LAPSE)
+def test_expired_entry_for_terminated_instance_does_not_fail(monkeypatch):
+    combined = _with_expiring(monkeypatch)
+    states = {iid: "terminated" for iid, e in combined.items() if e["authorized_until"]}
+    assert states, "fixture must supply a time-boxed allowlist entry"
+    fleet = [_instance(iid, states.get(iid, "running")) for iid in combined]
+    _, findings = audit.run_checks(StubEC2(instances=fleet), AFTER_WS5_LAPSE)
     assert _by_name(findings)["no_expired_authorization"]["status"] == "PASS"
 
 
