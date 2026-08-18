@@ -1,0 +1,40 @@
+{
+ "oos_reads": 0,
+ "pinned_reads": [
+  [
+   "reference/crosswalk.parquet",
+   "ux3JpvSp7lSneFcMHhxRZ_Tp6_gx60eK"
+  ],
+  [
+   "reference/sic_mapping.parquet",
+   "_wAa1EJ0wECpUcd4DH7KhrYsYl765kWL"
+  ],
+  [
+   "validation/actions.parquet",
+   "wJ6QFkebGAidGzoWO.qzUMYjy.b6zLrx"
+  ],
+  [
+   "validation/anchors.parquet",
+   "7Br5aFGWFabpIJmPgwUBQRgdhQwc2GIK"
+  ],
+  [
+   "validation/etf_prices.parquet",
+   ".mZyHPHgamUNlHpdePGQZq.djUapjrpo"
+  ],
+  [
+   "validation/prices.parquet",
+   "eC8XZGBPXa6vPDW_WKPvwV8HtF05_tty"
+  ],
+  [
+   "validation/sic_observations.parquet",
+   "OkvwAKSX8W8W3HJiBoxZ9KC4ON6Vgj5t"
+  ],
+  [
+   "validation/universe.parquet",
+   "8Le8rLdT2wvdSenjEQdPaUAgdmSzx3ZO"
+  ]
+ ],
+ "reader_kind": "S3",
+ "record_type": "ValidationSealVerificationReport",
+ "sealed_reads": 8
+}

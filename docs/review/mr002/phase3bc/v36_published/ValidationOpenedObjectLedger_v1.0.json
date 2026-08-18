@@ -1,0 +1,95 @@
+{
+ "chain_verifies": true,
+ "counts": {
+  "attempts": 8,
+  "blocked": 0,
+  "oos_reads": 0,
+  "permitted": 8,
+  "sealed_reads": 8,
+  "unregistered_data_source_reads": 0,
+  "validation_reads": 8
+ },
+ "ledger": [
+  {
+   "object_id": "reference/crosswalk.parquet",
+   "partition": "VALIDATION",
+   "permitted": true,
+   "prev_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+   "reason": "authorized",
+   "row_hash": "90d17c74f6fd97c7935eb484e5b4dbfc4a9f10875b07fa8ab44f73ef7a33246c",
+   "sequence": 1,
+   "version_id": "ux3JpvSp7lSneFcMHhxRZ_Tp6_gx60eK"
+  },
+  {
+   "object_id": "reference/sic_mapping.parquet",
+   "partition": "VALIDATION",
+   "permitted": true,
+   "prev_hash": "90d17c74f6fd97c7935eb484e5b4dbfc4a9f10875b07fa8ab44f73ef7a33246c",
+   "reason": "authorized",
+   "row_hash": "f9fb5c5cfc85a5a283b7870647e16399055250c350ce889efda4de8b94de2667",
+   "sequence": 2,
+   "version_id": "_wAa1EJ0wECpUcd4DH7KhrYsYl765kWL"
+  },
+  {
+   "object_id": "validation/actions.parquet",
+   "partition": "VALIDATION",
+   "permitted": true,
+   "prev_hash": "f9fb5c5cfc85a5a283b7870647e16399055250c350ce889efda4de8b94de2667",
+   "reason": "authorized",
+   "row_hash": "07b3dd177269f99abe96ac969ed7222f7bb3ff8dbef68b6acd5fdc3c2adb255a",
+   "sequence": 3,
+   "version_id": "wJ6QFkebGAidGzoWO.qzUMYjy.b6zLrx"
+  },
+  {
+   "object_id": "validation/anchors.parquet",
+   "partition": "VALIDATION",
+   "permitted": true,
+   "prev_hash": "07b3dd177269f99abe96ac969ed7222f7bb3ff8dbef68b6acd5fdc3c2adb255a",
+   "reason": "authorized",
+   "row_hash": "a3a00ec288bffcfd4e37ab86fbff315bd175f5dde971936a3ed2e9b9424295b6",
+   "sequence": 4,
+   "version_id": "7Br5aFGWFabpIJmPgwUBQRgdhQwc2GIK"
+  },
+  {
+   "object_id": "validation/etf_prices.parquet",
+   "partition": "VALIDATION",
+   "permitted": true,
+   "prev_hash": "a3a00ec288bffcfd4e37ab86fbff315bd175f5dde971936a3ed2e9b9424295b6",
+   "reason": "authorized",
+   "row_hash": "27b64efc16a932fe2a3e86c328812cbb6f426c07be2368ad0d246dd7a0cae6fa",
+   "sequence": 5,
+   "version_id": ".mZyHPHgamUNlHpdePGQZq.djUapjrpo"
+  },
+  {
+   "object_id": "validation/prices.parquet",
+   "partition": "VALIDATION",
+   "permitted": true,
+   "prev_hash": "27b64efc16a932fe2a3e86c328812cbb6f426c07be2368ad0d246dd7a0cae6fa",
+   "reason": "authorized",
+   "row_hash": "d39bd332c6877a150828a2f740b8637cfdecdf96e65c36f39453449ce2c6e1a9",
+   "sequence": 6,
+   "version_id": "eC8XZGBPXa6vPDW_WKPvwV8HtF05_tty"
+  },
+  {
+   "object_id": "validation/sic_observations.parquet",
+   "partition": "VALIDATION",
+   "permitted": true,
+   "prev_hash": "d39bd332c6877a150828a2f740b8637cfdecdf96e65c36f39453449ce2c6e1a9",
+   "reason": "authorized",
+   "row_hash": "cc9edfa4d330cd235365e39b895add3fa0456846ba20b7ab98cc6f408c5b36df",
+   "sequence": 7,
+   "version_id": "OkvwAKSX8W8W3HJiBoxZ9KC4ON6Vgj5t"
+  },
+  {
+   "object_id": "validation/universe.parquet",
+   "partition": "VALIDATION",
+   "permitted": true,
+   "prev_hash": "cc9edfa4d330cd235365e39b895add3fa0456846ba20b7ab98cc6f408c5b36df",
+   "reason": "authorized",
+   "row_hash": "61a8f8b927b06c5ed23aab3785e2da301d400ccf432f6d077a105eb49ef90771",
+   "sequence": 8,
+   "version_id": "8Le8rLdT2wvdSenjEQdPaUAgdmSzx3ZO"
+  }
+ ],
+ "record_type": "ValidationOpenedObjectLedger"
+}

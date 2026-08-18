@@ -1,0 +1,172 @@
+{
+ "deliverable_sha256": {
+  "ExecutionEnrichmentEdgeCaseCensus_v1.0.json": "38ef8ebb7c627eb37e776e84a984fc36845f74bc560aa9de678edbaf17fac7d3",
+  "ValidationDecisionExecutionBindingReport_v1.0.json": "9e46c89a88d85f4528a7e08879d9c8e66570ef7b8ff5292bc8f4fdac294feb0a",
+  "ValidationExecutionEnrichmentManifest_v1.0.json": "808c7903caef795a7698ce0375ecd4233ffc438687012ecd1c9c59e2f061bac7",
+  "ValidationOpenedObjectLedger_v1.0.json": "3303b4e7c06db20b7ac3cbeda4a9674e93d1b2007ec91bc7635298a8e302d132",
+  "ValidationSealVerificationReport_v1.0.json": "808641aa35363dcfe23bd229b814fb1dc471cbca52e3f5459a6db6a9df9353ab",
+  "ValidationUnitReconciliation_v1.0.json": "396a843db559dee1df3de16d7dcb02e99d356ff0e712a6483d4d281dbccf3d48",
+  "ValidationUnitRefusalCensus_v1.0.json": "6b794ef5f21e6fce2638af27bc70416e5136aa5b47cb5f67f9c575b6f5f12738"
+ },
+ "deliverables_not_produced": [],
+ "deliverables_produced": [
+  "ExecutionEnrichmentEdgeCaseCensus_v1.0.json",
+  "ValidationDecisionExecutionBindingReport_v1.0.json",
+  "ValidationExecutionEnrichmentManifest_v1.0.json",
+  "ValidationOpenedObjectLedger_v1.0.json",
+  "ValidationSealVerificationReport_v1.0.json",
+  "ValidationUnitReconciliation_v1.0.json",
+  "ValidationUnitRefusalCensus_v1.0.json"
+ ],
+ "disposition": "PASS",
+ "enrichment_census": {
+  "by_census_category": {
+   "corporate-action transition": 0,
+   "delisting": 22,
+   "future-information stop": 0,
+   "halt": 0,
+   "identity conflict": 0,
+   "missing source": 0,
+   "no-open": 386,
+   "price conflict": 0,
+   "successful enrichment": 250216
+  },
+  "by_code": {
+   "EXECUTION_ENRICHMENT_STOP:CORPORATE_ACTION_UNRESOLVED": 0,
+   "EXECUTION_ENRICHMENT_STOP:DELISTING": 22,
+   "EXECUTION_ENRICHMENT_STOP:IDENTITY_CONFLICT": 0,
+   "EXECUTION_ENRICHMENT_STOP:NO_OFFICIAL_OPEN": 386,
+   "EXECUTION_ENRICHMENT_STOP:PRICE_CONFLICT": 0,
+   "EXECUTION_ENRICHMENT_STOP:SOURCE_MISSING": 0,
+   "EXECUTION_ENRICHMENT_STOP:TRADING_HALT": 0,
+   "EXECUTION_ENRICHMENT_SUCCESS": 250216,
+   "INTEGRITY_STOP:FUTURE_INFORMATION_DETECTED": 0
+  },
+  "one_terminal_code_per_record": true,
+  "records_examined": 250624,
+  "reserved_codes": {
+   "EXECUTION_ENRICHMENT_STOP:SOURCE_MISSING": 0
+  }
+ },
+ "error": null,
+ "evidence_admissible": true,
+ "execution_status": "COMPLETED",
+ "integrity_census": {
+  "all_gates_zero": true,
+  "decision_record_mutations": 0,
+  "duplicate_enrichment_identities": 0,
+  "future_information_violations": 0,
+  "missing_decision_enrichment_bindings": 0,
+  "oos_reads": 0,
+  "records_examined": 250624,
+  "unreconciled_validation_units": 0,
+  "unregistered_data_source_reads": 0,
+  "vacuity_check": "records_examined > 0 required for the zeros to mean anything"
+ },
+ "partial_run": false,
+ "qualification_status": "PASS",
+ "record_type": "MR002_ValOOS_Report",
+ "run_id": "MR002-SPQ1-P3B-VALIDATION-V1",
+ "seam": {
+  "adjudications_examined": 250624,
+  "admitted": 247694,
+  "duplicate_adjudications": 0,
+  "duplicate_enrichment_identities": 0,
+  "economically_adjudicated": 250216,
+  "missing_decision_enrichment_bindings": 0,
+  "not_adjudicated": 408,
+  "not_admitted_gap_filter": 2522,
+  "orphan_adjudications": 0,
+  "orphan_enriched_records": 0,
+  "records_examined": 250624,
+  "state_violations": 0
+ },
+ "state_history": [
+  "S0_INIT",
+  "S1_CODE_IDENTITY_VERIFIED",
+  "S2_CONTRACT_IDENTITY_VERIFIED",
+  "S3_CONFIG_BOUND",
+  "S4_RUNTIME_VERIFIED",
+  "S5_INPUTS_STAGED",
+  "S6_OUTPUTS_PREPARED",
+  "S7_PRE_ACCESS_READY",
+  "S8_READER_ASSUMED",
+  "S9_OPENING_CONSUMED",
+  "S10_ENRICHED"
+ ],
+ "unit_refusal_census": {
+  "any_materiality_gate_breached": false,
+  "eligible_candidate_units": 252412,
+  "fraction_refused_by_reason": {
+   "CANDIDATE_REFUSED:ACTION_COMPOSITION_UNRESOLVED": 1.188533033294772e-05,
+   "CANDIDATE_REFUSED:IDENTITY_UNRESOLVED": 0.007071771548103894
+  },
+  "fraction_refused_overall": 0.007083656878436841,
+  "materiality_gate_results_by_reason": {
+   "CANDIDATE_REFUSED:ACTION_COMPOSITION_UNRESOLVED": {
+    "breached": false,
+    "fraction": 1.188533033294772e-05,
+    "max_fraction": 0.01,
+    "max_unique_symbols": 5,
+    "unique_symbols": 2,
+    "units": 3
+   },
+   "CANDIDATE_REFUSED:ACTION_KIND_UNADJUDICATED|KNOWN_UNADJUDICATED": {
+    "breached": false,
+    "fraction": 0.0,
+    "max_fraction": 0.01,
+    "max_unique_symbols": 5,
+    "unique_symbols": 0,
+    "units": 0
+   },
+   "CANDIDATE_REFUSED:ACTION_KIND_UNADJUDICATED|UNKNOWN_VOCABULARY": {
+    "breached": false,
+    "max_incidence": 0,
+    "unique_symbols": 0,
+    "units": 0,
+    "unregistered_kinds_observed": []
+   },
+   "CANDIDATE_REFUSED:IDENTITY_UNRESOLVED": {
+    "breached": false,
+    "fraction": 0.007071771548103894,
+    "max_fraction": 0.02,
+    "max_unique_symbols": 10,
+    "unique_symbols": 2,
+    "units": 1785
+   }
+  },
+  "observed_action_vocabulary": [
+   "acquisitionby",
+   "acquisitionof",
+   "delisted",
+   "dividend",
+   "relation",
+   "spinoff",
+   "spinoffdividend",
+   "split"
+  ],
+  "reconciliation": {
+   "balances": true,
+   "identity": "units_enumerated == units_producer_refused + units_bridge_refused + units_accepted"
+  },
+  "unique_symbols_affected_by_code": {
+   "CANDIDATE_REFUSED:ACTION_COMPOSITION_UNRESOLVED": 2,
+   "CANDIDATE_REFUSED:IDENTITY_UNRESOLVED": 2
+  },
+  "units_accepted": 250624,
+  "units_bridge_refused": 1788,
+  "units_bridge_refused_by_code": {
+   "CANDIDATE_REFUSED:ACTION_COMPOSITION_UNRESOLVED": 3,
+   "CANDIDATE_REFUSED:IDENTITY_UNRESOLVED": 1785
+  },
+  "units_bridge_refused_by_code_and_vocabulary_state": {
+   "CANDIDATE_REFUSED:ACTION_COMPOSITION_UNRESOLVED": 3,
+   "CANDIDATE_REFUSED:IDENTITY_UNRESOLVED": 1785
+  },
+  "units_enumerated": 331600,
+  "units_producer_refused": 79188,
+  "unregistered_action_kinds_observed": [],
+  "vocabulary_coverage_limit": "the bridge inspects only rows relevant to a unit, so a kind appearing exclusively on tickers or sessions no unit reaches is NOT counted here. This evidences the INSPECTED vocabulary, never the partition's full vocabulary."
+ },
+ "window": "validation"
+}

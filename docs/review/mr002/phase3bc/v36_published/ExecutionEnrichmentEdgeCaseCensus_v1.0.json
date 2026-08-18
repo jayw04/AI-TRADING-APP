@@ -1,0 +1,30 @@
+{
+ "by_census_category": {
+  "corporate-action transition": 0,
+  "delisting": 22,
+  "future-information stop": 0,
+  "halt": 0,
+  "identity conflict": 0,
+  "missing source": 0,
+  "no-open": 386,
+  "price conflict": 0,
+  "successful enrichment": 250216
+ },
+ "by_code": {
+  "EXECUTION_ENRICHMENT_STOP:CORPORATE_ACTION_UNRESOLVED": 0,
+  "EXECUTION_ENRICHMENT_STOP:DELISTING": 22,
+  "EXECUTION_ENRICHMENT_STOP:IDENTITY_CONFLICT": 0,
+  "EXECUTION_ENRICHMENT_STOP:NO_OFFICIAL_OPEN": 386,
+  "EXECUTION_ENRICHMENT_STOP:PRICE_CONFLICT": 0,
+  "EXECUTION_ENRICHMENT_STOP:SOURCE_MISSING": 0,
+  "EXECUTION_ENRICHMENT_STOP:TRADING_HALT": 0,
+  "EXECUTION_ENRICHMENT_SUCCESS": 250216,
+  "INTEGRITY_STOP:FUTURE_INFORMATION_DETECTED": 0
+ },
+ "one_terminal_code_per_record": true,
+ "record_type": "ExecutionEnrichmentEdgeCaseCensus",
+ "records_examined": 250624,
+ "reserved_codes": {
+  "EXECUTION_ENRICHMENT_STOP:SOURCE_MISSING": 0
+ }
+}
