@@ -1,0 +1,95 @@
+{
+ "authorized_by": "owner ruling 2026-08-18",
+ "authorizes": {
+  "automatic_replacement_opening_on_stop": false,
+  "indivisible": true,
+  "reference_objects_not_consuming_the_opening": 4,
+  "runs": 1,
+  "scope": "EXACTLY ONE indivisible Phase 3C validation execution",
+  "sealed_objects_consuming_the_opening": 6,
+  "sequence": [
+   "1. 6 sealed validation reads through the governed validation reader",
+   "2. ValidationOpenedObjectLedger entries for those reads",
+   "3. 4 identity-bound reference reads under their existing reference authority",
+   "4. deterministic 10-table DuckDB materialization",
+   "5. immediate frozen A/B/C Phase 3C replay -- no inspection interval",
+   "6. validation decision",
+   "7. containment restoration"
+  ],
+  "why_indivisible": "materialization itself reveals the sealed validation data, so there is no materialize-now-replay-later split and no manual inspection interval"
+ },
+ "composition_custody_evidence": {
+  "file_blob_sha256": "40f1c74da40a70bfdff4a88ce0c30c526f6c4c5140e337851090cd99c5fbddf1",
+  "path": "docs/implementation/evidence/mr_002/MR002_Phase3C_RuntimeCompositionCustodyEvidence_v1.0.json"
+ },
+ "economic_decision_unchanged": {
+  "VALIDATION_ADVANCE_REQUEST": "Config B >= 3 of 5 folds net-positive AND Config A cumulative net return > 0 AND Config C cumulative net return > 0 AND replay integrity admissible",
+  "config_C_sparsity": "disclose; do NOT reinterpret after seeing the result",
+  "not_an_oos_pass": "VALIDATION_ADVANCE_REQUEST authorizes only returning for the separate decision whether to open the OOS seal",
+  "otherwise": [
+   "VALIDATION_DO_NOT_ADVANCE",
+   "VALIDATION_INCONCLUSIVE",
+   "INTEGRITY_FAILURE"
+  ]
+ },
+ "execution_authorized": true,
+ "grants": "ONE indivisible Phase 3C validation execution, under the sealed countersignature and the bound package. NOTHING else. OOS remains prohibited.",
+ "no_sealed_byte_before_latch_release": "no sealed validation or OOS byte may be read before the latch opens, and none has been",
+ "pre_release_requirement": {
+  "on_any_difference": "STOP WITHOUT OPENING",
+  "preflight": [
+   "this authorization record and the sealed countersignature re-derive from pushed Git",
+   "validation package record identity and file blob unchanged",
+   "pushed checkpoint resolves and is an ancestor of the ref",
+   "Phase 3C identity 6fe8ed33... unchanged",
+   "three typed runtime identities reproduce on the authorized host",
+   "dependency bundle v1.2 inventory reproduces; read-only mount; correct PYTHONPATH",
+   "boto3 and governed-reader import succeed in the exact host composition, offline",
+   "native stack unshadowed at the bound versions; frozen thread environment intact",
+   "materialization destination fresh",
+   "6 sealed + 4 reference declarations match the package exactly",
+   "IAM latch still canonical 44f5549a... / explicitDeny immediately before release"
+  ],
+  "rule": "before the latch may move from canonical explicitDeny to the authorized validation-read state, this record must reproduce from PUSHED Git and the complete pre-release preflight must pass again"
+ },
+ "produced_at": "2026-08-18T00:00:00Z",
+ "prohibited": [
+  "any OOS read",
+  "Sharpe >= 0.70 evaluation",
+  "stationary bootstrap",
+  "DSR",
+  "OOS cost-stress gates",
+  "parameter tuning",
+  "changing A/B/C, exits, reduction mechanics, costs, borrow, folds or gates",
+  "solver tolerance/epsilon change, jitter, third attempt, fallback by analogy",
+  "retrying with a modified package",
+  "manual inspection followed by a second validation run"
+ ],
+ "pushed_checkpoint": "4988e4457bac9bc410688c9eeb59151bfdc7581d",
+ "record_identity_sha256": "6aa28275ee6be384411d04afa19904ba1b293497c9d96e18b8da4b6775857452",
+ "record_type": "MR002_PHASE3C_EXECUTION_AUTHORIZATION",
+ "sealed_countersignature": {
+  "countersignature_id": "MR002_Phase3C_ExecutionCountersignature_v1.0",
+  "file_blob_sha256": "7a6fe0f6906133903bd8d04f5fb05fd99f6b24f8db84d714d506baf8cbd81238",
+  "filename_note": "the file retains its _DRAFT name and its internal status string, deliberately. The owner sealed the exact draft identity 109da07f..., and renaming or editing the file would change that identity and break the seal. The seal is carried HERE, by reference, not by mutating the sealed artifact.",
+  "path": "docs/implementation/evidence/mr_002/MR002_Phase3C_ExecutionCountersignature_v1.0_DRAFT.json",
+  "record_identity_sha256": "109da07f25a07e1591bb65f6ebb867a3c9397fb441f694b85cec40acc34bcfde",
+  "sealed_at_pushed_checkpoint": "4988e4457bac9bc410688c9eeb59151bfdc7581d",
+  "sealed_by": "owner ruling 2026-08-18"
+ },
+ "validation_execution_package": {
+  "file_blob_sha256": "061ec500d46ead929d5f77b88d49fbe6d8ce1244c1c1d85ff3f43e554ad13d70",
+  "path": "docs/implementation/evidence/mr_002/MR002_Phase3C_ValidationExecutionPackage_v2.0.json",
+  "record_identity_sha256": "25a253ec9eac43a2bacae30ab14e61cffb5e6c9e69352d933ec5a62ba699b7ac"
+ },
+ "version": "1.0",
+ "what_this_changes": "authority ONLY: execution_authorized false -> true. Nothing else. No implementation, runtime, numerical, economic, data or gate semantics is added, altered or reinterpreted by this record.",
+ "what_this_does_not_do": [
+  "it does NOT rewrite the validation package v2.0",
+  "it does NOT rewrite the sealed countersignature",
+  "it does NOT change the 6+4 input contract",
+  "it does NOT change Phase 3C, Stage-3, cost, borrow, exit, fold, construction or reduction semantics",
+  "it does NOT change the validation gates or the verdict domain",
+  "it does NOT authorize any OOS access"
+ ]
+}
