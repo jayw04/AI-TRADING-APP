@@ -5,8 +5,17 @@ Every test here needs the FROZEN research image, because `joint_portfolio` refus
 so these tests skip rather than weaken it:
 
     docker run --rm --network=none -e PYTHONPATH=/work/apps/backend \\
+        -e OMP_NUM_THREADS=1 -e OPENBLAS_NUM_THREADS=1 -e MKL_NUM_THREADS=1 \\
+        -e NUMEXPR_NUM_THREADS=1 -e OPENBLAS_CORETYPE=HASWELL \\
         -v "<repo>:/work" -w /work/apps/backend \\
         mr002-research:v1.4 python -m pytest tests/research/phase3c --noconftest -q
+
+The thread environment is NOT optional and NOT cosmetic. It is the registered FROZEN_THREAD_ENV
+(scripts/mr002_custody/numeric_runtime_identity.py). Running the full development replay without
+it made the frozen solver's own KKT acceptance check fail inside the ACCEPTED development runner
+-- InvalidRun "stage3(raw): stationarity_residual 5.032e+00 > 1e-08" -- because unpinned BLAS
+threading changes floating-point reduction order. The small synthetic fixtures below happen to
+pass either way; the real window does not.
 
 All fixtures are synthetic. Nothing reads the validation or OOS partitions.
 
