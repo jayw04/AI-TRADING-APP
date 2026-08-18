@@ -1,0 +1,197 @@
+{
+ "authorization_sequence_required_before_any_latch_release": [
+  "1. this countersignature sealed, committed and PUSHED",
+  "2. its identities re-derived from PUSHED Git",
+  "3. a SEPARATE authorization record moving execution_authorized false -> true (v2.0 is NOT rewritten)",
+  "4. that record committed, pushed and re-derived from pushed Git",
+  "5. full pre-release preflight re-verified immediately before release",
+  "6. only then release the latch and run exactly the bound execution"
+ ],
+ "binds": {
+  "authorized_host": "i-00c1034f7026db45e",
+  "composition_custody_evidence": {
+   "file_blob_sha256": "40f1c74da40a70bfdff4a88ce0c30c526f6c4c5140e337851090cd99c5fbddf1",
+   "path": "docs/implementation/evidence/mr_002/MR002_Phase3C_RuntimeCompositionCustodyEvidence_v1.0.json"
+  },
+  "dependency_bundle": {
+   "additive_only": true,
+   "files": 2954,
+   "host_path": "/opt/mr002/deps_v12",
+   "inventory_digest": "cbf588cb482edd96847f2f5016dbb6dfe03f5e435c921d620c0031e97ea92919",
+   "mount": "/opt/mr002/deps (read-only)",
+   "supersedes_inventory_digest": "d3a323ca04eda5937724ba86e8dedbbd8b955cbd87cac97b51d06f985909f807",
+   "version": "v1.2"
+  },
+  "eligibility_fixtures": {
+   "apps/backend/scripts/mr002_stage3_cascade_fixtures.py": "b3da5c5c2efde8eecde4c56f278d0d1586c43d6e802dd041952d558ed9660874",
+   "apps/backend/tests/research/test_mr002_stage3_cascade.py": "24f16445d6c4f416845e44d10949b063c462c93a111fc07f0539d1d5e94889f2",
+   "apps/backend/tests/research/test_mr002_stage3_cascade_dispA.py": "448da57e0fed3b6d885652de5cfeb3d6da9dd3153cffaf13429d1d405d04e101",
+   "apps/backend/tests/research/test_mr002_stage3_input_contract.py": "eb52dcde80110c714f41e41d03f8d41bba57cc60ba1148c57de3f2cbeb266e9f"
+  },
+  "eligibility_status_mapping": {
+   "file_blob_sha256": "08e666946b4c77b5d55b45c4121de179edfda2d64e3241ddee27d31d85f23488",
+   "path": "docs/implementation/evidence/mr_002/MR002_Stage3EligibilityStatusMapping_v1.0.json"
+  },
+  "finalized_implementation": {
+   "governed_pinned_reader": {
+    "file_blob_sha256": "690cc3f61c423e360b96fed779db19e3d2170f4a719421dadddbfd129835bf48",
+    "path": "apps/backend/app/research/mr002/phase3b/readers.py"
+   },
+   "materializer": {
+    "file_blob_sha256": "f5d1f4106d88dfcf226be3f6660e47b8fa436b8ddc0201eefa439411c06bfd67",
+    "path": "apps/backend/app/research/mr002/phase3c/materialize.py"
+   },
+   "stage3_cascade": {
+    "file_blob_sha256": "1021cc287051a61a088c4a715604922f03ee4dfcff41a334681dab12cb3265ef",
+    "path": "apps/backend/app/research/mr002/stage3_cascade.py"
+   },
+   "stage3_routing_seam": {
+    "file_blob_sha256": "42335ad9d67ccea60020731550c4d04887d744cd6d56d40506269994960554a2",
+    "path": "apps/backend/app/research/mr002/stage3_route.py"
+   }
+  },
+  "frozen_runtime_environment": {
+   "MKL_NUM_THREADS": "1",
+   "NUMEXPR_NUM_THREADS": "1",
+   "OMP_NUM_THREADS": "1",
+   "OPENBLAS_CORETYPE": "HASWELL",
+   "OPENBLAS_NUM_THREADS": "1",
+   "PYTHONPATH": "/work/apps/backend:/opt/mr002/deps",
+   "network": "none"
+  },
+  "phase3c_identity": "6fe8ed33fd38ca53a4e71f5627898aad56a87b0a997a9b1d77413faa3cf35d0b",
+  "phase3c_modules": {
+   "apps/backend/app/research/mr002/phase3c/__init__.py": "ec3a8c3129e58ee1ff00bf125cfaff13e50ec2befa0ad6fe1047b513aedbcbd7",
+   "apps/backend/app/research/mr002/phase3c/adopted.py": "834867795f89724aa83d4c79e330ab0a6c1dc2a1e8175f207bc7bbebdb161dfa",
+   "apps/backend/app/research/mr002/phase3c/exits.py": "2724f372ef62a6b6a0c15173c7d6146cf9a44748940f759773dca61219bde7d7",
+   "apps/backend/app/research/mr002/phase3c/folds.py": "e925799c099c5cfd17ab60917a94f806370165acd905422f5828c3a2db984bb9",
+   "apps/backend/app/research/mr002/phase3c/gates.py": "3782ecf59189dacbbfa04a57cf6f503118721db6a40271a0a2994e15fd377ad3",
+   "apps/backend/app/research/mr002/phase3c/materialize.py": "f5d1f4106d88dfcf226be3f6660e47b8fa436b8ddc0201eefa439411c06bfd67",
+   "apps/backend/app/research/mr002/phase3c/replay.py": "bddd8a67924aad6fc2afabc6c7f7f6898241e2a7f6f8d74f3fe9b39d9a24721b"
+  },
+  "pushed_source_checkpoint": "c803613331c34e7504fe93bf453c5152a8433456",
+  "runtime_identity": {
+   "export_archive_bytes": 142534656,
+   "export_archive_sha256": "95076c14b32bee01a54e2d49a9a42bea47ef9c73ffb5c0a998c7a10d174c346e",
+   "image_config_digest": "sha256:770553aeae6c3d47f1735f61a4e0df75515c105ddda0431dcc2a07b8bdbfe4b6",
+   "note": "three typed identities; never a generic image_id whose meaning depends on the daemon",
+   "platform": "amd64/linux",
+   "rootfs_diffid_sequence_digest": "c16e7c09fba1fd33a3dc743caff8b8942b43252be3999ffc40e3a616d6a1507e",
+   "source_oci_index_digest": "sha256:aa930021c072d01a5a14f389b53bea9d338e53b71e2aac08550972060a08610a"
+  },
+  "source_manifest": {
+   "file_blob_sha256": "9798302a868724ac92fab57274100bef928bb0ccdf29f393dcaf65850bbf76f8",
+   "path": "docs/implementation/evidence/mr_002/MR002_Stage3_SourceManifest_v1.0.json"
+  },
+  "stage3_countersignature_id": "MR002_Stage3ExecutionCountersignature_v1.0",
+  "stage3_execution_package": {
+   "file_blob_sha256": "c94f6a80eafe9ee05fe0cbb481d88ced530b25446a9e0ee58c3198f52b521716",
+   "path": "docs/implementation/evidence/mr_002/MR002_Stage3_ExecutionPackage_v2.1.json",
+   "record_identity_sha256": "e5c6a419a3f42c952127f6a832b0181db67d07adc75540f86fc5b98d3526efd1"
+  },
+  "validation_execution_package": {
+   "file_blob_sha256": "061ec500d46ead929d5f77b88d49fbe6d8ce1244c1c1d85ff3f43e554ad13d70",
+   "path": "docs/implementation/evidence/mr_002/MR002_Phase3C_ValidationExecutionPackage_v2.0.json",
+   "record_identity_sha256": "25a253ec9eac43a2bacae30ab14e61cffb5e6c9e69352d933ec5a62ba699b7ac"
+  }
+ },
+ "clean_run_stop_gates": {
+  "instance_level_BINDING": {
+   "closed_enum": [
+    "QUALIFIED",
+    "NUMERICAL_STATUS_NONQUALIFICATION",
+    "CERTIFICATE_NONQUALIFICATION",
+    "INTEGRITY_DEFECT"
+   ],
+   "default_for_unrecognized": "INTEGRITY_DEFECT \u2014 never fallback-eligible, never by analogy",
+   "enforced_in_code": "stage3_route raises Stage3Stop on either stop disposition",
+   "terminal_dispositions": {
+    "FALLBACK_QUALIFIED": "eligible primary nonqualification; fallback qualifies; accept; continue",
+    "INVALID_RUN": "STOP; on a PRIMARY integrity defect the fallback is never invoked",
+    "PRIMARY_QUALIFIED": "accept primary; fallback NOT invoked; continue",
+    "UNRESOLVED_NUMERICAL_FAILURE": "STOP"
+   }
+  },
+  "on_stop": "preserve evidence, restore containment, stop; no automatic replacement opening",
+  "population_level_APPLICABLE_BINDING": [
+   "source mismatch",
+   "any INVALID_RUN",
+   "any UNRESOLVED_NUMERICAL_FAILURE",
+   "any outcome outside the total decision table"
+  ],
+  "population_level_NOT_APPLICABLE": [
+   {
+    "clause_verbatim": "corpus-hash mismatch",
+    "disposition": "NOT APPLICABLE to Phase 3C validation",
+    "retained_not_deleted": true,
+    "scope_reason": "refers to the Stage-3 population corpus hash 1d2319301a7b52dfe369819bc8029f7b6d64ad820d828f041eba15a91348390b, not the validation partition"
+   },
+   {
+    "clause_verbatim": "an unexpected Phase-I-positive result",
+    "disposition": "NOT APPLICABLE to Phase 3C validation",
+    "retained_not_deleted": true,
+    "scope_reason": "a Stage-3 population-workstream condition with no referent in a validation replay"
+   }
+  ]
+ },
+ "countersignature_id": "MR002_Phase3C_ExecutionCountersignature_v1.0",
+ "execution_authorized": false,
+ "grants": "NOTHING. This countersignature binds WHAT would execute. Authority to execute arrives only through a separately sealed authorization record, after both authority artifacts reproduce from pushed Git.",
+ "no_sealed_byte_before_the_latch_opens": {
+  "current_latch_state": "canonical 44f5549a... / host->reader explicitDeny / 8 statements",
+  "enforced_in_code": "stage3_route.routed() refuses to install without the Stage-3 countersignature identity; the S3PinnedReader is constructed only by the governed run and does no client work at construction",
+  "reader_behaviour_proven_without_aws": "a fake client was injected in the composed runtime: reads a pinned object, passes VersionId, refuses a bad checksum, refuses an unpinned read",
+  "rule": "no sealed validation or OOS byte may be read before the authorization latch is opened, and none has been"
+ },
+ "phase3c_validation_stop_conditions": [
+  "sealed object VersionId or hash mismatch",
+  "missing or additional sealed/reference object",
+  "schema mismatch or required-column absence",
+  "true first-match registry overlap (crosswalk / security_sector_overrides / sic_mapping)",
+  "logical-content identity failure",
+  "DuckDB materialization failure",
+  "Phase 3C cannot consume the materialized store",
+  "unexpected sealed or OOS access",
+  "any accounting or replay integrity failure"
+ ],
+ "produced_at": "2026-08-18T00:00:00Z",
+ "record_identity_sha256": "109da07f25a07e1591bb65f6ebb867a3c9397fb441f694b85cec40acc34bcfde",
+ "record_type": "MR002_PHASE3C_EXECUTION_COUNTERSIGNATURE",
+ "regenerated_population_protocol": {
+  "NOT_APPLICABLE": [
+   {
+    "clause_verbatim": "the complete corpus and all overlap/coverage manifests regenerated anew and re-verified against the registered corpus hash 1d2319301a7b52dfe369819bc8029f7b6d64ad820d828f041eba15a91348390b",
+    "disposition": "NOT APPLICABLE to Phase 3C validation",
+    "retained_not_deleted": "carried verbatim so a later reader cannot mistake this for an accidental omission",
+    "scope_reason": "this clause is Stage-3 POPULATION scoped. The corpus hash it names is the Stage-3 QP-instance characterization corpus, which is not the Phase 3C validation population. Requiring it here would bind the validation replay to a corpus identity that is not actually its population."
+   }
+  ],
+  "applicable_form_BINDING": [
+   "fresh checkout at the countersigned implementation commit",
+   "freshly regenerated source manifest",
+   "fresh runtime binding recorded",
+   "no reuse of any quarantined artifact, checkpoint, record, certificate, aggregate or row disposition"
+  ],
+  "phase3c_population_integrity_is_governed_instead_by": [
+   "the 6 sealed validation objects + 4 identity-bound reference objects (the 6+4 contract)",
+   "the ValidationOpenedObjectLedger",
+   "the logical-content identity over the read-ordered opened objects",
+   "the eligibility/status mapping already bound in Stage-3 package v2.1"
+  ],
+  "satisfied_by": {
+   "fresh_checkout": "clean worktree materialized at 8e8f078; package chain now at c8036133",
+   "fresh_runtime_binding": "image transferred under custody and bound by three typed identities; dependency bundle v1.2 inventory cbf588cb...",
+   "fresh_source_manifest": "regenerated on Linux from the clean worktree -> 9798302a...",
+   "no_quarantined_reuse": "no artifact from any prior Stage-3 quarantine is referenced or consumed by this package chain"
+  }
+ },
+ "status": "DRAFT \u2014 awaiting the owner's seal",
+ "unchanged_by_this_countersignature": [
+  "the 6+4 input contract",
+  "Phase 3C semantics",
+  "Stage-3 cascade semantics (QUADPROG_SQRT -> PIQP_P2, fallback at most once)",
+  "costs, borrow, exits, folds, construction and reduction semantics",
+  "the two validation gates and the verdict domain"
+ ],
+ "version": "1.0"
+}
