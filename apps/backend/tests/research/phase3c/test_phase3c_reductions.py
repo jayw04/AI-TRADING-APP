@@ -213,11 +213,54 @@ def _force_full_retention(monkeypatch):
 
 
 def test_synthetic_post_execution_drift_is_an_integrity_failure(monkeypatch):
-    """If drift survives execution the replay must STOP, never borrow coupling semantics."""
+    """P3 (non-vacuity): after an APPLIED FEASIBLE construction, surviving drift must STOP the
+    replay. R6A narrows the domain; it must not have hollowed out the control."""
     _force_full_retention(monkeypatch)
     with pytest.raises(IntegrityFailure) as exc:
         _run(build(long_move=0.20))
     assert exc.value.code == DRIFT_REPAIR_QUANTITY_UNDEFINED
+
+
+def _force_execution_constrained_infeasible(monkeypatch):
+    """Make the constructor decline to trade, applying nothing -- the registered no-trade state."""
+    from app.research.mr002.joint_portfolio import (
+        EXECUTION_CONSTRAINED_INFEASIBLE,
+        JointResult,
+    )
+    from app.research.mr002.phase3c import replay as r
+
+    real = r.build_joint
+
+    def _patched(holdings, candidates):
+        if holdings:                       # decline once a book exists
+            return JointResult(outcome=EXECUTION_CONSTRAINED_INFEASIBLE, y={}, x={},
+                               diagnostics={})
+        return real(holdings, candidates)
+
+    monkeypatch.setattr(r, "build_joint", _patched)
+
+
+def test_execution_constrained_infeasible_never_triggers_r6a(monkeypatch):
+    """R6A: a registered no-trade outcome must NOT be reclassified as an integrity failure, even
+    when the untouched book sits far outside the neutrality band."""
+    _force_execution_constrained_infeasible(monkeypatch)
+    va = _run(build(long_move=0.80))       # replay completes; no IntegrityFailure
+
+    from app.research.mr002.joint_portfolio import EXECUTION_CONSTRAINED_INFEASIBLE
+
+    eci = [o for o in va.band_observations if o["outcome"] == EXECUTION_CONSTRAINED_INFEASIBLE]
+    assert eci, "the fixture must actually produce EXECUTION_CONSTRAINED_INFEASIBLE sessions"
+    assert any(o["breached"] for o in eci), "and at least one of them must be out of band"
+    assert all(o["r6a_applies"] is False for o in eci)
+    assert va.acc.reductions == 0, "an infeasible construction applies nothing"
+
+
+def test_band_observations_record_every_constructed_session():
+    """The R6A evidence trail must exist even when nothing breaches."""
+    va = _run(build())
+    assert va.band_observations
+    assert all(o["r6a_applies"] is True for o in va.band_observations)
+    assert not any(o["breached"] for o in va.band_observations)
 
 
 def test_drift_check_does_not_fire_at_the_band_boundary():

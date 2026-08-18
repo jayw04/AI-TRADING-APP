@@ -89,6 +89,10 @@ class ValidationAcc:
     acc: object
     sessions: list = field(default_factory=list)          # one date per appended return
     drift_instruction: dict | None = None
+    # One entry per session that reached a construction with a non-empty book. This is the
+    # evidence for R6A: which outcomes carry a post-execution band breach, and which of those
+    # the drift rule may fire on.
+    band_observations: list = field(default_factory=list)
 
 
 def _drift_repair_instruction(positions, prices, nav: float, session: date) -> dict:
@@ -268,21 +272,39 @@ def run_config_validation(days, cfg, *, assert_oos_boundary: bool = True) -> Val
                 else:
                     a.entries_short += 1
 
-            # ---- ruling R6: post-execution net-dollar drift --------------------------------
-            # The solver enforces the band ex ante, so this is expected never to trigger. If it
-            # does, the frozen ordering is RECORDED and the replay stops: the repair is mandatory
-            # but its QUANTITY was never frozen, so no admissible replay can continue.
+            # ---- ruling R6A: post-execution net-dollar drift, scoped to APPLIED construction --
+            # R6A supersedes the unscoped R6 trigger. The drift-repair rule can only sensibly
+            # apply once a feasible construction has been APPLIED. When the constructor returns
+            # EXECUTION_CONSTRAINED_INFEASIBLE it applies nothing (y == {} and x == {}), which is
+            # a REGISTERED no-trade outcome of the accepted v1.1 semantics -- 1,032 of Config B's
+            # 1,700 accepted development sessions were exactly this. Treating it as an integrity
+            # failure would retrospectively reject the same development behaviour that established
+            # the joint construction as governing.
+            #
+            # Where R6A DOES apply, the original R6 ruling stands unchanged: record the frozen
+            # ordering and stop, because the repair QUANTITY is still undefined. This is a
+            # scoping correction, not a retirement and not an economic change.
             #
             # The comparison uses the solver's OWN primal feasibility tolerance, in the same
             # homogeneous weight units the constraint row is written in (`|net| - 0.05*G <= 0`).
             # An exact ratio test fires spuriously when the solver has legitimately brought the
             # book to the boundary, which would halt a perfectly valid replay.
+            r6a_applies = outcome != EXECUTION_CONSTRAINED_INFEASIBLE
             if positions:
                 gross = sum(abs(p.shares) * prices.get(p.permaticker, p.last_mark)
                             for p in positions)
                 net = sum(p.shares * prices.get(p.permaticker, p.last_mark) for p in positions)
                 residual = (abs(net) - DRIFT_BAND * gross) / a.nav if a.nav > 0 else 0.0
-                if gross > 0 and residual > PRIMAL_RESIDUAL_MAX:
+                breached = gross > 0 and residual > PRIMAL_RESIDUAL_MAX
+                va.band_observations.append({
+                    "session": str(inp.session),
+                    "outcome": outcome,
+                    "r6a_applies": r6a_applies,
+                    "net_over_gross": (abs(net) / gross) if gross > 0 else 0.0,
+                    "residual": residual,
+                    "breached": breached,
+                })
+                if breached and r6a_applies:
                     va.drift_instruction = _drift_repair_instruction(
                         positions, prices, a.nav, inp.session)
                     raise IntegrityFailure(
