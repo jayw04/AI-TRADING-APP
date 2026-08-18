@@ -1,0 +1,321 @@
+{
+ "materialization_evidence": {
+  "record_type": "MR002_Phase3C_MaterializationEvidence",
+  "out_path": "/tmp/materialized.duckdb",
+  "objects_opened": [
+   {
+    "table": "crosswalk",
+    "bucket": "dev-export",
+    "key": "reference/crosswalk.parquet",
+    "version_id": "v-crosswalk",
+    "sha256": "bb8862686d406de81a76882158f0b6bb66f19a77a5c06eabda943a55bdf6f7ad",
+    "partition": "REFERENCE",
+    "rows": 1068,
+    "columns": [
+     "permaticker",
+     "ticker",
+     "cik",
+     "effective_from",
+     "effective_to",
+     "relationship_type",
+     "source",
+     "source_record_id",
+     "confidence",
+     "mapping_rationale",
+     "review_status"
+    ]
+   },
+   {
+    "table": "predecessor_overrides",
+    "bucket": "dev-export",
+    "key": "reference/predecessor_overrides.parquet",
+    "version_id": "v-predecessor_overrides",
+    "sha256": "3f5372d5fd44e4538e48735e615d233ad6e496a96fa020856813d95b6fccd5e7",
+    "partition": "REFERENCE",
+    "rows": 21,
+    "columns": [
+     "permaticker",
+     "ticker",
+     "predecessor_cik",
+     "successor_cik",
+     "effective_from",
+     "effective_to",
+     "event_type",
+     "event_date",
+     "authoritative_evidence",
+     "continuity_rationale",
+     "baton_test",
+     "predecessor_entity",
+     "predecessor_sic",
+     "predecessor_filing_range",
+     "successor_first_domestic_filing",
+     "gap_months",
+     "flags",
+     "crawl_manifest_included",
+     "review_status",
+     "reviewer",
+     "review_date",
+     "countersign_limitation"
+    ]
+   },
+   {
+    "table": "security_sector_overrides",
+    "bucket": "dev-export",
+    "key": "reference/security_sector_overrides.parquet",
+    "version_id": "v-security_sector_overrides",
+    "sha256": "edd803bddad3e64609959f08fdca0f8026811f2e57f3bab53dafa6a366512e8c",
+    "partition": "REFERENCE",
+    "rows": 33,
+    "columns": [
+     "permaticker",
+     "ticker",
+     "cik",
+     "effective_from",
+     "effective_to",
+     "research_sector",
+     "sector_etf",
+     "confidence",
+     "review_status",
+     "mapping_rationale",
+     "evidence",
+     "reviewer",
+     "review_date"
+    ]
+   },
+   {
+    "table": "sic_mapping",
+    "bucket": "dev-export",
+    "key": "reference/sic_mapping.parquet",
+    "version_id": "v-sic_mapping",
+    "sha256": "d56bcf74a17b1208a4a0829d905e9e6081ff418992a6a6c4d5f8cb0c4ad48621",
+    "partition": "REFERENCE",
+    "rows": 110,
+    "columns": [
+     "sic_start",
+     "sic_end",
+     "effective_from",
+     "effective_to",
+     "research_sector",
+     "sector_etf",
+     "mapping_rationale",
+     "mapping_confidence",
+     "mapping_specificity",
+     "review_status",
+     "reviewer",
+     "review_date",
+     "source_reference"
+    ]
+   },
+   {
+    "table": "sic_observations",
+    "bucket": "dev-export",
+    "key": "validation/sic_observations.parquet",
+    "version_id": "v-sic_observations",
+    "sha256": "8786c31d92e49cc7baa82e88fd6d122b09f34591bea3bb9b28a3e044b5115032",
+    "partition": "VALIDATION",
+    "rows": 40522,
+    "columns": [
+     "cik",
+     "accession",
+     "form",
+     "accepted_utc",
+     "sic"
+    ]
+   },
+   {
+    "table": "anchors",
+    "bucket": "dev-export",
+    "key": "validation/anchors.parquet",
+    "version_id": "v-anchors",
+    "sha256": "c401466caeb91d867753c5f348c9e47ef0e225c98192609ede1fa67c88089557",
+    "partition": "VALIDATION",
+    "rows": 40153,
+    "columns": [
+     "cik",
+     "ticker",
+     "accession",
+     "report_date",
+     "acceptance_utc",
+     "session_date",
+     "availability_class",
+     "event_time_basis",
+     "is_amendment_origin",
+     "amended_by",
+     "collapsed_duplicates"
+    ]
+   },
+   {
+    "table": "universe",
+    "bucket": "dev-export",
+    "key": "validation/universe.parquet",
+    "version_id": "v-universe",
+    "sha256": "8116a420f5693281c39f08c241d12404cb198d7c8f5b0a83126abcb68917cf93",
+    "partition": "VALIDATION",
+    "rows": 40750,
+    "columns": [
+     "universe_month",
+     "ticker",
+     "permaticker",
+     "siccode",
+     "liquidity_rank",
+     "med_dv_60",
+     "in_long_universe",
+     "in_short_universe"
+    ]
+   },
+   {
+    "table": "prices",
+    "bucket": "dev-export",
+    "key": "validation/prices.parquet",
+    "version_id": "v-prices",
+    "sha256": "efbf3462e83356020cc20cd10e5fe9479b3025be3ee493367ba793fc6e8af9e0",
+    "partition": "VALIDATION",
+    "rows": 2474177,
+    "columns": [
+     "ticker",
+     "date",
+     "open",
+     "high",
+     "low",
+     "close",
+     "closeadj",
+     "closeunadj",
+     "volume"
+    ]
+   },
+   {
+    "table": "etf_prices",
+    "bucket": "dev-export",
+    "key": "validation/etf_prices.parquet",
+    "version_id": "v-etf_prices",
+    "sha256": "64b7e74115c2f5e0fec8127319bafe7f3235615a54cf4e4fcbf40ae511d488b7",
+    "partition": "VALIDATION",
+    "rows": 48788,
+    "columns": [
+     "ticker",
+     "date",
+     "adjclose"
+    ]
+   },
+   {
+    "table": "actions",
+    "bucket": "dev-export",
+    "key": "validation/actions.parquet",
+    "version_id": "v-actions",
+    "sha256": "d6639ec5638da683c280e77961bf6d02d5fa0587ec0e4f2f19146a7beed649a4",
+    "partition": "VALIDATION",
+    "rows": 26266,
+    "columns": [
+     "date",
+     "action",
+     "ticker",
+     "name",
+     "value",
+     "contraticker",
+     "contraname"
+    ]
+   }
+  ],
+  "objects_opened_count": 10,
+  "logical_content_identity": "f44614504b5dcaf840e7f7594976de38bf5590ba208672f1790553242a0e3e95",
+  "determinism_preconditions": {
+   "crosswalk": {
+    "rows": 1068,
+    "keys": 754,
+    "true_overlaps": 0
+   },
+   "security_sector_overrides": {
+    "rows": 33,
+    "keys": 25,
+    "true_overlaps": 0
+   },
+   "sic_mapping": {
+    "rows": 110,
+    "true_overlaps": 0
+   }
+  },
+  "representation_only": true,
+  "transformations_applied": "none \u2014 container change only"
+ },
+ "stage_A": {
+  "sessions": 1700,
+  "fields_per_session": 20,
+  "mismatches": [],
+  "mismatch_count": 0,
+  "identical": true
+ },
+ "stage_B": {
+  "A": {
+   "equal": {
+    "run_hash": true,
+    "nav_curve": true,
+    "daily_ret": true,
+    "reductions": true,
+    "exits": true,
+    "entries": true,
+    "exit_reasons": true,
+    "costs": true,
+    "borrow": true,
+    "traded_notional": true,
+    "outcomes": true,
+    "zero_reasons": true,
+    "trades": true,
+    "stage3": true
+   },
+   "EXACT": true,
+   "run_hash": "7cdfc4d8ea586b785bfdbe3d05f64b9d3577deee25e51054a9e6e25fa80cc6f0",
+   "stage3": {
+    "PRIMARY_QUALIFIED": 1426,
+    "FALLBACK_QUALIFIED": 1
+   }
+  },
+  "B": {
+   "equal": {
+    "run_hash": true,
+    "nav_curve": true,
+    "daily_ret": true,
+    "reductions": true,
+    "exits": true,
+    "entries": true,
+    "exit_reasons": true,
+    "costs": true,
+    "borrow": true,
+    "traded_notional": true,
+    "outcomes": true,
+    "zero_reasons": true,
+    "trades": true,
+    "stage3": true
+   },
+   "EXACT": true,
+   "run_hash": "5a7e124f1b86fbe1656a376418e86f84912695f31dfaf4823ab93d040180a009",
+   "stage3": {
+    "PRIMARY_QUALIFIED": 1532,
+    "FALLBACK_QUALIFIED": 3
+   }
+  },
+  "C": {
+   "equal": {
+    "run_hash": true,
+    "nav_curve": true,
+    "daily_ret": true,
+    "reductions": true,
+    "exits": true,
+    "entries": true,
+    "exit_reasons": true,
+    "costs": true,
+    "borrow": true,
+    "traded_notional": true,
+    "outcomes": true,
+    "zero_reasons": true,
+    "trades": true,
+    "stage3": true
+   },
+   "EXACT": true,
+   "run_hash": "5b446931c675d6b6dcc5417db2813f2d4a8510fdbba0a3cd1bef6c433c355c07",
+   "stage3": {
+    "PRIMARY_QUALIFIED": 933
+   }
+  }
+ },
+ "result": "PASS"
+}

@@ -13,11 +13,9 @@ from __future__ import annotations
 
 import datetime as dt
 import hashlib
-import io
 import os
 
-import pyarrow as pa
-import pyarrow.parquet as pq
+import duckdb
 import pytest
 
 from app.research.mr002.phase3b.readers import FixtureReader, PinnedObject, PinnedReadRefused
@@ -76,15 +74,45 @@ def _rows(table: str) -> dict:
     raise AssertionError(table)
 
 
+def _sql_type(values) -> str:
+    """Infer the column type from the first non-null value; the fixtures are deliberately simple."""
+    for v in values:
+        if v is None:
+            continue
+        if isinstance(v, bool):
+            return "BOOLEAN"
+        if isinstance(v, dt.date):
+            return "DATE"
+        if isinstance(v, int):
+            return "BIGINT"
+        if isinstance(v, float):
+            return "DOUBLE"
+        return "VARCHAR"
+    return "VARCHAR"
+
+
 def _write(root: str, table: str, data: dict) -> PinnedObject:
+    """Write the fixture as Parquet through DuckDB, so the suite needs no pyarrow and runs
+    anywhere the governed runtime runs."""
     key = f"{PARTITION_OF[table]}/{table}.parquet"
     path = os.path.join(root, key.replace("/", os.sep))
     os.makedirs(os.path.dirname(path), exist_ok=True)
-    buf = io.BytesIO()
-    pq.write_table(pa.table(data), buf)
-    payload = buf.getvalue()
-    with open(path, "wb") as fh:
-        fh.write(payload)
+
+    cols = list(data)
+    con = duckdb.connect()
+    try:
+        decl = ", ".join(f'"{c}" {_sql_type(data[c])}' for c in cols)
+        con.execute(f"CREATE TABLE t ({decl})")
+        rows = list(zip(*[data[c] for c in cols], strict=True))
+        if rows:
+            marks = ", ".join("?" for _ in cols)
+            con.executemany(f"INSERT INTO t VALUES ({marks})", rows)
+        con.execute(f"COPY t TO '{path.replace(chr(92), '/')}' (FORMAT PARQUET)")
+    finally:
+        con.close()
+
+    with open(path, "rb") as fh:
+        payload = fh.read()
     return PinnedObject(bucket="synthetic", key=key, version_id=f"v-{table}",
                         sha256=hashlib.sha256(payload).hexdigest())
 

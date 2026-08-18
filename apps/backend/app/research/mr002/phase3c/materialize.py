@@ -29,11 +29,11 @@ from __future__ import annotations
 
 import datetime as _dt
 import hashlib
-import io
+import os
+import tempfile
 from dataclasses import dataclass
 
 import duckdb
-import pyarrow.parquet as pq
 
 from app.research.mr002.phase3b.readers import PinnedObject, PinnedReadRefused
 
@@ -158,16 +158,25 @@ def materialize(sources: list[TableSource], reader, out_path: str) -> dict:
 
     opened: list[dict] = []
     con = duckdb.connect(out_path)
+    staging_dir = tempfile.TemporaryDirectory(prefix="mr002_materialize_")
+    staging = staging_dir.name
     try:
         for src in sources:
             payload = reader.read(src.obj)
             src.obj.verify(payload)          # fail-closed on checksum, before anything is parsed
-            table = pq.read_table(io.BytesIO(payload))
-            assert_schema(src.table, tuple(table.column_names))
-            # verbatim insert: DuckDB reads the Arrow table as-is, no projection or filter
-            con.register("_incoming", table)
-            con.execute(f'CREATE TABLE "{src.table}" AS SELECT * FROM _incoming')
-            con.unregister("_incoming")
+            # DuckDB reads Parquet natively, so the governed path needs no Arrow/pyarrow
+            # dependency at all -- one fewer bound runtime component.
+            staged = os.path.join(staging, f"{src.table}.parquet")
+            with open(staged, "wb") as fh:
+                fh.write(payload)
+            quoted = staged.replace("'", "''")
+            cols = tuple(r[0] for r in con.execute(
+                f"DESCRIBE SELECT * FROM read_parquet('{quoted}')").fetchall())
+            assert_schema(src.table, cols)
+            # verbatim: SELECT * with no projection, filter, cast or ordering
+            con.execute(
+                f'CREATE TABLE "{src.table}" AS SELECT * FROM read_parquet(\'{quoted}\')')
+            rows = con.execute(f'SELECT count(*) FROM "{src.table}"').fetchone()[0]
             opened.append({
                 "table": src.table,
                 "bucket": src.obj.bucket,
@@ -175,12 +184,13 @@ def materialize(sources: list[TableSource], reader, out_path: str) -> dict:
                 "version_id": src.obj.version_id,
                 "sha256": src.obj.sha256,
                 "partition": src.obj.partition,
-                "rows": table.num_rows,
-                "columns": list(table.column_names),
+                "rows": int(rows),
+                "columns": list(cols),
             })
         determinism = assert_determinism(con)
     finally:
         con.close()
+        staging_dir.cleanup()
 
     chain = hashlib.sha256()
     for o in opened:
