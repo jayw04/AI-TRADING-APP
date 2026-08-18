@@ -1,0 +1,324 @@
+{
+ "affirmations": {
+  "access_restriction_changed": false,
+  "dsr_trial_count_changed": false,
+  "economic_rule_changed": false,
+  "gate_threshold_changed": false,
+  "oos_bytes_read": false,
+  "performance_computed": false,
+  "sealed_opening_granted": false,
+  "validation_bytes_read": false,
+  "validation_pnl_inspected_before_these_rulings": false,
+  "window_or_seam_or_fold_changed": false
+ },
+ "artifact_kind": "OWNER_RULINGS",
+ "authorization_boundary": {
+  "authorized_now": [
+   "1. correct the subordinate ExecutionGateTable validation-gate misstatement",
+   "2. freeze the +/-3.5 sigma trigger retirement amendment",
+   "3. freeze owner acceptance/hash of joint construction v1.1-rev-3",
+   "4. implement the thin Phase 3C real-data validation runner (A/B/C, exact five folds, frozen P&L, validation gates only)",
+   "5. qualify it ENTIRELY on non-sealed fixtures first",
+   "6. return with the executable identity and qualification evidence"
+  ],
+  "not_granted": "the sealed validation opening is NOT granted. A new opening must be requested only after step 6, with the executable identity and qualification evidence in hand.",
+  "oos": "only after VALIDATION_ADVANCE_REQUEST would a separate OOS authorization be considered, where Sharpe >= 0.70, the bootstrap, DSR N=5 and cost-stress finally belong",
+  "phase_3c_implementation": "AUTHORIZED (owner 2026-08-18)",
+  "push_requirement": "the governance batch may remain local and be batched with the Phase 3C implementation and qualification commits. Before any sealed-opening request, the full authority + implementation chain must be pushed and reproducible.",
+  "sealed_validation_opening": "NOT YET GRANTED"
+ },
+ "authorized_by": "owner rulings 2026-08-18, verbatim in substance",
+ "authorized_scope_phase_3c": {
+  "explicitly_not_authorized": [
+   "a generic backtester",
+   "another platform layer",
+   "any parameter search",
+   "any OOS-stage gate computation",
+   "any new economic or statistical metric"
+  ],
+  "may_add_only": "what is necessary to connect: sealed validation inputs -> frozen producer -> A/B/C candidate selection -> frozen joint construction -> frozen execution/cost/NAV evaluator -> exact five folds -> validation decision artifact",
+  "nature": "THIN real-data wiring of the already-qualified evaluator",
+  "the_two_missing_pieces": {
+   "fold_assignment": "implement the exact frozen five date ranges mechanically",
+   "real_data_wiring": "expose the existing evaluator to the governed validation reader and frozen inputs"
+  }
+ },
+ "current_disposition": {
+  "R1_3p5_sigma_retirement": "CONFIRMED - development evidence shows it was already inert",
+  "R5_y_equals_1": "SUPERSEDED before implementation",
+  "R6_drift_repair": "UNCHANGED - undefined quantity => INTEGRITY_FAILURE if actually triggered",
+  "config_C_sparsity": "DISCLOSE, do not modify the frozen gate",
+  "coupling_reductions": "ADOPT the exact exercised v1.1 development semantics",
+  "new_sealed_validation_opening": "NOT YET GRANTED",
+  "phase_3c_implementation_and_non_sealed_qualification": "AUTHORIZED"
+ },
+ "grants": "Phase 3C IMPLEMENTATION and non-sealed qualification ONLY. No sealed data access. No opening.",
+ "integrity_stop_is_not_an_economic_verdict": "a validation result carrying an integrity stop is INTEGRITY_FAILURE, NOT VALIDATION_DO_NOT_ADVANCE. A replay-definition failure must never be converted into an economic failure.",
+ "occasion": "the bounded economic-verdict authority census established that the frozen economics are fully specified, that the Sharpe>=0.70 / bootstrap / DSR / cost-stress gates are sealed-OOS gates prohibited during validation, and that four blockers required an owner decision before any implementation.",
+ "phase_3c_operating_model": [
+  "existing holdings: whole shares, reduced ONLY through the adopted coupling-reduction semantics or a frozen exit",
+  "normal frozen exits: executable as already defined",
+  "+/-3.5 sigma confirmation trigger: explicitly RETIRED by owner ruling (ruling 1); development evidence confirms it fired zero times",
+  "new entries: joint construction v1.1-rev-3",
+  "coupling reductions: ADOPTED v1.1 development mechanics, bound by source bytes",
+  "net-dollar drift inside +/-5% of gross: continue normally (the solver enforces the band ex-ante as a constraint)",
+  "post-execution drift repair, if actually triggered: record the frozen ordering, then INTEGRITY_FAILURE because the repair quantity is undefined (R6)",
+  "an integrity stop is INTEGRITY_FAILURE, never VALIDATION_DO_NOT_ADVANCE"
+ ],
+ "produced_at": "2026-08-18T00:00:00Z",
+ "record_identity_sha256": "6faa794a5d4a4e35d536dada498aebaa6c1c4f40ad0b943a0c9311c26ed17dd8",
+ "record_type": "MR002_Phase3C_OwnerRulings",
+ "ruling_1_exit_confirmation_3p5sigma": {
+  "binding_consequences": [
+   "do NOT substitute another confirmation definition",
+   "do NOT treat confirm=False as if it were a functioning implementation",
+   "REMOVE this branch from the validation replay explicitly, rather than silently leaving it permanently false",
+   "PRESERVE the remaining exit ladder and its ordering exactly"
+  ],
+  "disposition": "RETIRED / NOT EXECUTABLE",
+  "exit_ladder_after_retirement": [
+   "earnings blackout engages",
+   "newly announced prohibited corporate action (exit at next available official open)",
+   "|z| back inside +/-0.35",
+   "time stop - exit at the open of session 6 (realization horizon 6)",
+   "mandatory section-5 reduction"
+  ],
+  "frozen_text": "PreRegistration v0.4 exit ladder: 'residual beyond +/-3.5 with market/sector confirmation (>= 1 sigma same-direction move in SPY or the sector ETF)'. The qualitative condition is stated; the sigma estimation window is not.",
+  "id": "EXIT_CONFIRMATION_3P5SIGMA",
+  "observed_defect": {
+   "always_false": "app/research/mr002/dataset.py:261 initialises `confirm` as an empty dict and never populates it; :309 passes it through; runner.py:155 reads `inp.confirm.get(p.permaticker, False)`, so the branch can never fire",
+   "not_a_wider_gap": "blackout and corporate-action exits ARE populated (dataset.py:300-304). This retirement removes exactly one trigger, not the ladder.",
+   "trigger_site": "app/research/mr002/execution.py:132-133 (STOP_Z = 3.5)"
+  },
+  "reason": "the frozen specification omitted the market/sector sigma estimator required to determine the confirmation condition",
+  "scope": "this validation program only; the retirement is recorded, not concealed",
+  "why_retirement_and_not_a_parameter_choice": "choosing 20, 60, 126 sessions - or borrowing any other volatility estimator - would be a post-freeze parameter decision that can alter exits and therefore P&L. Retirement is preferable to manufacturing a parameter whose profitability implications cannot be justified."
+ },
+ "ruling_2_portfolio_construction": {
+  "defect_closed": "the v1.1 artifact described itself as countersigned while still reading 'awaiting the owner's signature and hash'",
+  "disposition": "v1.1-rev-3 JOINT CONSTRUCTION ACCEPTED AS GOVERNING",
+  "implementing_module": {
+   "construction_logic_edited": false,
+   "path": "apps/backend/app/research/mr002/joint_portfolio.py",
+   "sha256": "7e9b55c33746faa48b4c6520a54ffb72232ffdec8b02aba1507efb1d8027ba5b"
+  },
+  "nature": "AUTHORITY CLOSURE, not a new optimizer. It supplies the owner signature the v1.1 artifact was awaiting; it changes no construction logic.",
+  "reason": "supersession resolves a development-discovered STRUCTURAL INFEASIBILITY - the v1.0 cascade produced ZERO orders on all 124 development sessions because the ratio constraints are scale-invariant, so removing a candidate raises every remaining ratio - and NOT a validation-performance preference. Running the superseded cascade would answer whether a known-broken construction is profitable, not whether MR-002 is.",
+  "registering_artifact": {
+   "corroboration": "this sha256 is the same value already cited inside the implementing module's docstring as the registering artifact, so the code and the document agree without either being edited",
+   "path": "docs/implementation/TradingWorkbench_MR002_PreRegistration_v1.1_REFREEZE_CANDIDATE.md",
+   "sha256": "311e997b92858a7ede9f486ee7da11969703fc0304b2e6eb5c778ed8304f9dd5"
+  },
+  "supersedes": "the v1.0 whole-candidate removal cascade"
+ },
+ "ruling_3_configs_A_B_C": {
+  "configurations": {
+   "A": 1.75,
+   "B": 2.0,
+   "C": 2.25
+  },
+  "disposition": "A, B and C MUST be produced in the same governed validation replay",
+  "must_not_compute": [
+   "net_oos_sharpe / the 0.70 gate",
+   "the stationary bootstrap gate",
+   "DSR significance",
+   "cost-stress gates"
+  ],
+  "not_exploratory": "these are not three exploratory trials; they are the three preregistered configurations required for ONE frozen validation decision",
+  "parameter_search_authorized": false,
+  "primary": "B = 2.00",
+  "required_immutable_outputs": [
+   "exact 5-fold assignment",
+   "per-fold Config B net return and sign",
+   "Config B positive-fold count",
+   "cumulative net return for Config A",
+   "cumulative net return for Config C",
+   "the frozen A/B/C dispersion artifact needed later for OOS DSR",
+   "reconciliation of trades, positions, NAV and costs sufficient to reproduce the figures"
+  ],
+  "why": "both authorized validation gates require them"
+ },
+ "ruling_4_replay_integrity": {
+  "classification": "RESERVED / NON-INDEPENDENT VERDICT ROLE",
+  "decision_rule": {
+   "all_pass": "the economic gates may be evaluated",
+   "any_frozen_invariant_fails": "INTEGRITY_FAILURE"
+  },
+  "no_new_metric": "the frozen material assigns replay_integrity a role but defines no semantics; no replay_integrity formula, threshold, composite score or new gate may be invented",
+  "residual_condition": "if some higher-authority preregistration explicitly requires replay_integrity to carry a distinct calculated value, that would remain unresolved. The census found no such definition.",
+  "what_governs_instead": "ordinary mechanical integrity checks drawn from ALREADY-FROZEN invariants: accounting balances, deterministic replay, one-position-per-symbol, no pyramiding, no same-open re-entry, cost reconciliation, NAV reconciliation, fold completeness"
+ },
+ "ruling_5_dividends": {
+  "disposition": "DO NOT FIX NOW - record as a limitation",
+  "finding": "dividends enter only the signal series and the gap filter; NAV marks on non-dividend-adjusted official opens and cash earns zero, so holding-period distributions are structurally omitted - an asymmetric long/short bias",
+  "required": [
+   "record it as a limitation/asymmetry in the validation result",
+   "do NOT silently make the long/short book total-return aware",
+   "if validation advances, raise it explicitly before OOS authorization unless the governing OOS specification already resolves it"
+  ],
+  "why_not_now": "the frozen P&L specification says NAV uses non-dividend-adjusted official opens and does not credit distributions; changing that before validation would alter the economic model"
+ },
+ "ruling_C_sparsity_disclosure": {
+  "disposition": "DISCLOSE, DO NOT MODIFY THE FROZEN GATE",
+  "finding": "Config C entered on only 6 of 1,700 development sessions, so the frozen 'C cumulative net return > 0' gate may be decided by inactivity rather than economics",
+  "must_disclose_alongside_the_gate": [
+   "number of C entries",
+   "number of C exits",
+   "invested/exposure days",
+   "cumulative net return",
+   "transaction and borrow costs"
+  ],
+  "prohibited": [
+   "no minimum-trades exemption",
+   "no replacement of > 0 with >= 0",
+   "no different annualization",
+   "no reinterpretation of inactivity as a pass"
+  ],
+  "rationale": "this is exactly what the parameter-stability gate is designed to reveal. If C lands at zero or negative because it rarely trades, the gate fails as frozen, and we then decide whether that shows MR-002 is too parameter-fragile. It must not be rescued beforehand."
+ },
+ "ruling_R5A_coupling_reduction_adoption": {
+  "bound_source_bytes": {
+   "mechanics_block_bytes": 1321,
+   "mechanics_block_first_line": "for p in list(positions):",
+   "mechanics_block_last_line": "entry_w.pop(p.permaticker, None)",
+   "mechanics_block_lines": "251-276",
+   "mechanics_block_sha256": "02d9ea7571046419694ec46782c1fdd0e308bfc279c3ca4715681e487bb347b2",
+   "runner_bytes": 24002,
+   "runner_path": "apps/backend/scripts/mr002_development_run.py",
+   "runner_sha256": "b1f990e20550a3a964063b0cf4a0c204125b6e0cfc8df6c10d407c26206791f9",
+   "supporting_primitives": {
+    "apps/backend/app/research/mr002/execution.py": "988fb59a24609efd8d7ff4db4ac468ed0002ab9bfb3c4c82926a602b4646a3b7",
+    "apps/backend/app/research/mr002/joint_portfolio.py": "7e9b55c33746faa48b4c6520a54ffb72232ffdec8b02aba1507efb1d8027ba5b"
+   }
+  },
+  "disposition": "ADOPT the already-exercised v1.1 development reduction mechanics as the frozen MR-002 validation coupling-reduction semantics",
+  "drift_repair_is_a_different_mechanism": "coupling-reduction semantics may NOT be reused as drift-repair semantics merely because both reduce exposure. They are different registered mechanisms. R6 stands.",
+  "frozen_semantics": [
+   "the joint construction determines retention y",
+   "the reduction executes at the governed session's exec_open",
+   "reduced notional incurs the existing 10 bps/side execution cost",
+   "NAV roll-forward realizes P&L on the reduced shares relative to the existing last_mark treatment",
+   "retained shares continue as the same position with their remaining quantity and state",
+   "when the residual position rounds to zero under the already-exercised implementation, remove it and record reduce_to_zero_coupling",
+   "borrow subsequently accrues only on the remaining short exposure, using the existing frozen borrow machinery",
+   "use the exact share and rounding behavior already present in mr002_development_run.py - do NOT improve or reinterpret it"
+  ],
+  "id": "PHASE3C_COUPLING_REDUCTION_SEMANTICS_ADOPTED",
+  "nature": "a GOVERNANCE ADOPTION of an existing, previously exercised implementation - NOT authorization to design a new trim algorithm",
+  "no_embellishment": "the semantics are frozen exactly as the accepted development runner exercised them. Any deviation, improvement, reinterpretation or 'obvious fix' is out of scope and would reintroduce the post-freeze parameter risk this adoption exists to avoid.",
+  "owner_label": "R5A (adoption limb)",
+  "qualification_required_before_any_sealed_opening": [
+   "partial retention 0 < y < 1",
+   "full retention y = 1",
+   "full coupling liquidation / reduce_to_zero_coupling",
+   "commission charged on reduced notional",
+   "retained share quantity correct after reduction",
+   "short borrow basis follows remaining shares",
+   "NAV/P&L reconciles through the trim",
+   "deterministic replay reproduces the same result",
+   "a synthetically triggered R6 post-execution drift condition still causes INTEGRITY_FAILURE rather than borrowing coupling semantics",
+   "DIFFERENTIAL: on a non-sealed development fixture/window where reductions occur, the Phase 3C adapter must agree with the accepted development runner on reduction quantities, costs, position states and NAV progression - exactly, or within whatever deterministic numerical tolerance is already frozen. This proves the thin adapter has not subtly changed the already-exercised economics, and is worth more than another general test suite."
+  ],
+  "why_adopted": "the mechanics produced the owner-authorized v1.1 A/B/C development evidence and are necessary to execute the subsequently accepted joint-construction design. The adoption occurs BEFORE validation P&L is observed and does NOT select among alternative mechanics based on validation performance."
+ },
+ "ruling_R5A_supersession": {
+  "disposition": "R5's y = 1 pinning is SUPERSEDED BEFORE IMPLEMENTATION",
+  "falsified_premise": "R5 rested on the assumption that coupling reduction might be exceptional, so that pinning y = 1 would rarely bind and the economic answer could still be reached. The owner-authorized v1.1 A/B/C development evidence falsified that assumption.",
+  "falsifying_evidence": {
+   "counts": {
+    "A": {
+     "coupling_reductions": 434,
+     "exits": 600,
+     "new_orders": 669,
+     "reduce_to_zero_coupling_exits": 68,
+     "sessions_with_entries": 59
+    },
+    "B": {
+     "coupling_reductions": 320,
+     "exits": 322,
+     "new_orders": 398,
+     "reduce_to_zero_coupling_exits": 75,
+     "sessions_with_entries": 47
+    },
+    "C": {
+     "coupling_reductions": 48,
+     "exits": 40,
+     "new_orders": 68,
+     "reduce_to_zero_coupling_exits": 27,
+     "sessions_with_entries": 6
+    }
+   },
+   "extrapolation": "at the Config B development rate of roughly 0.19 reductions per session, the 775 eligible validation sessions would produce on the order of 150 occurrences. Under R5 the FIRST one terminates the replay, so Phase 3C would almost certainly have halted before producing any economic result.",
+   "source": "docs/implementation/evidence/mr_002/runtime/MR002_DevelopmentEvidence_v1.1.json",
+   "source_sha256": "399a73d6062810d58b5e3e5e715f7033573ea3352698885e1ac3fca0733127a9",
+   "why_it_is_decisive": "reduction is not incidental behavior of build_joint; it is central to the accepted v1.1-rev-3 construction. Config B shows 320 coupling reductions against 398 new orders, and Config C shows 27 reduce_to_zero_coupling exits out of 40 total exits. Pinning all existing holdings to y = 1 would disable a core mechanism of the very construction adopted as governing by ruling 2, whose Stage 1 objective is literally to MINIMIZE forced liquidation - an objective that presupposes liquidation occurs.",
+   "window": "development only, 2013-01-02..2019-10-02, 1,700 sessions"
+  },
+  "id": "PHASE3C_EXISTING_POSITION_RETENTION_SUPERSESSION",
+  "no_mixed_lineage": "no Phase 3C implementation ever existed under R5, and no validation P&L had been observed, so there is no mixed-semantics execution lineage to reconcile.",
+  "owner_label": "R5A",
+  "supersedes": "R5 / PHASE3C_EXISTING_POSITION_RETENTION",
+  "unchanged_by_this_supersession": [
+   "ruling 1 - the +/-3.5 sigma confirmation trigger remains RETIRED (development evidence shows exit_hypothesis_failure fired ZERO times across all three configs, so the retirement is empirically free)",
+   "ruling R6 - drift-repair quantity remains undefined; occurrence remains INTEGRITY_FAILURE",
+   "the two frozen validation gates and the verdict domain"
+  ]
+ },
+ "ruling_R5_existing_position_retention": {
+  "disposition": "EXISTING HOLDINGS PINNED AT y = 1",
+  "existing_positions_change_only_by": [
+   "an already-defined frozen exit",
+   "an independently specified mandatory reduction"
+  ],
+  "frozen_support": "PreRegistration v0.4 line 191: 'Existing positions remain at fixed shares until exit, except mandatory reductions.'",
+  "id": "PHASE3C_EXISTING_POSITION_RETENTION",
+  "on_infeasibility": {
+   "code": "JOINT_CONSTRUCTION_INFEASIBLE_WITH_FROZEN_HOLDINGS",
+   "disposition": "INTEGRITY_FAILURE",
+   "prohibited_fallbacks": [
+    "do NOT fall back to the superseded v1.0 removal cascade",
+    "do NOT trim holdings heuristically"
+   ]
+  },
+  "owner_label": "R5",
+  "resolves_the_apparent_conflict": "grandfathering governs HELD positions; joint construction governs what may be ADDED around them. The two frozen components are not in conflict once the boundary is drawn at that line.",
+  "retained_verbatim": "this ruling is preserved exactly as issued. It is not deleted or rewritten, so the reasoning that produced it, and the evidence that falsified its premise, both remain auditable.",
+  "rule": "existing held positions enter joint construction with retention fixed at y = 1. Partial reduction of an existing position through the joint-construction solver is NOT executable in MR-002 validation.",
+  "scope_of_the_solver": "the joint optimizer may determine desired weights for NEW construction and may size and select new positions around existing fixed holdings; it may not silently translate y < 1 for an existing holding into a partial sale.",
+  "status": "SUPERSEDED_BEFORE_IMPLEMENTATION",
+  "superseded_by": "ruling_R5A_supersession",
+  "why": "the execution semantics for such a sale were never frozen. Implementing them would require manufacturing commission treatment, realized-P&L allocation between the trimmed and retained parts, partial borrow accrual basis, and share-rounding rules - none of which exist in the frozen material."
+ },
+ "ruling_R6_drift_repair_quantity": {
+  "disposition": "OCCURRENCE => INTEGRITY_FAILURE",
+  "id": "DRIFT_REPAIR_TRIGGERED_BUT_QUANTITY_UNDEFINED",
+  "not_retired": "this is stronger than retirement. The registered repair is NOT retired - the frozen rule genuinely says repair is mandatory. The correct statement is: mandatory repair exists, execution quantity is undefined, therefore a real occurrence prevents an admissible replay. That preserves the preregistration rather than pretending the control does not exist.",
+  "owner_label": "R6",
+  "rejected_interpretation_partial_quantity": {
+   "authorized": false,
+   "why": "a partial quantity reopens R5, whose execution semantics are likewise unfrozen"
+  },
+  "rejected_interpretation_whole_position_until_band": {
+   "authorized": false,
+   "why": "'exit whole positions in order until |net| <= 5% of gross' sounds natural but introduces a material economic rule. Depending on position sizes the final whole-position exit could overshoot neutrality substantially, generate different commissions, change future occupancy, and materially alter returns. Nothing frozen says that overshoot is intended."
+  },
+  "runner_behavior": "the runner MAY detect the drift and MUST record the already-frozen repair instruction and its deterministic ordering; it MUST NOT execute a reduction without frozen quantity semantics.",
+  "what_is_frozen_and_remains_in_force": [
+   "the condition: net-dollar drift outside the +/-5%-of-gross band requires repair",
+   "next-open timing",
+   "the side to reduce (the larger side)",
+   "the deterministic reduction ordering: smallest |entry z| -> oldest position -> permanent_security_id lexical byte ordering"
+  ],
+  "what_is_missing": "the AMOUNT to reduce",
+  "why_failure_is_preferred_over_amendment": "neither failure condition may occur in the validation replay at all, in which case the economic answer is obtained without ever needing the missing semantics. If one does occur, that is itself load-bearing: it shows the frozen MR-002 strategy cannot be replayed uniquely under the conditions actually encountered, and only then is it worth deciding whether defining the reduction quantity merits an explicit amendment. There is no reason to make that economic choice preemptively."
+ },
+ "supersedes": "MR002_Phase3C_OwnerRulings_v1.1.json",
+ "supersedes_sha256": "91c522d5c4f80bf1c28f8f897e8189e6e21d1dbaa0c6aeda7e01a089008958e9",
+ "supersession_note": "v1.0 and v1.1 are unedited and retained. v1.2 adds ruling_R5A_supersession and ruling_R5A_coupling_reduction_adoption, and marks R5 SUPERSEDED in place. R6 is unchanged.",
+ "verdict_domain": {
+  "VALIDATION_ADVANCE_REQUEST": "Config B has >= 3 of 5 positive folds AND Config A cumulative net return > 0 AND Config C cumulative net return > 0, with integrity valid",
+  "VALIDATION_DO_NOT_ADVANCE": "otherwise, unless the frozen rules specifically require VALIDATION_INCONCLUSIVE or INTEGRITY_FAILURE",
+  "meaning_of_advance": "VALIDATION_ADVANCE_REQUEST authorizes a REQUEST for separate OOS authorization; it does NOT open OOS, does NOT evaluate any OOS gate, and is NOT a final profitability claim"
+ },
+ "version": "1.2"
+}
