@@ -15,6 +15,12 @@ A day's rows cover the symbols that were *in the book that day* — reconstructe
 ``range_levels`` signals, not from the book's current roster. The Top-5 rotates its slots, so a
 window-wide symbol union would retroactively mint blank rows for every rotated-out name on every day it
 was never held (and freeze them). See ``_membership_by_day``.
+
+**No membership evidence → no historical row creation.** A day's book is only ever established from
+contemporaneous ``range_levels`` signals, or carried forward along a chain rooted in them. Days before
+the strategy ever published (the emit began 2026-07-06) have no authoritative membership, so capture
+skips them entirely rather than guessing. Substituting today's roster backwards is the wrong semantic:
+it rewrites history to name whoever holds the rotating slot *now*.
 """
 
 from __future__ import annotations
@@ -37,26 +43,7 @@ from app.db.models.symbol import Symbol
 logger = structlog.get_logger(__name__)
 
 RANGE_USER_ID = 2  # the Range Trader paper book (user 2 / account 2)
-FALLBACK_TOP5 = ["GOOGL", "MU", "INTC", "AMD", "TSLA"]
 _ET = ZoneInfo("America/New_York")
-
-
-async def _current_top5(session: AsyncSession) -> list[str]:
-    """The Range Trader's current Top-5 (symbols_json), falling back to a constant."""
-    row = await session.scalar(
-        select(Strategy.symbols_json)
-        .where(Strategy.name.like("Range Trader%"))
-        .order_by(Strategy.id)
-        .limit(1)
-    )
-    if row:
-        try:
-            syms = [str(s).upper() for s in row]
-            if syms:
-                return syms
-        except TypeError:
-            pass
-    return FALLBACK_TOP5
 
 
 def _dec(v: Any) -> Decimal | None:
@@ -161,14 +148,20 @@ async def _membership_by_day(
     d_from: date,
     d_to: date,
 ) -> dict[date, set[str]]:
-    """{et_date: symbols in the book that day} across the window, carrying membership forward."""
+    """{et_date: symbols in the book that day} across the window, carrying membership forward.
+
+    A day maps to the EMPTY set when its membership cannot be established from evidence — no signals
+    that day and no carry-forward chain reaching back to a day that had them. The caller must read
+    that as "unknown", never as "the book held nothing", and never as an invitation to substitute the
+    current roster: the ``range_levels`` emit only began 2026-07-06, so every earlier day is
+    evidence-free, and guessing today's Top-5 backwards names a symbol the book did not hold (proven
+    2026-08-18 — 06-24..07-02 ran TSLA in the rotating slot while the live roster had moved to NVDA).
+    """
     published_by_day: dict[str, set[str]] = {}
     for day_iso, ticker in levels:
         published_by_day.setdefault(day_iso, set()).add(ticker)
 
     carried = await _membership_before(session, strat_id, d_from)
-    if not carried:
-        carried = set(await _current_top5(session))
 
     out: dict[date, set[str]] = {}
     d = d_from
@@ -207,7 +200,8 @@ async def capture_window(session: AsyncSession, bar_cache: Any, d_from: date, d_
     """Materialize + freeze completed range-execution days in [d_from, d_to].
 
     Each day is captured for the symbols that were in the book *that day* (``_membership_by_day``), so a
-    Top-5 rotation never mints blank rows for a name on days it was not held.
+    Top-5 rotation never mints blank rows for a name on days it was not held. A day whose membership
+    rests on no signal evidence is skipped outright — see the module docstring.
 
     Idempotent: only (symbol, et_date) rows that don't already exist are inserted, and only for days
     strictly before today ET (a day that has closed). Returns the number of rows inserted."""
@@ -245,12 +239,37 @@ async def capture_window(session: AsyncSession, bar_cache: Any, d_from: date, d_
     }
     hl_maps = {sym: await _daily_low_high_map(bar_cache, sym, d_from, end) for sym in universe}
 
+    existing_by_day: dict[date, set[str]] = {}
+    for sym, dt in existing:
+        existing_by_day.setdefault(dt, set()).add(sym)
+
     now = datetime.now(UTC)
     inserted = 0
     d = d_from
     while d <= end:
         d_iso = d.isoformat()
-        for sym in sorted(members_by_day.get(d, set())):
+        members = members_by_day.get(d, set())
+        if not members:
+            # No evidence for that day's book. Unknown is not empty — skip rather than guess.
+            d += timedelta(days=1)
+            continue
+
+        # Invariant: capture never takes a date past its evidence-backed membership count. Only
+        # members are ever inserted, so an overflow means rows already on file name symbols the book
+        # did not hold that day — the signature the pre-#638 window-union defect left behind, and
+        # what a roster-guessed pre-history day would look like. Fail closed: report, insert nothing.
+        unexpected = existing_by_day.get(d, set()) - members
+        if unexpected:
+            logger.error(
+                "range_capture_membership_overflow",
+                et_date=d_iso,
+                unexpected=sorted(unexpected),
+                members=sorted(members),
+            )
+            d += timedelta(days=1)
+            continue
+
+        for sym in sorted(members):
             if (sym, d) in existing:
                 continue  # frozen — never recompute
             lh = hl_maps.get(sym, {}).get(d_iso)

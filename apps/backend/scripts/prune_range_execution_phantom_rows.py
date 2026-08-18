@@ -56,11 +56,11 @@ async def _run(d_from: date, d_to: date, *, execute: bool) -> int:
         members = await _membership_by_day(session, strat_id, levels, d_from, d_to)
 
         # A day's membership is only trustworthy when it rests on EVIDENCE — signals that day, or
-        # carried forward from an earlier day that had them. With no signals in the window and none
-        # in the lookback, ``_membership_by_day`` falls back to the CURRENT roster, which for any
-        # pre-history day names the wrong 5th slot. Capture may use that guess; deletion must not.
-        # (Proven: over 2026-06-24..07-02, which pre-dates the range_levels emit, the fallback would
-        # have condemned 7 real TSLA rows because today's roster holds NFLX instead.)
+        # carried forward from an earlier day that had them. ``_membership_by_day`` reports an
+        # evidence-free day as the EMPTY set, meaning "unknown", NOT "the book held nothing".
+        # Without this guard every row on such a day would read as a non-member and be condemned:
+        # over 2026-06-24..07-02, which pre-dates the range_levels emit, that would delete 35 real
+        # rows. Capture skips these days entirely; deletion must skip them too.
         seeded = bool(await _membership_before(session, strat_id, d_from))
         published_days = sorted({day_iso for (day_iso, _tk) in levels})
 
