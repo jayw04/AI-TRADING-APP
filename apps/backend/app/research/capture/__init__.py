@@ -13,6 +13,15 @@ controls (single acquisition identity, raw-first, provenance, freeze,
 subordinate ceiling).
 """
 
+from app.research.capture.admissibility import (
+    MAX_CONTIGUOUS_GAP_MINUTES,
+    MIN_COMPLETENESS,
+    AdmissibilityReport,
+    ConditionResult,
+    Outcome,
+    Verdict,
+    assess_partition,
+)
 from app.research.capture.collector import (
     PHASE_A_UNIVERSE,
     fetch_session_bars,
@@ -33,12 +42,19 @@ from app.research.capture.store import (
 
 __all__ = [
     "COLLECTOR_VERSION",
+    "MAX_CONTIGUOUS_GAP_MINUTES",
+    "MIN_COMPLETENESS",
     "PHASE_A_UNIVERSE",
     "AcquisitionPins",
+    "AdmissibilityReport",
     "CaptureStore",
+    "ConditionResult",
     "FrozenPartitionError",
     "IdentityError",
+    "Outcome",
     "PartitionRef",
+    "Verdict",
+    "assess_partition",
     "fetch_session_bars",
     "key_fingerprint",
     "sample_quotes_cycle",
