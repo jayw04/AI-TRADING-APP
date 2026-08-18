@@ -1,0 +1,445 @@
+{
+ "affirmations": {
+  "all_identities_from_git_blobs": true,
+  "oos_bytes_read_to_build_this": false,
+  "phase3c_semantics_modified": false,
+  "validation_bytes_read_to_build_this": false
+ },
+ "atomic_sequence": {
+  "indivisible": true,
+  "steps": [
+   "1. sealed reader \u2014 the 6 validation objects, version-pinned and checksum-verified",
+   "2. opened-object ledger \u2014 every sealed read entered",
+   "3. reference reads \u2014 the 4 identity-bound reference objects, separate authority",
+   "4. materialization \u2014 the ten-table DuckDB, determinism gate enforced",
+   "5. Phase 3C A/B/C replay \u2014 unchanged code, frozen folds and gates"
+  ],
+  "why": "materialization itself reveals the sealed validation data, so there must be no 'materialize now, replay later' split and no manual inspection interval between them. One opening covers the whole sequence."
+ },
+ "awaiting": "owner confirmation that the custody-complete package may be executed",
+ "composed_runtime_preflight": {
+  "boto3_imports": true,
+  "governed_reader_module": "/work/apps/backend/app/research/mr002/phase3b/readers.py",
+  "native_stack_not_shadowed_by_projection": true,
+  "native_stack_provenance": {
+   "duckdb": "/usr/local/lib/python3.13/site-packages/duckdb/__init__.py",
+   "numpy": "/usr/local/lib/python3.13/site-packages/numpy/__init__.py",
+   "piqp": "/usr/local/lib/python3.13/site-packages/piqp/piqp_python_avx2.cpython-313-x86_64-linux-gnu.so",
+   "quadprog": "/usr/local/lib/python3.13/site-packages/quadprog.cpython-313-x86_64-linux-gnu.so",
+   "scipy": "/usr/local/lib/python3.13/site-packages/scipy/__init__.py"
+  },
+  "native_stack_versions": {
+   "duckdb": "1.1.3",
+   "numpy": "2.2.6",
+   "piqp": "0.6.3",
+   "quadprog": "0.1.13",
+   "scipy": "1.18.0"
+  },
+  "network": "none",
+  "phase3c_not_shadowed": true,
+  "pythonpath": "/work/apps/backend:/opt/mr002/deps",
+  "reader_behaviour_proven_without_aws": {
+   "how": "a fake client was injected; no AWS call was made and the latch stayed closed",
+   "passes_version_id": true,
+   "reads_pinned_object": true,
+   "refuses_bad_checksum": true,
+   "refuses_unpinned_read": true
+  },
+  "reader_dependencies_all_from_projection": true,
+  "reader_dependency_provenance": {
+   "boto3": "/opt/mr002/deps/boto3/__init__.py",
+   "botocore": "/opt/mr002/deps/botocore/__init__.py",
+   "dateutil": "/opt/mr002/deps/dateutil/__init__.py",
+   "jmespath": "/opt/mr002/deps/jmespath/__init__.py",
+   "s3transfer": "/opt/mr002/deps/s3transfer/__init__.py",
+   "six": "/opt/mr002/deps/six.py",
+   "urllib3": "/opt/mr002/deps/urllib3/__init__.py"
+  },
+  "reader_dependency_versions": {
+   "boto3": "1.43.70",
+   "botocore": "1.43.70",
+   "jmespath": "1.1.0",
+   "python-dateutil": "2.9.0.post0",
+   "s3transfer": "0.19.2",
+   "six": "1.17.0",
+   "urllib3": "2.7.0"
+  },
+  "synthetic_materializer_suite": "12 passed in the FINAL composition",
+  "thread_env": {
+   "MKL_NUM_THREADS": "1",
+   "NUMEXPR_NUM_THREADS": "1",
+   "OMP_NUM_THREADS": "1",
+   "OPENBLAS_CORETYPE": "HASWELL",
+   "OPENBLAS_NUM_THREADS": "1"
+  },
+  "thread_env_ok": true
+ },
+ "composition_invariant": "A runtime may NOT be described as validation-executable merely because its digest is known. The package must carry evidence that the exact digest is locally resolvable on the authorized execution host, together with every external dependency required to launch it. Concretely: boto3 import and governed-reader import MUST succeed in the exact host composition before this package can be execution-authorized. This closes the repeated 'bound X + bound Y, but X and Y do not compose' defect class -- of which this program has now seen four instances: the omitted bundle mount, the image bound but absent from the host, the store-dependent .Id, and a bundle that only closed against a different image.",
+ "custody_evidence": {
+  "path": "docs/implementation/evidence/mr_002/MR002_Phase3C_RuntimeCompositionCustodyEvidence_v1.0.json",
+  "sha256": "40f1c74da40a70bfdff4a88ce0c30c526f6c4c5140e337851090cd99c5fbddf1"
+ },
+ "dependency_bundle": {
+  "added_file_count": 35,
+  "added_top_level": [
+   "dateutil",
+   "python_dateutil-2.9.0.post0.dist-info",
+   "six-1.17.0.dist-info",
+   "six.py"
+  ],
+  "additive_only": true,
+  "closure_census": {
+   "boto3_import_in_reference_composition": "SUCCEEDED",
+   "method": "imported boto3 inside the REFERENCE composition (evaluator image + v1.1) and classified every loaded module by origin",
+   "supplied_by_the_image_and_absent_from_v1_1": {
+    "dateutil": {
+     "distribution": "python-dateutil",
+     "version": "2.9.0.post0"
+    },
+    "six": {
+     "distribution": "six",
+     "version": "1.17.0"
+    }
+   }
+  },
+  "host_path": "/opt/mr002/deps_v12",
+  "mount_mode": "read-only (proven by a refused write)",
+  "mount_point": "/opt/mr002/deps",
+  "pre_existing_test_files_inherited_from_v1_1": "95, all pyarrow's own tests/ subpackage -- inherited, not introduced by this amendment",
+  "provenance": "the exact installed distributions from the bound evaluator image that supported the successful v3.6 reader composition -- NOT PyPI, NOT today's resolution",
+  "supersedes": "ExecutionDependencyBundle v1.1",
+  "test_files_among_the_ADDED_set": 0,
+  "v1_1_files": 2919,
+  "v1_1_files_changed_in_v1_2": [],
+  "v1_1_files_missing_from_v1_2": [],
+  "v1_1_inventory_digest": "d3a323ca04eda5937724ba86e8dedbbd8b955cbd87cac97b51d06f985909f807",
+  "v1_2_files": 2954,
+  "v1_2_inventory_digest": "cbf588cb482edd96847f2f5016dbb6dfe03f5e435c921d620c0031e97ea92919",
+  "version": "v1.2",
+  "why": "v1.1 was never a self-contained boto3 dependency bundle -- it was a DELTA against the evaluator image. Pairing that delta with the research image exposed an implicit dependency on the evaluator image's site-packages, and boto3 could not import.",
+  "zero_pyc": true,
+  "zero_pycache": true
+ },
+ "determinism_gate": {
+  "does_not": "impose an ordering or a precedence to resolve overlap",
+  "measured_on_the_development_registries": {
+   "crosswalk": {
+    "keys": 754,
+    "rows": 1068,
+    "true_overlaps": 0
+   },
+   "security_sector_overrides": {
+    "keys": 25,
+    "rows": 33,
+    "true_overlaps": 0
+   },
+   "sic_mapping": {
+    "rows": 110,
+    "true_overlaps": 0
+   }
+  },
+  "order_insensitive_by_construction": {
+   "anchors": "sorted by EarningsBlackout.__init__ (eligibility.py:50)",
+   "prices / etf_prices / sic_observations": "ORDER BY in their own SQL",
+   "universe / actions": "consumed through dicts, sets and predicates"
+  },
+  "rule": "any true overlapping applicable interval for the same lookup key/date REFUSES",
+  "why_it_exists": "three FrozenDataset consumers resolve FIRST-MATCH-WINS over an unordered SELECT -- crosswalk (eligibility.py:122), security_sector_overrides (:135) and sic_mapping (:150). Their answers would depend on row order if two rows could match the same lookup key on the same date. Zero-overlap is what makes the existing implementation determinate."
+ },
+ "execution_authorized": false,
+ "grants": "NOTHING. A package awaiting the replacement opening ruling.",
+ "input_contract": {
+  "materialized_output": {
+   "consumed_by": "unchanged Phase 3C via FrozenDataset",
+   "form": "a single DuckDB database presenting exactly ten tables",
+   "tables": [
+    "actions",
+    "anchors",
+    "crosswalk",
+    "etf_prices",
+    "predecessor_overrides",
+    "prices",
+    "security_sector_overrides",
+    "sic_mapping",
+    "sic_observations",
+    "universe"
+   ]
+  },
+  "reference_inputs": {
+   "authority": "the existing reference-layer authority. The RuntimePrerequisiteRegister v1.3 classifies these COMMITTED AND IDENTITY-BOUND BUT NOT SEALED, explicitly NOT a sealed partition object, NOT under the OOS DENY, and NOT covered by the validation-only read restriction.",
+   "bucket": "workbench-mr002-sealed-219024422756",
+   "consumes_the_validation_opening": false,
+   "count": 4,
+   "do_not_broaden": "the validation reader's authority must NOT be extended to these objects merely to make the package uniform. The separation is preserved deliberately.",
+   "objects": [
+    {
+     "key": "reference/crosswalk.parquet",
+     "object_sha256": "c75fe1b1362c4a6243358a1b6d68c6c5896f0823a7efe234ed0db5244dce3b16",
+     "table": "crosswalk",
+     "version_id": "ux3JpvSp7lSneFcMHhxRZ_Tp6_gx60eK"
+    },
+    {
+     "key": "reference/predecessor_overrides.parquet",
+     "object_sha256": "1395263b28a24c1a68af8acaf474b4c285fa313009482004b4c1b6855d8fc2ac",
+     "table": "predecessor_overrides",
+     "version_id": "Srj0T5D.VqjtTULkrLwynvhPeWf422I7"
+    },
+    {
+     "key": "reference/security_sector_overrides.parquet",
+     "object_sha256": "0790f1c5fd1ce360633c4d48cade8b591169452143c6d392109c95c5d997b5bd",
+     "table": "security_sector_overrides",
+     "version_id": "MuimDnyOSLtRX6BaG2Ll525ox9Hoz6ns"
+    },
+    {
+     "key": "reference/sic_mapping.parquet",
+     "object_sha256": "292c36a82896169f5420932af4351a822452f3a909df69b8306e3e48d2d62035",
+     "table": "sic_mapping",
+     "version_id": "_wAa1EJ0wECpUcd4DH7KhrYsYl765kWL"
+    }
+   ]
+  },
+  "validation_sealed_inputs": {
+   "authority": "the existing governed validation reader ONLY",
+   "bucket": "workbench-mr002-sealed-219024422756",
+   "consumes_the_validation_opening": true,
+   "count": 6,
+   "must_be_entered_in": "ValidationOpenedObjectLedger",
+   "objects": [
+    {
+     "key": "validation/actions.parquet",
+     "table": "actions",
+     "version_id": "wJ6QFkebGAidGzoWO.qzUMYjy.b6zLrx"
+    },
+    {
+     "key": "validation/anchors.parquet",
+     "table": "anchors",
+     "version_id": "7Br5aFGWFabpIJmPgwUBQRgdhQwc2GIK"
+    },
+    {
+     "key": "validation/etf_prices.parquet",
+     "table": "etf_prices",
+     "version_id": ".mZyHPHgamUNlHpdePGQZq.djUapjrpo"
+    },
+    {
+     "key": "validation/prices.parquet",
+     "table": "prices",
+     "version_id": "eC8XZGBPXa6vPDW_WKPvwV8HtF05_tty"
+    },
+    {
+     "key": "validation/sic_observations.parquet",
+     "table": "sic_observations",
+     "version_id": "OkvwAKSX8W8W3HJiBoxZ9KC4ON6Vgj5t"
+    },
+    {
+     "key": "validation/universe.parquet",
+     "table": "universe",
+     "version_id": "8Le8rLdT2wvdSenjEQdPaUAgdmSzx3ZO"
+    }
+   ]
+  },
+  "why_six_not_eight": "the v3.6 run opened eight objects, but two of them -- crosswalk and sic_mapping -- are reference-layer objects. FrozenDataset additionally requires predecessor_overrides and security_sector_overrides, which the v3.6 run never opened. The sealed count is six; the reference count is four."
+ },
+ "logical_content_identity_algorithm": "sha256 over the read-ordered lines '<key>@<version_id>:<sha256>\\n' for every opened object. It identifies the CONTENT SET consumed, independently of the physical DuckDB file bytes, which are not reproducible and are deliberately not bound.",
+ "materializer": {
+  "checksum_gate": "PinnedObject.verify runs before anything is parsed",
+  "introduces_a_second_reader": false,
+  "parquet_reader": "DuckDB read_parquet \u2014 no Arrow/pyarrow dependency in the governed path",
+  "path": "apps/backend/app/research/mr002/phase3c/materialize.py",
+  "performs_its_own_aws_call": false,
+  "prohibited_and_absent": [
+   "synthetic rows",
+   "filtering",
+   "imputation",
+   "date/price/action alteration",
+   "column derivation",
+   "alternative signal construction",
+   "observable reordering"
+  ],
+  "representation_only": true,
+  "reuses_existing_reader": {
+   "path": "apps/backend/app/research/mr002/phase3b/readers.py",
+   "sha256": "690cc3f61c423e360b96fed779db19e3d2170f4a719421dadddbfd129835bf48"
+  },
+  "schema_contract": "REQUIRED_COLUMNS \u2014 the ten tables and the minimum columns each consumer touches; a missing table, an unregistered table or an absent required column REFUSES",
+  "sha256": "f5d1f4106d88dfcf226be3f6660e47b8fa436b8ddc0201eefa439411c06bfd67"
+ },
+ "phase3c": {
+  "identity": "6fe8ed33fd38ca53a4e71f5627898aad56a87b0a997a9b1d77413faa3cf35d0b",
+  "modules": {
+   "apps/backend/app/research/mr002/phase3c/__init__.py": "ec3a8c3129e58ee1ff00bf125cfaff13e50ec2befa0ad6fe1047b513aedbcbd7",
+   "apps/backend/app/research/mr002/phase3c/adopted.py": "834867795f89724aa83d4c79e330ab0a6c1dc2a1e8175f207bc7bbebdb161dfa",
+   "apps/backend/app/research/mr002/phase3c/exits.py": "2724f372ef62a6b6a0c15173c7d6146cf9a44748940f759773dca61219bde7d7",
+   "apps/backend/app/research/mr002/phase3c/folds.py": "e925799c099c5cfd17ab60917a94f806370165acd905422f5828c3a2db984bb9",
+   "apps/backend/app/research/mr002/phase3c/gates.py": "3782ecf59189dacbbfa04a57cf6f503118721db6a40271a0a2994e15fd377ad3",
+   "apps/backend/app/research/mr002/phase3c/materialize.py": "f5d1f4106d88dfcf226be3f6660e47b8fa436b8ddc0201eefa439411c06bfd67",
+   "apps/backend/app/research/mr002/phase3c/replay.py": "bddd8a67924aad6fc2afabc6c7f7f6898241e2a7f6f8d74f3fe9b39d9a24721b"
+  },
+  "note": "this now INCLUDES materialize.py, so it necessarily differs from the pre-materializer identity c26230b6... No Phase 3C semantic file was modified: __init__, adopted, exits, folds, gates and replay are byte-unchanged.",
+  "semantic_modules_unchanged": true
+ },
+ "pre_release_requirement": "every condition in runtime_identity, runtime_availability, dependency_bundle and composed_runtime_preflight must be re-verified and still hold IMMEDIATELY before latch release; any difference STOPS without opening",
+ "produced_at": "2026-08-18T00:00:00Z",
+ "purpose": "produce the single frozen MR-002 validation-stage economic decision from the sealed validation partition",
+ "qualification": {
+  "development_equivalence": {
+   "equality_asserted": "semantic, not physical DuckDB file bytes",
+   "path": "docs/implementation/evidence/mr_002/MR002_Phase3C_MaterializerQualification_v1.0.json",
+   "result": "PASS",
+   "sha256": "10ea61c8c8afa4308edc8052c6d7ef9c7dd793f5f94f46b201d477e8aa9da2b6",
+   "stage_A": {
+    "mismatches": 0,
+    "sessions": 1700,
+    "what": "DayInputs equality over every development session, 20 fields per session"
+   },
+   "stage_B": {
+    "compared": [
+     "run hash",
+     "NAV curve",
+     "daily returns",
+     "reductions",
+     "exits",
+     "entries",
+     "exit reasons",
+     "costs",
+     "borrow",
+     "traded notional",
+     "session outcomes",
+     "zero-entry reasons",
+     "per-trade reason and net P&L",
+     "Stage-3 dispositions"
+    ],
+    "exact": {
+     "A": true,
+     "B": true,
+     "C": true
+    },
+    "what": "full Phase 3C A/B/C replay through the successor Stage-3 cascade"
+   }
+  },
+  "synthetic_fail_closed": {
+   "cases": [
+    "checksum mismatch",
+    "unpinned read",
+    "missing registered table",
+    "unregistered table",
+    "absent required column",
+    "true interval overlap in crosswalk",
+    "true interval overlap in security_sector_overrides",
+    "overlapping (sic-range x date-range) in sic_mapping",
+    "disjoint open-ended intervals must NOT refuse (regression guard)",
+    "overlapping SIC ranges on disjoint dates must NOT refuse",
+    "6 VALIDATION + 4 REFERENCE read split reported",
+    "logical-content identity stable and content-sensitive"
+   ],
+   "path": "apps/backend/tests/research/phase3c/test_phase3c_materialize.py",
+   "result": "12 passed; whole phase3c suite 208 passed inside the frozen image",
+   "sha256": "9faa18f12fcab2989410741586b47c5ec3f40581a6dc4430a5f904d7a195416f"
+  }
+ },
+ "record_identity_sha256": "25a253ec9eac43a2bacae30ab14e61cffb5e6c9e69352d933ec5a62ba699b7ac",
+ "record_type": "MR002_PHASE3C_VALIDATION_EXECUTION_PACKAGE",
+ "requalification": {
+  "development_equivalence_qualification": "REMAINS VALID \u2014 not rerun",
+  "materializer_synthetic_qualification": "REMAINS VALID \u2014 and rerun anyway in the final composition (12 passed)",
+  "stage3_governed_qualification": "REMAINS VALID \u2014 not rerun",
+  "why": "the amendment is additive-only and the runtime bytes are identical; transporting a qualified artifact and closing its import graph does not create a new numerical or semantic runtime. No 3,895-solve or 1,700-session rerun was performed."
+ },
+ "runtime": {
+  "dependency_bundle_required": {
+   "bundle": "ExecutionDependencyBundle v1.1",
+   "clean_projection_inventory": "7c50b2ab... (2,919 files)",
+   "identity": "61bd7d98...",
+   "pyarrow_no_longer_needed": "the materializer uses DuckDB's native Parquet reader, so only boto3/botocore are still required from the bundle",
+   "why": "the real S3PinnedReader needs boto3, which the image does not carry. Phase 3B supplied it from the bound ExecutionDependencyBundle mounted at /opt/mr002/deps. Omitting that mount is exactly what caused the earlier released-but-refused execution, so the validation launch MUST bind and mount it."
+  },
+  "frozen_thread_env": {
+   "MKL_NUM_THREADS": "1",
+   "NUMEXPR_NUM_THREADS": "1",
+   "OMP_NUM_THREADS": "1",
+   "OPENBLAS_CORETYPE": "HASWELL",
+   "OPENBLAS_NUM_THREADS": "1"
+  },
+  "image": "mr002-research:v1.4",
+  "image_does_NOT_provide": [
+   "boto3",
+   "botocore",
+   "pyarrow",
+   "pandas"
+  ],
+  "image_id": "sha256:aa930021c072d01a5a14f389b53bea9d338e53b71e2aac08550972060a08610a",
+  "image_provides": [
+   "duckdb 1.1.3",
+   "quadprog 0.1.13",
+   "piqp 0.6.3",
+   "numpy 2.2.6",
+   "scipy 1.18.0"
+  ]
+ },
+ "runtime_availability": {
+  "authorized_host": "i-00c1034f7026db45e",
+  "checks_passed": "9/9 content and configuration checks",
+  "custody_route": "docker save on the qualification machine -> SHA-256 + byte count -> controlled S3 staging -> presigned GET (authorized by the operator's signature, so the instance role was NOT used and NO permission was added) -> host verifies bytes and SHA-256 BEFORE loading -> docker load -> identity proven. No container was started from it during staging and no sealed access occurred.",
+  "host_loaded_id": "sha256:770553aeae6c3d47f1735f61a4e0df75515c105ddda0431dcc2a07b8bdbfe4b6",
+  "image_present_on_host": true,
+  "verified_by": "docs/implementation/evidence/mr_002/MR002_Phase3C_RuntimeCompositionCustodyEvidence_v1.0.json"
+ },
+ "runtime_identity": {
+  "export_archive_bytes": 142534656,
+  "export_archive_sha256": "95076c14b32bee01a54e2d49a9a42bea47ef9c73ffb5c0a998c7a10d174c346e",
+  "image_config_digest": "sha256:770553aeae6c3d47f1735f61a4e0df75515c105ddda0431dcc2a07b8bdbfe4b6",
+  "image_config_digest_meaning": "the configuration blob contained in the transferred archive AND the classic Docker daemon's loaded .Id. This is the portable identity, because it binds runtime configuration that a filesystem-only digest would miss.",
+  "note": "three typed identities, never one generic 'image_id'. A generic field whose meaning depends on the daemon is precisely what caused the earlier false mismatch.",
+  "platform": "amd64/linux",
+  "rootfs_diffid_count": 8,
+  "rootfs_diffid_sequence_digest": "c16e7c09fba1fd33a3dc743caff8b8942b43252be3999ffc40e3a616d6a1507e",
+  "source_oci_index_digest": "sha256:aa930021c072d01a5a14f389b53bea9d338e53b71e2aac08550972060a08610a",
+  "source_oci_index_digest_meaning": "the OCI/index identity exposed by the qualification machine's containerd-backed image store, and the identity recorded during qualification. Source-side provenance only -- the authorized host's classic store does NOT report this through .Id, and must not be required to.",
+  "tag": "mr002-research:v1.4"
+ },
+ "source_deployment": {
+  "archive_bytes": 8079360,
+  "archive_sha256": "d52e51f44b0fd67419b2dc9bf6e592805ddecd67e35fc3e1e5b7acb602972e32",
+  "checkpoint": "34eeee00e03ee66fb9ac8702503b89463fa70f67",
+  "host_path": "/opt/mr002/phase3c_src",
+  "mount": "/work/apps/backend (read-only)",
+  "note": "produced by git archive from the PUSHED ref, verified on the host before extraction"
+ },
+ "stage3_authority_carried_forward": {
+  "cascade": "QUADPROG_SQRT -> PIQP_P2, fallback at most once",
+  "countersignature_id": "MR002_Stage3ExecutionCountersignature_v1.0",
+  "prohibited": [
+   "third attempt",
+   "jitter",
+   "tolerance/epsilon change",
+   "per-instance tuning or routing by observed outcome",
+   "fallback by analogy"
+  ]
+ },
+ "supersedes": {
+  "path": "docs/implementation/evidence/mr_002/MR002_Phase3C_ValidationExecutionPackage_v1.0.json",
+  "sha256": "6eab80a5a558551721efbb0252b8c8c880a6ed3bd337b43366491f81d4e95b05"
+ },
+ "supersedes_for_validation_purposes": {
+  "path": "docs/implementation/evidence/mr_002/MR002_Stage3_ExecutionPackage_v2.1.json",
+  "sha256": "c94f6a80eafe9ee05fe0cbb481d88ced530b25446a9e0ee58c3198f52b521716",
+  "why": "v2.1 remains correct for the Stage-3 numerical path it covered, but it never described the sealed-side input contract, so it cannot be the package a validation opening is granted against."
+ },
+ "supersession_note": "v1.0 bound the right components but not the COMPOSITION. Corrections: (1) the runtime is now identified by portable, typed identities instead of one store-dependent .Id; (2) runtime PRESENCE on the authorized host is asserted, not assumed; (3) the dependency bundle is v1.2, which closes the boto3 import graph against THIS image rather than relying on a different image's site-packages. No economic, numerical, Phase 3C, Stage-3, 6+4 or gate binding changed.",
+ "validation_decision": {
+  "VALIDATION_ADVANCE_REQUEST": "Config B >= 3 of 5 folds net-positive AND Config A cumulative net return > 0 AND Config C cumulative net return > 0 AND replay integrity admissible",
+  "config_C_sparsity": "disclose; do NOT reinterpret after seeing the result",
+  "not_an_oos_pass": "VALIDATION_ADVANCE_REQUEST authorizes only returning for the separate decision whether to open the OOS seal",
+  "otherwise": [
+   "VALIDATION_DO_NOT_ADVANCE",
+   "VALIDATION_INCONCLUSIVE",
+   "INTEGRITY_FAILURE"
+  ],
+  "prohibited_at_this_stage": [
+   "net_oos_sharpe >= 0.70",
+   "stationary bootstrap",
+   "DSR",
+   "OOS cost-stress gates"
+  ]
+ },
+ "version": "2.0"
+}
