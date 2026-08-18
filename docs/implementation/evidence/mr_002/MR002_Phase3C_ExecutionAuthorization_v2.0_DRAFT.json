@@ -46,7 +46,7 @@
    "this authorization record and the sealed countersignature re-derive from pushed Git",
    "validation package record identity and file blob unchanged",
    "pushed checkpoint resolves and is an ancestor of the ref",
-   "Phase 3C identity 6fe8ed33... unchanged",
+   "Phase 3C identity e19e3b44b52655feb516fecd1c9bffda7932fcc1e6512e774df3dab5bf62f75f unchanged (corrected identity per MR002_SourceIdentityCorrection_v1.0; supersedes the pre-correction referent 6fe8ed33..., which was correct only for the v1.0 chain)",
    "three typed runtime identities reproduce on the authorized host",
    "dependency bundle v1.2 inventory reproduces; read-only mount; correct PYTHONPATH",
    "boto3 and governed-reader import succeed in the exact host composition, offline",
@@ -71,7 +71,7 @@
   "manual inspection followed by a second validation run"
  ],
  "pushed_checkpoint": "a40aad7e5acf840ff19aa3f0c69b85bd7811f3ce",
- "record_identity_sha256": "cebfd1a69479f8ce3fa37c966e59624337b7baef1f80b6480733dbc3c822c1df",
+ "record_identity_sha256": "c53edf897a57b4b3bd0dd1e2ea4249fb7115f12f856a9043aecf75a7c072468f",
  "record_type": "MR002_PHASE3C_EXECUTION_AUTHORIZATION",
  "sealed_countersignature": {
   "file_blob_sha256": "24ec73965ba2b1175891b4ad65bbcbe5f50c1ed82e882cd2e9cb51ae3e8f9248",
