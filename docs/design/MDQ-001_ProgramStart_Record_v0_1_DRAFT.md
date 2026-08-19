@@ -24,7 +24,7 @@ Four distinct events exist and only the last one starts the clock:
 |---|---|---|
 | **Deployment** — governed code and schedule installed on `ec2-paper` | Done 2026-08-17, ~19:25–19:40 ET | **No.** Deployment is capability, not evidence. |
 | **First timer fire** — a `systemd` unit activates on schedule | First fire 2026-08-18 09:25:02 EDT | **No.** A timer firing proves the schedule works, not that data was acquired. On 2026-08-18 the wrapper's fail-closed guard correctly refused the run — see §8.1. |
-| **First write** — the collector appends the first quote-sample record to a partition | Not yet occurred. *(A **bar-only** `2026-08-18` partition is expected from the 16:30/16:45 ET `eod`/`freeze` runs — zero quote cycles, INADMISSIBLE, pre-committed as excluded in §8.2.)* | **No.** Bytes on disk are not an admissible partition; the abort-after-30 rule and the completeness thresholds exist precisely because records can be present while sufficiency is absent. |
+| **First write** — the collector appends the first quote-sample record to a partition | **Not yet occurred.** *(Corrected 2026-08-18 ~22:50Z: an earlier draft of this row anticipated a bar-only `2026-08-18` partition from the 16:30/16:45 ET runs. **It was never created** — `mdq-eod` failed closed on the credential identity latch and `freeze` reported `no partitions for 2026-08-18; nothing to freeze`. **No 2026-08-18 bytes exist in the governed corpus.** See the §8.1 correction note.)* | **No.** Bytes on disk are not an admissible partition; the abort-after-30 rule and the completeness thresholds exist precisely because records can be present while sufficiency is absent. |
 | **First admissible governed frozen partition** — freeze completed, `verify` passes, and **every** §7.1 condition in §5 below is satisfied | **Not yet occurred** | **Yes. This and only this.** |
 
 Consequences that follow from the definition and are binding:
@@ -469,6 +469,36 @@ Every trading day on which a first admissible capture was attempted, with its ou
 > accurate about the sampler. **The partition is INADMISSIBLE and the clock still does not start** — the exclusion
 > is pre-committed in **§8.2 below, written before the freeze**.
 
+> **⚠ CORRECTION appended 2026-08-18 ~22:50Z / 18:50 EDT — the note above ANTICIPATED a partition that was never
+> created. Neither note is rewritten; this one supersedes the prediction in the note immediately above it.**
+>
+> The 16:45 ET `freeze` reported, verbatim: `no partitions for 2026-08-18; nothing to freeze`, and exited **0**.
+> **No `2026-08-18` partition exists** — not bar-only, not partial, not at all. The capture root is empty and the
+> S3 mirror holds no `2026-08-18` object. Verified post-hoc: `find /opt/workbench/data/mdq_capture` returns the
+> root directory and nothing beneath it.
+>
+> The reason is a **second, independent fault**, unrelated to the disk. Clearing the free-space breach let
+> `mdq-eod` run for the first time that day, and it reached the acquisition identity latch and **failed closed**:
+>
+> ```text
+> IdentityError: credential fingerprint b56421a28128 != pinned 5b6f39e5198d
+> — refusing to acquire. If the key was rotated, re-pin deliberately.
+> ```
+>
+> The `ALPACA_PAPER_6` key had been rotated on the box at **2026-08-17 21:32 EDT**, roughly two hours after this
+> collector was deployed and pinned. The morning's free-space guard had tripped *before* the identity check ever
+> ran, so the disk fault masked the credential fault; fixing the first is what exposed the second. Both faults are
+> fail-closed controls behaving exactly as designed, and **no bytes were written under either**.
+>
+> **Therefore 2026-08-18 remains shape (i) — a NON-EVENT — for the whole day, not shape (ii).** Row 1 was right as
+> logged and needs no amendment. Nothing from 2026-08-18 exists in the governed corpus to preserve, quarantine or
+> exclude; there is no bar-only annex and no partition to point at. The §8.2 pre-commitment below stands as
+> written and remains correct — it simply turns out to have had no subject. **This distinction matters: the record
+> must not imply that any 2026-08-18 bytes exist in the governed corpus.**
+>
+> The credential was re-pinned to `b56421a28128` under owner authorization on 2026-08-18 (same broker account
+> `PA3BGKRLH2AP`, verified ACTIVE by a read-only `GET /v2/account`); see §2.3.
+
 **Disposition for attempt 1 — owner-supplied text, transcribed VERBATIM (owner review, 2026-08-18).** The status label is a name, not prose; do not paraphrase it. Recorded here rather than inside the table cell so the wording survives intact, and appended rather than written into row 1, which stays as logged.
 
 ```text
@@ -486,6 +516,19 @@ finding about SIP/IEX bar quality and not a K3 FAIL.
 ```
 
 ### 8.2 Pre-commitment — the `2026-08-18` partition is EXCLUDED *(owner ruling, recorded before the freeze)*
+
+> **⚠ Read this first — appended 2026-08-18 ~22:50Z, after the freeze.** The partition this subsection was written
+> about **was never created.** `mdq-eod` failed closed on the credential identity latch and `mdq-freeze` reported
+> `no partitions for 2026-08-18; nothing to freeze`. **No 2026-08-18 bytes exist in the governed corpus** — there
+> is nothing to exclude, quarantine or preserve, and nothing anywhere to point at. See the correction note in §8.1.
+>
+> This subsection is **retained unchanged and remains correct.** Two reasons it is not deleted. First, its value
+> was never conditional on the partition existing: it was written *before* the outcome was known, and a
+> pre-commitment that is discarded once it turns out to be unnecessary is not a pre-commitment — the record of
+> having bound the decision in advance is the artifact. Second, **the two numbered rules below are standing rules,
+> not facts about 2026-08-18**: they govern every future partition, and the first day one of them binds is the
+> first day a partial partition actually freezes. Read the paragraphs below in that light — where they say
+> "this partition," the subject is hypothetical, not historical.
 
 **Written at `2026-08-18T15:19:32Z` (UTC) = `2026-08-18 11:19:32 EDT` (ET).** Both labels are given because the
 timestamp is the whole point of this subsection: it is **before** `mdq-eod` (16:30 ET), **before** `mdq-freeze`
