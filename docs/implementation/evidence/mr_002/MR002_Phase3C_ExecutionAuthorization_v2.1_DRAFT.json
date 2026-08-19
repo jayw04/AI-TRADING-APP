@@ -1,0 +1,115 @@
+{
+ "authorized_by": "UNSIGNED \u2014 awaiting owner acceptance",
+ "authorizes": {
+  "automatic_replacement_opening_on_stop": false,
+  "indivisible": true,
+  "reference_objects_not_consuming_the_opening": 4,
+  "runs": 1,
+  "scope": "EXACTLY ONE indivisible Phase 3C validation execution",
+  "sealed_objects_consuming_the_opening": 6,
+  "sequence": [
+   "1. 6 sealed validation reads through the governed validation reader",
+   "2. ValidationOpenedObjectLedger entries for those reads",
+   "3. 4 identity-bound reference reads under their existing reference authority",
+   "4. deterministic 10-table DuckDB materialization",
+   "5. immediate frozen A/B/C Phase 3C replay -- no inspection interval",
+   "6. validation decision",
+   "7. containment restoration"
+  ],
+  "why_indivisible": "materialization itself reveals the sealed validation data, so there is no materialize-now-replay-later split and no manual inspection interval"
+ },
+ "composition_custody_evidence": {
+  "file_blob_sha256": "40f1c74da40a70bfdff4a88ce0c30c526f6c4c5140e337851090cd99c5fbddf1",
+  "path": "docs/implementation/evidence/mr_002/MR002_Phase3C_RuntimeCompositionCustodyEvidence_v1.0.json"
+ },
+ "credential_readiness_amendment": {
+  "record": "MR002_Phase3C_CredentialReadinessAmendment_v1.0.json",
+  "record_identity_sha256": "6c6dd5c38d67f2b00e4d3c5267a43267e8764070a158dda37466c29dd01cb852"
+ },
+ "economic_decision_unchanged": {
+  "VALIDATION_ADVANCE_REQUEST": "Config B >= 3 of 5 folds net-positive AND Config A cumulative net return > 0 AND Config C cumulative net return > 0 AND replay integrity admissible",
+  "config_C_sparsity": "disclose; do NOT reinterpret after seeing the result",
+  "not_an_oos_pass": "VALIDATION_ADVANCE_REQUEST authorizes only returning for the separate decision whether to open the OOS seal",
+  "otherwise": [
+   "VALIDATION_DO_NOT_ADVANCE",
+   "VALIDATION_INCONCLUSIVE",
+   "INTEGRITY_FAILURE"
+  ]
+ },
+ "execution_authorized": false,
+ "grants": "ONE indivisible Phase 3C validation execution, under the sealed countersignature and the bound package. NOTHING else. OOS remains prohibited.",
+ "no_sealed_byte_before_latch_release": "no sealed validation or OOS byte may be read before the latch opens, and none has been",
+ "opening_state": {
+  "consumed": false,
+  "reason": "owner ruling 2026-08-18 \u2014 the opening stays suspended until the corrected binding chain is sealed and reproduced",
+  "suspended": true
+ },
+ "pre_release_requirement": {
+  "on_any_difference": "STOP WITHOUT OPENING",
+  "preflight": [
+   "this authorization record and the sealed countersignature re-derive from pushed Git",
+   "validation package record identity and file blob unchanged",
+   "pushed checkpoint resolves and is an ancestor of the ref",
+   "Phase 3C identity 872cab26262de2e18e480b7951e78439df47f004a7d47b552ff363b2980c6165 unchanged (amended identity per MR002_Phase3C_CredentialReadinessAmendment_v1.0; supersedes e19e3b44..., which was correct only for the v2.0 chain)",
+   "three typed runtime identities reproduce on the authorized host",
+   "dependency bundle v1.2 inventory reproduces; read-only mount; correct PYTHONPATH",
+   "boto3 and governed-reader import succeed in the exact host composition, offline",
+   "native stack unshadowed at the bound versions; frozen thread environment intact",
+   "materialization destination fresh",
+   "6 sealed + 4 reference declarations match the package exactly",
+   "IAM latch still canonical 44f5549a... / explicitDeny immediately before release",
+   "credential readiness: AccessDenied is the ONLY retryable class; 900s deadline anchored to latch release; first successful AssumeRole is a one-way boundary into the sequence"
+  ],
+  "rule": "before the latch may move from canonical explicitDeny to the authorized validation-read state, this record must reproduce from PUSHED Git and the complete pre-release preflight must pass again"
+ },
+ "produced_at": "2026-08-19T02:25:00Z",
+ "prohibited": [
+  "any OOS read",
+  "Sharpe >= 0.70 evaluation",
+  "stationary bootstrap",
+  "DSR",
+  "OOS cost-stress gates",
+  "parameter tuning",
+  "changing A/B/C, exits, reduction mechanics, costs, borrow, folds or gates",
+  "solver tolerance/epsilon change, jitter, third attempt, fallback by analogy",
+  "retrying with a modified package",
+  "manual inspection followed by a second validation run"
+ ],
+ "pushed_checkpoint": "76e1a3d33291fb78d4ceed4c1322ce959ec6432a",
+ "record_identity_sha256": "ddd686b88055534baa152db0e0683cddad50746a8d81d934e7cf7d5e80dd6d28",
+ "record_type": "MR002_PHASE3C_EXECUTION_AUTHORIZATION",
+ "sealed_countersignature": {
+  "file_blob_sha256": "c5e7077284e82beb12d2dc55a319638fec6e46e2cf41bdc7a739e8797aab1c1f",
+  "record": "MR002_Phase3C_ExecutionCountersignature_v2.1_DRAFT.json",
+  "record_identity_sha256": "5d265f462aadb4cfc42d80c7ca1c8b68762f81c99fc88c370a318d6e2cd93020"
+ },
+ "source_identity_correction": {
+  "file_blob_sha256": "e7bb57918bcc7e6d9d2ac6d7cde3897d7e61642da331a6ceb029dd0507f60df1",
+  "record": "MR002_SourceIdentityCorrection_v1.0.json",
+  "record_identity_sha256": "16f2305758552a586867fcf7546b9d2aac2f87e760890b9e8352ed6e30b28d9c"
+ },
+ "status": "DRAFT \u2014 NOT EFFECTIVE. Execution authority is the owner's act.",
+ "supersedes": {
+  "record": "MR002_Phase3C_ExecutionAuthorization_v2.0_DRAFT.json",
+  "record_identity_sha256": "c53edf897a57b4b3bd0dd1e2ea4249fb7115f12f856a9043aecf75a7c072468f",
+  "treatment": "NOT modified. v2.0 was owner-accepted and effective in scope but binds package v2.1 by identity; the credential-readiness amendment changed the executed control path, so a successor is required before another latch release."
+ },
+ "validation_execution_package": {
+  "file_blob_sha256": "85f002c8b8b9c57008f734f0fc82f3d89966875e2bc2ba8db01b46232693df6b",
+  "record": "MR002_Phase3C_ValidationExecutionPackage_v2.2.json",
+  "record_identity_sha256": "93126db3094ee2994a446c9af24f264799c129ab1b20ccae1e46891a920ed687"
+ },
+ "version": "2.1",
+ "what_this_changes": [
+  "binds the amended Phase 3C identity 872cab26262de2e1...",
+  "binds the credential-readiness amendment, package v2.2 and countersignature v2.1",
+  "amends ONLY the pre-sealed-read credential-acquisition phase"
+ ],
+ "what_this_does_not_do": [
+  "does not modify any prior sealed artifact",
+  "does not grant execution authority \u2014 that requires owner acceptance",
+  "does not alter the validation decision rule, the gates, the 6+4 input contract, the materializer or Stage-3 semantics",
+  "does not authorize any OOS access",
+  "does not modify the reader trust policy, which is frozen as NON-DEFECTIVE"
+ ]
+}
