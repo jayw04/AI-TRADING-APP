@@ -3,9 +3,11 @@
 from __future__ import annotations
 
 from collections.abc import AsyncIterator
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from decimal import Decimal
+from unittest.mock import AsyncMock, MagicMock, patch
 
+import pandas as pd
 import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy.ext.asyncio import async_sessionmaker
@@ -23,7 +25,7 @@ def _now() -> datetime:
     return datetime.now(UTC)
 
 
-async def _seed(factory: async_sessionmaker) -> None:
+async def _seed(factory: async_sessionmaker, *, with_today_signal: bool = True) -> None:
     async with factory() as session:
         session.add(User(id=1, email="jay@test"))
         session.add(User(id=2, email="other@test"))
@@ -33,17 +35,33 @@ async def _seed(factory: async_sessionmaker) -> None:
         session.add(
             Strategy(
                 id=1, user_id=1, name="Range Trader", status=StrategyStatus.PAPER,
-                symbols_json=["AAPL", "MSFT"], created_at=_now(), updated_at=_now(),
+                symbols_json=["AAPL", "MSFT"],
+                params_json={
+                    "level_mode": "opening_range",
+                    "opening_range_minutes": 15,
+                    "stop_buffer_pct": 0.005,
+                },
+                created_at=_now(), updated_at=_now(),
             )
         )
-        # AAPL has published levels + a held position; MSFT has no levels yet (forming).
-        session.add(
-            Signal(
-                user_id=1, strategy_id=1, symbol_id=1, type=SignalType.INFO,
-                payload_json={"kind": "range_levels", "buy": 100.0, "sell": 110.0, "stop": 98.0},
-                received_at=_now(),
+        if with_today_signal:
+            # AAPL has published levels + a held position; MSFT has no levels yet (forming).
+            session.add(
+                Signal(
+                    user_id=1, strategy_id=1, symbol_id=1, type=SignalType.INFO,
+                    payload_json={"kind": "range_levels", "buy": 100.0, "sell": 110.0, "stop": 98.0},
+                    received_at=_now(),
+                )
             )
-        )
+        else:
+            # Stale Friday signal must NOT satisfy the everyday "today's levels" rule.
+            session.add(
+                Signal(
+                    user_id=1, strategy_id=1, symbol_id=1, type=SignalType.INFO,
+                    payload_json={"kind": "range_levels", "buy": 1.0, "sell": 2.0, "stop": 0.5},
+                    received_at=_now() - timedelta(days=3),
+                )
+            )
         session.add(Position(user_id=1, account_id=1, symbol_id=1, qty=Decimal("5"), updated_at=_now()))
         # another user's strategy (ownership boundary)
         session.add(
@@ -90,7 +108,7 @@ async def test_range_levels_shows_published_levels_and_position(client) -> None:
     assert aapl["buy"] == 100.0 and aapl["sell"] == 110.0 and aapl["stop"] == 98.0
     assert aapl["position_qty"] == 5.0
     assert aapl["status"] == "holding"
-    # MSFT: no published levels yet → forming, flat
+    # MSFT: no published levels yet → forming, flat (no bar_cache in test app)
     msft = rows["MSFT"]
     assert msft["buy"] is None
     assert msft["position_qty"] == 0.0
@@ -100,3 +118,51 @@ async def test_range_levels_shows_published_levels_and_position(client) -> None:
 async def test_range_levels_foreign_strategy_is_404(client) -> None:
     resp = await client.get("/api/v1/range-levels?strategy_id=2")
     assert resp.status_code == 404
+
+
+async def test_range_levels_computes_when_today_signal_missing() -> None:
+    """Everyday rule: after OR closes, fill UI from bars if no today's signal."""
+    from app.config import get_settings
+    from app.db import models  # noqa: F401
+    from app.db.base import Base
+    from app.db.session import get_engine, get_sessionmaker
+    from app.main import create_app
+
+    get_settings.cache_clear()
+    get_engine.cache_clear()
+    get_sessionmaker.cache_clear()
+    engine = get_engine()
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+    await _seed(get_sessionmaker(), with_today_signal=False)
+
+    bar_cache = MagicMock()
+    # Price lookup best-effort; compute path is patched below.
+    bar_cache.get_bars = AsyncMock(return_value=pd.DataFrame())
+
+    app = create_app()
+    app.state.bar_cache = bar_cache
+
+    async def _fake_compute(cache, symbol, **kwargs):
+        return (99.0, 108.0, round(99.0 * 0.995, 4))
+
+    with patch(
+        "app.api.v1.range_levels.compute_opening_levels_from_cache",
+        new=AsyncMock(side_effect=_fake_compute),
+    ):
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+            resp = await ac.get("/api/v1/range-levels")
+
+    assert resp.status_code == 200, resp.text
+    rows = {r["symbol"]: r for r in resp.json()["rows"]}
+    # Stale Friday signal ignored; levels come from the compute fallback.
+    assert rows["AAPL"]["buy"] == 99.0
+    assert rows["AAPL"]["sell"] == 108.0
+    assert rows["AAPL"]["stop"] == round(99.0 * 0.995, 4)
+    assert rows["AAPL"]["status"] == "holding"  # still has position
+    assert rows["MSFT"]["buy"] == 99.0
+    assert rows["MSFT"]["status"] != "forming"
+
+    await engine.dispose()
+    get_engine.cache_clear()
+    get_sessionmaker.cache_clear()
