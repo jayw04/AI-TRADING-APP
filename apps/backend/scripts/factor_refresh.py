@@ -629,6 +629,10 @@ def verify_staging(
             live_effective=live_eff,
             non_fresh=non_fresh,
             cutoff=cutoff,
+            # The corroboration block is a past observation; it is judged against the
+            # cutoff of its own moment, not this run's. See classify_stale_symbol.
+            tolerance_days=max_lag_days,
+            as_of=date.today(),
             evidence=evidence or {},
             operational=operational or {},
         )

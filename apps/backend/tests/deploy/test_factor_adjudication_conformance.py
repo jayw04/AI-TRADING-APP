@@ -94,6 +94,9 @@ def _record(symbol, *, claim, alive):
         "requested": True,
         "request_status": "ok",
         "provider_rows_after_live_frontier": 0,
+        # Observed at the frontier, so the observation-time cutoff equals the run's
+        # cutoff and these dates mean what they meant before the 2026-08-19 fix.
+        "adjudicated_at_utc": f"{FRONTIER.isoformat()}T19:30:57Z",
         "corroboration": {
             "source": "alpaca",
             "control_symbol": "AAPL",
