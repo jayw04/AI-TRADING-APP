@@ -1,0 +1,196 @@
+{
+ "IMPORTANT": "This is NOT a ValidationOpenedObjectLedger. The original hash-chained ledger was never persisted: the launcher serialises its report only on success, and the run died in replay. That loss is a RECORDED LIMITATION and is not repaired by this record.",
+ "authority": "Owner ruling 2026-08-19 \u2014 metadata-only custody reconstruction AUTHORIZED",
+ "conformance": {
+  "every_reference_version_id_matches_package": true,
+  "every_sealed_version_id_matches_package": true,
+  "exactly_four_reference": true,
+  "exactly_one_successful_assume_role": true,
+  "exactly_six_sealed": true,
+  "no_read_errors": true,
+  "zero_oos_reads": true
+ },
+ "counts": {
+  "oos_expected": 0,
+  "oos_reads": 0,
+  "reader_role_assumptions": 1,
+  "reference_expected": 4,
+  "reference_reads": 4,
+  "sealed_expected": 6,
+  "sealed_reads": 6,
+  "successful_reader_assumptions": 1
+ },
+ "execution": {
+  "authorization": "MR002_Phase3C_ExecutionAuthorization_v2.1 / ddd686b8",
+  "countersignature": "MR002_Phase3C_ExecutionCountersignature_v2.1 / 5d265f46",
+  "package": "MR002_Phase3C_ValidationExecutionPackage_v2.2 / 93126db3",
+  "phase3c_identity": "872cab26262de2e18e480b7951e78439df47f004a7d47b552ff363b2980c6165",
+  "pushed_checkpoint": "eb0351c098f6463036d511eefab03326072bcec2"
+ },
+ "governed_latch_mutations": [
+  {
+   "event_time": "2026-08-19T00:26:56Z",
+   "policy": "mr002-phase3c-qualification-only",
+   "statements": 7
+  },
+  {
+   "event_time": "2026-08-19T00:27:08Z",
+   "policy": "mr002-phase3c-qualification-only",
+   "statements": 8
+  },
+  {
+   "event_time": "2026-08-19T12:49:23Z",
+   "policy": "mr002-phase3c-qualification-only",
+   "statements": 7
+  },
+  {
+   "event_time": "2026-08-19T12:56:40Z",
+   "policy": "mr002-phase3c-qualification-only",
+   "statements": 8
+  }
+ ],
+ "materialized_artifact": {
+  "bytes": 14430208,
+  "content_inspected": false,
+  "host": "i-00c1034f7026db45e",
+  "immutable_bit": true,
+  "mode": "0444",
+  "mtime_utc": "2026-08-19T12:54:47.837548664Z",
+  "note": "Contains the consumed sealed validation population. Hashed only. Querying it, extracting the failing QP instance, or reconstructing A/B/C returns from it is NOT AUTHORIZED.",
+  "path": "/opt/mr002/work/validation.duckdb",
+  "sha256": "c4cabab228e7824144036afde09f5c949d9dea6144eb0b24d41e1fcad0856c82"
+ },
+ "method": {
+  "duckdb_hashed_only": true,
+  "duckdb_opened": false,
+  "no_sealed_content_read": true,
+  "sources": [
+   "CloudTrail S3 data events (trail mr002-custody-trail, which logs AWS::S3::Object for the sealed bucket)",
+   "CloudTrail management events (AssumeRole, PutRolePolicy)",
+   "object identities already fixed by validation package v2.2",
+   "the materialized file's own size and SHA-256"
+  ]
+ },
+ "produced_at_utc": "2026-08-19T13:20:00Z",
+ "reader_assumptions": [
+  {
+   "credentials_issued": true,
+   "error_code": null,
+   "event_time": "2026-08-19T12:54:46Z",
+   "role": "mr002-validation-reader"
+  }
+ ],
+ "record_identity_sha256": "8218ad62f1cb358fbb96782a85378c92570cfd8f50b004365bd91431f767ba1d",
+ "record_type": "RECONSTRUCTED_EXECUTION_CUSTODY_EVIDENCE",
+ "reference_reads": [
+  {
+   "declared_in_package": true,
+   "error_code": null,
+   "event_time": "2026-08-19T12:54:47Z",
+   "key": "reference/crosswalk.parquet",
+   "request_id": "RV4H9BYD2KBES1X9",
+   "version_id": "ux3JpvSp7lSneFcMHhxRZ_Tp6_gx60eK",
+   "version_id_matches_package": true
+  },
+  {
+   "declared_in_package": true,
+   "error_code": null,
+   "event_time": "2026-08-19T12:54:47Z",
+   "key": "reference/security_sector_overrides.parquet",
+   "request_id": "RV4XBTYHTDNQ8ZHG",
+   "version_id": "MuimDnyOSLtRX6BaG2Ll525ox9Hoz6ns",
+   "version_id_matches_package": true
+  },
+  {
+   "declared_in_package": true,
+   "error_code": null,
+   "event_time": "2026-08-19T12:54:47Z",
+   "key": "reference/sic_mapping.parquet",
+   "request_id": "RV4ZC1A2PFG5HMBG",
+   "version_id": "_wAa1EJ0wECpUcd4DH7KhrYsYl765kWL",
+   "version_id_matches_package": true
+  },
+  {
+   "declared_in_package": true,
+   "error_code": null,
+   "event_time": "2026-08-19T12:54:47Z",
+   "key": "reference/predecessor_overrides.parquet",
+   "request_id": "RV4ZC4ZXQVFRRPT8",
+   "version_id": "Srj0T5D.VqjtTULkrLwynvhPeWf422I7",
+   "version_id_matches_package": true
+  }
+ ],
+ "sealed_reads": [
+  {
+   "declared_in_package": true,
+   "error_code": null,
+   "event_time": "2026-08-19T12:54:46Z",
+   "key": "validation/anchors.parquet",
+   "request_id": "JQ67JTN4WTQP3AGY",
+   "version_id": "7Br5aFGWFabpIJmPgwUBQRgdhQwc2GIK",
+   "version_id_matches_package": true
+  },
+  {
+   "declared_in_package": true,
+   "error_code": null,
+   "event_time": "2026-08-19T12:54:46Z",
+   "key": "validation/etf_prices.parquet",
+   "request_id": "JQ6AS4APHVHZ4ZC4",
+   "version_id": ".mZyHPHgamUNlHpdePGQZq.djUapjrpo",
+   "version_id_matches_package": true
+  },
+  {
+   "declared_in_package": true,
+   "error_code": null,
+   "event_time": "2026-08-19T12:54:46Z",
+   "key": "validation/actions.parquet",
+   "request_id": "JQ6BBXDFR7WQDCDZ",
+   "version_id": "wJ6QFkebGAidGzoWO.qzUMYjy.b6zLrx",
+   "version_id_matches_package": true
+  },
+  {
+   "declared_in_package": true,
+   "error_code": null,
+   "event_time": "2026-08-19T12:54:47Z",
+   "key": "validation/prices.parquet",
+   "request_id": "JQ6D3363JTYMDT6M",
+   "version_id": "eC8XZGBPXa6vPDW_WKPvwV8HtF05_tty",
+   "version_id_matches_package": true
+  },
+  {
+   "declared_in_package": true,
+   "error_code": null,
+   "event_time": "2026-08-19T12:54:47Z",
+   "key": "validation/universe.parquet",
+   "request_id": "RV4VDXKZJDN2E3MK",
+   "version_id": "8Le8rLdT2wvdSenjEQdPaUAgdmSzx3ZO",
+   "version_id_matches_package": true
+  },
+  {
+   "declared_in_package": true,
+   "error_code": null,
+   "event_time": "2026-08-19T12:54:47Z",
+   "key": "validation/sic_observations.parquet",
+   "request_id": "RV4XC7J38E1M6B13",
+   "version_id": "OkvwAKSX8W8W3HJiBoxZ9KC4ON6Vgj5t",
+   "version_id_matches_package": true
+  }
+ ],
+ "timeline_utc": {
+  "containment_restored": "2026-08-19T12:56:40Z",
+  "credential_readiness_elapsed_seconds": 323,
+  "first_sealed_read": "2026-08-19T12:54:46Z",
+  "first_successful_assume_role": "2026-08-19T12:54:46Z",
+  "last_reference_read": "2026-08-19T12:54:47Z",
+  "latch_released": "2026-08-19T12:49:23Z",
+  "materialization_completed": "2026-08-19T12:54:47.837548664Z",
+  "measured_reference_propagation_seconds": 286.102,
+  "readiness_deadline_seconds": 900
+ },
+ "version": "1.0",
+ "what_this_cannot_establish": [
+  "the hash-chained row sequence the ValidationOpenedObjectLedger would have carried",
+  "the launcher's own in-process attestation of read order and partition classification",
+  "per-object SHA-256 verification as performed by the reader at read time"
+ ]
+}

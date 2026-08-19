@@ -1,0 +1,63 @@
+{
+ "consequences": {
+  "current_validation_partition": "DO NOT REOPEN",
+  "duckdb_inspection": "NOT AUTHORIZED \u2014 preserve and hash only",
+  "if_solver_method_changes": "treat as NEW method development, qualify on development data, and return for a decision about what constitutes a clean new validation experiment \u2014 which may require a new untouched holdout rather than another opening of the already-revealed validation partition",
+  "oos": "NOT AUTHORIZED",
+  "piqp_investigation": "DEVELOPMENT DATA ONLY",
+  "reason": "Any change that lets the solver continue past this instance would be a post-validation adaptation informed by the validation corpus; reopening the same partition afterwards would no longer be a clean validation verdict.",
+  "replacement_opening": "NOT GRANTED"
+ },
+ "credential_readiness_amendment": {
+  "deadline_seconds": 900,
+  "first_success_seconds_after_latch_release": 323,
+  "no_discretionary_pause": true,
+  "outcome": "WORKED AS DESIGNED",
+  "successful_assume_role_calls": 1
+ },
+ "custody": {
+  "consumed_at": "2026-08-19T12:54:46Z (first sealed validation read)",
+  "containment_restored_byte_identically": true,
+  "latch_canonical_sha256": "44f5549a97042d2829a3027e764105b0ab272774ec3bb343d224bfba999fab48",
+  "one_run_authority": "SPENT",
+  "oos_access": "NONE \u2014 0 OOS reads observed in CloudTrail data events",
+  "opening": "CONSUMED"
+ },
+ "economic_result": {
+  "abc_economic_gates": "NOT EVALUATED",
+  "config_A_cumulative_return": "NOT PRODUCED",
+  "config_B_positive_folds": "NOT PRODUCED",
+  "config_C_cumulative_return": "NOT PRODUCED",
+  "config_C_sparsity": "NOT PRODUCED",
+  "gates_evaluated": false,
+  "rationale": "When replay integrity is not admissible the frozen gate implementation short-circuits to INTEGRITY_FAILURE with gates_evaluated false; a replay definition/integrity failure is never reported as an economic verdict.",
+  "validation_economic_verdict": "NONE"
+ },
+ "execution_disposition": "INTEGRITY_FAILURE",
+ "headline": "The strongest result from this run is not that MR-002 failed economically. It is that the current implementation has not demonstrated it can produce a valid validation-stage economic result on unseen data.",
+ "owner_ruling": "2026-08-19 \u2014 FINAL DISPOSITION FOR THIS OPENING: INTEGRITY_FAILURE. Not VALIDATION_INCONCLUSIVE, and NOT VALIDATION_DO_NOT_ADVANCE, which would falsely imply the economic gates ran and failed.",
+ "produced_at_utc": "2026-08-19T13:20:00Z",
+ "pushed_checkpoint": "eb0351c098f6463036d511eefab03326072bcec2",
+ "record_identity_sha256": "1050069b52a91d57d59f6ebcb2e517d84616d346f06f3f0c7832e13d7d8ca653",
+ "record_type": "MR002_Phase3C_ValidationExecutionOutcome",
+ "recorded_limitation": {
+  "defect": "EXECUTION_EVIDENCE_NOT_DURABLE",
+  "description": "The launcher serialises its report only after a successful replay, so validation_result.json was never written and the in-memory ValidationOpenedObjectLedger was lost when replay raised. For a consumed one-time opening, evidence must survive the very failures it documents.",
+  "partial_recovery": "MR002_Phase3C_ReconstructedExecutionCustodyEvidence_v1.0 (metadata only, explicitly NOT the ledger)",
+  "remediation_authorized": "durable-ledger launcher amendment, owner ruling 2026-08-19",
+  "severity": "the original ledger for this consumed opening does not exist and cannot be recreated"
+ },
+ "stop": {
+  "call_path": [
+   "phase3c/replay.py:215 run_config_validation -> build_joint",
+   "joint_portfolio.py:732 _solve_qp",
+   "stage3_route.py:90 _routed_solve_qp raise Stage3Stop"
+  ],
+  "detail": "fallback integrity defect: UNREGISTERED_EXCEPTION:RuntimeError:status Status.PIQP_MAX_ITER_REACHED",
+  "disposition": "INVALID_RUN",
+  "novelty": "This numerical state did NOT occur anywhere in the 3,895-solve Stage-3 development qualification. It is validation information.",
+  "raised_by": "app.research.mr002.stage3_route.Stage3Stop",
+  "why_this_classification": "PIQP_MAX_ITER_REACHED is not a member of the closed eligibility enum, so the bound rule 'default_for_unrecognized: INTEGRITY_DEFECT - never fallback-eligible, never by analogy' applied. The gate behaved exactly as specified."
+ },
+ "version": "1.0"
+}

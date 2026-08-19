@@ -48,6 +48,12 @@ from app.research.mr002.phase3c import gates as G  # noqa: E402
 from app.research.mr002.phase3c.credential_readiness import (  # noqa: E402
     acquire_reader_credentials,
 )
+from app.research.mr002.phase3c.durable_evidence import (  # noqa: E402
+    EvidenceJournal,
+    JournalingReader,
+    materialization_complete,
+    terminal,
+)
 from app.research.mr002.phase3c.materialize import TableSource, materialize  # noqa: E402
 from app.research.mr002.phase3c.replay import run_config_validation  # noqa: E402
 from app.research.mr002.runner import CONFIGS  # noqa: E402
@@ -77,6 +83,10 @@ REFERENCE = {
                                   "MuimDnyOSLtRX6BaG2Ll525ox9Hoz6ns"),
 }
 ZERO = "0" * 64
+
+# Set by main() as soon as the journal exists, so the terminal record can be written from
+# EVERY exit path -- including the replay failure that destroyed the 2026-08-19 evidence.
+_JOURNAL = None
 
 
 def _object_hashes(manifest_path: str) -> dict:
@@ -130,6 +140,8 @@ def main() -> int:
                     help="epoch seconds at which the latch Deny was removed; bounds the "
                          "readiness deadline. Absent => measured from process start.")
     ap.add_argument("--materialized", required=True)
+    ap.add_argument("--journal", default=None,
+                    help="durable evidence journal (JSONL). Default: <out>.journal.jsonl")
     ap.add_argument("--out", required=True)
     args = ap.parse_args()
 
@@ -164,6 +176,19 @@ def main() -> int:
         raise IntegrityFailure("INPUT_CONTRACT_MISMATCH",
                                f"{len(sealed_meta)} sealed / {len(sources)} total")
 
+    # ---- durable evidence journal ---------------------------------------------------------
+    # Opened BEFORE any read. Every sealed object is journalled and fsync'd as it is opened, so
+    # a later failure -- including a replay failure on a CONSUMED opening -- cannot destroy the
+    # custody record. The final report aggregates these rows; it is never their only copy.
+    global _JOURNAL
+    journal = EvidenceJournal(args.journal or (args.out + ".journal.jsonl"))
+    _JOURNAL = journal
+    journal.append("run_opened", {
+        "reader_kind": args.reader, "window": args.window,
+        "authorization": report["authorization"], "countersignature": report["countersignature"],
+        "package": report["package"], "sealed_declared": len(SEALED),
+        "reference_declared": len(REFERENCE), "materialized_path": args.materialized})
+
     # ---- reader ------------------------------------------------------------------------------
     if args.reader == "s3":
         import boto3
@@ -182,9 +207,11 @@ def main() -> int:
             aws_session_token=creds["SessionToken"]))
     else:
         reader = FixtureReader(args.fixture_root)
+    reader = JournalingReader(reader, journal)
 
     # ---- THE INDIVISIBLE SEQUENCE ------------------------------------------------------------
     ev = materialize(sources, reader, args.materialized)
+    materialization_complete(journal, args.materialized, ev)
     report["materialization"] = {k: v for k, v in ev.items() if k != "objects_opened"}
     report["objects_opened"] = ev["objects_opened"]
     report["opened_object_ledger"] = _ledger(
@@ -264,4 +291,18 @@ def main() -> int:
 
 
 if __name__ == "__main__":
-    raise SystemExit(main())
+    try:
+        _rc = main()
+    except BaseException as _exc:                     # noqa: BLE001 - evidence, then re-raise
+        if _JOURNAL is not None:
+            try:
+                terminal(_JOURNAL, "FAILED", f"{type(_exc).__name__}: {_exc}")
+                _JOURNAL.close()
+            except Exception:                         # noqa: BLE001 - never mask the real failure
+                pass
+        raise
+    else:
+        if _JOURNAL is not None:
+            terminal(_JOURNAL, "COMPLETED", "")
+            _JOURNAL.close()
+        raise SystemExit(_rc)
