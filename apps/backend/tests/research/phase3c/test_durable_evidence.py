@@ -1,4 +1,7 @@
-"""Evidence-durability qualification.
+"""Evidence-durability qualification (first generation, kept as the failure-point matrix).
+
+Event vocabulary is the two-phase protocol: read_intent -> read_verified / read_failed.
+The per-phase intent/outcome semantics are qualified in test_durable_evidence_two_phase.py.
 
 The 2026-08-19 validation run consumed the one-time opening and then lost its entire custody
 record because the launcher wrote evidence only on success. These tests fail the run at each of
@@ -98,7 +101,7 @@ def test_evidence_survives_failure_after_first_sealed_object(tmp_path):
     jpath, exc = _drive(tmp_path, fail_after=1)
     assert exc is not None
     js = rows(jpath)
-    opened = [r for r in js if r["kind"] == "object_opened"]
+    opened = [r for r in js if r["kind"] == "read_verified"]
     assert len(opened) == 1
     assert opened[0]["object_id"] == "validation/t1.parquet"
     assert opened[0]["version_id"] == "vid1"
@@ -112,7 +115,7 @@ def test_evidence_survives_failure_after_sixth_sealed_object(tmp_path):
     jpath, exc = _drive(tmp_path, fail_after=6)
     assert exc is not None
     js = rows(jpath)
-    opened = [r for r in js if r["kind"] == "object_opened"]
+    opened = [r for r in js if r["kind"] == "read_verified"]
     assert len(opened) == 6
     assert [o["object_id"] for o in opened] == [o.key for o in SEALED]
     assert all(o["partition"] == "VALIDATION" for o in opened)
@@ -126,7 +129,7 @@ def test_evidence_survives_failure_at_materialization(tmp_path):
     jpath, exc = _drive(tmp_path, fail_at_materialization=True)
     assert exc is not None
     js = rows(jpath)
-    opened = [r for r in js if r["kind"] == "object_opened"]
+    opened = [r for r in js if r["kind"] == "read_verified"]
     assert len(opened) == 10
     assert sum(1 for o in opened if o["partition"] == "VALIDATION") == 6
     assert sum(1 for o in opened if o["partition"] == "REFERENCE") == 4
@@ -141,7 +144,7 @@ def test_evidence_survives_failure_during_replay(tmp_path):
     jpath, exc = _drive(tmp_path, fail_in_replay=True)
     assert exc is not None
     js = rows(jpath)
-    opened = [r for r in js if r["kind"] == "object_opened"]
+    opened = [r for r in js if r["kind"] == "read_verified"]
     assert len(opened) == 10, "all ten reads must survive a replay failure"
     assert sum(1 for o in opened if o["partition"] == "VALIDATION") == 6
     mat = [r for r in js if r["kind"] == "materialization_complete"]
@@ -161,7 +164,8 @@ def test_success_path_records_the_full_sequence(tmp_path):
     js = rows(jpath)
     kinds = [r["kind"] for r in js]
     assert kinds[0] == "run_opened"
-    assert kinds.count("object_opened") == 10
+    assert kinds.count("read_intent") == 10
+    assert kinds.count("read_verified") == 10
     assert "materialization_complete" in kinds
     assert kinds[-1] == "terminal" and js[-1]["disposition"] == "COMPLETED"
     assert chain_verifies(js)
@@ -174,7 +178,7 @@ def test_materialization_evidence_precedes_replay(tmp_path):
     mat_i = next(i for i, r in enumerate(js) if r["kind"] == "materialization_complete")
     term_i = next(i for i, r in enumerate(js) if r["kind"] == "terminal")
     assert mat_i < term_i
-    assert all(r["kind"] == "object_opened" for r in js[1:mat_i])
+    assert all(r["kind"] in ("read_intent", "read_verified") for r in js[1:mat_i])
 
 
 # ---- fail-closed: unjournalable evidence stops the run ----------------------------------------------
@@ -189,7 +193,7 @@ def test_append_failure_is_fail_closed(tmp_path):
     j = EvidenceJournal(str(tmp_path / "j.jsonl"))
     j._fh.close()                                    # simulate a broken evidence sink
     with pytest.raises(EvidenceJournalFailure):
-        j.append("object_opened", {"object_id": "validation/t1.parquet"})
+        j.append("read_intent", {"object_id": "validation/t1.parquet"})
 
 
 def test_read_does_not_proceed_when_evidence_cannot_be_written(tmp_path):

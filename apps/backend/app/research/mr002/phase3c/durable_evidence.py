@@ -17,11 +17,25 @@ This module adds NO economic semantics and changes NO solver behaviour. It does 
 governed reader or the materializer: it wraps the reader, so `materialize()` and
 `S3PinnedReader` keep their bound bytes.
 
-Failure to journal is FAIL-CLOSED: if evidence cannot be made durable, the read does not proceed.
+Evidence is TWO-PHASE. A remote read cannot be journalled as completed before it happens, because
+until the governed reader returns you do not know whether verification succeeded. So:
+
+    fsync read_intent (exact bound object identity)  ->  governed read
+        -> fsync read_verified  (or read_failed, if that can still be written)
+
+An earlier version journalled only AFTER the read and claimed "a read never proceeds
+un-evidenced". That claim was false: if the append failed after a successful read, the sealed byte
+had already been read with no durable row. The intent row is what actually bounds the opening --
+it proves an attempt on a specific pinned object existed, even if the process dies immediately
+after the read.
+
+A journal whose last intent has no matching outcome row is EVIDENCE_INCOMPLETE. Such a run is
+never silently treated as complete; see `reconcile`.
 """
 
 from __future__ import annotations
 
+import contextlib
 import hashlib
 import json
 import os
@@ -46,6 +60,23 @@ class EvidenceJournal:
         self.path = path
         self.prev_hash = ZERO
         self.sequence = 0
+        # An append-only journal RESUMES: a restarted process appending to an existing file must
+        # continue the chain and the sequence, not fork them. Otherwise a second journal instance
+        # restarts at sequence 1, colliding with earlier rows and making intent/outcome matching
+        # ambiguous exactly in the process-death case this protocol exists to cover.
+        if os.path.exists(path):
+            try:
+                with open(path, encoding="utf-8") as fh:
+                    for line in fh:
+                        line = line.strip()
+                        if not line:
+                            continue
+                        row = json.loads(line)
+                        self.sequence = max(self.sequence, int(row.get("sequence", 0)))
+                        self.prev_hash = row.get("row_hash", self.prev_hash)
+            except Exception as exc:      # noqa: BLE001 - an unreadable journal is fail-closed
+                raise EvidenceJournalFailure(
+                    f"cannot resume evidence journal {path}: {type(exc).__name__}: {exc}") from exc
         try:
             directory = os.path.dirname(os.path.abspath(path))
             os.makedirs(directory, exist_ok=True)
@@ -93,10 +124,10 @@ class EvidenceJournal:
 
 
 class JournalingReader:
-    """Wraps the governed reader and durably journals every object as it is opened.
+    """Wraps the governed reader with the two-phase evidence protocol.
 
-    Delegates reads unchanged. The wrapped reader's own verification still runs; this only records
-    that it happened, before control returns to the materializer.
+    The inner reader is NEVER touched: it keeps its bound bytes and its own verification. This
+    only bounds each read with durable intent/outcome rows.
     """
 
     def __init__(self, inner: Any, journal: EvidenceJournal):
@@ -109,15 +140,40 @@ class JournalingReader:
         return getattr(self._inner, "reads", [])
 
     def read(self, obj) -> bytes:
-        payload = self._inner.read(obj)
-        self._journal.append("object_opened", {
+        # PHASE 1 -- durable BEFORE the governed read. If this cannot be persisted the read does
+        # not happen at all, so no sealed byte is ever touched without a durable intent bounding it.
+        intent = self._journal.append("read_intent", {
             "object_id": obj.key,
             "bucket": getattr(obj, "bucket", None),
             "version_id": obj.version_id,
             "partition": getattr(obj, "partition", None),
             "declared_sha256": getattr(obj, "sha256", None),
-            "bytes": len(payload),
             "reader_kind": self.reader_kind,
+        })
+
+        try:
+            payload = self._inner.read(obj)
+        except BaseException as exc:                   # noqa: BLE001 - record, then re-raise
+            # best-effort: a broken evidence sink must never mask the real read failure
+            with contextlib.suppress(EvidenceJournalFailure):
+                self._journal.append("read_failed", {
+                    "intent_sequence": intent["sequence"],
+                    "intent_row_hash": intent["row_hash"],
+                    "object_id": obj.key,
+                    "error": f"{type(exc).__name__}: {exc}"[:1000],
+                })
+            raise
+
+        # PHASE 2 -- outcome. If THIS cannot be persisted the run stops: the intent row already
+        # records that this exact pinned object was opened, so the boundary is not lost.
+        self._journal.append("read_verified", {
+            "intent_sequence": intent["sequence"],
+            "intent_row_hash": intent["row_hash"],
+            "object_id": obj.key,
+            "version_id": obj.version_id,
+            "partition": getattr(obj, "partition", None),
+            "bytes": len(payload),
+            "reader_verification": "PASSED",
         })
         return payload
 
@@ -144,3 +200,41 @@ def materialization_complete(journal: EvidenceJournal, out_path: str, evidence: 
 def terminal(journal: EvidenceJournal, disposition: str, detail: str = "") -> dict:
     """Written on EVERY exit path, including exceptions."""
     return journal.append("terminal", {"disposition": disposition, "detail": detail[:2000]})
+
+
+def reconcile(rows: list[dict]) -> dict:
+    """Reconcile intent rows against outcome rows and verify the hash chain.
+
+    A run whose journal contains an intent with no matching read_verified/read_failed is
+    EVIDENCE_INCOMPLETE -- the process may have died between the governed read and the outcome
+    append, so that object may or may not have been opened. It is never reported as complete.
+    """
+    prev, chain_ok = ZERO, True
+    for r in rows:
+        if r.get("prev_hash") != prev:
+            chain_ok = False
+        recomputed = hashlib.sha256(
+            json.dumps({k: v for k, v in r.items() if k != "row_hash"},
+                       sort_keys=True, separators=(",", ":")).encode()).hexdigest()
+        if recomputed != r.get("row_hash"):
+            chain_ok = False
+        prev = r.get("row_hash")
+
+    intents = {r["sequence"]: r for r in rows if r.get("kind") == "read_intent"}
+    resolved = {r.get("intent_sequence") for r in rows
+                if r.get("kind") in ("read_verified", "read_failed")}
+    unresolved = sorted(set(intents) - {s for s in resolved if s is not None})
+    verified = [r for r in rows if r.get("kind") == "read_verified"]
+    return {
+        "chain_verifies": chain_ok,
+        "intents": len(intents),
+        "verified": len(verified),
+        "failed": sum(1 for r in rows if r.get("kind") == "read_failed"),
+        "unresolved_intents": unresolved,
+        "unresolved_objects": [intents[s]["object_id"] for s in unresolved],
+        "evidence_complete": chain_ok and not unresolved,
+        "classification": ("EVIDENCE_COMPLETE" if chain_ok and not unresolved
+                           else "EVIDENCE_INCOMPLETE"),
+        "sealed_verified": sum(1 for r in verified if r.get("partition") == "VALIDATION"),
+        "reference_verified": sum(1 for r in verified if r.get("partition") == "REFERENCE"),
+    }
