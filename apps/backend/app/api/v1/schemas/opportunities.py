@@ -174,6 +174,53 @@ class OppPremarketGappersWidget(BaseModel):
     stale: bool = True
 
 
+class OppWatchlistChip(BaseModel):
+    key: str
+    value: str
+
+
+class OppWatchlistItem(BaseModel):
+    symbol: str
+    family_ids: list[str]
+    horizon: str
+    status: str
+    name: str | None = None
+    sector: str | None = None
+    chips: list[OppWatchlistChip] = Field(default_factory=list)
+    why: str = ""
+    tradability: str = "not measured (Phase 1)"
+    price_source: str = ""
+    close: float | None = None
+    market_cap: float | None = None
+    adv20: float | None = None
+
+
+class OppWatchlistFamily(BaseModel):
+    family_id: str
+    operator_name: str
+    horizon: str
+    available: bool
+    unavailable_reason: str | None = None
+    count: int
+    items: list[OppWatchlistItem] = Field(default_factory=list)
+
+
+class OppCandidateWatchlistWidget(BaseModel):
+    """DISC-001 Band B — candidates only, never a signal."""
+
+    as_of: datetime
+    as_of_session: str | None = None
+    universe_id: str
+    screen_id: str
+    screen_version: str
+    subtitle: str = "Watch, not a signal"
+    vix: float | None = None
+    families: dict[str, OppWatchlistFamily]
+    all_items: list[OppWatchlistItem] = Field(default_factory=list)
+    all_count: int = 0
+    stale: bool = True
+
+
 class OpportunitiesResponse(BaseModel):
     live_signals: OppLiveSignalsWidget
     pine_alerts: OppPineAlertsWidget
@@ -183,4 +230,5 @@ class OpportunitiesResponse(BaseModel):
     risk_rejections: OppRiskRejectionsWidget
     recent_fills: OppRecentFillsWidget
     premarket_gappers: OppPremarketGappersWidget
+    candidate_watchlist: OppCandidateWatchlistWidget
     as_of: datetime

@@ -494,6 +494,51 @@ export interface OppPremarketGappersWidget {
   stale: boolean;
 }
 
+export interface OppWatchlistChip {
+  key: string;
+  value: string;
+}
+
+export interface OppWatchlistItem {
+  symbol: string;
+  family_ids: string[];
+  horizon: string;
+  status: string;
+  name: string | null;
+  sector: string | null;
+  chips: OppWatchlistChip[];
+  why: string;
+  tradability: string;
+  price_source: string;
+  close: number | null;
+  market_cap: number | null;
+  adv20: number | null;
+}
+
+export interface OppWatchlistFamily {
+  family_id: string;
+  operator_name: string;
+  horizon: string;
+  available: boolean;
+  unavailable_reason: string | null;
+  count: number;
+  items: OppWatchlistItem[];
+}
+
+export interface OppCandidateWatchlistWidget {
+  as_of: string;
+  as_of_session: string | null;
+  universe_id: string;
+  screen_id: string;
+  screen_version: string;
+  subtitle: string;
+  vix: number | null;
+  families: Record<string, OppWatchlistFamily>;
+  all_items: OppWatchlistItem[];
+  all_count: number;
+  stale: boolean;
+}
+
 export interface OpportunitiesWidget<T> {
   items: T[];
   count: number;
@@ -509,6 +554,7 @@ export interface OpportunitiesResponse {
   risk_rejections: OpportunitiesWidget<OppRiskRejectItem>;
   recent_fills: OpportunitiesWidget<OppFillItem>;
   premarket_gappers: OppPremarketGappersWidget;
+  candidate_watchlist: OppCandidateWatchlistWidget;
   as_of: string;
 }
 

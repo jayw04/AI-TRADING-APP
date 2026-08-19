@@ -120,6 +120,10 @@ async def test_empty_state_returns_zeros(client_and_factory) -> None:
         assert body[key]["items"] == []
         assert body[key]["as_of"] is not None
     assert body["as_of"] is not None
+    wl = body["candidate_watchlist"]
+    assert wl["subtitle"] == "Watch, not a signal"
+    assert wl["all_count"] == 0
+    assert "screen_id" in wl
 
 
 async def test_live_signals_window_includes_recent_excludes_old(

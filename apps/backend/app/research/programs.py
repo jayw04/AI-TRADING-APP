@@ -117,6 +117,15 @@ RESEARCH_PROGRAMS: tuple[ResearchProgram, ...] = (
         "light - live use still needs the premarket-data gate + a live-data replication.",
         "docs/implementation/evidence/scan_001_candidate_engine_v0_5/candidate_engine_v0_5_evidence.md"),
     ResearchProgram(
+        "DISC-001", "Opportunity discovery",
+        "Candidate watchlist product surface (oversold / emerging momentum / GAP / MOM-001 readout)",
+        "research",
+        "Phase-1 SEP product/display surface on the Opportunities page. Candidates only — never "
+        "signals or orders. Frozen admission rules are discovery-ledger entry #0 (product-motivated). "
+        "Exploratory outcome analysis, SIP features, and RSI-REV-001 / MOM-CAND-001 graduation remain "
+        "gated by the ATP implementation plan.",
+        "docs/Strategies/TradingWorkbench_Opportunity_Page_Watchlist_Design_v0_3.md"),
+    ResearchProgram(
         "PORT-001", "Portfolio Construction",
         "Multi-sleeve ERC: crash-protected equity momentum + cross-asset TSMOM", "validated",
         "'Risk-Balanced Multi-Asset Portfolio' (Combined Book), ONBOARDED from the sibling "
