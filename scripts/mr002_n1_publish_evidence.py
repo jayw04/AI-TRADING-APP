@@ -154,7 +154,7 @@ def main() -> int:
                                          "manifest_path": mp, "status": "active"})
         idx["manifests"].sort(key=lambda m: m["artifact_id"])
         idx_path.write_text(json.dumps(idx, indent=2) + "\n", encoding="utf-8", newline="\n")
-        print(f"\nregistered in manifests/s3/index.json")
+        print("\nregistered in manifests/s3/index.json")
         print("manifests written:", *written, sep="\n  ")
     return 0
 
