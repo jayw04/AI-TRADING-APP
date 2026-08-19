@@ -735,6 +735,13 @@ else:
                 live_effective=effective,
                 non_fresh=non_fresh,
                 cutoff=cutoff,
+                # The corroboration block is a past observation; it is judged against
+                # the cutoff of its own moment, not this run's, and its age is bounded
+                # explicitly. See classify_stale_symbol.
+                tolerance_days=max_lag,
+                # et_today, not date.today(): this script is TZ-aware by contract and
+                # every other age it computes uses the same clock.
+                as_of=et_today,
                 evidence=evidence,
                 operational=operational,
             )

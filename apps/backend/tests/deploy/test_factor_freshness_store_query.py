@@ -138,6 +138,7 @@ def _evidence(*symbols_and_classes) -> dict:
                 "requested": True,
                 "request_status": "ok",
                 "provider_rows_after_live_frontier": 0,
+                "adjudicated_at_utc": f"{FRONTIER.isoformat()}T19:30:57Z",
                 "corroboration": {
                     "source": "alpaca",
                     "control_symbol": "AAPL",
