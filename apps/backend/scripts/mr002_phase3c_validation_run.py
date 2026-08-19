@@ -1,8 +1,9 @@
 """MR-002 — THE governed Phase 3C validation execution. One indivisible run.
 
-Authorized by MR002_Phase3C_ExecutionAuthorization_v1.0 (6aa28275...) under the sealed
-countersignature MR002_Phase3C_ExecutionCountersignature_v1.0 (109da07f...) and the bound
-validation package v2.0 (25a253ec...).
+Authorized by MR002_Phase3C_ExecutionAuthorization_v2.0 (c53edf89...) under the sealed
+countersignature MR002_Phase3C_ExecutionCountersignature_v2.0 (410627f2...) and the bound
+validation package v2.1 (593a908b...), as amended by the credential-readiness control
+amendment (owner ruling 2026-08-19).
 
 THE SEQUENCE IS INDIVISIBLE. There is no inspection point and no discretionary decision after the
 first sealed read:
@@ -44,6 +45,9 @@ from app.research.mr002.phase3c import (  # noqa: E402
 )
 from app.research.mr002.phase3c import folds as F  # noqa: E402
 from app.research.mr002.phase3c import gates as G  # noqa: E402
+from app.research.mr002.phase3c.credential_readiness import (  # noqa: E402
+    acquire_reader_credentials,
+)
 from app.research.mr002.phase3c.materialize import TableSource, materialize  # noqa: E402
 from app.research.mr002.phase3c.replay import run_config_validation  # noqa: E402
 from app.research.mr002.runner import CONFIGS  # noqa: E402
@@ -122,6 +126,9 @@ def main() -> int:
                     help="fixture-only rehearsal affordance")
     ap.add_argument("--fixture-root", default="/tmp/fx")
     ap.add_argument("--manifest", default="/opt/mr002/phase3c_src/docs_upload_manifest.json")
+    ap.add_argument("--latch-release-epoch", type=float, default=None,
+                    help="epoch seconds at which the latch Deny was removed; bounds the "
+                         "readiness deadline. Absent => measured from process start.")
     ap.add_argument("--materialized", required=True)
     ap.add_argument("--out", required=True)
     args = ap.parse_args()
@@ -133,9 +140,10 @@ def main() -> int:
     hashes = _object_hashes(args.manifest)
     report = {"record_type": "MR002_Phase3C_ValidationExecution", "version": "1.0",
               "reader_kind": args.reader,
-              "authorization": "MR002_Phase3C_ExecutionAuthorization_v1.0 / 6aa28275",
-              "countersignature": "MR002_Phase3C_ExecutionCountersignature_v1.0 / 109da07f",
-              "package": "MR002_Phase3C_ValidationExecutionPackage_v2.0 / 25a253ec"}
+              "authorization": "MR002_Phase3C_ExecutionAuthorization_v2.0 / c53edf89",
+              "countersignature": "MR002_Phase3C_ExecutionCountersignature_v2.0 / 410627f2",
+              "package": "MR002_Phase3C_ValidationExecutionPackage_v2.2 / pending",
+              "control_amendment": "credential readiness, owner ruling 2026-08-19"}
 
     # ---- build the pinned object set; refuse anything touching the OOS prefix ---------------
     sources, sealed_meta = [], []
@@ -160,7 +168,14 @@ def main() -> int:
     if args.reader == "s3":
         import boto3
         sts = boto3.client("sts")
-        creds = sts.assume_role(RoleArn=READER_ROLE, RoleSessionName=SESSION_NAME)["Credentials"]
+        # Bounded pre-sealed-read readiness: the latch release is not in force at STS for
+        # minutes (measured +286.1s). Repeated AccessDenied here are propagation probes, not
+        # validation retries -- no credentials are issued and no byte is read. The first
+        # success is a one-way boundary straight into the indivisible sequence.
+        creds, readiness = acquire_reader_credentials(
+            sts, READER_ROLE, SESSION_NAME,
+            latch_release_epoch=args.latch_release_epoch)
+        report["credential_readiness"] = readiness
         reader = S3PinnedReader(lambda: boto3.client(
             "s3", aws_access_key_id=creds["AccessKeyId"],
             aws_secret_access_key=creds["SecretAccessKey"],
