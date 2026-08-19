@@ -45,7 +45,7 @@ from __future__ import annotations
 import json
 import sqlite3
 from collections.abc import Sequence
-from datetime import date
+from datetime import date, timedelta
 from pathlib import Path
 from typing import Any
 
@@ -65,6 +65,13 @@ ATTRIBUTED = (PROVIDER_EXHAUSTED, PROVIDER_NOT_COVERED)
 #: rather than trusted — an unrecognised label must not become a silent exemption.
 CLAIMABLE = frozenset(ATTRIBUTED)
 
+#: How long a corroboration observation may be relied upon before it must be observed
+#: again. The corroboration block records what an alternate source said AT ONE INSTANT;
+#: it is provenance, not a live feed. Bounding it explicitly is what stops a past
+#: observation from decaying into a silent misclassification — see
+#: :func:`classify_stale_symbol`. Expiry is a LOUD, named failure that says regenerate.
+MAX_EVIDENCE_AGE_DAYS = 30
+
 
 def _as_date(v: Any) -> date | None:
     if v is None:
@@ -77,6 +84,20 @@ def _as_date(v: Any) -> date | None:
         return date.fromisoformat(str(v))
     except ValueError:
         return None
+
+
+def _observed_on(v: Any) -> date | None:
+    """Calendar date of an observation timestamp, e.g. ``2026-08-11T19:30:57Z``.
+
+    Separate from :func:`_as_date` because that one takes a plain date and would reject
+    a full timestamp. Only the date part matters: the tolerance this feeds is measured
+    in days, so sub-day precision would imply an accuracy the source does not have.
+    """
+    d = _as_date(v)
+    if d is not None:
+        return d
+    s = str(v).strip()
+    return _as_date(s[:10]) if len(s) >= 10 else None
 
 
 # ------------------------------------------------------------------------ evidence io
@@ -154,10 +175,13 @@ def classify_stale_symbol(
     live_last: date | None,
     stage_last: date | None,
     cutoff: date,
+    tolerance_days: int,
+    as_of: date,
     evidence: dict[str, Any] | None,
     held_qty: float,
     open_orders: int,
     registered_in: Sequence[str],
+    max_evidence_age_days: int = MAX_EVIDENCE_AGE_DAYS,
 ) -> tuple[str, str]:
     """Classify one non-fresh universe symbol. Pure: no I/O, provider or store.
 
@@ -182,6 +206,19 @@ def classify_stale_symbol(
     per-symbol request outcome and an independent lifecycle signal. Frontiers, holdings
     and registration are recomputed by the caller and cross-checked here, never taken on
     trust.
+
+    ⚠ **The corroboration block is provenance, not a live signal.** It records what the
+    alternate source said at ``evidence["adjudicated_at_utc"]`` and nothing more. Its
+    dates are therefore judged against the cutoff in force AT THAT MOMENT
+    (``observed_on - tolerance_days``), never against the caller's current ``cutoff``,
+    which advances with the store frontier. ``as_of`` and ``max_evidence_age_days``
+    bound how long that past observation may be relied upon; past the bound the symbol
+    fails with an explicit *expired, regenerate* reason. This is the fourth asymmetry,
+    closed 2026-08-19: an observation compared against a standard that moved after it
+    was taken is an anachronism, and it silently converted ten correctly-attributed
+    names into ``FAILED_OR_UNEXPLAINED`` on 2026-08-18 while blaming the alternate
+    source. Static evidence fields are RETAINED for audit and history — the fix changes
+    what classification *consumes*, never what the artifact *keeps*.
 
     A caller assessing a single store (the watchdog, which has no staging copy) passes
     the same value for ``live_last`` and ``stage_last``. The frontier-equality rule then
@@ -211,22 +248,60 @@ def classify_stale_symbol(
         return FAILED_OR_UNEXPLAINED, f"staging frontier {stage_last} != live {live_last}"
 
     # --- an independent source must be reachable and current ---------------
+    #
+    # ⚠ The corroboration block is a RECORD OF A PAST OBSERVATION, not a live feed: the
+    # alternate source was queried once, at generation time, and the answer was frozen
+    # into the artifact. Judging that frozen answer against TODAY's ``cutoff`` — which
+    # advances with the store frontier — is an anachronism, and it is what broke the
+    # 2026-08-18/19 refreshes: nothing about the observation changed, but the cutoff
+    # walked past it and every attributed name flipped to FAILED_OR_UNEXPLAINED at once,
+    # with a reason that blamed the alternate source instead of the expiry. A stale
+    # observation must expire LOUDLY and say so; it must never decay into a verdict.
+    #
+    # So: currency is judged against the cutoff IN FORCE WHEN THE OBSERVATION WAS MADE,
+    # and the observation's age is bounded separately and explicitly. The static fields
+    # stay exactly where they are — they remain the provenance of what was seen, when,
+    # and under which authorization; they simply stop being read as a live signal.
     corr = evidence.get("corroboration") or {}
     for field in ("source", "control_symbol", "control_last_date"):
         if not corr.get(field):
             return FAILED_OR_UNEXPLAINED, f"corroboration missing {field}"
-    c_ctl = _as_date(corr["control_last_date"])
-    if c_ctl is None or c_ctl < cutoff:
-        # A stale control proves the alternate path is broken, not that the subject
-        # symbol is dead. Without it every symbol would look attributable during an
-        # outage of the corroborating source.
+
+    observed_on = _observed_on(evidence.get("adjudicated_at_utc"))
+    if observed_on is None:
+        # Without an observation time the frozen dates cannot be interpreted at all:
+        # there is no way to tell a fresh probe from a year-old one.
+        return FAILED_OR_UNEXPLAINED, "corroboration records no observation time"
+    if observed_on > as_of:
         return (
             FAILED_OR_UNEXPLAINED,
-            "corroboration control is not current; alternate source unproven",
+            f"corroboration observed {observed_on}, after the run date {as_of}",
+        )
+    age_days = (as_of - observed_on).days
+    if age_days > max_evidence_age_days:
+        return (
+            FAILED_OR_UNEXPLAINED,
+            f"corroboration evidence expired: observed {observed_on}, {age_days}d old "
+            f"(limit {max_evidence_age_days}d) — regenerate the evidence artifact",
+        )
+
+    #: The cutoff that applied when the observation was made — the only standard it can
+    #: fairly be held to.
+    observed_cutoff = observed_on - timedelta(days=tolerance_days)
+
+    c_ctl = _as_date(corr["control_last_date"])
+    if c_ctl is None or c_ctl < observed_cutoff:
+        # A stale control proves the alternate path was broken AT OBSERVATION TIME, not
+        # that the subject symbol is dead. Without it every symbol would look
+        # attributable during an outage of the corroborating source.
+        return (
+            FAILED_OR_UNEXPLAINED,
+            f"corroboration control was not current when observed on {observed_on}; "
+            "alternate source unproven",
         )
     c_last = _as_date(corr.get("last_date"))
 
-    alive_elsewhere = c_last is not None and c_last >= cutoff
+    alive_elsewhere = c_last is not None and c_last >= observed_cutoff
 
     # --- operational requirements -----------------------------------------
     # A held name needs a continuing valuation and exit path. That is satisfied only
@@ -273,14 +348,21 @@ def adjudicate(
     live_effective: dict[str, Any],
     non_fresh: Sequence[str],
     cutoff: date,
+    tolerance_days: int,
+    as_of: date,
     evidence: dict[str, dict[str, Any]],
     operational: dict[str, dict[str, Any]],
+    max_evidence_age_days: int = MAX_EVIDENCE_AGE_DAYS,
 ) -> dict[str, Any]:
     """Adjudicate every non-fresh name and compute the run's coverage figures.
 
     ``non_fresh`` is supplied by the caller because each caller measures it against its
     own store (staging for the verifier, live for the watchdog); everything downstream
     of that measurement is decided here so the two cannot diverge.
+
+    ``tolerance_days`` and ``as_of`` are passed through to
+    :func:`classify_stale_symbol` so a frozen corroboration observation is judged
+    against the cutoff of its own moment and its age is bounded explicitly.
     """
     buckets: dict[str, list[str]] = {
         PROVIDER_EXHAUSTED: [],
@@ -295,6 +377,9 @@ def adjudicate(
             live_last=_as_date(live_effective.get(sym)),
             stage_last=_as_date(stage_effective.get(sym)),
             cutoff=cutoff,
+            tolerance_days=tolerance_days,
+            as_of=as_of,
+            max_evidence_age_days=max_evidence_age_days,
             evidence=evidence.get(sym),
             held_qty=float(facts.get("held_qty") or 0),
             open_orders=int(facts.get("open_orders") or 0),
