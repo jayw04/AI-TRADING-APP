@@ -753,8 +753,14 @@ print(json.dumps({
     "record": "MR002_N1_ProspectiveRegistration_v1.0_DRAFT",
     "record_identity_sha256": REG["record_identity_sha256"],
     "record_status": REG["record_status"],
-    "spec_md_worktree_lf_sha256": REG["specification_document"]["worktree_lf_sha256"],
+    "spec_md_sha256": (REG["specification_document"].get("file_blob_sha256")
+                       or REG["specification_document"]["worktree_lf_sha256"]),
+    "spec_md_basis": ("git_blob" if REG["specification_document"].get("file_blob_sha256")
+                      else "worktree_lf"),
     "spec_md_enforced": REG["specification_document"]["enforced"],
+    "memo_basis": ("git_blob" if REG["binds"]["memo"].get("file_blob_sha256")
+                   else "worktree_lf"),
+    "memo_enforced": REG["binds"]["memo"]["enforced"],
     "corpus_hash": STAGE3_CORPUS,
     "admissible_candidates": [c["profile"] for c in REG["selection"]["candidate_set"] if c["admissible"]],
     "n2_seed": REG["n2_stress_generator"]["seed"],
