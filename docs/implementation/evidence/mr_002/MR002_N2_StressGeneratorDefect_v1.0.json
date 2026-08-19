@@ -1,0 +1,157 @@
+{
+ "amendment": {
+  "amended_structural_contract": {
+   "absolute_scale_invariant": "0 < t_i <= T_MAX_REGISTERED, applied to ALL EIGHT AXES",
+   "conditioning_stress_permitted_below_history": "synthetic t_min MAY extend below T_MIN_REGISTERED solely to reach the preregistered kappa range, with kappa still bounded by 1e10",
+   "why_that_distinction_is_explicit": "holding BOTH registered bounds reaches only kappa = 1.7093e+06, so freezing t_min >= the development minimum would DELETE the stress axis A1 exists to perform. The economically meaningful missing invariant is the absolute UPPER scale."
+  },
+  "deliberately_unchanged": [
+   "seed 20260819",
+   "population size 3,000",
+   "eight axes and their counts",
+   "A1 kappa sweep through the 1e10 ceiling",
+   "Solver A = QUADPROG_SQRT",
+   "Solver B = PIQP_P2",
+   "PIQP_P2 profile including max_iter = 1000",
+   "all certificate thresholds",
+   "no third solver",
+   "the N2 rule: 100% registered resolution or STOP"
+  ],
+  "principle": "stress changes INSTANCES, never solver profiles",
+  "scale_envelope_derivation": {
+   "T_MAX_REGISTERED": 0.017104604244295447,
+   "T_MAX_REGISTERED_hex": "0x1.183de8f5c7032p-6",
+   "T_MIN_REGISTERED": 1.0007001644509297e-08,
+   "corpus_hash": "1d2319301a7b52dfe369819bc8029f7b6d64ad820d828f041eba15a91348390b",
+   "derived_mechanically_from": "the registered Stage-3 development corpus",
+   "not_typed_by_hand": "the generator re-verifies this record's own identity at import; a hand-edited envelope aborts generation",
+   "record_identity_sha256": "b9e68baaab16026e9e6c57833a7a6a064419e72ddeb468211f4a46ea4a111d21"
+  },
+  "scope": "population definition only \u2014 ONE correction, applied before any solving"
+ },
+ "authority": {
+  "amendment_authority": "owner ruling 2026-08-19: ONE corrective amendment to the population definition, authorized before the formal qualification. NOT permission to tune N2 until it passes.",
+  "n1_final_verdict": "629eee0ee1c257a23312b539fbac8542b40cbf6f2cef296ba2c829fb6b29bd81",
+  "n2_grant": "owner, 2026-08-19",
+  "sealed_registration": {
+   "identity_sha256": "7f8a56e34e6d5d36a3914ecb825de015debdc83ebae2967887e5e37ca3d684af",
+   "record": "MR002_N1_ProspectiveRegistration_v1.0 \u00a78"
+  }
+ },
+ "boundary": {
+  "consumed_validation_opening": "unchanged",
+  "development_domain_only": true,
+  "oos": "NOT AUTHORIZED",
+  "sealed_or_reference_bytes_read": 0,
+  "validation_store_opened": false
+ },
+ "corrected_population": {
+  "axes": {
+   "A1": 400,
+   "A2": 600,
+   "A3": 400,
+   "A4": 400,
+   "A5": 300,
+   "A6": 200,
+   "A7": 300,
+   "A8": 400
+  },
+  "generator_revision": "v1.1 \u2014 corrected target-scale anchoring",
+  "instances": 3000,
+  "population_hash": "4334649c46439868adb2ccad3f20daa9aacb97be3af431b41788775dfd045ace",
+  "population_json_sha256": "8dd37fd204a5a4a93fef7086c990acc531fa2152565a53f49ab34c19d3c80942",
+  "scale_envelope_identity": "b9e68baaab16026e9e6c57833a7a6a064419e72ddeb468211f4a46ea4a111d21",
+  "seed": 20260819,
+  "solved_before_seal": false,
+  "stress_npz_sha256": "d722de748567aecc3fd65b1092a6d368724e8b9aa6f64c8c55f964688406f34a",
+  "structural_conformance": {
+   "checks_were_structural_only": "no instance was solved before this seal",
+   "contract_violations": 0,
+   "instances": 3000,
+   "kappa_range": [
+    10.0,
+    5000000000.0
+   ],
+   "kappa_within_1e10": true,
+   "regeneration_byte_identical": true,
+   "stratum_counts_correct": true,
+   "t_max_within_ceiling": "3000/3000",
+   "worst_t_max": 0.01704025
+  }
+ },
+ "date": "2026-08-19",
+ "defect": {
+  "adverse_finding_against_stage3_v2": false,
+  "axis_did_not_isolate_its_mechanism": true,
+  "classification": "N2_GENERATOR_SPECIFICATION_DEFECT",
+  "controlled_experiment": {
+   "at_60x_scale": {
+    "kappa_1e5": "12/12",
+    "kappa_1e7": "12/12",
+    "kappa_1e9": "12/12"
+   },
+   "at_6e4x_scale": {
+    "kappa_1e5": "12/12",
+    "kappa_1e7": "12/12",
+    "kappa_1e9": "12/12"
+   },
+   "at_6e7x_scale": {
+    "kappa_1e5": "6/12",
+    "kappa_1e7": "6/12",
+    "kappa_1e9": "9/12"
+   },
+   "at_registered_scale_t_max_1.5e-2": {
+    "kappa_1e5": "12/12",
+    "kappa_1e7": "12/12",
+    "kappa_1e9": "12/12"
+   },
+   "conclusion": "at the registered scale the method resolves kappa through 1e9 cleanly; failures appear only at inflated scale and are largely INSENSITIVE to kappa. The driver is target magnitude, not conditioning.",
+   "design": "hold target scale fixed, sweep kappa; then vary scale"
+  },
+  "mechanism": "axis A1 was specified as a Hessian-conditioning sweep, kappa(H) = max(t)/min(t). The implementation drew a LOW anchor and multiplied UP by kappa, so conditioning and ABSOLUTE TARGET SCALE moved together. t reached 4.2e7 against a registered ceiling of 1.71e-2 \u2014 nine orders of magnitude outside the economic domain, where t is an allocation weight capped at 1.5% of NAV by the frozen construction.",
+  "method_verdict": "NONE",
+  "n2_gate_state_at_discovery": "OPEN \u2014 qualification not executed",
+  "n2_stop_entered": false,
+  "population_wide": {
+   "A1_within_registered_scale": "0 of 400",
+   "instances": 3000,
+   "instances_within_registered_scale": 84,
+   "percent": 2.8
+  },
+  "rejected_population_hash": "65a21933440be44111a1da3cbed8c1fdeeaf7297bd08d06a1c2d4fb1ac650d73",
+  "rejected_population_retained": {
+   "admissible_for_method_qualification": false,
+   "population_json": "68f7d8db9532dedc19c8aacd6643805e5d38d40204dcddb4a12672f711677d5a",
+   "stress_npz": "1a47debbb08c42198756904f3985ee17bfc013ef65fbe816a9ae9ea30829acb0"
+  },
+  "smoke_run_retained_as_engineering_evidence": {
+   "disposition_recorded_by_the_script": "N2_STOP",
+   "file_sha256": "4319ce2bf240e745706dd754010b9f383bf737c9dae81a6186525a70d0bb07f7",
+   "instances": 60,
+   "owner_classification": "VOID as an N2 verdict; retained as defect evidence",
+   "seven_unresolved_cases_are_NOT_numerical_failures_of": "QUADPROG_SQRT + PIQP_P2"
+  },
+  "why_it_failed_numerically": "the registered signed-gap gate is an ABSOLUTE bound of 1e-10 while the objective f(z) = sum (z_i - t_i)^2 / t_i scales with t. At t ~ 1e7 the gate demands roughly 17 significant digits, beyond double precision. BOTH generators failed identically with SIGNED_LAGRANGIAN_GAP_LIMIT_EXCEEDED. That is a scale/tolerance mismatch, not solver fragility."
+ },
+ "gate": "N2",
+ "generator_identities": {
+  "apps/backend/scripts/mr002_n2_derive_scale_envelope.py": "c0ecfcd405cca3812bac4c7755edeb3c089a37ae67a0a8f0340275544f3b679a",
+  "apps/backend/scripts/mr002_n2_generate.py": "7fe816a76d8be3cfb969e17a7dad9217b52ad5c271d5e82bdeae3130f57d32bd",
+  "apps/backend/scripts/mr002_n2_qualify.py": "d4143ff23dac308dda8e61574652d30781bcf0ddbf99713b7ef094139417ebfc"
+ },
+ "generator_identity_basis": "Git blob where committed; LF-normalized working tree otherwise. The corrected generator is committed alongside this record.",
+ "next_step": {
+  "action": "run the full corrected 3,000 EXACTLY ONCE under the original N2 rule",
+  "explicitly_prohibited_thereafter": [
+   "a second generator correction",
+   "any tolerance adjustment",
+   "solver substitution"
+  ],
+  "if_any_valid_in_domain_instance_is_unresolved": "that is the real N2_STOP"
+ },
+ "program": "MR-002 / SPQ-1",
+ "record_identity_sha256": "7d69299dd5be626887a1daaf48a22960b710a9ba43b0c52bd4064c1998420739",
+ "record_status": "SEALED_BEFORE_SOLVING",
+ "record_type": "MR002_N2_StressGeneratorDefect_AND_CorrectedPopulationSeal",
+ "version": "1.0"
+}
