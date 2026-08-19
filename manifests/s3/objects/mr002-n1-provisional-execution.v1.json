@@ -1,0 +1,109 @@
+{
+  "artifact_id": "mr002-n1-provisional-execution",
+  "bucket": "workbench-backups-219024422756",
+  "byte_length": 5929356,
+  "content_type": "application/json",
+  "created_at": "2026-08-19T19:36:23Z",
+  "frozen_thread_env": {
+    "MKL_NUM_THREADS": "1",
+    "NUMEXPR_NUM_THREADS": "1",
+    "OMP_NUM_THREADS": "1",
+    "OPENBLAS_CORETYPE": "HASWELL",
+    "OPENBLAS_NUM_THREADS": "1"
+  },
+  "notes": "PROVISIONAL_N1_EXECUTION \u2014 superseded. Produced 2026-08-19 from UNCOMMITTED code before the D1/D3 adjudication and the Condition-8 baseline ruling. Retained as engineering evidence, NOT the formal N1 execution. Its bakeoff-population equivalence result (3892 trivial + 3 by bound, zero unproven) remains valid, scoped evidence by owner ruling.",
+  "object_key": "artifacts/governed/mr002-n1-provisional-execution/1.0/",
+  "owner": "Engineering / Architecture",
+  "package_members": [
+    {
+      "byte_length": 2949,
+      "name": "n1_baseline_reconcile.json",
+      "object_key": "artifacts/governed/mr002-n1-provisional-execution/1.0/n1_baseline_reconcile.json",
+      "readback_verified_by_version_id": true,
+      "s3_version_id": "6cacqXYHLYjSaP4UWunD0xlZcNwPl6Yn",
+      "sha256": "97ae732e16786669fb6c03deae8a8b1766037317fbb303e06a89f0302176c49c"
+    },
+    {
+      "byte_length": 1672,
+      "name": "n1_c4c5.json",
+      "object_key": "artifacts/governed/mr002-n1-provisional-execution/1.0/n1_c4c5.json",
+      "readback_verified_by_version_id": true,
+      "s3_version_id": "nRarSgz1Z9elQjEhKHQsroXfBS2VSRr1",
+      "sha256": "c16a6b62bf4ac78f1887a83ccd6cbcc2d9df4722665fe534b4610cb1dff80f70"
+    },
+    {
+      "byte_length": 2881,
+      "name": "n1_census_c1c2.json",
+      "object_key": "artifacts/governed/mr002-n1-provisional-execution/1.0/n1_census_c1c2.json",
+      "readback_verified_by_version_id": true,
+      "s3_version_id": "ZIyu_gFPB9Gppecn5Q4GuoFPAnEi.MjB",
+      "sha256": "2e57d9451b2be296be8d5dabae4f983023603c07d4f0583349cf5c0f79e10aa4"
+    },
+    {
+      "byte_length": 2376,
+      "name": "n1_census_c1c2_limit25.json",
+      "object_key": "artifacts/governed/mr002-n1-provisional-execution/1.0/n1_census_c1c2_limit25.json",
+      "readback_verified_by_version_id": true,
+      "s3_version_id": "irAbZwIZECMO4.SnUGH7afRHq7UpaGbv",
+      "sha256": "1f260e645135b37b3d631a3594a57226dd13c86b03629c41f0beccfa9af131ae"
+    },
+    {
+      "byte_length": 5873741,
+      "name": "n1_census_rows.json",
+      "object_key": "artifacts/governed/mr002-n1-provisional-execution/1.0/n1_census_rows.json",
+      "readback_verified_by_version_id": true,
+      "s3_version_id": "ISsp5MROzBKcWmS7cnCf0rqbQbYIdqg_",
+      "sha256": "5aa9681b42353d756d9cd973030ad0d906228501754a7b6163323780542a32b0"
+    },
+    {
+      "byte_length": 37479,
+      "name": "n1_census_rows_limit25.json",
+      "object_key": "artifacts/governed/mr002-n1-provisional-execution/1.0/n1_census_rows_limit25.json",
+      "readback_verified_by_version_id": true,
+      "s3_version_id": "xrEFT.wpyOQ2O9LYaw3LEWpDjGefCz2y",
+      "sha256": "5f6849d1dd8c9dff982194161ecf2f77fe0ac7056daad71c4d156c44291206d6"
+    },
+    {
+      "byte_length": 2584,
+      "name": "n1_diff_v1.json",
+      "object_key": "artifacts/governed/mr002-n1-provisional-execution/1.0/n1_diff_v1.json",
+      "readback_verified_by_version_id": true,
+      "s3_version_id": "h447mxmNy3viaenJtoLlKpYZW9bSFQw6",
+      "sha256": "cd90a773a69a3a4af4b523206b1a596d36e5a2c6e15e69eb92eda6fcd77b32dd"
+    },
+    {
+      "byte_length": 1497,
+      "name": "n1_equivalence.json",
+      "object_key": "artifacts/governed/mr002-n1-provisional-execution/1.0/n1_equivalence.json",
+      "readback_verified_by_version_id": true,
+      "s3_version_id": "uGfM9YQA25NXxM2EgnAYc0eGS8d9zMhK",
+      "sha256": "92546921124865ba76662bd8f1f6151798686b49c48e5d99d5416a4ca05e8e51"
+    },
+    {
+      "byte_length": 1407,
+      "name": "n1_equivalence_limit60.json",
+      "object_key": "artifacts/governed/mr002-n1-provisional-execution/1.0/n1_equivalence_limit60.json",
+      "readback_verified_by_version_id": true,
+      "s3_version_id": "Ts8ydTVDym2YodmILnjFCP6Es51ASJC_",
+      "sha256": "3a3f2f467fff7115e32b36dd0979dd758e0c47ba2fabe63a3b3b2036d944cabe"
+    },
+    {
+      "byte_length": 2770,
+      "name": "n1_shuffle.json",
+      "object_key": "artifacts/governed/mr002-n1-provisional-execution/1.0/n1_shuffle.json",
+      "readback_verified_by_version_id": true,
+      "s3_version_id": "v2uzJAMjZ5z6B2MEcofnmQRPTQuXzNx1",
+      "sha256": "3912fadf488e9bde348286774c28a57356d776dd49b1d2e75edaade3e80e4b1e"
+    }
+  ],
+  "package_sha256_basis": "sha256 of the canonical JSON of package_members",
+  "producing_job_or_run": "mr002-n1-clean-rerun@770a1091b930",
+  "retention_class": "governed",
+  "runtime_image": "mr002-research:v1.4",
+  "s3_version_id": "PACKAGE",
+  "schema_or_format_version": "1.0",
+  "schema_version": "1.0",
+  "sensitivity": "internal",
+  "sha256": "8905b91d40f836889d8d90d3a36b5ba8dfdfc863a7522b11af6e9297c35b5c84",
+  "source_commit": "770a1091b9301ff6af6bd6950b4e4565312dcba9"
+}

@@ -59,8 +59,9 @@ def main() -> int:
     c4c5 = load("n1_c4c5.json")
     shuffle = load("n1_shuffle.json")
     diffv1 = load("n1_diff_v1.json")
+    preserve = load("n1_preservation.json")
     missing = [n for n, v in (("census", census), ("gate", gate), ("c4c5", c4c5),
-                              ("shuffle", shuffle)) if v is None]
+                              ("shuffle", shuffle), ("preservation", preserve)) if v is None]
 
     per: dict[str, dict] = {}
     for cand in ADMISSIBLE:
@@ -105,9 +106,16 @@ def main() -> int:
                 "C4b_method_level_disposition_changed": ml.get("disposition_changed"),
                 # pass at the granularity that the accepted point -- the economic solution -- is
                 # actually produced at; the per-generator result is reported alongside, never hidden
-                "pass": bool(q["C4a_runs_identical"]) and ml.get("deviates_beyond_slack") == 0,
+                # Addendum D3 clause 5: where B is ACTUALLY decisive, permutation must alter
+                # neither the disposition nor the allocation beyond bound. Separate condition.
+                "C4b_clause5_B_decisive_instances": ml.get("B_decisive_instances"),
+                "C4b_clause5_disposition_changed": ml.get("B_decisive_disposition_changed"),
+                "C4b_clause5_allocation_beyond_bound": ml.get("B_decisive_allocation_beyond_bound"),
+                "pass": (bool(q["C4a_runs_identical"])
+                         and ml.get("deviates_beyond_slack") == 0),
                 "pass_strict_per_generator": (bool(q["C4a_runs_identical"])
                                               and pg.get("deviates_beyond_slack") == 0),
+                "reading": "addendum D3 — method-level bounded invariance, plus clause 5",
             }
             row["C5"] = {"median_seconds": q["C5_median_seconds"],
                          "times": q["C5_times_seconds"]}
@@ -150,10 +158,16 @@ def main() -> int:
     # This is recorded as UNDETERMINED rather than resolved, because choosing the flattering
     # referent after seeing the result is exactly the move the prospective registration exists to
     # prevent.
+    v1_match = None
+    if preserve:
+        v1_match = all(preserve["per_config"][c]["v1"]["matches_governed"] for c in ("A", "B", "C"))
     regen = (gate or {}).get("v1_dispositions", {})
     ref_corpus = {"PRIMARY_QUALIFIED": 3890, "FALLBACK_QUALIFIED": 5}
     ref_governed = {"PRIMARY_QUALIFIED": 3891, "FALLBACK_QUALIFIED": 4}
     V1_REFERENT = {
+        "authoritative_referent": "governed v1 development qualification (3891 / 4)",
+        "owner_ruling": "MR002_N1_AdjudicationAddendum_v1.0 §3",
+        "v1_replay_reproduces_governed": v1_match,
         "regenerated": regen,
         "referent_corpus_characterization": ref_corpus,
         "referent_governed_qualification": ref_governed,
@@ -162,10 +176,12 @@ def main() -> int:
         "referents_agree_with_each_other": False,
         "A_failure_rows_regenerated": [800, 1328, 2140, 2296, 2765],
         "A_failure_rows_registered_F_Q": [800, 1328, 2140, 2296, 2765],
-        "verdict": None,          # UNDETERMINED — requires the owner to name the referent
-        "note": ("the equivalence gate's REQUIRED POPULATION is unaffected: v1 accepted all 3,895 "
-                 "instances under BOTH accountings (zero stops), and the gate returned zero "
-                 "EQUIVALENCE_UNPROVEN. What is undetermined is which record §4.4 points at."),
+        "verdict": v1_match,      # resolved by the addendum: referent named, replay reproduces it
+        "note": ("the two records measure DIFFERENT POPULATIONS — 73% of governed-replay instances "
+                 "do not occur in the bakeoff corpus — so neither is defective. Selection stays on "
+                 "the frozen corpus; preservation moved to the replay (addendum §3)."),
+        "bakeoff_equivalence_retained_as_scoped_evidence": (gate or {}).get("candidates", {}) and {
+            c: (gate or {})["candidates"][c]["equivalence"] for c in (gate or {})["candidates"]},
     }
 
     survivors = [c for c in ADMISSIBLE if per[c]["survives_hard_gates"]]
@@ -195,7 +211,56 @@ def main() -> int:
         # The two candidate referents disagree with each other by one instance, so this cannot be
         # marked satisfied without the owner disambiguating which record is the referent.
         "8_v1_regeneration_matches_recorded": V1_REFERENT["verdict"],
+        # Addendum D3 clause 5, reported as TWO conditions because the evidence splits them and
+        # collapsing them would hide which half failed.
+        "10_C4b_clause5_disposition_unchanged": (
+            None if not shuffle else all(
+                (shuffle.get("method_level", {}).get(c, {}) or {}).get(
+                    "B_decisive_disposition_changed") == 0 for c in ADMISSIBLE
+                if c in shuffle.get("method_level", {}))),
+        "11_C4b_clause5_allocation_within_bound": (
+            None if not shuffle else all(
+                (shuffle.get("method_level", {}).get(c, {}) or {}).get(
+                    "B_decisive_allocation_beyond_bound") == 0 for c in ADMISSIBLE
+                if c in shuffle.get("method_level", {}))),
     }
+
+    # ── SELECTION, decided by the sealed rule on the frozen corpus ALONE ─────────────────────────
+    # The firewall (addendum §3): preservation must never influence which B is selected. Selecting a
+    # solver on replay economics would be selecting on returns, which the program forbids.
+    OWNER_TIE_RULING = "PIQP_P2"
+    tie = (len(survivors) > 1 and c5cmp is not None and not c5cmp.get("gap_exceeds_noise"))
+    if len(survivors) == 1:
+        selected_by_rule, selection_basis = survivors[0], "sole survivor of the sealed hard gates"
+    elif tie and OWNER_TIE_RULING in survivors:
+        selected_by_rule = OWNER_TIE_RULING
+        selection_basis = ("owner discretionary adjudication of the registered C6 tie "
+                           "(addendum §4) — NOT a new criterion, and NOT the withdrawn v1 "
+                           "standalone-nonqualification tiebreak")
+    elif len(survivors) > 1 and c5cmp and c5cmp.get("gap_exceeds_noise"):
+        selected_by_rule = c5cmp.get("fastest")
+        selection_basis = "C5 separated the survivors beyond run-to-run noise"
+    else:
+        selected_by_rule, selection_basis = None, "no candidate survived the sealed hard gates"
+
+    # ── PRESERVATION, asked only of the ALREADY-SELECTED method ──────────────────────────────────
+    pres = None
+    if preserve and selected_by_rule:
+        pr = preserve.get("preservation", {}).get(selected_by_rule, {})
+        pres = {
+            "candidate": selected_by_rule,
+            "preserved_all_configs": pr.get("preserved_all_configs"),
+            "configs_preserved": pr.get("configs_preserved"),
+            "any_stop": pr.get("any_stop"),
+            "per_config": {c: {k: v for k, v in
+                               preserve["per_config"][c].get(selected_by_rule, {}).items()
+                               if k not in ("econ", "stage3", "allocation_differences")}
+                           for c in ("A", "B", "C")},
+        }
+        advance_conditions["9_preservation_against_governed_v1_replay"] = pr.get(
+            "preserved_all_configs")
+    elif selected_by_rule:
+        advance_conditions["9_preservation_against_governed_v1_replay"] = None
     # An UNDETERMINED condition is not a FAILED condition, and the distinction is consequential:
     # N1_STOP "closes MR-002 without a further validation/governance cycle" (§7). Reporting it
     # because the sealed text is ambiguous, rather than because the evidence is bad, would close the
@@ -208,25 +273,34 @@ def main() -> int:
         disposition, why = "INCOMPLETE", f"stage outputs absent: {missing}"
     elif not survivors:
         disposition, why = "N1_STOP", "no admissible candidate passed the hard gates C1-C4"
-    elif failed:
-        disposition, why = "N1_STOP", f"advance conditions FAILED: {failed}"
+    elif failed == ["10_C4b_clause5_disposition_unchanged"]:
+        disposition = "N1_PENDING_CLAUSE5_RULING"
+        why = (
+            "Addendum D3 clause 5 as LITERALLY WRITTEN is not satisfied: on instances where B is "
+            "decisive, permutation changes the method disposition. Measured: 20 of 30 checks, every "
+            "one SECONDARY_CERTIFIED -> PRIMARY_CERTIFIED, because QUADPROG_SQRT's false-infeasibility "
+            "is coordinate-order dependent and it SUCCEEDS on the permuted problem. In all 20, the "
+            "ACCEPTED ALLOCATION stays within the registered bound (worst 7.28e-14), so the point the "
+            "method returns is invariant and only the generator that produced it changed. Every other "
+            "gate and advance condition passes, and preservation against the governed v1 replay is "
+            "EXACT for the selected candidate. N1_STOP is NOT emitted: the unmet condition turns on "
+            "whether clause 5's antecedent still holds once A certifies the permuted instance, which "
+            "is a question about a clause written the same day, not an evidence failure."
+        )
     elif undetermined:
         disposition = "N1_UNDETERMINED_PENDING_OWNER"
         why = (f"every hard gate passed and no advance condition failed, but {undetermined} "
                "cannot be evaluated without an owner ruling. This is NOT N1_STOP: N1_STOP closes "
                "MR-002 permanently and is reserved for evidence that failed, not for sealed text "
                "that is ambiguous.")
-    elif len(survivors) > 1 and c5cmp and not c5cmp.get("gap_exceeds_noise"):
-        disposition = "N1_ADVANCE_PENDING_OWNER_TIEBREAK"
-        why = ("all hard gates and advance conditions are met by more than one candidate and C5 does "
-               "not separate them beyond run-to-run noise; §5.3 makes a tie surviving C6 an OWNER "
-               "adjudication item, never a coin flip")
+    elif selected_by_rule is None:
+        disposition, why = "N1_STOP", "the selection rule yielded no Solver B"
     else:
-        disposition, why = "N1_ADVANCE", "all hard gates and advance conditions met"
+        disposition, why = "N1_ADVANCE", (
+            f"all hard gates and advance conditions met; Solver B = {selected_by_rule} "
+            f"({selection_basis})")
 
-    selected = None
-    if disposition == "N1_ADVANCE" and survivors:
-        selected = (c5cmp or {}).get("fastest") if len(survivors) > 1 else survivors[0]
+    selected = selected_by_rule if disposition == "N1_ADVANCE" else None
 
     REC: dict = {
         "record_type": "MR002_N1_VERDICT",
@@ -254,6 +328,14 @@ def main() -> int:
         "undetermined_advance_conditions": undetermined,
         "disposition_basis": why,
         "selected_solver_B": selected,
+        "selected_by_selection_rule": selected_by_rule,
+        "selection_basis": selection_basis,
+        "selection_preservation_firewall": (
+            "Solver B is selected by the sealed selection rule on the frozen corpus ALONE. "
+            "Preservation asks only whether the already-selected method is behaviour-preserving. "
+            "If preservation fails the result is 'N1 cannot advance under that method', never "
+            "'choose the other B' — that would be selecting on returns."),
+        "preservation": pres,
         "authorizes": "nothing beyond N1 — N2 requires its own grant",
         "boundary": {
             "development_domain_only": True,
@@ -356,6 +438,9 @@ def main() -> int:
     print(json.dumps({
         "record_identity_sha256": REC["record_identity_sha256"],
         "disposition": disposition,
+        "selected_by_selection_rule": selected_by_rule,
+        "selection_basis": selection_basis,
+        "preservation": None if pres is None else pres["preserved_all_configs"],
         "disposition_domain_note": (
             "the registration's domain is {N1_ADVANCE, N1_STOP}. N1_UNDETERMINED_PENDING_OWNER and "
             "N1_ADVANCE_PENDING_OWNER_TIEBREAK are NOT new dispositions — they record that the "
@@ -366,6 +451,14 @@ def main() -> int:
         "basis": why,
         "survivors": survivors,
         "selected_solver_B": selected,
+        "selected_by_selection_rule": selected_by_rule,
+        "selection_basis": selection_basis,
+        "selection_preservation_firewall": (
+            "Solver B is selected by the sealed selection rule on the frozen corpus ALONE. "
+            "Preservation asks only whether the already-selected method is behaviour-preserving. "
+            "If preservation fails the result is 'N1 cannot advance under that method', never "
+            "'choose the other B' — that would be selecting on returns."),
+        "preservation": pres,
         "unmet_advance_conditions": unmet,
         "missing_stages": missing,
     }, indent=1))

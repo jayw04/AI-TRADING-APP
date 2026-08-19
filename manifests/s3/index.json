@@ -1,0 +1,85 @@
+{
+  "schema_version": "1.0",
+  "description": "Index of governed S3 / local artifact manifests (GITHUB-OPS-001 Phase 3).",
+  "default_bucket": "workbench-backups-219024422756",
+  "default_prefix": "artifacts/",
+  "region": "us-east-1",
+  "prefix_layout": {
+    "working": "artifacts/working/{artifact_id}/{schema_or_format_version}/",
+    "operational": "artifacts/operational/{artifact_id}/{schema_or_format_version}/",
+    "governed": "artifacts/governed/{artifact_id}/{schema_or_format_version}/",
+    "archive": "artifacts/archive/{artifact_id}/{schema_or_format_version}/"
+  },
+  "manifests": [
+    {
+      "artifact_id": "ci-demo-fixture",
+      "manifest_path": "manifests/s3/objects/ci-demo-fixture.v1.json",
+      "status": "active"
+    },
+    {
+      "artifact_id": "momentum-daily-regime-series",
+      "manifest_path": "manifests/s3/objects/momentum-daily-regime-series.v1.json",
+      "status": "active"
+    },
+    {
+      "artifact_id": "mr002-n1-execution-evidence",
+      "manifest_path": "manifests/s3/objects/mr002-n1-execution-evidence.v1.json",
+      "status": "active"
+    },
+    {
+      "artifact_id": "mr002-n1-provisional-execution",
+      "manifest_path": "manifests/s3/objects/mr002-n1-provisional-execution.v1.json",
+      "status": "active"
+    },
+    {
+      "artifact_id": "repo-docs-adr",
+      "manifest_path": "manifests/s3/objects/repo-docs-adr.v1.json",
+      "status": "active"
+    },
+    {
+      "artifact_id": "repo-docs-design",
+      "manifest_path": "manifests/s3/objects/repo-docs-design.v1.json",
+      "status": "active"
+    },
+    {
+      "artifact_id": "repo-docs-implementation",
+      "manifest_path": "manifests/s3/objects/repo-docs-implementation.v1.json",
+      "status": "active"
+    },
+    {
+      "artifact_id": "repo-docs-incidents",
+      "manifest_path": "manifests/s3/objects/repo-docs-incidents.v1.json",
+      "status": "active"
+    },
+    {
+      "artifact_id": "repo-docs-methodology",
+      "manifest_path": "manifests/s3/objects/repo-docs-methodology.v1.json",
+      "status": "active"
+    },
+    {
+      "artifact_id": "repo-docs-observability",
+      "manifest_path": "manifests/s3/objects/repo-docs-observability.v1.json",
+      "status": "active"
+    },
+    {
+      "artifact_id": "repo-docs-review",
+      "manifest_path": "manifests/s3/objects/repo-docs-review.v1.json",
+      "status": "active"
+    },
+    {
+      "artifact_id": "repo-docs-root",
+      "manifest_path": "manifests/s3/objects/repo-docs-root.v1.json",
+      "status": "active"
+    },
+    {
+      "artifact_id": "repo-docs-runbook",
+      "manifest_path": "manifests/s3/objects/repo-docs-runbook.v1.json",
+      "status": "active"
+    },
+    {
+      "artifact_id": "repo-docs-strategies",
+      "manifest_path": "manifests/s3/objects/repo-docs-strategies.v1.json",
+      "status": "active"
+    }
+  ]
+}

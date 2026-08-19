@@ -1,0 +1,706 @@
+{
+ "advance_conditions_at_pre_ruling": {
+  "10_C4b_clause5_disposition_unchanged": false,
+  "11_C4b_clause5_allocation_within_bound": true,
+  "1_candidate_passing_C1_to_C4": true,
+  "2_unregistered_termination_reason_zero": true,
+  "3_zero_certified_solution_disagreement": true,
+  "4_equivalence_unproven_zero": true,
+  "5_corpus_hash_reverified": true,
+  "6_SA3_frozen_words": true,
+  "7_C3_evaluated_and_clean": true,
+  "8_v1_regeneration_matches_recorded": true,
+  "9_preservation_against_governed_v1_replay": true
+ },
+ "advance_conditions_resolved_by_ruling": {
+  "10_C4b_clause5_disposition_unchanged": "resolved PASS by the D3 clause-5 clarification: generator attribution may change, terminal semantic class and allocation may not, and neither did"
+ },
+ "authority_chain": {
+  "adjudication_addendum": {
+   "file_blob_sha256": "cebbbce1fb03975895ced4b714e587163f573b92a662ba288ea3b0d1c8f8a31b",
+   "path": "docs/implementation/evidence/mr_002/MR002_N1_AdjudicationAddendum_v1.0.md"
+  },
+  "pre_ruling_verdict": {
+   "disposition_at_that_point": "N1_PENDING_CLAUSE5_RULING",
+   "path": "docs/implementation/evidence/mr_002/MR002_N1_Verdict_v1.0_DRAFT.json",
+   "preserved_unmodified": true,
+   "record_identity_sha256": "e835cd7cc30941d356bb757430c4692b039911216a60195be4a377008601bb79",
+   "why": "it is the INPUT to this adjudication. Editing it to say N1_ADVANCE would destroy the before/after audit structure."
+  },
+  "sealed_registration": {
+   "identity_sha256": "7f8a56e34e6d5d36a3914ecb825de015debdc83ebae2967887e5e37ca3d684af",
+   "record": "MR002_N1_ProspectiveRegistration_v1.0"
+  }
+ },
+ "authorizes": "nothing beyond N1 \u2014 N2 requires its own grant",
+ "boundary": {
+  "N2": "NOT AUTHORIZED \u2014 requires its own grant",
+  "development_domain_only": true,
+  "oos": "NOT AUTHORIZED",
+  "sealed_or_reference_bytes_read": 0,
+  "validation_store_opened": false
+ },
+ "date": "2026-08-19",
+ "disposition": "N1_ADVANCE",
+ "evidence_custody": {
+  "model": "bulk raw execution output in versioned S3 pinned by VersionId + SHA-256 with read-back confirmation; governing summaries in Git. `.mr002out/` remains 'scratch \u2014 never evidence' and is NOT a governance store.",
+  "s3_packages": {
+   "formal_execution": {
+    "all_readback_verified_by_version_id": true,
+    "bucket": "workbench-backups-219024422756",
+    "byte_length": 13955772,
+    "manifest_path": "manifests/s3/objects/mr002-n1-execution-evidence.v1.json",
+    "manifest_sha256": "3ed34cc8bed90b1482e93a729a93578ecee53d6f3ef76687e4882e81358da98c",
+    "members": 9,
+    "object_key_prefix": "artifacts/governed/mr002-n1-execution-evidence/1.0/",
+    "package_sha256": "9e6e61611b7fc101df10e44049f210721fb08c07f37cebe4a4d09a9bdbc86dd4"
+   },
+   "provisional_execution": {
+    "manifest_path": "manifests/s3/objects/mr002-n1-provisional-execution.v1.json",
+    "manifest_sha256": "db2e78f20bcda0a729e1ef3d2b4fb0a822da78cc2874689db8b41e2276899bb5",
+    "members": 10,
+    "package_sha256": "8905b91d40f836889d8d90d3a36b5ba8dfdfc863a7522b11af6e9297c35b5c84",
+    "status": "PROVISIONAL_N1_EXECUTION \u2014 superseded, retained as engineering evidence"
+   }
+  }
+ },
+ "execution_identities": {
+  "bound_source": {
+   "apps/backend/app/research/mr002/n1/method.py": "76e6afcca09e33014eee5f6c657355596445e2c0ad7350edb7cb6bd9fbdb6ff0",
+   "apps/backend/app/research/mr002/n1/reference.py": "474683a04f60d5adb5f94056af5abe5be93c322f61f50a86da9c876db1c4cee1",
+   "apps/backend/app/research/mr002/n1/seam.py": "503d11f50e99846e5afacbf31415c956db16090631509d99e8e4e63465081409",
+   "apps/backend/scripts/mr002_n1_baseline_reconcile.py": "6344de27733ead7a09a46180d27525b3992e2cd90d18cc2b0fdb49ed07adcfe9",
+   "apps/backend/scripts/mr002_n1_c4c5.py": "f485d372cc147d017d875c3294e23e7de7c682c7fedc73f3834fbdf76a3a2098",
+   "apps/backend/scripts/mr002_n1_capture_corpus.py": "f468ce24538aa30addabe3cf4c3af22154c5f05991ebd3e86d38ff3d631055d1",
+   "apps/backend/scripts/mr002_n1_census.py": "b56188bc3ff0fbb37620e99d90f2c9de9f18dae1b41f493205005cf2a2eab81b",
+   "apps/backend/scripts/mr002_n1_diff_v1.py": "8f6fe48c0f0a793b90ec904f111cd9e856e7de2fed58b34a3cb13dbff7616a79",
+   "apps/backend/scripts/mr002_n1_equivalence.py": "756197cac3a6f5a9f499a975e3d72db3332aea9f01d384871f349d2cdaf72140",
+   "apps/backend/scripts/mr002_n1_preservation.py": "eeb5092d81eff85e2b0000fd64357bab6b60099ba93449465325b1a7f3e08814",
+   "apps/backend/scripts/mr002_n1_provenance_fixtures.py": "57e58ce2f74f697d87a6f3ce0b01257cc8b5c88550163f2cec47e2c5270e38f9",
+   "apps/backend/scripts/mr002_n1_shuffle.py": "c7e4c4a35363b1db72262def277aa857c682e0a831fd93f4f6ea12b648ea36c7"
+  },
+  "frozen_thread_env": {
+   "MKL_NUM_THREADS": "1",
+   "NUMEXPR_NUM_THREADS": "1",
+   "OMP_NUM_THREADS": "1",
+   "OPENBLAS_CORETYPE": "HASWELL",
+   "OPENBLAS_NUM_THREADS": "1"
+  },
+  "network": "none",
+  "runtime_image": "mr002-research:v1.4",
+  "source_commit": "770a1091b9301ff6af6bd6950b4e4565312dcba9"
+ },
+ "findings": {
+  "C1": {
+   "CLARABEL": true,
+   "PIQP_P1": true,
+   "PIQP_P2": true
+  },
+  "C2": {
+   "CLARABEL": {
+    "invalid_runs": 0,
+    "pass": false,
+    "resolved": 3894,
+    "unresolved": 1
+   },
+   "PIQP_P1": {
+    "invalid_runs": 0,
+    "pass": true,
+    "resolved": 3895,
+    "unresolved": 0
+   },
+   "PIQP_P2": {
+    "invalid_runs": 0,
+    "pass": true,
+    "resolved": 3895,
+    "unresolved": 0
+   },
+   "note": "CLARABEL eliminated at C2 (3894/3895)"
+  },
+  "C3": {
+   "PIQP_P1": {
+    "evaluable": 594,
+    "max_exact_distance": 7.275263277824169e-14,
+    "pass": true,
+    "r_unavailable": 91,
+    "radius_unavailable": 3210,
+    "violations": 0
+   },
+   "PIQP_P2": {
+    "evaluable": 594,
+    "max_exact_distance": 7.275263277824169e-14,
+    "pass": true,
+    "r_unavailable": 91,
+    "radius_unavailable": 3210,
+    "violations": 0
+   }
+  },
+  "C4": {
+   "PIQP_P1": {
+    "C4a_pass": true,
+    "C4a_runs_identical": true,
+    "C4b_clause5_B_decisive_instances": 5,
+    "C4b_clause5_allocation_beyond_bound": 0,
+    "C4b_clause5_disposition_changed": 10,
+    "C4b_method_level": {
+     "B_decisive_allocation_beyond_bound": 0,
+     "B_decisive_disposition_changed": 10,
+     "B_decisive_instances": 5,
+     "B_decisive_permuted_checks": 15,
+     "B_decisive_rows": [
+      {
+       "base": "SECONDARY_CERTIFIED",
+       "i": 800,
+       "n": 19,
+       "permuted": "PRIMARY_CERTIFIED",
+       "why": "disposition changed"
+      },
+      {
+       "base": "SECONDARY_CERTIFIED",
+       "i": 800,
+       "n": 19,
+       "permuted": "PRIMARY_CERTIFIED",
+       "why": "disposition changed"
+      },
+      {
+       "base": "SECONDARY_CERTIFIED",
+       "i": 800,
+       "n": 19,
+       "permuted": "PRIMARY_CERTIFIED",
+       "why": "disposition changed"
+      },
+      {
+       "base": "SECONDARY_CERTIFIED",
+       "i": 1328,
+       "n": 20,
+       "permuted": "PRIMARY_CERTIFIED",
+       "why": "disposition changed"
+      },
+      {
+       "base": "SECONDARY_CERTIFIED",
+       "i": 1328,
+       "n": 20,
+       "permuted": "PRIMARY_CERTIFIED",
+       "why": "disposition changed"
+      },
+      {
+       "base": "SECONDARY_CERTIFIED",
+       "i": 1328,
+       "n": 20,
+       "permuted": "PRIMARY_CERTIFIED",
+       "why": "disposition changed"
+      },
+      {
+       "base": "SECONDARY_CERTIFIED",
+       "i": 2140,
+       "n": 14,
+       "permuted": "PRIMARY_CERTIFIED",
+       "why": "disposition changed"
+      },
+      {
+       "base": "SECONDARY_CERTIFIED",
+       "i": 2296,
+       "n": 25,
+       "permuted": "PRIMARY_CERTIFIED",
+       "why": "disposition changed"
+      },
+      {
+       "base": "SECONDARY_CERTIFIED",
+       "i": 2765,
+       "n": 11,
+       "permuted": "PRIMARY_CERTIFIED",
+       "why": "disposition changed"
+      },
+      {
+       "base": "SECONDARY_CERTIFIED",
+       "i": 2765,
+       "n": 11,
+       "permuted": "PRIMARY_CERTIFIED",
+       "why": "disposition changed"
+      }
+     ],
+     "B_decisive_worst": 1.8391785512761074e-25,
+     "bounded": 11387,
+     "deviates_beyond_slack": 0,
+     "deviating_rows": [],
+     "disposition_changed": 13,
+     "exact": 285,
+     "unresolved_both": 0,
+     "worst": 8.00538657328598e-14
+    },
+    "C4b_method_level_beyond_slack": 0,
+    "C4b_method_level_disposition_changed": 13,
+    "C4b_per_generator": {
+     "base_not_certified": 59,
+     "bounded": 11209,
+     "deviates_beyond_slack": 10,
+     "deviating_rows": [
+      {
+       "deviation": 7.249550309269013e-10,
+       "i": 824,
+       "n": 35
+      },
+      {
+       "deviation": 6.089635488437156e-10,
+       "i": 884,
+       "n": 36
+      },
+      {
+       "deviation": 3.6952399710094595e-10,
+       "i": 1059,
+       "n": 33
+      },
+      {
+       "deviation": 3.720789389103058e-10,
+       "i": 1059,
+       "n": 33
+      },
+      {
+       "deviation": 3.722022884049296e-10,
+       "i": 1059,
+       "n": 33
+      },
+      {
+       "deviation": 7.489690995351889e-10,
+       "i": 3292,
+       "n": 21
+      },
+      {
+       "deviation": 7.489000870430817e-10,
+       "i": 3292,
+       "n": 21
+      },
+      {
+       "deviation": 7.489959571849143e-10,
+       "i": 3292,
+       "n": 21
+      },
+      {
+       "deviation": 1.8585636930244851e-09,
+       "i": 3602,
+       "n": 35
+      },
+      {
+       "deviation": 2.2784872822306802e-09,
+       "i": 3602,
+       "n": 35
+      }
+     ],
+     "exact": 257,
+     "permuted_failed_to_certify": 32,
+     "worst": 2.2784872822306802e-09
+    },
+    "C4b_per_generator_beyond_slack": 10,
+    "pass": true,
+    "pass_strict_per_generator": false,
+    "reading": "addendum D3 \u2014 method-level bounded invariance, plus clause 5"
+   },
+   "PIQP_P2": {
+    "C4a_pass": true,
+    "C4a_runs_identical": true,
+    "C4b_clause5_B_decisive_instances": 5,
+    "C4b_clause5_allocation_beyond_bound": 0,
+    "C4b_clause5_disposition_changed": 10,
+    "C4b_method_level": {
+     "B_decisive_allocation_beyond_bound": 0,
+     "B_decisive_disposition_changed": 10,
+     "B_decisive_instances": 5,
+     "B_decisive_permuted_checks": 15,
+     "B_decisive_rows": [
+      {
+       "base": "SECONDARY_CERTIFIED",
+       "i": 800,
+       "n": 19,
+       "permuted": "PRIMARY_CERTIFIED",
+       "why": "disposition changed"
+      },
+      {
+       "base": "SECONDARY_CERTIFIED",
+       "i": 800,
+       "n": 19,
+       "permuted": "PRIMARY_CERTIFIED",
+       "why": "disposition changed"
+      },
+      {
+       "base": "SECONDARY_CERTIFIED",
+       "i": 800,
+       "n": 19,
+       "permuted": "PRIMARY_CERTIFIED",
+       "why": "disposition changed"
+      },
+      {
+       "base": "SECONDARY_CERTIFIED",
+       "i": 1328,
+       "n": 20,
+       "permuted": "PRIMARY_CERTIFIED",
+       "why": "disposition changed"
+      },
+      {
+       "base": "SECONDARY_CERTIFIED",
+       "i": 1328,
+       "n": 20,
+       "permuted": "PRIMARY_CERTIFIED",
+       "why": "disposition changed"
+      },
+      {
+       "base": "SECONDARY_CERTIFIED",
+       "i": 1328,
+       "n": 20,
+       "permuted": "PRIMARY_CERTIFIED",
+       "why": "disposition changed"
+      },
+      {
+       "base": "SECONDARY_CERTIFIED",
+       "i": 2140,
+       "n": 14,
+       "permuted": "PRIMARY_CERTIFIED",
+       "why": "disposition changed"
+      },
+      {
+       "base": "SECONDARY_CERTIFIED",
+       "i": 2296,
+       "n": 25,
+       "permuted": "PRIMARY_CERTIFIED",
+       "why": "disposition changed"
+      },
+      {
+       "base": "SECONDARY_CERTIFIED",
+       "i": 2765,
+       "n": 11,
+       "permuted": "PRIMARY_CERTIFIED",
+       "why": "disposition changed"
+      },
+      {
+       "base": "SECONDARY_CERTIFIED",
+       "i": 2765,
+       "n": 11,
+       "permuted": "PRIMARY_CERTIFIED",
+       "why": "disposition changed"
+      }
+     ],
+     "B_decisive_worst": 1.088044635670916e-25,
+     "bounded": 11387,
+     "deviates_beyond_slack": 0,
+     "deviating_rows": [],
+     "disposition_changed": 13,
+     "exact": 285,
+     "unresolved_both": 0,
+     "worst": 8.00538657328598e-14
+    },
+    "C4b_method_level_beyond_slack": 0,
+    "C4b_method_level_disposition_changed": 13,
+    "C4b_per_generator": {
+     "base_not_certified": 51,
+     "bounded": 11241,
+     "deviates_beyond_slack": 8,
+     "deviating_rows": [
+      {
+       "deviation": 9.047858071181552e-10,
+       "i": 824,
+       "n": 35
+      },
+      {
+       "deviation": 9.049362194285498e-10,
+       "i": 824,
+       "n": 35
+      },
+      {
+       "deviation": 9.049384933668253e-10,
+       "i": 824,
+       "n": 35
+      },
+      {
+       "deviation": 6.089635488437156e-10,
+       "i": 884,
+       "n": 36
+      },
+      {
+       "deviation": 8.241931821662127e-09,
+       "i": 1383,
+       "n": 25
+      },
+      {
+       "deviation": 7.602442464060347e-09,
+       "i": 1383,
+       "n": 25
+      },
+      {
+       "deviation": 1.8585636930244851e-09,
+       "i": 3602,
+       "n": 35
+      },
+      {
+       "deviation": 2.2784872822306802e-09,
+       "i": 3602,
+       "n": 35
+      }
+     ],
+     "exact": 257,
+     "permuted_failed_to_certify": 26,
+     "worst": 8.241931821662127e-09
+    },
+    "C4b_per_generator_beyond_slack": 8,
+    "pass": true,
+    "pass_strict_per_generator": false,
+    "reading": "addendum D3 \u2014 method-level bounded invariance, plus clause 5"
+   }
+  },
+  "C5": "TIE (registered noise rule)",
+  "C6": "TIE (same piqp package; profiles differ only in preconditioner_scale_cost)",
+  "SA2": {
+   "PIQP_P1": {
+    "bound": 57,
+    "checked": 3831,
+    "disagree": 0,
+    "pass": true,
+    "slack_floor": 3774,
+    "unavailable": 0
+   },
+   "PIQP_P2": {
+    "bound": 58,
+    "checked": 3839,
+    "disagree": 0,
+    "pass": true,
+    "slack_floor": 3781,
+    "unavailable": 0
+   }
+  },
+  "corpus": {
+   "hash": "1d2319301a7b52dfe369819bc8029f7b6d64ad820d828f041eba15a91348390b",
+   "reproduced_exactly": true,
+   "result": "PASS"
+  },
+  "difference_vs_v1_bakeoff": {
+   "PIQP_P1": {
+    "instances_with_differing_accepted_point": 3,
+    "instances_with_differing_resolution": 0,
+    "instances_with_identical_accepted_point": 3892,
+    "max_objective_relative_delta": 1.7339592051931886e-16,
+    "max_total_abs_allocation_change": 1.716954787450137e-17
+   },
+   "PIQP_P2": {
+    "instances_with_differing_accepted_point": 0,
+    "instances_with_differing_resolution": 0,
+    "instances_with_identical_accepted_point": 3895,
+    "max_objective_relative_delta": 0.0,
+    "max_total_abs_allocation_change": 0.0
+   }
+  },
+  "equivalence_bakeoff_population": {
+   "EQUIVALENCE_UNPROVEN": 0,
+   "PIQP_P1": {
+    "EQUIVALENCE_PROVEN_BOUND": 3,
+    "EQUIVALENCE_TRIVIAL": 3892
+   },
+   "PIQP_P2": {
+    "EQUIVALENCE_TRIVIAL": 3895
+   },
+   "scope": "valid, scoped evidence \u2014 NOT the authoritative preservation test"
+  },
+  "preservation_governed_v1_replay": {
+   "any_stop": false,
+   "candidate": "PIQP_P2",
+   "configs_preserved": [
+    "A",
+    "B",
+    "C"
+   ],
+   "per_config": {
+    "A": {
+     "accepted_allocation_byte_identical": 1427,
+     "accepted_allocation_differing": 0,
+     "economic_differential_EXACT": true,
+     "economic_fields_identical": {
+      "borrow": true,
+      "costs": true,
+      "daily_ret_hash": true,
+      "entries_long": true,
+      "entries_short": true,
+      "exits": true,
+      "nav_curve_hash": true,
+      "nav_final": true,
+      "outcomes": true,
+      "reductions": true,
+      "run_hash": true,
+      "sessions": true,
+      "traded_notional": true,
+      "zero_reasons": true
+     },
+     "instance_sequence_identical": true,
+     "invocations_v1": 1427,
+     "invocations_v2": 1427,
+     "max_allocation_difference": 0.0,
+     "preserved": true
+    },
+    "B": {
+     "accepted_allocation_byte_identical": 1535,
+     "accepted_allocation_differing": 0,
+     "economic_differential_EXACT": true,
+     "economic_fields_identical": {
+      "borrow": true,
+      "costs": true,
+      "daily_ret_hash": true,
+      "entries_long": true,
+      "entries_short": true,
+      "exits": true,
+      "nav_curve_hash": true,
+      "nav_final": true,
+      "outcomes": true,
+      "reductions": true,
+      "run_hash": true,
+      "sessions": true,
+      "traded_notional": true,
+      "zero_reasons": true
+     },
+     "instance_sequence_identical": true,
+     "invocations_v1": 1535,
+     "invocations_v2": 1535,
+     "max_allocation_difference": 0.0,
+     "preserved": true
+    },
+    "C": {
+     "accepted_allocation_byte_identical": 933,
+     "accepted_allocation_differing": 0,
+     "economic_differential_EXACT": true,
+     "economic_fields_identical": {
+      "borrow": true,
+      "costs": true,
+      "daily_ret_hash": true,
+      "entries_long": true,
+      "entries_short": true,
+      "exits": true,
+      "nav_curve_hash": true,
+      "nav_final": true,
+      "outcomes": true,
+      "reductions": true,
+      "run_hash": true,
+      "sessions": true,
+      "traded_notional": true,
+      "zero_reasons": true
+     },
+     "instance_sequence_identical": true,
+     "invocations_v1": 933,
+     "invocations_v2": 933,
+     "max_allocation_difference": 0.0,
+     "preserved": true
+    }
+   },
+   "preserved_all_configs": true
+  },
+  "v1_baseline": {
+   "A_failure_rows_regenerated": [
+    800,
+    1328,
+    2140,
+    2296,
+    2765
+   ],
+   "A_failure_rows_registered_F_Q": [
+    800,
+    1328,
+    2140,
+    2296,
+    2765
+   ],
+   "authoritative_referent": "governed v1 development qualification (3891 / 4)",
+   "bakeoff_equivalence_retained_as_scoped_evidence": {
+    "PIQP_P1": {
+     "EQUIVALENCE_PROVEN_BOUND": 3,
+     "EQUIVALENCE_TRIVIAL": 3892
+    },
+    "PIQP_P2": {
+     "EQUIVALENCE_TRIVIAL": 3895
+    }
+   },
+   "matches_corpus_characterization": true,
+   "matches_governed_qualification": false,
+   "note": "the two records measure DIFFERENT POPULATIONS \u2014 73% of governed-replay instances do not occur in the bakeoff corpus \u2014 so neither is defective. Selection stays on the frozen corpus; preservation moved to the replay (addendum \u00a73).",
+   "owner_ruling": "MR002_N1_AdjudicationAddendum_v1.0 \u00a73",
+   "referent_corpus_characterization": {
+    "FALLBACK_QUALIFIED": 5,
+    "PRIMARY_QUALIFIED": 3890
+   },
+   "referent_governed_qualification": {
+    "FALLBACK_QUALIFIED": 4,
+    "PRIMARY_QUALIFIED": 3891
+   },
+   "referents_agree_with_each_other": false,
+   "regenerated": {
+    "FALLBACK_QUALIFIED": 5,
+    "PRIMARY_QUALIFIED": 3890
+   },
+   "v1_replay_reproduces_governed": true,
+   "verdict": true
+  }
+ },
+ "gate": "N1",
+ "owner_rulings": {
+  "C5": {
+   "basis": "the prospectively registered mechanical rule, committed in 770a1091b930 BEFORE the formal rerun result existed: a difference inside run-to-run noise is not a C5 decision",
+   "diagnostics_retained_as_NON_DECISIONAL": {
+    "PIQP_P1": {
+     "mean": 44.43,
+     "median": 44.42,
+     "sd": 0.6
+    },
+    "PIQP_P2": {
+     "mean": 45.02,
+     "median": 44.92,
+     "sd": 0.87
+    },
+    "cohens_d": 0.8,
+    "mann_whitney_z": -1.72,
+    "nominal_difference_percent": 1.3,
+    "nominal_difference_seconds": 0.6,
+    "pooled_measurements_per_candidate": 13,
+    "sign_test_executions": "P1 median lower in 3 of 3",
+    "why_non_decisional": "replacing the registered decision rule with Cohen's d, a Mann-Whitney p-value, a sign test, or a 'consistent nominal winner' heuristic AFTER seeing the data is exactly the post-results rule invention SA-4 exists to prevent"
+   },
+   "measured": {
+    "median_gap": 0.72,
+    "noise": 2.56,
+    "verdict": "TIE"
+   },
+   "registered_test": "median_gap > max(within_candidate_run_spread), else TIE",
+   "ruling": "TIE"
+  },
+  "D3_clause5": {
+   "evidence": {
+    "B_decisive_instances": 5,
+    "all_transitions_were": "SECONDARY_CERTIFIED -> PRIMARY_CERTIFIED",
+    "allocation_beyond_registered_bound": 0,
+    "cause": "QUADPROG_SQRT's false-infeasibility is coordinate-order dependent; it CERTIFIES the permuted instance, so B is no longer needed",
+    "certified_solution_disagreements": 0,
+    "disposition_transitions": 20,
+    "invalid_run_count": 0,
+    "permuted_checks": 30,
+    "unresolved_instance_count": 0,
+    "worst_allocation_deviation": 7.275263277824169e-14
+   },
+   "not_a_relaxation_of": "the allocation requirement, which remains strict",
+   "registered_clarification": "For D3 clause 5, 'method disposition' means the TERMINAL SEMANTIC CLASS of the two-generator method \u2014 resolved certified allocation versus unresolved/integrity stop \u2014 not the accepted_by generator attribution. A permutation-induced SECONDARY_CERTIFIED <-> PRIMARY_CERTIFIED transition is diagnostic numerical-route variation, not a method-semantic failure, provided the accepted allocations satisfy the registered equivalence bound and neither run changes terminal semantic class.",
+   "retained_diagnostic_finding": "Solver A is NOT permutation-stable on its failure set. This is recorded explicitly rather than presumed away; only 285 of 11,667 permuted A solves are byte-identical.",
+   "ruling": "PASS"
+  },
+  "tie_adjudication": {
+   "character": "owner discretionary resolution of the registered C6 tie",
+   "committed_in": "770a1091b9301ff6af6bd6950b4e4565312dcba9",
+   "explicitly_NOT": [
+    "a new C7 criterion",
+    "the withdrawn v1 standalone-nonqualification tiebreak (51 vs 59)",
+    "a choice made because PIQP_P2 yields the preservation result"
+   ],
+   "recorded_before_this_result_existed": true,
+   "selected": "PIQP_P2",
+   "stated_basis": "minimum-change continuity"
+  }
+ },
+ "program": "MR-002 / SPQ-1",
+ "record_identity_sha256": "629eee0ee1c257a23312b539fbac8542b40cbf6f2cef296ba2c829fb6b29bd81",
+ "record_status": "FINAL",
+ "record_type": "MR002_N1_FINAL_ADJUDICATED_VERDICT",
+ "reproducibility_note": "n1_census_rows.json (5.9 MB), n1_diff_v1.json and n1_equivalence.json carry IDENTICAL SHA-256 across the provisional and the formal executions \u2014 byte-identical reproduction across two independent runs and across the uncommitted -> committed code boundary.",
+ "selected_solver_A": "QUADPROG_SQRT",
+ "selected_solver_B": "PIQP_P2",
+ "version": "1.0"
+}

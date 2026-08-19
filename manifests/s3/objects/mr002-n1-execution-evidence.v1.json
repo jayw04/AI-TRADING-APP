@@ -1,0 +1,101 @@
+{
+  "artifact_id": "mr002-n1-execution-evidence",
+  "bucket": "workbench-backups-219024422756",
+  "byte_length": 13955772,
+  "content_type": "application/json",
+  "created_at": "2026-08-19T19:36:23Z",
+  "frozen_thread_env": {
+    "MKL_NUM_THREADS": "1",
+    "NUMEXPR_NUM_THREADS": "1",
+    "OMP_NUM_THREADS": "1",
+    "OPENBLAS_CORETYPE": "HASWELL",
+    "OPENBLAS_NUM_THREADS": "1"
+  },
+  "notes": "MR-002 Gate N1 FORMAL execution evidence, produced from pushed commit 770a1091b9301ff6af6bd6950b4e4565312dcba9 in mr002-research:v1.4 under the registered FROZEN_THREAD_ENV. Corpus hash 1d2319301a7b52dfe369819bc8029f7b6d64ad820d828f041eba15a91348390b.",
+  "object_key": "artifacts/governed/mr002-n1-execution-evidence/1.0/",
+  "owner": "Engineering / Architecture",
+  "package_members": [
+    {
+      "byte_length": 8048176,
+      "name": "corpus.npz",
+      "object_key": "artifacts/governed/mr002-n1-execution-evidence/1.0/corpus.npz",
+      "readback_verified_by_version_id": true,
+      "s3_version_id": "iSIbeLjYCSyW1.5iufpAkK47eM_01w71",
+      "sha256": "ce31e07c7e3dd000b5dafbe7af94915b12b6ffa3a0b679552706f6bd1ee69f86"
+    },
+    {
+      "byte_length": 1796,
+      "name": "n1_c4c5.json",
+      "object_key": "artifacts/governed/mr002-n1-execution-evidence/1.0/n1_c4c5.json",
+      "readback_verified_by_version_id": true,
+      "s3_version_id": "JWpGyee9u_K9dfYJFsqJUIC10zQfjFaW",
+      "sha256": "2d8d0a3cb4eaba997bfcbdb8a03c6b1f24ccd34a911f74987770fcd3fe870f52"
+    },
+    {
+      "byte_length": 1612,
+      "name": "n1_c4c5_run1.json",
+      "object_key": "artifacts/governed/mr002-n1-execution-evidence/1.0/n1_c4c5_run1.json",
+      "readback_verified_by_version_id": true,
+      "s3_version_id": "xM4ZhNYdl4X0kpaRgZ6ogZEYc3t60Jc2",
+      "sha256": "1010d13ebe133045c3b6320f9f0211304c23dc8d332a89805e69b08ecaa51114"
+    },
+    {
+      "byte_length": 2881,
+      "name": "n1_census_c1c2.json",
+      "object_key": "artifacts/governed/mr002-n1-execution-evidence/1.0/n1_census_c1c2.json",
+      "readback_verified_by_version_id": true,
+      "s3_version_id": "IrNZIwUGmvNt1QNZtUbeOpcn0kg7ZKsP",
+      "sha256": "a69b6bc03bda34328617fa26296f446117208dce5a2d8841cd3842be084d994e"
+    },
+    {
+      "byte_length": 5873741,
+      "name": "n1_census_rows.json",
+      "object_key": "artifacts/governed/mr002-n1-execution-evidence/1.0/n1_census_rows.json",
+      "readback_verified_by_version_id": true,
+      "s3_version_id": "hc8aWpx6GUWdDfQDK_x4gb8lHufZCSLy",
+      "sha256": "5aa9681b42353d756d9cd973030ad0d906228501754a7b6163323780542a32b0"
+    },
+    {
+      "byte_length": 2584,
+      "name": "n1_diff_v1.json",
+      "object_key": "artifacts/governed/mr002-n1-execution-evidence/1.0/n1_diff_v1.json",
+      "readback_verified_by_version_id": true,
+      "s3_version_id": "oRVRlaWMifJijXXrF6FTy5JFNX46bGA2",
+      "sha256": "cd90a773a69a3a4af4b523206b1a596d36e5a2c6e15e69eb92eda6fcd77b32dd"
+    },
+    {
+      "byte_length": 1497,
+      "name": "n1_equivalence.json",
+      "object_key": "artifacts/governed/mr002-n1-execution-evidence/1.0/n1_equivalence.json",
+      "readback_verified_by_version_id": true,
+      "s3_version_id": "6OVv2.YjwOrOqTZAdqRlYCmEh4lygUMy",
+      "sha256": "92546921124865ba76662bd8f1f6151798686b49c48e5d99d5416a4ca05e8e51"
+    },
+    {
+      "byte_length": 17246,
+      "name": "n1_preservation.json",
+      "object_key": "artifacts/governed/mr002-n1-execution-evidence/1.0/n1_preservation.json",
+      "readback_verified_by_version_id": true,
+      "s3_version_id": "4.T4QV2OC0ezGv7mXe.tAJ7KmVULYdcH",
+      "sha256": "fb240d2b504f693dfe6b2da3bafd23cc2cf8d111ab012519df51872d2b38c613"
+    },
+    {
+      "byte_length": 6239,
+      "name": "n1_shuffle.json",
+      "object_key": "artifacts/governed/mr002-n1-execution-evidence/1.0/n1_shuffle.json",
+      "readback_verified_by_version_id": true,
+      "s3_version_id": "XtFdT_MgMzdZo9m3urkDJtuRUe6guUHd",
+      "sha256": "0959a016d0ff98f4f35553dee88fa5211a2ec109e49b5d469efc722f3dbf0091"
+    }
+  ],
+  "package_sha256_basis": "sha256 of the canonical JSON of package_members",
+  "producing_job_or_run": "mr002-n1-clean-rerun@770a1091b930",
+  "retention_class": "governed",
+  "runtime_image": "mr002-research:v1.4",
+  "s3_version_id": "PACKAGE",
+  "schema_or_format_version": "1.0",
+  "schema_version": "1.0",
+  "sensitivity": "internal",
+  "sha256": "9e6e61611b7fc101df10e44049f210721fb08c07f37cebe4a4d09a9bdbc86dd4",
+  "source_commit": "770a1091b9301ff6af6bd6950b4e4565312dcba9"
+}
