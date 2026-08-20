@@ -71,3 +71,4 @@ apps/backend/scripts/mr002_development_run.py text eol=lf
 apps/backend/scripts/mr002_v2_build_rehearsal_fixtures.py text eol=lf
 apps/backend/scripts/mr002_v2_execution_closure.py text eol=lf
 apps/backend/scripts/mr002_v2_fold_gate_rehearsal.py text eol=lf
+apps/backend/scripts/mr002_v2_tree_aggregate.py text eol=lf
