@@ -1,0 +1,306 @@
+{
+ "amendment_C_commit": "1498039",
+ "authority": "93ee468801c92edd9dd1ba49944b381a6d9172c2e22f9bcc76a9dcbe8541af57",
+ "checks": {
+  "all_five_folds_populated": true,
+  "evidence_package_staged_and_fsynced": true,
+  "frozen_pair_actually_routed": true,
+  "gate_decision_rule_correct_every_case": true,
+  "integrity_suppresses_economics": true,
+  "interlock_still_fatal": true,
+  "real_replay_completed_all_configs": true,
+  "registered_termination_not_a_defect": true,
+  "terminal_suppression_correct": true
+ },
+ "disposition": "EVALUATOR_REQUALIFICATION_PASS",
+ "domain": "DEVELOPMENT SURROGATE ONLY",
+ "leg1_real_replay": {
+  "corporate_action_exits": {
+   "A": 0,
+   "B": 0,
+   "C": 0
+  },
+  "disposition_vocabulary_observed": [
+   "PRIMARY_CERTIFIED",
+   "SECONDARY_CERTIFIED"
+  ],
+  "formation_and_exits_exercised": true,
+  "frozen_pair_routed": true,
+  "interlock_armed": true,
+  "interlock_did_not_fire_on_development": true,
+  "per_config": {
+   "A": {
+    "borrow": 2993.603605730645,
+    "census_rows": 822,
+    "closed_trades": 2519,
+    "costs": 207893.0322998712,
+    "entries_long": 1530,
+    "entries_short": 989,
+    "exit_reasons": {
+     "exit_earnings_blackout": 69,
+     "exit_time_stop": 1275,
+     "exit_z_reverted": 823,
+     "reduce_to_zero_coupling": 352
+    },
+    "exits": 2167,
+    "hard_exits_due": 2167,
+    "hard_exits_executed": 2167,
+    "invocations": 822,
+    "nav_final": 9762841.867368162,
+    "outcomes": {
+     "EXECUTION_CONSTRAINED_INFEASIBLE": 48,
+     "FEASIBLE": 268,
+     "VALID_ZERO_ENTRY_OUTCOME": 584
+    },
+    "reductions": 2374,
+    "run_hash": "ccb894ec3025867e4025360e6a33de6d005d3f27b3ba93f8d6dcbf106a623725",
+    "seconds": 8.0,
+    "sessions_scored": 900,
+    "stage3": {
+     "all_reconcile_to_a_registered_disposition": true,
+     "by_accepted_by": {
+      "PIQP_P2": 1,
+      "QUADPROG_SQRT": 821
+     },
+     "by_disposition": {
+      "PRIMARY_CERTIFIED": 821,
+      "SECONDARY_CERTIFIED": 1
+     },
+     "fallback_invoked": 1,
+     "invocations": 822,
+     "stop_dispositions": 0,
+     "unrecognized_outcomes": 0,
+     "unregistered_termination_reasons": 0
+    },
+    "stopped": null,
+    "traded_notional": 207893032.2998707
+   },
+   "B": {
+    "borrow": 867.0212921505947,
+    "census_rows": 805,
+    "closed_trades": 772,
+    "costs": 64553.3694305306,
+    "entries_long": 454,
+    "entries_short": 318,
+    "exit_reasons": {
+     "exit_earnings_blackout": 15,
+     "exit_time_stop": 328,
+     "exit_z_reverted": 257,
+     "reduce_to_zero_coupling": 172
+    },
+    "exits": 600,
+    "hard_exits_due": 600,
+    "hard_exits_executed": 600,
+    "invocations": 805,
+    "nav_final": 9949239.716509486,
+    "outcomes": {
+     "EXECUTION_CONSTRAINED_INFEASIBLE": 15,
+     "FEASIBLE": 87,
+     "VALID_ZERO_ENTRY_OUTCOME": 798
+    },
+    "reductions": 766,
+    "run_hash": "36903ba60276766c27447026f930bf7e93d537f7954e53d9a791f3606a5c3714",
+    "seconds": 6.4,
+    "sessions_scored": 900,
+    "stage3": {
+     "all_reconcile_to_a_registered_disposition": true,
+     "by_accepted_by": {
+      "PIQP_P2": 1,
+      "QUADPROG_SQRT": 804
+     },
+     "by_disposition": {
+      "PRIMARY_CERTIFIED": 804,
+      "SECONDARY_CERTIFIED": 1
+     },
+     "fallback_invoked": 1,
+     "invocations": 805,
+     "stop_dispositions": 0,
+     "unrecognized_outcomes": 0,
+     "unregistered_termination_reasons": 0
+    },
+    "stopped": null,
+    "traded_notional": 64553369.43053048
+   },
+   "C": {
+    "borrow": 230.83247252143005,
+    "census_rows": 720,
+    "closed_trades": 219,
+    "costs": 20315.03480244725,
+    "entries_long": 133,
+    "entries_short": 86,
+    "exit_reasons": {
+     "exit_earnings_blackout": 3,
+     "exit_time_stop": 72,
+     "exit_z_reverted": 65,
+     "reduce_to_zero_coupling": 79
+    },
+    "exits": 140,
+    "hard_exits_due": 140,
+    "hard_exits_executed": 140,
+    "invocations": 720,
+    "nav_final": 10004606.476192586,
+    "outcomes": {
+     "EXECUTION_CONSTRAINED_INFEASIBLE": 5,
+     "FEASIBLE": 22,
+     "VALID_ZERO_ENTRY_OUTCOME": 873
+    },
+    "reductions": 182,
+    "run_hash": "b4fa9aac1e3992acd63127c1c28ad72ffd60df6b116d2b6da9acd7be040ccbff",
+    "seconds": 4.9,
+    "sessions_scored": 900,
+    "stage3": {
+     "all_reconcile_to_a_registered_disposition": true,
+     "by_accepted_by": {
+      "QUADPROG_SQRT": 720
+     },
+     "by_disposition": {
+      "PRIMARY_CERTIFIED": 720
+     },
+     "fallback_invoked": 0,
+     "invocations": 720,
+     "stop_dispositions": 0,
+     "unrecognized_outcomes": 0,
+     "unregistered_termination_reasons": 0
+    },
+    "stopped": null,
+    "traded_notional": 20315034.802447222
+   }
+  },
+  "sessions_replayed": 900
+ },
+ "leg1b_interlock": {
+  "boundary": "2026-07-10",
+  "detail": "OOS_BOUNDARY_VIOLATION: session 2026-07-11 is beyond the Validation-2 window end 2026-07-10; sessions past it are unallocated or sealed new OOS",
+  "interlock_fired": true,
+  "probe_session": "2026-07-11",
+  "why": "Amendment C moved the boundary but must NOT have weakened the control. A boundary that no longer stops anything is worse than the old one."
+ },
+ "leg2_gate_wiring": {
+  "ADVANCE_4_of_5_positive": {
+   "SYNTHETIC": true,
+   "expected": "VALIDATION_ADVANCE_REQUEST",
+   "folds_with_sessions": 5,
+   "gates_evaluated": true,
+   "matches": true,
+   "observed_positive_folds": 4,
+   "verdict": "VALIDATION_ADVANCE_REQUEST"
+  },
+  "ADVANCE_exactly_3_of_5": {
+   "SYNTHETIC": true,
+   "expected": "VALIDATION_ADVANCE_REQUEST",
+   "folds_with_sessions": 5,
+   "gates_evaluated": true,
+   "matches": true,
+   "observed_positive_folds": 3,
+   "verdict": "VALIDATION_ADVANCE_REQUEST"
+  },
+  "INTEGRITY_FAILURE_suppresses_excellent_economics": {
+   "SYNTHETIC": true,
+   "expected": "INTEGRITY_FAILURE",
+   "gates_evaluated": false,
+   "matches": true,
+   "not_mislabelled_as_reject": true,
+   "verdict": "INTEGRITY_FAILURE"
+  },
+  "REJECT_folds_pass_but_A_negative": {
+   "SYNTHETIC": true,
+   "expected": "VALIDATION_DO_NOT_ADVANCE",
+   "folds_with_sessions": 5,
+   "gates_evaluated": true,
+   "matches": true,
+   "observed_positive_folds": 5,
+   "verdict": "VALIDATION_DO_NOT_ADVANCE"
+  },
+  "REJECT_folds_pass_but_C_negative": {
+   "SYNTHETIC": true,
+   "expected": "VALIDATION_DO_NOT_ADVANCE",
+   "folds_with_sessions": 5,
+   "gates_evaluated": true,
+   "matches": true,
+   "observed_positive_folds": 5,
+   "verdict": "VALIDATION_DO_NOT_ADVANCE"
+  },
+  "REJECT_only_2_of_5": {
+   "SYNTHETIC": true,
+   "expected": "VALIDATION_DO_NOT_ADVANCE",
+   "folds_with_sessions": 5,
+   "gates_evaluated": true,
+   "matches": true,
+   "observed_positive_folds": 2,
+   "verdict": "VALIDATION_DO_NOT_ADVANCE"
+  },
+  "all_cases_match": true,
+  "fold_wiring": {
+   "all_five_populated": true,
+   "fold_dates_are_REAL_validation2_dates": [
+    {
+     "first": "2023-05-30",
+     "fold": 1,
+     "last": "2024-01-09"
+    },
+    {
+     "first": "2024-01-10",
+     "fold": 2,
+     "last": "2024-08-21"
+    },
+    {
+     "first": "2024-08-22",
+     "fold": 3,
+     "last": "2025-04-04"
+    },
+    {
+     "first": "2025-04-07",
+     "fold": 4,
+     "last": "2025-11-14"
+    },
+    {
+     "first": "2025-11-17",
+     "fold": 5,
+     "last": "2026-07-01"
+    }
+   ],
+   "folds": 5,
+   "nav_curves_are_SYNTHETIC": true,
+   "per_fold_sessions": {
+    "1": 155,
+    "2": 155,
+    "3": 155,
+    "4": 155,
+    "5": 155
+   }
+  }
+ },
+ "leg3_terminal_and_handoff": {
+  "conformance_state_with_registered_terminations": true,
+  "conformant_run_keeps_its_verdict": true,
+  "evidence_package": {
+   "bytes": 6359,
+   "fsynced": true,
+   "handoff_protocol": "written to a staging path the evaluator may only PutObject to; the publisher reads it GetObject-only. Amendment B v1.1 is NOT APPLIED, so this leg exercises the PROTOCOL SHAPE locally and does not prove the deployed IAM separation.",
+   "sha256": "3edac287ed4aaa31e5a2b908af57c3bb7f750eef76792865bf1b030fb58dad3c",
+   "staged_at": "/work/.mr002out/v2/staging/validation2_evidence_package.json"
+  },
+  "nonconformant_run_suppresses_verdict": true,
+  "routing_guard_on_the_real_census": {
+   "basis": "lower bound + structural relationship, not a literal expected count",
+   "census_rows": 805,
+   "dispositions": {
+    "PRIMARY_CERTIFIED": 804,
+    "SECONDARY_CERTIFIED": 1
+   },
+   "invocations": 805,
+   "v2_pair_routed": true
+  }
+ },
+ "no_tuning_performed": "nothing in this run feeds back into any parameter, threshold or selection. It is a protocol test.",
+ "open_gaps": [
+  "deployed IAM reader/publisher separation NOT proven here \u2014 Amendment B v1.1 is not applied; leg 3 exercises the handoff SHAPE only"
+ ],
+ "record_type": "MR002_Validation2_EvaluatorRequalification",
+ "scope_disclosure": "LEG 1 is the real evaluator path on real development data. LEG 2 uses SYNTHETIC NAV fixtures on the REAL Validation-2 fold dates, because no development session maps to a Validation-2 fold and re-dating development economics into that calendar would invent a mapping. Neither leg is presented as the other.",
+ "sealed_store_touched": false,
+ "solver_A": "QUADPROG_SQRT",
+ "solver_B": "PIQP_P2",
+ "validation_2_bytes_read": 0,
+ "version": "1.0"
+}
