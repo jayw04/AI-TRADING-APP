@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Program | **MDQ-001** |
-| Version | v1.0 **DRAFT — not yet registered** (updated 2026-08-15 per implementation-plan v0.5; **correction set applied 2026-08-18** — owner rulings 1–4, recorded in **§8.2**. Three are consistency corrections to prose a later ratified decision had already superseded; the fourth **adds a disposition** (§5) and is **PENDING EXPLICIT OWNER SIGN-OFF**. The signed §8 block and the ratified §8.1 block are not edited.) |
+| Version | v1.0 **DRAFT — not yet registered** (updated 2026-08-15 per implementation-plan v0.5; **correction set applied 2026-08-18** — owner rulings 1–4, recorded in **§8.2**. Three are consistency corrections to prose a later ratified decision had already superseded; the fourth **adds a disposition** (§5) and was **SIGNED 2026-08-19 at §8.3**, before any exploratory read of the corpus. The signed §8 block and the ratified §8.1 block are not edited.) |
 | Date | 2026-08-15 |
 | Class | Platform data-qualification track (Research/Analytics plane, ADR 0051). **Not alpha research.** No execution authority; outputs are governed artifacts carrying the standard provenance envelope. |
 | Governing plan | `docs/Strategies/Strategy-proposals-v1_4_1-Algo-Trader-Plus-2026-08-15.md` §1.3, §4, §15 Track A |
@@ -272,7 +272,7 @@ Ratified by / date:           Jay Wang (owner) — 2026-08-17, ratification issu
                               not reopened. Applied by the developer session same day.
 ```
 
-### 8.2 v1.0 correction set — owner rulings, 2026-08-18 *(three CORRECTIONS; one ADDITION pending sign-off)*
+### 8.2 v1.0 correction set — owner rulings, 2026-08-18 *(three CORRECTIONS; one ADDITION — **signed 2026-08-19, §8.3**)*
 
 Review of the governed text on 2026-08-18 — after the first scheduled governed capture was **refused by the deployed
 fail-closed free-space guard** (09:25:02 EDT, `9G available < 10G floor`; zero cycles, no partition, **clock not
