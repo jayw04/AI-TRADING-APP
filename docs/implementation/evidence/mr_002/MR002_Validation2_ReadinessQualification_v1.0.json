@@ -1,0 +1,406 @@
+{
+ "amendment_A_lineage": {
+  "all_three_preserved_unmodified": true,
+  "v1.0": "APPLIED, then found SAFE BUT INSUFFICIENT. Preserved as FAILED READINESS HISTORY together with its matrix 5e39ff64... It never permitted an unintended read; it failed to meet the registered EXPLICIT-deny strength.",
+  "v1.1": "SEALED INTERMEDIATE, NEVER APPLIED. Correct per-key denies, but its NotResource statement was described as if scoped to oos/ when it is global.",
+  "v1.2": "APPLIED EXACTLY AS SEALED. Adopts the global GetObjectVersion deny as INTENTIONAL least privilege and renames the Sid to say so."
+ },
+ "amendment_B_unchanged": {
+  "live_trust_proof_still_valid": "6b8a73a6633a9e709409caf9ce339c777cd49b98f5b300fd30d7acf4b130c8bc",
+  "re_verified_in_this_matrix": [
+   "run-host -> publisher explicitDeny",
+   "publisher -> reader explicitDeny",
+   "publisher -> sealed explicitDeny",
+   "publisher -> evidence allowed",
+   "base role -> publisher allowed"
+  ]
+ },
+ "bound_sources": {
+  "apps/backend/app/research/mr002/phase3c/__init__.py": "ad3b578c5e9965c21e734b18431f82d5602463481d1dd57ee242b8c0e5483c9f",
+  "apps/backend/app/research/mr002/phase3c/folds.py": "8033265051b02d730900538693a662b4af6e2bc80a410090add83d8d38db103f",
+  "apps/backend/app/research/mr002/phase3c/replay.py": "e90cbe8edf2c50d90e7d4fd3c87d2ce6b4605a7023b0e3a75d506bfec4ad8b87",
+  "apps/backend/scripts/mr002_v2_evaluator_requal.py": "7b738eb5f2bddbf77394b46a57974d8e40d5d57a251bc78fd19fa34bf74410bd",
+  "apps/backend/scripts/mr002_v2_harness.py": "fd4437a4fbb6410ec2b7c59daa066bac2e5cadd69ffbaa96d78c2aabfc156f41",
+  "scripts/mr002_custody/aws/validation2-reader-policy-v1.2.json": "b59c1d61c284f3208a8dbef5ddbafa1ce55e299f10fc3d066961894946d5098f",
+  "scripts/mr002_custody/oos_pristine_proof.py": "31e1fd269ad9602ccafd2dedc5b8822b28f7c627fe80f97f77e6db804bc41eb2",
+  "scripts/mr002_custody/validation2_structural_preflight.py": "fb911c77701359bef42dafd1210629a3a6b47b4e4390726e80a54a20afe99188"
+ },
+ "boundary": {
+  "amendments_applied": [
+   "C",
+   "B v1.2",
+   "A v1.2"
+  ],
+  "new_oos": "PROHIBITED",
+  "validation_1": "CONSUMED \u2014 permanently inadmissible",
+  "validation_2_opening": "NOT AUTHORIZED",
+  "withheld_reads": 0
+ },
+ "candidate_execution_commit": "4a1fcebaac6b3cf5f727658d2faac5a444b372a6",
+ "date": "2026-08-20",
+ "deployed_matrix": {
+  "all_intended": true,
+  "cells": 39,
+  "principal_graph_cells": 7,
+  "reader_cells": 32,
+  "results": [
+   {
+    "action": "s3:GetObjectVersion",
+    "cell": "actions @ OWN registered version",
+    "match": true,
+    "observed": "allowed",
+    "required": "allowed"
+   },
+   {
+    "action": "s3:GetObjectVersion",
+    "cell": "anchors @ OWN registered version",
+    "match": true,
+    "observed": "allowed",
+    "required": "allowed"
+   },
+   {
+    "action": "s3:GetObjectVersion",
+    "cell": "etf_prices @ OWN registered version",
+    "match": true,
+    "observed": "allowed",
+    "required": "allowed"
+   },
+   {
+    "action": "s3:GetObjectVersion",
+    "cell": "prices @ OWN registered version",
+    "match": true,
+    "observed": "allowed",
+    "required": "allowed"
+   },
+   {
+    "action": "s3:GetObjectVersion",
+    "cell": "sic_observations @ OWN registered version",
+    "match": true,
+    "observed": "allowed",
+    "required": "allowed"
+   },
+   {
+    "action": "s3:GetObjectVersion",
+    "cell": "universe @ OWN registered version",
+    "match": true,
+    "observed": "allowed",
+    "required": "allowed"
+   },
+   {
+    "action": "s3:GetObjectVersion",
+    "cell": "actions @ ANOTHER key's version",
+    "match": true,
+    "observed": "explicitDeny",
+    "required": "explicitDeny"
+   },
+   {
+    "action": "s3:GetObjectVersion",
+    "cell": "anchors @ ANOTHER key's version",
+    "match": true,
+    "observed": "explicitDeny",
+    "required": "explicitDeny"
+   },
+   {
+    "action": "s3:GetObjectVersion",
+    "cell": "etf_prices @ ANOTHER key's version",
+    "match": true,
+    "observed": "explicitDeny",
+    "required": "explicitDeny"
+   },
+   {
+    "action": "s3:GetObjectVersion",
+    "cell": "prices @ ANOTHER key's version",
+    "match": true,
+    "observed": "explicitDeny",
+    "required": "explicitDeny"
+   },
+   {
+    "action": "s3:GetObjectVersion",
+    "cell": "sic_observations @ ANOTHER key's version",
+    "match": true,
+    "observed": "explicitDeny",
+    "required": "explicitDeny"
+   },
+   {
+    "action": "s3:GetObjectVersion",
+    "cell": "universe @ ANOTHER key's version",
+    "match": true,
+    "observed": "explicitDeny",
+    "required": "explicitDeny"
+   },
+   {
+    "action": "s3:GetObjectVersion",
+    "cell": "prices @ FABRICATED version",
+    "match": true,
+    "observed": "explicitDeny",
+    "required": "explicitDeny"
+   },
+   {
+    "action": "s3:GetObjectVersion",
+    "cell": "prices @ NO version supplied",
+    "match": true,
+    "observed": "explicitDeny",
+    "required": "explicitDeny"
+   },
+   {
+    "action": "s3:GetObject",
+    "cell": "plain GetObject on oos/prices",
+    "match": true,
+    "observed": "explicitDeny",
+    "required": "explicitDeny"
+   },
+   {
+    "action": "s3:GetObjectVersion",
+    "cell": "UNREGISTERED key under oos/",
+    "match": true,
+    "observed": "explicitDeny",
+    "required": "explicitDeny"
+   },
+   {
+    "action": "s3:GetObjectVersion",
+    "cell": "sealed bucket, OUTSIDE dev/ref/oos",
+    "match": true,
+    "observed": "explicitDeny",
+    "required": "explicitDeny"
+   },
+   {
+    "action": "s3:GetObjectVersion",
+    "cell": "UNRELATED bucket entirely",
+    "match": true,
+    "observed": "explicitDeny",
+    "required": "explicitDeny"
+   },
+   {
+    "action": "s3:GetObjectVersion",
+    "cell": "UNRELATED third-party-style bucket",
+    "match": true,
+    "observed": "explicitDeny",
+    "required": "explicitDeny"
+   },
+   {
+    "action": "s3:GetObjectVersion",
+    "cell": "development GetObjectVersion",
+    "match": true,
+    "observed": "allowed",
+    "required": "allowed"
+   },
+   {
+    "action": "s3:GetObject",
+    "cell": "development GetObject",
+    "match": true,
+    "observed": "allowed",
+    "required": "allowed"
+   },
+   {
+    "action": "s3:GetObjectVersion",
+    "cell": "reference GetObjectVersion",
+    "match": true,
+    "observed": "allowed",
+    "required": "allowed"
+   },
+   {
+    "action": "s3:GetObject",
+    "cell": "reference GetObject",
+    "match": true,
+    "observed": "allowed",
+    "required": "allowed"
+   },
+   {
+    "action": "s3:GetObject",
+    "cell": "consumed validation/*",
+    "match": true,
+    "observed": "explicitDeny",
+    "required": "explicitDeny"
+   },
+   {
+    "action": "s3:PutObject",
+    "cell": "PutObject sealed",
+    "match": true,
+    "observed": "explicitDeny",
+    "required": "explicitDeny"
+   },
+   {
+    "action": "s3:DeleteObjectVersion",
+    "cell": "DeleteObjectVersion sealed",
+    "match": true,
+    "observed": "explicitDeny",
+    "required": "explicitDeny"
+   },
+   {
+    "action": "s3:PutObject",
+    "cell": "write governing evidence",
+    "match": true,
+    "observed": "explicitDeny",
+    "required": "explicitDeny"
+   },
+   {
+    "action": "s3:ListBucket",
+    "cell": "ListBucket prefix=development/",
+    "match": true,
+    "observed": "allowed",
+    "required": "allowed"
+   },
+   {
+    "action": "s3:ListBucket",
+    "cell": "ListBucket prefix=reference/",
+    "match": true,
+    "observed": "allowed",
+    "required": "allowed"
+   },
+   {
+    "action": "s3:ListBucket",
+    "cell": "ListBucket prefix=oos/",
+    "match": true,
+    "observed": "explicitDeny",
+    "required": "explicitDeny"
+   },
+   {
+    "action": "s3:ListBucket",
+    "cell": "ListBucket prefix=validation/",
+    "match": true,
+    "observed": "explicitDeny",
+    "required": "explicitDeny"
+   },
+   {
+    "action": "sts:AssumeRole",
+    "cell": "AssumeRole publisher",
+    "match": true,
+    "observed": "explicitDeny",
+    "required": "explicitDeny"
+   },
+   {
+    "cell": "run-host -> AssumeRole reader (latch CLOSED)",
+    "match": true,
+    "observed": "explicitDeny",
+    "required": "explicitDeny"
+   },
+   {
+    "cell": "run-host -> sealed oos direct",
+    "match": true,
+    "observed": "explicitDeny",
+    "required": "explicitDeny"
+   },
+   {
+    "cell": "run-host -> AssumeRole publisher",
+    "match": true,
+    "observed": "explicitDeny",
+    "required": "explicitDeny"
+   },
+   {
+    "cell": "publisher -> AssumeRole reader",
+    "match": true,
+    "observed": "explicitDeny",
+    "required": "explicitDeny"
+   },
+   {
+    "cell": "publisher -> sealed oos",
+    "match": true,
+    "observed": "explicitDeny",
+    "required": "explicitDeny"
+   },
+   {
+    "cell": "publisher -> governed evidence write",
+    "match": true,
+    "observed": "allowed",
+    "required": "allowed"
+   },
+   {
+    "cell": "base role -> AssumeRole publisher",
+    "match": true,
+    "observed": "allowed",
+    "required": "allowed"
+   }
+  ]
+ },
+ "deployed_reader_policy": {
+  "canonical_sha256": "6f3fb2e1fca65138a70c8c2d0b44fcf2a706cf58d24712f38ac27914357b3759",
+  "canonicalisation": "statements sorted by Sid; list-valued Action/NotAction/Resource/NotResource sorted; JSON key-sorted - so ordering differences introduced by AWS are not mistaken for drift",
+  "equals_sealed_A_v1_2": true,
+  "statements": 21
+ },
+ "disclosed_limitations_carried_forward": {
+  "dividends": "no independent cash-distribution ledger exists in the frozen replay; the gap-filter and corporate-action channels were reconciled instead, and the exit_corporate_action rung fired ZERO times on development, so that leg is reconciled but VACUOUS.",
+  "epistemic": "Validation-2 is machine-pristine but historically ELAPSED. Its observations were never read from the governed corpus, but the calendar period is known to analysts. It is a genuine withheld HISTORICAL validation test, not prospective forward validation.",
+  "fold_results": "NOT computable on the development surrogate; the fold/gate wiring was qualified with SYNTHETIC fixtures on the REAL fold dates.",
+  "sealed_byte_binding": "the six objects' bytes were never hashed by this qualification. They are BOUND via write-time server-validated SHA-256, which is weaker than direct verification and is disclosed as such."
+ },
+ "disposition": "VALIDATION2_READY_FOR_OWNER_OPENING_GRANT",
+ "evidence_chain": {
+  "N1": "629eee0ee1c257a23312b539fbac8542b40cbf6f2cef296ba2c829fb6b29bd81",
+  "N2": "27f98548067b3017870937c22196212e5bb1b11fdbd6a961a329f85f82aae471",
+  "N3": "5a14028024a1f78ca60ebeb174b5ecd7b8a3e1f5027f8768ec93b6f2a8195ec4",
+  "access_history_final": "90b749c5f5fc05b6348ef7e9d050f34cbace29fe94cce531b5c9d8ef5f02228f",
+  "access_history_post_amendment_B": "44989af946f09c907223a218b08fe6cb2a6f37443726494c8cc4b6f8bc3a0726",
+  "access_history_pre": "edb50634f3651bcb1e600f0b060e72eb4999e783b06be48b0e3f0aa2f3b1652c",
+  "adr0051_isolation_checkers": {
+   "check_research_plane_no_broker_capability.sh": "9092c1d9b32a4a672eff112351b5897057bc5998bd60d1fe790bbd49fbcbd4e8",
+   "check_research_plane_order_path_isolation.sh": "0a1f30b8c6a31c9ccff99fde85e1a60d94deac867c2d3730f24b9ff723bf07bc"
+  },
+  "amendment_A_v1_0_failing_matrix": "5e39ff64d8bef7af5de2462d4fafa56b0bece691994364e33524fdccb5c8c033",
+  "amendment_A_v1_1_sealed_intermediate": "43e6acfb7732c37336fb0d7817c202225e2b773926bef9183ec5e04a3bf6c14c",
+  "amendment_A_v1_2_sealed": "3ce28be1cf6c422a2f0acc9d7fe5388f0fea9c62ad91c57c30459da32d6d4735",
+  "amendment_B_application_evidence": "aebe4612f9a8f84a5a35f4e92372313370d746550c601b4a43c2c1510eb1daef",
+  "amendment_B_live_trust": "6b8a73a6633a9e709409caf9ce339c777cd49b98f5b300fd30d7acf4b130c8bc",
+  "amendment_B_v1_2_sealed": "1d27410c626a5748133723a3680625ca07256c334ae39fd1e9bc8529aeb4ed7d",
+  "amendment_C_applied_commit": "1498039b7ca825a555dd562513ca74a8d5145034",
+  "dry_run_NOT_READY_checkpoint": "ac5a864abf1941b59b8e5a59dc43ddeb1937adcab9c6193a326affe5f3f15022",
+  "evaluator_requalification_commit": "11b6cf5918c9de93eb94153ecbf7072ff273fa15",
+  "iam_pre_amendment_state": "55a81cba8a136ceda2efe96c82fb25dbd8c0f06d5e3b175a65d9af8e4292975f",
+  "partition_identity": "3b3910d00395d90189b94fd0f9901811b1813905f17219010b336c567cfa1296",
+  "prospective_registration": "93ee468801c92edd9dd1ba49944b381a6d9172c2e22f9bcc76a9dcbe8541af57",
+  "structural_preflight": "3810e071761a5100fe8cda6754488ebac5230f74b1b5e0f812ec53764d94436a"
+ },
+ "latch": {
+  "LOAD_BEARING": "8 = CLOSED (Deny + Allow, explicit Deny wins); 7 = RELEASED. This is the one-shot control, NOT dead configuration. A future security cleanup must not remove the Deny.",
+  "state": "CLOSED",
+  "statements": "8"
+ },
+ "readiness_gates": {
+  "all_bound_sources_committed": true,
+  "deployed_matrix_fully_green": true,
+  "deployed_policy_equals_sealed_document": true,
+  "every_required_identity_present": true,
+  "latch_closed_8_statements": true,
+  "no_live_read_used_during_qualification": true,
+  "reader_trust_unchanged": true,
+  "zero_successful_validation2_reads": true
+ },
+ "record_identity_sha256": "daa1f7ca7abb24509a2a1623a1ae3f6652f47197b7fc83106897efe73852f28f",
+ "record_type": "MR002_Validation2_ReadinessQualification",
+ "refuses_to_infer_closure": "this record does NOT conclude readiness from 'almost everything passed'. Every gate below must be true.",
+ "runtime_identity": {
+  "frozen_thread_env": {
+   "MKL_NUM_THREADS": "1",
+   "NUMEXPR_NUM_THREADS": "1",
+   "OMP_NUM_THREADS": "1",
+   "OPENBLAS_CORETYPE": "HASWELL",
+   "OPENBLAS_NUM_THREADS": "1"
+  },
+  "image": "mr002-research:v1.4",
+  "network": "none"
+ },
+ "self_disclosed_metadata_events": {
+  "what": "2 bucket-level listings (ListObjectVersions, ListObjects) and 6 denied HeadObject calls on oos/*, all mine, during Cycle 2C",
+  "why_recorded": "each is attributed in the access history rather than left as an unexplained increment. None is a content read; successful Validation-2 reads remain 0."
+ },
+ "stage_3_pair": {
+  "A": "QUADPROG_SQRT",
+  "B": "PIQP_P2",
+  "unchanged": true
+ },
+ "the_readiness_state_in_one_sentence": "The reader now has EXACTLY the right capability \u2014 six keys, each at its own registered VersionId, and nothing else anywhere in S3 for that verb \u2014 AND the evaluator still CANNOT obtain it, because the latch is 8/CLOSED. Readiness is both halves at once, not the first half alone.",
+ "those_require": "a separate one-shot Validation-2 OPENING GRANT from the owner",
+ "version": "1.0",
+ "withheld_reads": {
+  "chain_verifies": true,
+  "denied_attempts": 7,
+  "successful": 0
+ },
+ "\u26d4 what_this_record_does_NOT_authorize": [
+  "releasing the 8 -> 7 latch",
+  "assuming mr002-validation-reader",
+  "reading one Validation-2 byte",
+  "executing phase3c against Validation-2",
+  "inspecting any resulting economics"
+ ]
+}

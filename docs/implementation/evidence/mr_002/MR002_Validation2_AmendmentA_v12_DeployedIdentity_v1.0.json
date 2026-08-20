@@ -1,0 +1,7 @@
+{
+ "deployed_canonical_sha256": "6f3fb2e1fca65138a70c8c2d0b44fcf2a706cf58d24712f38ac27914357b3759",
+ "sealed_canonical_sha256": "6f3fb2e1fca65138a70c8c2d0b44fcf2a706cf58d24712f38ac27914357b3759",
+ "identical": true,
+ "canonicalisation": "statements sorted by Sid; list-valued Action/NotAction/Resource/NotResource sorted; JSON key-sorted - so ordering differences introduced by AWS are not mistaken for drift",
+ "statements": 21
+}

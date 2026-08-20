@@ -1,0 +1,275 @@
+{
+ "method": "iam simulate-principal-policy against the DEPLOYED principals; NO live GetObject/GetObjectVersion was issued against the six",
+ "cells": [
+  {
+   "cell": "actions @ OWN registered version",
+   "action": "s3:GetObjectVersion",
+   "observed": "allowed",
+   "required": "allowed",
+   "match": true
+  },
+  {
+   "cell": "anchors @ OWN registered version",
+   "action": "s3:GetObjectVersion",
+   "observed": "allowed",
+   "required": "allowed",
+   "match": true
+  },
+  {
+   "cell": "etf_prices @ OWN registered version",
+   "action": "s3:GetObjectVersion",
+   "observed": "allowed",
+   "required": "allowed",
+   "match": true
+  },
+  {
+   "cell": "prices @ OWN registered version",
+   "action": "s3:GetObjectVersion",
+   "observed": "allowed",
+   "required": "allowed",
+   "match": true
+  },
+  {
+   "cell": "sic_observations @ OWN registered version",
+   "action": "s3:GetObjectVersion",
+   "observed": "allowed",
+   "required": "allowed",
+   "match": true
+  },
+  {
+   "cell": "universe @ OWN registered version",
+   "action": "s3:GetObjectVersion",
+   "observed": "allowed",
+   "required": "allowed",
+   "match": true
+  },
+  {
+   "cell": "actions @ ANOTHER key's version",
+   "action": "s3:GetObjectVersion",
+   "observed": "explicitDeny",
+   "required": "explicitDeny",
+   "match": true
+  },
+  {
+   "cell": "anchors @ ANOTHER key's version",
+   "action": "s3:GetObjectVersion",
+   "observed": "explicitDeny",
+   "required": "explicitDeny",
+   "match": true
+  },
+  {
+   "cell": "etf_prices @ ANOTHER key's version",
+   "action": "s3:GetObjectVersion",
+   "observed": "explicitDeny",
+   "required": "explicitDeny",
+   "match": true
+  },
+  {
+   "cell": "prices @ ANOTHER key's version",
+   "action": "s3:GetObjectVersion",
+   "observed": "explicitDeny",
+   "required": "explicitDeny",
+   "match": true
+  },
+  {
+   "cell": "sic_observations @ ANOTHER key's version",
+   "action": "s3:GetObjectVersion",
+   "observed": "explicitDeny",
+   "required": "explicitDeny",
+   "match": true
+  },
+  {
+   "cell": "universe @ ANOTHER key's version",
+   "action": "s3:GetObjectVersion",
+   "observed": "explicitDeny",
+   "required": "explicitDeny",
+   "match": true
+  },
+  {
+   "cell": "prices @ FABRICATED version",
+   "action": "s3:GetObjectVersion",
+   "observed": "explicitDeny",
+   "required": "explicitDeny",
+   "match": true
+  },
+  {
+   "cell": "prices @ NO version supplied",
+   "action": "s3:GetObjectVersion",
+   "observed": "explicitDeny",
+   "required": "explicitDeny",
+   "match": true
+  },
+  {
+   "cell": "plain GetObject on oos/prices",
+   "action": "s3:GetObject",
+   "observed": "explicitDeny",
+   "required": "explicitDeny",
+   "match": true
+  },
+  {
+   "cell": "UNREGISTERED key under oos/",
+   "action": "s3:GetObjectVersion",
+   "observed": "explicitDeny",
+   "required": "explicitDeny",
+   "match": true
+  },
+  {
+   "cell": "sealed bucket, OUTSIDE dev/ref/oos",
+   "action": "s3:GetObjectVersion",
+   "observed": "explicitDeny",
+   "required": "explicitDeny",
+   "match": true
+  },
+  {
+   "cell": "UNRELATED bucket entirely",
+   "action": "s3:GetObjectVersion",
+   "observed": "explicitDeny",
+   "required": "explicitDeny",
+   "match": true
+  },
+  {
+   "cell": "UNRELATED third-party-style bucket",
+   "action": "s3:GetObjectVersion",
+   "observed": "explicitDeny",
+   "required": "explicitDeny",
+   "match": true
+  },
+  {
+   "cell": "development GetObjectVersion",
+   "action": "s3:GetObjectVersion",
+   "observed": "allowed",
+   "required": "allowed",
+   "match": true
+  },
+  {
+   "cell": "development GetObject",
+   "action": "s3:GetObject",
+   "observed": "allowed",
+   "required": "allowed",
+   "match": true
+  },
+  {
+   "cell": "reference GetObjectVersion",
+   "action": "s3:GetObjectVersion",
+   "observed": "allowed",
+   "required": "allowed",
+   "match": true
+  },
+  {
+   "cell": "reference GetObject",
+   "action": "s3:GetObject",
+   "observed": "allowed",
+   "required": "allowed",
+   "match": true
+  },
+  {
+   "cell": "consumed validation/*",
+   "action": "s3:GetObject",
+   "observed": "explicitDeny",
+   "required": "explicitDeny",
+   "match": true
+  },
+  {
+   "cell": "PutObject sealed",
+   "action": "s3:PutObject",
+   "observed": "explicitDeny",
+   "required": "explicitDeny",
+   "match": true
+  },
+  {
+   "cell": "DeleteObjectVersion sealed",
+   "action": "s3:DeleteObjectVersion",
+   "observed": "explicitDeny",
+   "required": "explicitDeny",
+   "match": true
+  },
+  {
+   "cell": "write governing evidence",
+   "action": "s3:PutObject",
+   "observed": "explicitDeny",
+   "required": "explicitDeny",
+   "match": true
+  },
+  {
+   "cell": "ListBucket prefix=development/",
+   "action": "s3:ListBucket",
+   "observed": "allowed",
+   "required": "allowed",
+   "match": true
+  },
+  {
+   "cell": "ListBucket prefix=reference/",
+   "action": "s3:ListBucket",
+   "observed": "allowed",
+   "required": "allowed",
+   "match": true
+  },
+  {
+   "cell": "ListBucket prefix=oos/",
+   "action": "s3:ListBucket",
+   "observed": "explicitDeny",
+   "required": "explicitDeny",
+   "match": true
+  },
+  {
+   "cell": "ListBucket prefix=validation/",
+   "action": "s3:ListBucket",
+   "observed": "explicitDeny",
+   "required": "explicitDeny",
+   "match": true
+  },
+  {
+   "cell": "AssumeRole publisher",
+   "action": "sts:AssumeRole",
+   "observed": "explicitDeny",
+   "required": "explicitDeny",
+   "match": true
+  },
+  {
+   "cell": "run-host -> AssumeRole reader (latch CLOSED)",
+   "observed": "explicitDeny",
+   "required": "explicitDeny",
+   "match": true
+  },
+  {
+   "cell": "run-host -> sealed oos direct",
+   "observed": "explicitDeny",
+   "required": "explicitDeny",
+   "match": true
+  },
+  {
+   "cell": "run-host -> AssumeRole publisher",
+   "observed": "explicitDeny",
+   "required": "explicitDeny",
+   "match": true
+  },
+  {
+   "cell": "publisher -> AssumeRole reader",
+   "observed": "explicitDeny",
+   "required": "explicitDeny",
+   "match": true
+  },
+  {
+   "cell": "publisher -> sealed oos",
+   "observed": "explicitDeny",
+   "required": "explicitDeny",
+   "match": true
+  },
+  {
+   "cell": "publisher -> governed evidence write",
+   "observed": "allowed",
+   "required": "allowed",
+   "match": true
+  },
+  {
+   "cell": "base role -> AssumeRole publisher",
+   "observed": "allowed",
+   "required": "allowed",
+   "match": true
+  }
+ ],
+ "all_intended": true,
+ "total": 39,
+ "reader_cells": 32,
+ "principal_graph_cells": 7
+}
