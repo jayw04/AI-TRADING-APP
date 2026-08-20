@@ -71,6 +71,29 @@ check("gate compares key against the frozen contract", "SEALED_KEY_MISMATCH" in 
 check("gate has no reader/contract-conditional skip of the SHA comparison",
       "SHA256_CONTRACT_MISMATCH" in src and "SEALED_SHA256" in src)
 
+# 5b ── the gate compares the CONSTRUCTED object's attributes against the frozen contract, not
+#       the contract against itself. Object construction now sources key/VersionId/SHA from the
+#       registry, so a gate that re-read the contract literals would be a tautology that passes
+#       no matter what the registry said.
+#       ⚠ A SUBSTRING TEST IS NOT ENOUGH HERE. The first version of this check asked whether
+#       "obj.version_id" appeared in the gate source. Mutation testing defeated it: rewriting
+#       the comparison to `if vid != vid:` removes the check entirely, yet the string
+#       "obj.version_id" survives in the error message f-string, so the invariant still passed.
+#       The check therefore analyses actual Compare NODES.
+_gate_cmps = [n for n in ast.walk(gate_def)] if gate_def else []
+_cmps = [n for n in _gate_cmps if isinstance(n, ast.Compare)]
+for attr in ("key", "version_id", "sha256"):
+    real = [c for c in _cmps
+            if ast.unparse(c.left) == f"obj.{attr}"
+            and all(ast.unparse(x) != f"obj.{attr}" for x in c.comparators)]
+    check(f"gate performs a REAL comparison of the constructed obj.{attr}", bool(real),
+          "no Compare node with obj.%s on one side and something else on the other" % attr)
+# and no comparison anywhere in the gate may compare an expression to itself
+_self = [ast.unparse(c) for c in _cmps
+         if any(ast.unparse(x) == ast.unparse(c.left) for x in c.comparators)]
+check("no self-comparison (always-false tautology) inside the gate", not _self, str(_self))
+check("gate reads the constructed sources, not the registry", "sources" in src)
+
 # 6 ── the gate is not nested under any conditional other than the reader=="s3" test, so no
 #      flag (notably `production`) can route execution past it while still reaching credentials
 def _enclosing_ifs(tree, target_call):
@@ -93,6 +116,28 @@ check("the gate is guarded ONLY by reader == \"s3\", by no other flag", only_s3_
 # and `production` must never appear as a guard on the gate call path
 check("no `production` flag guards the gate", all("production" not in t for t in tests),
       f"enclosing tests: {tests}")
+
+# 6b ── the terminal record is written on BOTH exit paths of the __main__ guard.
+#       Discovered while writing the injected-failure rehearsal: the guarantee lives entirely in
+#       the `if __name__ == "__main__"` block, so any refactor that moved main() behind another
+#       entry point would silently drop the terminal record on failure -- the exact evidence loss
+#       of 2026-08-19. Pin it structurally rather than trusting it to stay put.
+guard = next((n for n in TREE.body if isinstance(n, ast.If)
+              and "__main__" in ast.unparse(n.test)), None)
+check("a __main__ guard exists", guard is not None)
+if guard is not None:
+    tries = [n for n in ast.walk(guard) if isinstance(n, ast.Try)]
+    outer = tries[0] if tries else None
+    handler_src = "".join(ast.unparse(h) for h in outer.handlers) if outer else ""
+    else_src = "".join(ast.unparse(n) for n in outer.orelse) if outer else ""
+    check("failure path writes terminal(FAILED)",
+          "terminal" in handler_src and "FAILED" in handler_src)
+    check("failure path re-raises after recording evidence", "raise" in handler_src)
+    check("success path writes terminal(COMPLETED)",
+          "terminal" in else_src and "COMPLETED" in else_src)
+    check("main() is invoked only inside that guarded try",
+          len([n for n in ast.walk(TREE) if isinstance(n, ast.Call)
+               and isinstance(n.func, ast.Name) and n.func.id == "main"]) == 1)
 
 # 7 ── the permitted-state table admits exactly one S3 triple
 tbl = next((n for n in ast.walk(TREE) if isinstance(n, ast.Assign)

@@ -287,12 +287,25 @@ def main() -> int:
             rec = hashes.get(key)
             if rec is None:
                 raise IntegrityFailure("UNPINNED_OBJECT", f"no recorded sha256 for {key}")
-            if rec[0] != vid:
+            # ⛔ VersionId is REGISTRY-SOURCED and CONTRACT-COMPARED, in that order -- exactly as
+            # the SHA-256 immediately below already was. The asymmetry this replaces was not
+            # cosmetic. Sourcing version_id from the CONTRACT while comparing it unconditionally
+            # meant (a) no rehearsal could ever construct an object, and (b) had one been
+            # allowed to, it would have stamped the REAL production VersionIds onto rehearsal
+            # objects -- writing them into the journal and the ledger, which is precisely the
+            # misreading the rehearsal registry exists to prevent.
+            #
+            # This does NOT relax production. When production is true the equality below is
+            # enforced BEFORE the value is used, so rec[0] and vid are the same string; and
+            # _assert_production_contract_before_credentials re-verifies the CONSTRUCTED
+            # object's version_id against the frozen contract immediately before credentials
+            # are acquired. Two independent checks, neither removed.
+            if production and rec[0] != vid:
                 raise IntegrityFailure("VERSION_ID_MISMATCH", f"{key}: {rec[0]} != {vid}")
             if is_sealed and production and rec[1] != SEALED_SHA256[key]:
                 raise IntegrityFailure("SHA256_CONTRACT_MISMATCH",
                                        f"{key}: registry {rec[1]} != contract {SEALED_SHA256[key]}")
-            obj = PinnedObject(bucket=BUCKET, key=key, version_id=vid, sha256=rec[1])
+            obj = PinnedObject(bucket=BUCKET, key=key, version_id=rec[0], sha256=rec[1])
             sources.append(TableSource(table, obj))
             if is_sealed:
                 sealed_meta.append({"key": key, "version_id": vid, "partition": obj.partition})
