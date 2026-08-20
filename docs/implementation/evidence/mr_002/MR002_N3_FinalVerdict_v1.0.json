@@ -1,0 +1,780 @@
+{
+ "answer": "YES, by TIER-1 BYTE IDENTITY, on every config and every observation. Across the full governed development window the v2 method reproduced the v1 arm exactly: the same Stage-3 instance sequence, the same accepted allocation to the byte on all 3,895 invocations (max L2 difference 0.0), the same 5,100 session rows, the same 7,588 closed trades, and every economic field identical including the run hash, the NAV curve, the daily-return series, costs, borrow, traded notional and cumulative return. The registered numerical reconciliation bound was therefore NEVER INVOKED \u2014 there was no non-zero difference for it to bound.",
+ "authority_chain": {
+  "N1": {
+   "identity_sha256": "629eee0ee1c257a23312b539fbac8542b40cbf6f2cef296ba2c829fb6b29bd81",
+   "record": "MR002_N1_FinalVerdict_v1.0"
+  },
+  "N2": {
+   "identity_sha256": "27f98548067b3017870937c22196212e5bb1b11fdbd6a961a329f85f82aae471",
+   "record": "MR002_N2_Verdict_v1.0"
+  },
+  "owner_grant": "Gate N3 granted 2026-08-20 on acceptance of Gate N2",
+  "sealed_registration": {
+   "identity_sha256": "b6b8aaca6fee92292f16d12243fdeace4a909234d12d4215c1c966b2cbb46328",
+   "record": "MR002_N3_ProspectiveRegistration_v1.0",
+   "sealed_before_execution": true
+  }
+ },
+ "authorizes": "nothing. N3 closes the numerical-method program (N1 architecture qualification, N2 robustness/stress qualification, N3 end-to-end economic preservation). Cycle 2C \u2014 the Validation-2 design \u2014 requires a separate owner grant, and Validation-2 / OOS remain prohibited until it is given.",
+ "boundary": {
+  "consumed_validation_opening": "unchanged",
+  "cycle_2C": "NOT AUTHORIZED \u2014 requires its own owner grant",
+  "development_domain_only": true,
+  "oos": "PROHIBITED",
+  "sealed_or_reference_bytes_read": 0,
+  "validation_2": "PROHIBITED",
+  "validation_store_opened": false
+ },
+ "controls": {
+  "determinism": {
+   "bulk_file_sha256": {
+    "n3_report.json": {
+     "exec1": "e4cc93e63e8cb81ff7edb4945dc40bd8cccd72e49f9c325b0b0af53109b1f1ce",
+     "exec2": "e4cc93e63e8cb81ff7edb4945dc40bd8cccd72e49f9c325b0b0af53109b1f1ce",
+     "identical": true
+    },
+    "n3_rows_A.json": {
+     "exec1": "5a99dbb3ac6355536ee4b6d93d7c6f3ee0c509db85e819e9e79586fac6ce7924",
+     "exec2": "5a99dbb3ac6355536ee4b6d93d7c6f3ee0c509db85e819e9e79586fac6ce7924",
+     "identical": true
+    },
+    "n3_rows_B.json": {
+     "exec1": "9c3c94ac75135da0e8e542d66d90a3d9bbedc1cafe56b189746ade2c626cd94d",
+     "exec2": "9c3c94ac75135da0e8e542d66d90a3d9bbedc1cafe56b189746ade2c626cd94d",
+     "identical": true
+    },
+    "n3_rows_C.json": {
+     "exec1": "96f58521a148d04961c2e8f9d1c91f394e5dcd5181982fde892c76033b4eb60c",
+     "exec2": "96f58521a148d04961c2e8f9d1c91f394e5dcd5181982fde892c76033b4eb60c",
+     "identical": true
+    }
+   },
+   "bulk_row_files_bit_identical": true,
+   "design": "the full three-arm differential was executed TWICE, independently, on the final bound source",
+   "digest_basis": "sha256 over the canonical JSON of this entire report. The report contains NO wall-clock or other nondeterministic metadata, so NO field is excluded.",
+   "exclusions_applied": "NONE. The evidence payload carries no wall-clock or other nondeterministic metadata, so the two executions are compared with no exclusion rule at all. Timings are written to a separate telemetry file that is not evidence. Excluding a field from a digest after seeing a mismatch is the improvisation this program forbids, so the situation was removed rather than managed.",
+   "executions": 2,
+   "fresh_execution_reproduces_the_s3_pinned_bytes": true,
+   "identical_across_executions": true,
+   "result_digest": "b6d3c99e7cf3cedb8eda0b6f3097f5f95f0401117d68415328ebeeba3955a121",
+   "result_digest_exec1": "b6d3c99e7cf3cedb8eda0b6f3097f5f95f0401117d68415328ebeeba3955a121",
+   "result_digest_exec2": "b6d3c99e7cf3cedb8eda0b6f3097f5f95f0401117d68415328ebeeba3955a121",
+   "strongest_form": "a FRESH independent execution reproduces the exact bytes now pinned in versioned S3, so the custody copy and the reproducible result are the same artifact rather than two things asserted to agree",
+   "third_execution": "not performed \u2014 the owner ruled two independent executions sufficient for the registered determinism claim"
+  },
+  "differential_sensitivity_negative_control": {
+   "classification": "TEST-HARNESS SENSITIVITY EVIDENCE \u2014 NOT MR-002 STRATEGY EVIDENCE",
+   "design": "a scratch negative control perturbed ONE accepted allocation by a single ULP (L2 = 1.93e-34) and confirmed the differential SEES it",
+   "establishes": "the differential detects a difference far smaller than anything economically material (1 ULP, L2 = 1.93e-34)",
+   "no_threshold_derived_from_it": true,
+   "result": "C1, C2 and C3 all FAILED as required; C4/C5/C6 correctly stayed PASS because a 1-ULP nudge is not a resolution, integrity or termination defect",
+   "status": "scratch control, not governed evidence; recorded because it is what licenses reading the PASS as informative",
+   "why": "a pass rule that cannot fail proves nothing. This establishes that the byte-identity result below is a measurement, not a blind spot."
+  },
+  "instrument_inertness": {
+   "all_inert": true,
+   "design": "the v1 arm was executed BOTH instrumented and uninstrumented; the two must agree on the full session-hash sequence, the Stage-3 instance sequence, the disposition census and every economic field",
+   "result": {
+    "A": true,
+    "B": true,
+    "C": true
+   },
+   "why_it_matters": "without it a byte-identical differential could simply mean the observer flattened both arms the same way"
+  },
+  "routing_engaged": {
+   "design": "an arm that solved instances but produced NO Stage-3 census row never went through its seam, so its agreement with the other arms would be vacuous",
+   "found_during_build": "an early build of the differential captured the solver handle BEFORE entering the routing context, silently un-routing all three arms and producing a false all-identical PASS. The empty disposition census was the tell. The guard exists because that failure mode looks exactly like a clean result.",
+   "result": {
+    "A": true,
+    "B": true,
+    "C": true
+   }
+  },
+  "smoke_test_harness_defect": {
+   "admissible_as_N3_evidence": false,
+   "classification": "INVALID_TEST_HARNESS / NON-GOVERNING",
+   "corrected_before_governed_execution": true,
+   "detected_by": "a scratch smoke run on a non-governed 124-session window",
+   "resulting_control": {
+    "behaviour": "RAISES RoutingGuardAbort rather than recording a flag",
+    "expected_invocations": {
+     "A": 1427,
+     "B": 1535,
+     "C": 933
+    },
+    "guard": "routing_guard()",
+    "requires": "every arm has a nonzero Stage-3 census equal to its invocation count, AND both v1 arms reproduce the governed invocation count for the config"
+   },
+   "trigger": "ZERO Stage-3 invocations \u2014 the differential seam was not exercised",
+   "what_happened": "an early build of the differential captured the solver handle BEFORE entering the routing context. All three arms therefore ran on the original unrouted _solve_qp, agreed trivially, and every check reported PASS. The only tell was an empty Stage-3 disposition census.",
+   "why_recorded": "a false clean result is indistinguishable from a real one except by the census. Suppressing this incident would remove the single fact that shows the final PASS was checked for exactly this failure mode."
+  },
+  "v1_reproduces_the_governed_qualification": {
+   "expected": {
+    "A": "1426/1",
+    "B": "1532/3",
+    "C": "933/0"
+   },
+   "meaning": "the baseline this differential is taken against IS the governed v1 development qualification, not some other replay",
+   "result": {
+    "A": true,
+    "B": true,
+    "C": true
+   }
+  }
+ },
+ "date": "2026-08-20",
+ "disposition": "N3_PASS",
+ "dispositions_per_config": {
+  "A": "N3_PASS",
+  "B": "N3_PASS",
+  "C": "N3_PASS"
+ },
+ "evidence_custody": {
+  "bucket": "workbench-backups-219024422756",
+  "fail_closed": "every object is read back BY ITS PINNED VersionId and its SHA-256 re-verified before any manifest is written; a mismatch aborts without emitting a manifest, because an unverified pin looks authoritative and is worse than no pin",
+  "manifest_path": "manifests/s3/objects/mr002-n3-execution-evidence.v1.json",
+  "model": "the pattern N1 and N2 proved: bulk row-level differential in versioned S3 pinned by VersionId + SHA-256 with fail-closed read-back; governing summaries in Git. `.mr002out/` remains 'scratch \u2014 never evidence'.",
+  "object_key_prefix": "artifacts/governed/mr002-n3-execution-evidence/1.0/",
+  "publisher": "scripts/mr002_n3_publish_evidence.py"
+ },
+ "execution_identities": {
+  "bound_source": {
+   "apps/backend/app/research/mr002/dataset.py": "a8a11c0c2b5e9ddefb87eb0ebcc9e659eff5104115d5493685707597e157c957",
+   "apps/backend/app/research/mr002/joint_portfolio.py": "4efd57393e2d99e0733f70ceba5e24d9629fb3d4aa8a18837efc36eb157bac43",
+   "apps/backend/app/research/mr002/n1/method.py": "76e6afcca09e33014eee5f6c657355596445e2c0ad7350edb7cb6bd9fbdb6ff0",
+   "apps/backend/app/research/mr002/n1/reference.py": "474683a04f60d5adb5f94056af5abe5be93c322f61f50a86da9c876db1c4cee1",
+   "apps/backend/app/research/mr002/n1/seam.py": "503d11f50e99846e5afacbf31415c956db16090631509d99e8e4e63465081409",
+   "apps/backend/app/research/mr002/phase3c/folds.py": "e925799c099c5cfd17ab60917a94f806370165acd905422f5828c3a2db984bb9",
+   "apps/backend/app/research/mr002/runner.py": "87dd6e71a60ba89297ed4653eb1abf94052f34f927e8865b8ea41515e290b34f",
+   "apps/backend/app/research/mr002/stage3_cascade.py": "1021cc287051a61a088c4a715604922f03ee4dfcff41a334681dab12cb3265ef",
+   "apps/backend/app/research/mr002/stage3_route.py": "42335ad9d67ccea60020731550c4d04887d744cd6d56d40506269994960554a2",
+   "apps/backend/scripts/mr002_coverage_signed_gap.py": "f9e440c6188582037a7813dc8ffc6f828132d72131ff2d54d6a35056f9e5f741",
+   "apps/backend/scripts/mr002_development_run.py": "57d0fcac37e466496e62463b4174a430801f1a74100efdb22bd3f0256c367ee9",
+   "apps/backend/scripts/mr002_n3_equivalence.py": "3735e7acd2f1af882131dd818fb55bc0e66afacf960aee4b3c823fa54f322d9f",
+   "docs/implementation/evidence/mr_002/_gen_n3_prospective_registration.py": "a82fbc582d973a8b9bc4e2a367c594e3d78a0e23bbb6c923b6b9a1f3625ef15b"
+  },
+  "branch": "research/mr002-preregistration",
+  "dataset": {
+   "path": "apps/backend/data/mr002_research.duckdb",
+   "sha256": "24e5153cc0ebed77c7b422562e5a8ebfa147aad3019b27035b5314aaaacfad5a"
+  },
+  "frozen_thread_env": {
+   "MKL_NUM_THREADS": "1",
+   "NUMEXPR_NUM_THREADS": "1",
+   "OMP_NUM_THREADS": "1",
+   "OPENBLAS_CORETYPE": "HASWELL",
+   "OPENBLAS_NUM_THREADS": "1"
+  },
+  "head_is_pushed": true,
+  "network": "none",
+  "runtime_image": "mr002-research:v1.4",
+  "source_commit": "85b5d4fc22b84a78ddcb326ae940d6b16083ca37",
+  "window": [
+   "2013-01-02",
+   "2019-10-02"
+  ]
+ },
+ "firewalls_held": {
+  "N1_prior_did_not_soften_N3": "the rule was sealed before the differential existed, the comparison surface was WIDENED beyond N1's aggregate hashes to per-session and per-trade rows, and the result was adjudicated against the registered rule rather than against N1's numbers.",
+  "N2_not_rerun": true,
+  "better_is_not_a_win": "no economic difference arose in EITHER direction, so the sign-blind stop rule was never approached. Had v2 produced better returns, this record would read N3_STOP.",
+  "no_new_economic_statistics": true,
+  "no_solver_selection": "one frozen pair evaluated. Nothing ranked, no solver recommended, PIQP_P1 not re-scored."
+ },
+ "gate": "N3 \u2014 FULL DEVELOPMENT BEHAVIOURAL / ECONOMIC EQUIVALENCE",
+ "pass_rule_applied": {
+  "bound_basis": "mechanically derived, not chosen: conditional on instance-sequence and accepted-allocation identity under FROZEN_THREAD_ENV, the downstream replay is the same IEEE-754 operations on the same operands in the same order, so the reconciliation bound is EXACTLY ZERO",
+  "bound_value": 0.0,
+  "numerical_bound_invoked": false,
+  "owner_instruction_honoured": "'If the existing N1 preservation machinery can prove byte identity, use byte identity.' It did, and it was used. Exact equality was never weakened to a tolerance.",
+  "tier": "TIER_1_BYTE_IDENTITY",
+  "tier_2_engaged": false
+ },
+ "per_config": {
+  "A": {
+   "disposition": "N3_PASS",
+   "economics": {
+    "all_fields_identical": true,
+    "cumulative_return": -0.034186751537723326,
+    "cumulative_return_identical": true,
+    "differences": [],
+    "fields": [
+     "borrow",
+     "costs",
+     "daily_ret_hash",
+     "entries_long",
+     "entries_short",
+     "exits",
+     "nav_curve_hash",
+     "nav_final",
+     "outcomes",
+     "reductions",
+     "run_hash",
+     "sessions",
+     "traded_notional",
+     "zero_reasons"
+    ]
+   },
+   "governed_v1_census": {
+    "FALLBACK_QUALIFIED": 1,
+    "PRIMARY_QUALIFIED": 1426,
+    "invocations": 1427
+   },
+   "governed_v1_census_reproduced": true,
+   "instrument_inert": true,
+   "registered_checks": {
+    "C1_allocation_equivalent": {
+     "basis": "EQUIVALENCE_TRIVIAL",
+     "differing": 0,
+     "pass": true
+    },
+    "C2_behavioural_reconciles": {
+     "pass": true,
+     "session_rows_differing": 0,
+     "trades_differing": 0
+    },
+    "C3_economic_within_bound": {
+     "bound_applied": 0.0,
+     "bound_basis": "mechanically derived: conditional on instance-sequence and accepted-allocation identity under FROZEN_THREAD_ENV, the downstream arithmetic is the same IEEE-754 operations on the same operands in the same order, so the bound is EXACTLY ZERO - not a chosen tolerance",
+     "differences": [],
+     "pass": true,
+     "tier": "TIER_1_BYTE_IDENTITY"
+    },
+    "C4_no_new_unresolved_numerical_failure": {
+     "basis": "the governed v1 census resolves every invocation, so 'no NEW unresolved failure' means v2 must also carry zero",
+     "pass": true,
+     "unresolved_v1": 0,
+     "unresolved_v2": 0
+    },
+    "C5_no_integrity_defect": {
+     "all_reconcile_to_a_registered_disposition": true,
+     "invalid_run": 0,
+     "pass": true,
+     "unrecognized_outcomes": 0
+    },
+    "C6_no_unregistered_termination_reason": {
+     "pass": true,
+     "unregistered_semantic_classes": 0,
+     "unregistered_termination_reasons": 0
+    }
+   },
+   "routing_engaged_all_arms": true,
+   "sessions": {
+    "byte_identical": 1700,
+    "compared": 1700,
+    "differing": 0,
+    "row_digest_identical": true,
+    "session_hash_sequence_identical": true
+   },
+   "stage3": {
+    "accepted_allocation_byte_identical": 1427,
+    "accepted_allocation_differing": 0,
+    "equivalence": "EQUIVALENCE_TRIVIAL",
+    "generator_attribution_differs_on": 0,
+    "instance_sequence_identical": true,
+    "invocations": 1427,
+    "max_allocation_l2_difference": 0.0,
+    "raw_disposition_v1": {
+     "FALLBACK_QUALIFIED": 1,
+     "PRIMARY_QUALIFIED": 1426
+    },
+    "raw_disposition_v2": {
+     "PRIMARY_CERTIFIED": 1426,
+     "SECONDARY_CERTIFIED": 1
+    },
+    "semantic_class_counts": {
+     "RESOLVED_CERTIFIED_ALLOCATION": 1427
+    },
+    "semantic_class_identical": true
+   },
+   "trades": {
+    "count_v1": 5053,
+    "count_v2": 5053,
+    "differing": 0,
+    "digest_identical": true
+   }
+  },
+  "B": {
+   "disposition": "N3_PASS",
+   "economics": {
+    "all_fields_identical": true,
+    "cumulative_return": -0.009694524953254513,
+    "cumulative_return_identical": true,
+    "differences": [],
+    "fields": [
+     "borrow",
+     "costs",
+     "daily_ret_hash",
+     "entries_long",
+     "entries_short",
+     "exits",
+     "nav_curve_hash",
+     "nav_final",
+     "outcomes",
+     "reductions",
+     "run_hash",
+     "sessions",
+     "traded_notional",
+     "zero_reasons"
+    ]
+   },
+   "governed_v1_census": {
+    "FALLBACK_QUALIFIED": 3,
+    "PRIMARY_QUALIFIED": 1532,
+    "invocations": 1535
+   },
+   "governed_v1_census_reproduced": true,
+   "instrument_inert": true,
+   "registered_checks": {
+    "C1_allocation_equivalent": {
+     "basis": "EQUIVALENCE_TRIVIAL",
+     "differing": 0,
+     "pass": true
+    },
+    "C2_behavioural_reconciles": {
+     "pass": true,
+     "session_rows_differing": 0,
+     "trades_differing": 0
+    },
+    "C3_economic_within_bound": {
+     "bound_applied": 0.0,
+     "bound_basis": "mechanically derived: conditional on instance-sequence and accepted-allocation identity under FROZEN_THREAD_ENV, the downstream arithmetic is the same IEEE-754 operations on the same operands in the same order, so the bound is EXACTLY ZERO - not a chosen tolerance",
+     "differences": [],
+     "pass": true,
+     "tier": "TIER_1_BYTE_IDENTITY"
+    },
+    "C4_no_new_unresolved_numerical_failure": {
+     "basis": "the governed v1 census resolves every invocation, so 'no NEW unresolved failure' means v2 must also carry zero",
+     "pass": true,
+     "unresolved_v1": 0,
+     "unresolved_v2": 0
+    },
+    "C5_no_integrity_defect": {
+     "all_reconcile_to_a_registered_disposition": true,
+     "invalid_run": 0,
+     "pass": true,
+     "unrecognized_outcomes": 0
+    },
+    "C6_no_unregistered_termination_reason": {
+     "pass": true,
+     "unregistered_semantic_classes": 0,
+     "unregistered_termination_reasons": 0
+    }
+   },
+   "routing_engaged_all_arms": true,
+   "sessions": {
+    "byte_identical": 1700,
+    "compared": 1700,
+    "differing": 0,
+    "row_digest_identical": true,
+    "session_hash_sequence_identical": true
+   },
+   "stage3": {
+    "accepted_allocation_byte_identical": 1535,
+    "accepted_allocation_differing": 0,
+    "equivalence": "EQUIVALENCE_TRIVIAL",
+    "generator_attribution_differs_on": 0,
+    "instance_sequence_identical": true,
+    "invocations": 1535,
+    "max_allocation_l2_difference": 0.0,
+    "raw_disposition_v1": {
+     "FALLBACK_QUALIFIED": 3,
+     "PRIMARY_QUALIFIED": 1532
+    },
+    "raw_disposition_v2": {
+     "PRIMARY_CERTIFIED": 1532,
+     "SECONDARY_CERTIFIED": 3
+    },
+    "semantic_class_counts": {
+     "RESOLVED_CERTIFIED_ALLOCATION": 1535
+    },
+    "semantic_class_identical": true
+   },
+   "trades": {
+    "count_v1": 1825,
+    "count_v2": 1825,
+    "differing": 0,
+    "digest_identical": true
+   }
+  },
+  "C": {
+   "disposition": "N3_PASS",
+   "economics": {
+    "all_fields_identical": true,
+    "cumulative_return": 0.005099513870974848,
+    "cumulative_return_identical": true,
+    "differences": [],
+    "fields": [
+     "borrow",
+     "costs",
+     "daily_ret_hash",
+     "entries_long",
+     "entries_short",
+     "exits",
+     "nav_curve_hash",
+     "nav_final",
+     "outcomes",
+     "reductions",
+     "run_hash",
+     "sessions",
+     "traded_notional",
+     "zero_reasons"
+    ]
+   },
+   "governed_v1_census": {
+    "FALLBACK_QUALIFIED": 0,
+    "PRIMARY_QUALIFIED": 933,
+    "invocations": 933
+   },
+   "governed_v1_census_reproduced": true,
+   "instrument_inert": true,
+   "registered_checks": {
+    "C1_allocation_equivalent": {
+     "basis": "EQUIVALENCE_TRIVIAL",
+     "differing": 0,
+     "pass": true
+    },
+    "C2_behavioural_reconciles": {
+     "pass": true,
+     "session_rows_differing": 0,
+     "trades_differing": 0
+    },
+    "C3_economic_within_bound": {
+     "bound_applied": 0.0,
+     "bound_basis": "mechanically derived: conditional on instance-sequence and accepted-allocation identity under FROZEN_THREAD_ENV, the downstream arithmetic is the same IEEE-754 operations on the same operands in the same order, so the bound is EXACTLY ZERO - not a chosen tolerance",
+     "differences": [],
+     "pass": true,
+     "tier": "TIER_1_BYTE_IDENTITY"
+    },
+    "C4_no_new_unresolved_numerical_failure": {
+     "basis": "the governed v1 census resolves every invocation, so 'no NEW unresolved failure' means v2 must also carry zero",
+     "pass": true,
+     "unresolved_v1": 0,
+     "unresolved_v2": 0
+    },
+    "C5_no_integrity_defect": {
+     "all_reconcile_to_a_registered_disposition": true,
+     "invalid_run": 0,
+     "pass": true,
+     "unrecognized_outcomes": 0
+    },
+    "C6_no_unregistered_termination_reason": {
+     "pass": true,
+     "unregistered_semantic_classes": 0,
+     "unregistered_termination_reasons": 0
+    }
+   },
+   "routing_engaged_all_arms": true,
+   "sessions": {
+    "byte_identical": 1700,
+    "compared": 1700,
+    "differing": 0,
+    "row_digest_identical": true,
+    "session_hash_sequence_identical": true
+   },
+   "stage3": {
+    "accepted_allocation_byte_identical": 933,
+    "accepted_allocation_differing": 0,
+    "equivalence": "EQUIVALENCE_TRIVIAL",
+    "generator_attribution_differs_on": 0,
+    "instance_sequence_identical": true,
+    "invocations": 933,
+    "max_allocation_l2_difference": 0.0,
+    "raw_disposition_v1": {
+     "PRIMARY_QUALIFIED": 933
+    },
+    "raw_disposition_v2": {
+     "PRIMARY_CERTIFIED": 933
+    },
+    "semantic_class_counts": {
+     "RESOLVED_CERTIFIED_ALLOCATION": 933
+    },
+    "semantic_class_identical": true
+   },
+   "trades": {
+    "count_v1": 710,
+    "count_v2": 710,
+    "differing": 0,
+    "digest_identical": true
+   }
+  }
+ },
+ "program": "MR-002 Sector-Neutral Residual Reversion \u2014 Stage-3 numerical method v2",
+ "question": "Does the N1/N2-qualified Stage-3 v2 method preserve the frozen MR-002 development economics end-to-end when substituted for Stage-3 v1?",
+ "reconciliation_evidence_only": {
+  "development_window_figures": {
+   "A": {
+    "annualized_sharpe": -1.1734246269236166,
+    "cumulative_return": -0.034186751537723326,
+    "final_nav": 9658132.484622767,
+    "max_drawdown": -0.03785983205884514,
+    "run_hash": "7cdfc4d8ea586b785bfdbe3d05f64b9d3577deee25e51054a9e6e25fa80cc6f0"
+   },
+   "B": {
+    "annualized_sharpe": -0.4711228688044908,
+    "cumulative_return": -0.009694524953254513,
+    "final_nav": 9903054.750467455,
+    "max_drawdown": -0.011491051221532987,
+    "run_hash": "5a7e124f1b86fbe1656a376418e86f84912695f31dfaf4823ab93d040180a009"
+   },
+   "C": {
+    "annualized_sharpe": 0.37707631237072636,
+    "cumulative_return": 0.005099513870974848,
+    "final_nav": 10050995.138709748,
+    "max_drawdown": -0.002520924796914436,
+    "run_hash": "5b446931c675d6b6dcc5417db2813f2d4a8510fdbba0a3cd1bef6c433c355c07"
+   }
+  },
+  "full_metrics_dict_identical_v1_vs_v2": {
+   "A": true,
+   "B": true,
+   "C": true
+  },
+  "status": "REPORTED, NEVER DECISIONAL \u2014 no N3 threshold is derived from any of these, and N3 introduced no economic statistic the frozen replay does not already produce",
+  "\u26d4": "these are DEVELOPMENT numbers and are NOT a verdict on the strategy. They appear here only to show the two arms reconcile. MR-002's economic verdict is a sealed-validation question that remains PROHIBITED."
+ },
+ "record_identity_sha256": "5a14028024a1f78ca60ebeb174b5ecd7b8a3e1f5027f8768ec93b6f2a8195ec4",
+ "record_status": "SEALED",
+ "record_type": "MR002_N3_FINAL_VERDICT",
+ "research_plane_isolation": {
+  "checker_provenance": {
+   "consequence": "the two ADR-0051 invariants CLAUDE.md lists as load-bearing are not actually enforceable in CI at this commit. Flagged, NOT fixed here \u2014 it is outside MR-002 scope and belongs to whoever owns ADR 0051 Phase 1A.",
+   "what_this_means": "the SUBJECT of the check is the committed N3 source, which is what the owner required. The CHECKER is local and unversioned.",
+   "\u26a0 FINDING": "BOTH ADR-0051 invariant scripts are UNTRACKED in this repository and have NEVER been committed, so they do not exist at any commit including this one. They were copied into the clean checkout from the working tree in order to run."
+  },
+  "checks": {
+   "check_research_plane_no_broker_capability.sh": {
+    "exit_code": 0,
+    "result": "Research-plane no-broker-capability OK"
+   },
+   "check_research_plane_order_path_isolation.sh": {
+    "exit_code": 0,
+    "result": "Research-plane order-path isolation OK"
+   }
+  },
+  "clean_worktree_status": "empty \u2014 no untracked or modified files",
+  "commit": "85b5d4fc22b84a78ddcb326ae940d6b16083ca37",
+  "disc001_working_tree_artifact": {
+   "action_taken": "none. DISC-001 WIP was not modified.",
+   "classification": "WORKTREE_EXTERNAL_CONTAMINANT",
+   "effect_on_N3_verdict": "NONE \u2014 outside the N3 source identity. The invariant was not waived; it was evaluated against the correct source identity and PASSED.",
+   "file": "apps/backend/app/research/disc001/snapshot.py",
+   "present_at_the_N3_commit": false,
+   "tracked_in_git": false,
+   "trigger": "a ROUTER_TOKEN reference at line 163"
+  },
+  "evaluated_against": "the PUSHED N3 SOURCE IDENTITY in a clean detached checkout, never the local working tree",
+  "n3_source_files_checked": {
+   "apps/backend/scripts/mr002_n3_equivalence.py": "3735e7acd2f1af882131dd818fb55bc0e66afacf960aee4b3c823fa54f322d9f"
+  },
+  "status": "PASS"
+ },
+ "scope_limitations": {
+  "dividend_and_cash_distribution": {
+   "corporate_action_and_gap_filter_paths": {
+    "channel_exercise": {
+     "A": {
+      "exit_corporate_action_rung": {
+       "events": 0,
+       "status": "RECONCILED BUT VACUOUS \u2014 the rung fired ZERO times in this window, so its agreement discriminates nothing"
+      },
+      "exit_reasons_observed": {
+       "exit_earnings_blackout": 132,
+       "exit_time_stop": 2586,
+       "exit_z_reverted": 1692,
+       "reduce_to_zero_coupling": 643
+      },
+      "gap_filter_candidate_set": {
+       "candidate_slots": 17200,
+       "sessions_total": 1700,
+       "sessions_with_candidates": 1608,
+       "status": "SUBSTANTIVELY EXERCISED AND RECONCILED"
+      },
+      "hard_exit_counters": {
+       "hard_exits_due": 4606,
+       "hard_exits_executed": 4410,
+       "hard_exits_pending_missing_open": 196,
+       "status": "SUBSTANTIVELY EXERCISED AND RECONCILED"
+      }
+     },
+     "B": {
+      "exit_corporate_action_rung": {
+       "events": 0,
+       "status": "RECONCILED BUT VACUOUS \u2014 the rung fired ZERO times in this window, so its agreement discriminates nothing"
+      },
+      "exit_reasons_observed": {
+       "exit_earnings_blackout": 37,
+       "exit_time_stop": 803,
+       "exit_z_reverted": 574,
+       "reduce_to_zero_coupling": 411
+      },
+      "gap_filter_candidate_set": {
+       "candidate_slots": 14329,
+       "sessions_total": 1700,
+       "sessions_with_candidates": 1533,
+       "status": "SUBSTANTIVELY EXERCISED AND RECONCILED"
+      },
+      "hard_exit_counters": {
+       "hard_exits_due": 1414,
+       "hard_exits_executed": 1414,
+       "hard_exits_pending_missing_open": 0,
+       "status": "SUBSTANTIVELY EXERCISED AND RECONCILED"
+      }
+     },
+     "C": {
+      "exit_corporate_action_rung": {
+       "events": 0,
+       "status": "RECONCILED BUT VACUOUS \u2014 the rung fired ZERO times in this window, so its agreement discriminates nothing"
+      },
+      "exit_reasons_observed": {
+       "exit_earnings_blackout": 6,
+       "exit_time_stop": 330,
+       "exit_z_reverted": 239,
+       "reduce_to_zero_coupling": 135
+      },
+      "gap_filter_candidate_set": {
+       "candidate_slots": 10194,
+       "sessions_total": 1700,
+       "sessions_with_candidates": 1354,
+       "status": "SUBSTANTIVELY EXERCISED AND RECONCILED"
+      },
+      "hard_exit_counters": {
+       "hard_exits_due": 1152,
+       "hard_exits_executed": 575,
+       "hard_exits_pending_missing_open": 577,
+       "status": "SUBSTANTIVELY EXERCISED AND RECONCILED"
+      }
+     }
+    },
+    "channels": [
+     "the gap filter, whose surviving per-session candidate set was compared",
+     "corporate actions -> action_exit -> the exit_corporate_action rung of the exit ladder, compared together with the hard-exit counters"
+    ],
+    "note": "both channels are UPSTREAM of Stage-3, so the method under test cannot perturb them.",
+    "per_config": {
+     "A": {
+      "all_channels_identical": true,
+      "corporate_action_exits_identical": true,
+      "corporate_action_exits_v1": 0,
+      "corporate_action_exits_v2": 0,
+      "direct_cash_distribution_ledger": "NOT INDEPENDENTLY AVAILABLE \u2014 the frozen development input carries an all-zero cash-distribution term",
+      "gap_filter_candidate_set_identical": true,
+      "hard_exit_counters_identical": true,
+      "hard_exit_counters_v1": {
+       "hard_exits_due": 4606,
+       "hard_exits_executed": 4410,
+       "hard_exits_pending_missing_open": 196
+      },
+      "hard_exit_counters_v2": {
+       "hard_exits_due": 4606,
+       "hard_exits_executed": 4410,
+       "hard_exits_pending_missing_open": 196
+      },
+      "holdings_set_identical": true,
+      "note": "these channels are UPSTREAM of Stage-3, so the method under test cannot perturb them. Reconciling them confirms the two arms saw the same corporate-action and distribution-driven economics."
+     },
+     "B": {
+      "all_channels_identical": true,
+      "corporate_action_exits_identical": true,
+      "corporate_action_exits_v1": 0,
+      "corporate_action_exits_v2": 0,
+      "direct_cash_distribution_ledger": "NOT INDEPENDENTLY AVAILABLE \u2014 the frozen development input carries an all-zero cash-distribution term",
+      "gap_filter_candidate_set_identical": true,
+      "hard_exit_counters_identical": true,
+      "hard_exit_counters_v1": {
+       "hard_exits_due": 1414,
+       "hard_exits_executed": 1414,
+       "hard_exits_pending_missing_open": 0
+      },
+      "hard_exit_counters_v2": {
+       "hard_exits_due": 1414,
+       "hard_exits_executed": 1414,
+       "hard_exits_pending_missing_open": 0
+      },
+      "holdings_set_identical": true,
+      "note": "these channels are UPSTREAM of Stage-3, so the method under test cannot perturb them. Reconciling them confirms the two arms saw the same corporate-action and distribution-driven economics."
+     },
+     "C": {
+      "all_channels_identical": true,
+      "corporate_action_exits_identical": true,
+      "corporate_action_exits_v1": 0,
+      "corporate_action_exits_v2": 0,
+      "direct_cash_distribution_ledger": "NOT INDEPENDENTLY AVAILABLE \u2014 the frozen development input carries an all-zero cash-distribution term",
+      "gap_filter_candidate_set_identical": true,
+      "hard_exit_counters_identical": true,
+      "hard_exit_counters_v1": {
+       "hard_exits_due": 1152,
+       "hard_exits_executed": 575,
+       "hard_exits_pending_missing_open": 577
+      },
+      "hard_exit_counters_v2": {
+       "hard_exits_due": 1152,
+       "hard_exits_executed": 575,
+       "hard_exits_pending_missing_open": 577
+      },
+      "holdings_set_identical": true,
+      "note": "these channels are UPSTREAM of Stage-3, so the method under test cannot perturb them. Reconciling them confirms the two arms saw the same corporate-action and distribution-driven economics."
+     }
+    },
+    "status": "BYTE-IDENTICAL ON EVERY LEG, but the legs differ in how much they were EXERCISED \u2014 see channel_exercise. The gap-filter path and the hard-exit counters are substantively reconciled; the exit_corporate_action rung fired ZERO times across the development window and is therefore reconciled VACUOUSLY.",
+    "\u26a0": "'fully reconciled' without that qualifier would overstate the evidence. A channel that agrees because it never fired discriminates nothing \u2014 the same reasoning that makes fold membership NOT_APPLICABLE here."
+   },
+   "direct_cash_distribution_ledger_reconciliation": {
+    "fact": "FrozenDataset.day_inputs sets the cash-distribution term to 0.0 for every name ('dividends handled via ACTIONS below'), so the distribution argument to economic_gap is identically zero across the development window.",
+    "status": "NOT INDEPENDENTLY AVAILABLE / ALL-ZERO IN FROZEN DEVELOPMENT INPUT"
+   },
+   "no_new_economic_machinery": "no synthetic dividend accumulator was created. Adding one to make a checklist look complete would introduce an economic quantity the governing construction does not have."
+  },
+  "fold_level_economic_reconciliation": {
+   "counted_as_a_passed_check": false,
+   "no_substitute_folds_created": true,
+   "reason": "the governed five-fold structure spans 2020-01-13..2023-02-08 and belongs to a different chronological window. The N3 domain is the development window 2013-01-02..2019-10-02. Every development observation therefore maps to fold=None, which is a factual property of the governing artifacts, not an execution deficiency.",
+   "statement": "Fold-level economic reconciliation: NOT EVALUABLE in the N3 development window.",
+   "status": "NOT_APPLICABLE / STRUCTURALLY_DISJOINT",
+   "validation_data_accessed": false,
+   "why_this_does_not_weaken_N3": "the N3 question is v1->v2 preservation on development economics. The complete session-level replay is available and byte-identical, so the question is fully answered without fold partitioning.",
+   "\u26d4": "this is explicitly NOT a substantive PASS. It must never be read as 'fold results were reconciled'."
+  }
+ },
+ "six_checks_result": "N3_PASS",
+ "solver_A": "QUADPROG_SQRT",
+ "solver_B": "PIQP_P2",
+ "solver_pair_unchanged_by_N3": true,
+ "solver_selection_occurred_in_N3": false,
+ "totals": {
+  "accepted_allocations_byte_identical": 3895,
+  "accepted_allocations_differing": 0,
+  "closed_trades_compared": 7588,
+  "closed_trades_differing": 0,
+  "configs": 3,
+  "economic_fields_differing": 0,
+  "session_rows_compared": 5100,
+  "session_rows_differing": 0,
+  "sessions_per_config": 1700,
+  "stage3_invocations": 3895
+ },
+ "v1_baseline_identity": {
+  "census": {
+   "A": "1426 PRIMARY / 1 FALLBACK",
+   "B": "1532 / 3",
+   "C": "933 / 0",
+   "total_invocations": 3895
+  },
+  "referent": "the governed v1 development qualification \u2014 the authoritative baseline named by MR002_N1_AdjudicationAddendum_v1.0 \u00a73",
+  "reproduced_by_the_v1_arm_in_this_run": {
+   "A": true,
+   "B": true,
+   "C": true
+  },
+  "route": "app/research/mr002/stage3_route.py under execution countersignature MR002_Stage3ExecutionCountersignature_v1.0, bound by blob below"
+ },
+ "version": "1.0",
+ "what_this_record_does_NOT_establish": [
+  "that MR-002 has an economic edge \u2014 N3 measured PRESERVATION, not performance",
+  "that the strategy should be validated, promoted, or funded",
+  "fold results, which are not computable on the development domain",
+  "anything about the sealed validation partition, which was not read"
+ ]
+}

@@ -1,0 +1,61 @@
+{
+  "artifact_id": "mr002-n3-execution-evidence",
+  "bucket": "workbench-backups-219024422756",
+  "byte_length": 17619552,
+  "content_type": "application/json",
+  "created_at": "2026-08-20T14:14:10Z",
+  "frozen_thread_env": {
+    "MKL_NUM_THREADS": "1",
+    "NUMEXPR_NUM_THREADS": "1",
+    "OMP_NUM_THREADS": "1",
+    "OPENBLAS_CORETYPE": "HASWELL",
+    "OPENBLAS_NUM_THREADS": "1"
+  },
+  "notes": "MR-002 Gate N3 evidence (FULL DEVELOPMENT BEHAVIOURAL / ECONOMIC EQUIVALENCE), produced in mr002-research:v1.4 under the registered FROZEN_THREAD_ENV with --network=none. Rule sealed BEFORE execution as MR002_N3_ProspectiveRegistration_v1.0, identity b6b8aaca6fee92292f16d12243fdeace4a909234d12d4215c1c966b2cbb46328. Contains the session-level and trade-level v1-vs-v2 differential for configs A, B and C over the governed development window 2013-01-02..2019-10-02 (1,700 sessions per config, 3,895 Stage-3 invocations, 7,588 closed trades), plus the governing report. Frozen pair QUADPROG_SQRT + PIQP_P2; no solver selection occurred. Result: N3_PASS on all three configs by TIER-1 BYTE IDENTITY, so the registered numerical reconciliation bound was never invoked.",
+  "object_key": "artifacts/governed/mr002-n3-execution-evidence/1.0/",
+  "owner": "Engineering / Architecture",
+  "package_members": [
+    {
+      "byte_length": 41514,
+      "name": "n3_report.json",
+      "object_key": "artifacts/governed/mr002-n3-execution-evidence/1.0/n3_report.json",
+      "readback_verified_by_version_id": true,
+      "s3_version_id": "co0TCvO3ECY67LIaI6ViV1VcwSpDh8jp",
+      "sha256": "e4cc93e63e8cb81ff7edb4945dc40bd8cccd72e49f9c325b0b0af53109b1f1ce"
+    },
+    {
+      "byte_length": 7065578,
+      "name": "n3_rows_A.json",
+      "object_key": "artifacts/governed/mr002-n3-execution-evidence/1.0/n3_rows_A.json",
+      "readback_verified_by_version_id": true,
+      "s3_version_id": "mub5Mb4V3vtppxrbFVn2wNIxL9PuX5CF",
+      "sha256": "5a99dbb3ac6355536ee4b6d93d7c6f3ee0c509db85e819e9e79586fac6ce7924"
+    },
+    {
+      "byte_length": 5820466,
+      "name": "n3_rows_B.json",
+      "object_key": "artifacts/governed/mr002-n3-execution-evidence/1.0/n3_rows_B.json",
+      "readback_verified_by_version_id": true,
+      "s3_version_id": "FLqEuUokkiNzIVVK7kaA003l8E17TMgm",
+      "sha256": "9c3c94ac75135da0e8e542d66d90a3d9bbedc1cafe56b189746ade2c626cd94d"
+    },
+    {
+      "byte_length": 4691994,
+      "name": "n3_rows_C.json",
+      "object_key": "artifacts/governed/mr002-n3-execution-evidence/1.0/n3_rows_C.json",
+      "readback_verified_by_version_id": true,
+      "s3_version_id": "pG2EW43JNcYX67FTPVjGJCPENnqv_qUR",
+      "sha256": "96f58521a148d04961c2e8f9d1c91f394e5dcd5181982fde892c76033b4eb60c"
+    }
+  ],
+  "package_sha256_basis": "sha256 of the canonical JSON of package_members",
+  "producing_job_or_run": "mr002-n3-equivalence@85b5d4fc22b8",
+  "retention_class": "governed",
+  "runtime_image": "mr002-research:v1.4",
+  "s3_version_id": "PACKAGE",
+  "schema_or_format_version": "1.0",
+  "schema_version": "1.0",
+  "sensitivity": "internal",
+  "sha256": "01f9c8dd9f1ca125fb3d8e3125cfe79f677c7fa14fa8ee6a6418f58fb7f30663",
+  "source_commit": "85b5d4fc22b84a78ddcb326ae940d6b16083ca37"
+}
