@@ -1,0 +1,259 @@
+{
+ "amendment_A_validation2_reader": {
+  "after_intended": {
+   "any write/delete in sealed custody": "explicitDeny (unchanged)",
+   "list": "minimum capability only",
+   "read anything else under oos/": "explicitDeny",
+   "read development/*, reference/*": "ALLOW (unchanged)",
+   "read the NEW OOS (post-seal accrual, wherever it lands)": "explicitDeny",
+   "read the SIX Validation-2 objects BY EXACT VersionId": "ALLOW",
+   "read validation/* (consumed)": "explicitDeny  <- reversed; the partition is permanently inadmissible and must not be readable",
+   "write governing evidence": "implicitDeny (unchanged \u2014 the reader never publishes)"
+  },
+  "before": {
+   "any write/delete in sealed custody": "explicitDeny",
+   "list validation/, development/, reference/": "ALLOW",
+   "read development/*, reference/*": "ALLOW",
+   "read oos/* (= Validation-2)": "explicitDeny",
+   "read validation/* (consumed)": "ALLOW",
+   "write governing evidence": "implicitDeny"
+  },
+  "does_this_amendment_open_validation_2": {
+   "answer": "NO",
+   "proof": "the amendment changes CAPABILITY, not access. No GetObject is issued by applying it. The role remains assumable only by the run-host, whose only instance is stopped. And per the opening latch below, capability alone is deliberately not sufficient to read."
+  },
+  "exact_grant": {
+   "action": [
+    "s3:GetObjectVersion"
+   ],
+   "resources": [
+    "arn:aws:s3:::workbench-mr002-sealed-219024422756/oos/actions.parquet",
+    "arn:aws:s3:::workbench-mr002-sealed-219024422756/oos/anchors.parquet",
+    "arn:aws:s3:::workbench-mr002-sealed-219024422756/oos/etf_prices.parquet",
+    "arn:aws:s3:::workbench-mr002-sealed-219024422756/oos/prices.parquet",
+    "arn:aws:s3:::workbench-mr002-sealed-219024422756/oos/sic_observations.parquet",
+    "arn:aws:s3:::workbench-mr002-sealed-219024422756/oos/universe.parquet"
+   ],
+   "version_pinning": {
+    "mechanism": "Condition on s3:versionid per object",
+    "version_ids": {
+     "actions": "F6m6am6cBahBd95p41C1.aAVmYd8GuNG",
+     "anchors": "RsJZG3TkDXvNPERJhZVanJ.Vqg8_dulw",
+     "etf_prices": "Z3OsUeuucMYIl2v9JDoVNDx1nw.0avDj",
+     "prices": "1ope9PR._oR303.EbZNGPVlIJRy.SZbA",
+     "sic_observations": "DPhtWW3Pca3TKtSa1LOnGKA.yrZ98EIt",
+     "universe": "0gaqJ9TuECc3U_zar99sqls2UHRDnkkY"
+    },
+    "\u26a0 caveat": "IAM cannot express 'this key AND this VersionId' as a single ARN. The pin is a Condition block, and a policy statement per object is the only form that binds each key to its own VersionId without cross-permitting. Six statements, not one."
+   },
+   "why_not_GetObject_on_the_prefix": "the purpose is NOT 'the reader may read oos/'. It is 'the reader may consume exactly partition 3b3910d00395d901... when the one-shot opening is granted'. A wildcard on the historical prefix would grant more than the registered population merely because those six objects happen to live there."
+  },
+  "explicit_denies_to_add": [
+   "Deny s3:* on arn:aws:s3:::workbench-mr002-sealed-219024422756/validation/* \u2014 the consumed partition",
+   "Deny s3:GetObject on arn:aws:s3:::workbench-mr002-sealed-219024422756/oos/* \u2014 so that anything under the prefix that is NOT one of the six version-pinned objects stays denied"
+  ],
+  "problem": "the deployed policy implements the PRE-redesignation architecture: it grants GetObject on validation/* (now CONSUMED and permanently inadmissible) and carries an explicit statement DenyOOSEntirelyIncludingListing denying s3:* on oos/* (now the Validation-2 population). No deployed role can read Validation-2.",
+  "target": "IAM role mr002-validation-reader, inline policy mr002-validation-only",
+  "trust_model": "UNCHANGED. Assumable only by arn:aws:iam::219024422756:role/mr002-phase3c-run-host via the aws:PrincipalArn condition. \u26d4 Do NOT change the trust form \u2014 the condition is correct as written."
+ },
+ "amendment_B_evidence_publisher": {
+  "after_intended": {
+   "modify or delete sealed inputs": "explicitDeny",
+   "overwrite arbitrary existing evidence": "DENY \u2014 create/append semantics only",
+   "raw-input access of any kind": "NONE",
+   "read Validation-1 / Validation-2 / new OOS raw stores": "explicitDeny (all three)",
+   "read back its own writes by VersionId for SHA-256 verification": "ALLOW",
+   "write to the Validation-2 evidence destination": "ALLOW"
+  },
+  "before": {
+   "actual N1/N2/N3 publication principal": "admin (unscoped)",
+   "any role that can write governing evidence": "NONE",
+   "mr002-evaluator-publisher writes evidence": "implicitDeny"
+  },
+  "does_this_amendment_open_validation_2": {
+   "answer": "NO",
+   "proof": "the role is explicitly denied s3:* on both oos/* and validation/*. It cannot read raw holdout content by construction, so provisioning it cannot expose a withheld economic observation."
+  },
+  "exact_grant": {
+   "allow": [
+    {
+     "action": [
+      "s3:PutObject"
+     ],
+     "note": "write only into the designated Validation-2 evidence prefix",
+     "resource": "arn:aws:s3:::workbench-backups-219024422756/artifacts/governed/mr002-validation2-execution-evidence/1.0/*"
+    },
+    {
+     "action": [
+      "s3:GetObject",
+      "s3:GetObjectVersion"
+     ],
+     "note": "supports the existing read-back / VersionId / SHA-256 verification flow WITHOUT granting any raw-input access",
+     "resource": "arn:aws:s3:::workbench-backups-219024422756/artifacts/governed/mr002-validation2-execution-evidence/1.0/*"
+    }
+   ],
+   "append_only_note": "S3 has no native append. 'Create, never overwrite' is enforced by bucket versioning plus the delete denies above: an overwrite creates a new version and cannot destroy the pinned one, which is what the custody model actually relies on.",
+   "deny": [
+    {
+     "action": "s3:*",
+     "note": "the publisher must never see raw holdout content, consumed or otherwise",
+     "resource": [
+      "arn:aws:s3:::workbench-mr002-sealed-219024422756/validation/*",
+      "arn:aws:s3:::workbench-mr002-sealed-219024422756/oos/*"
+     ]
+    },
+    {
+     "action": [
+      "s3:DeleteObject",
+      "s3:DeleteObjectVersion",
+      "s3:PutBucketPolicy",
+      "s3:PutBucketVersioning"
+     ],
+     "note": "no destruction of custody artifacts",
+     "resource": "*"
+    },
+    {
+     "action": "sts:AssumeRole",
+     "note": "mirrors the existing DenyAssumingTheValidationReaderRole on the ECR publisher \u2014 the separation must hold in both directions",
+     "resource": "arn:aws:iam::219024422756:role/mr002-validation-reader"
+    }
+   ]
+  },
+  "owner_ruling_applied": "provision the new scoped role. Do NOT normalize admin-principal publication into the Validation-2 design, and do NOT repurpose the mr002-evaluator-publisher name \u2014 it is correctly described as what it really is, an ECR image publisher, and keeps that meaning.",
+  "problem": "no deployed role can write governing evidence. mr002-evaluator-publisher is an ECR IMAGE publisher (ecr:PutImage to mr002-evaluator-p5, plus GetObject on mr002/publish-staging/*). N1/N2/N3 evidence was published to S3 by the admin principal, so the reader/publisher capability separation the registration assumes is not deployed.",
+  "target": "a NEW IAM role, proposed name mr002-validation2-evidence-publisher",
+  "trust_model": {
+   "assumable_by": "the Validation-2 run host via instance profile, matching the existing pattern",
+   "\u26a0": "must NOT be assumable by the same principal that assumes the reader, or the separation is cosmetic"
+  }
+ },
+ "amendment_C_evaluator_oos_boundary": {
+  "after_intended": {
+   "OOS_WINDOW_START": "the first eligible session STRICTLY AFTER the Cycle-2C seal, per the registration's prospective new-OOS boundary",
+   "SCORING_ELIGIBLE_FIRST/LAST": "2023-05-30 / 2026-07-01",
+   "VALIDATION_WINDOW_START/END": "2023-02-17 / 2026-07-10 (the Validation-2 partition)",
+   "the_interlock_itself": "UNCHANGED and still fatal. Only the date it guards moves."
+  },
+  "corroboration_that_the_new_bounds_are_right": {
+   "derived_fold_labels": [
+    {
+     "first": "2023-05-30",
+     "fold": 1,
+     "last": "2024-01-09",
+     "sessions": 155
+    },
+    {
+     "first": "2024-01-10",
+     "fold": 2,
+     "last": "2024-08-21",
+     "sessions": 155
+    },
+    {
+     "first": "2024-08-22",
+     "fold": 3,
+     "last": "2025-04-04",
+     "sessions": 155
+    },
+    {
+     "first": "2025-04-07",
+     "fold": 4,
+     "last": "2025-11-14",
+     "sessions": 155
+    },
+    {
+     "first": "2025-11-17",
+     "fold": 5,
+     "last": "2026-07-01",
+     "sessions": 155
+    }
+   ],
+   "finding": "the CURRENT frozen constants 2023-05-30 / 2026-07-01 are exactly ordinals 70 and 844 of the 850-session Validation-2 window, independently recomputed by the structural preflight 3810e071761a5100...",
+   "how_these_labels_were_obtained": "value-blind, from the session calendar via the authorized custodian path. Zero GetObject against the six. Deriving them BEFORE the opening is stronger than emitting them at open time, because there is no opportunity to tune them after seeing results.",
+   "significance": "these constants were frozen long before Cycle 2C, from the OOS window's own 69-formation / 6-realization arithmetic. That the preflight reproduces them exactly is NON-CIRCULAR confirmation of the transferred fold geometry."
+  },
+  "discovered_during": "Blocker 3 scoping. Not an IAM issue \u2014 the same class of defect on the COMPUTE side.",
+  "does_this_amendment_open_validation_2": {
+   "answer": "NO",
+   "proof": "it changes constants in source. It issues no read, and the IAM latch and the reader policy still deny the six objects independently of it."
+  },
+  "problem": {
+   "behaviour": "run_config_validation raises IntegrityFailure(OOS_BOUNDARY_VIOLATION) for any session >= OOS_WINDOW_START",
+   "consequence": "Validation-2's SCORING-ELIGIBLE span is EXACTLY 2023-05-30 .. 2026-07-01. The bound evaluator would replay the 69 formation sessions and then abort at the first scoring-eligible session. It cannot score Validation-2 at all.",
+   "constants": {
+    "OOS_WINDOW_END": "2026-07-01",
+    "OOS_WINDOW_START": "2023-05-30",
+    "comment_in_source": "'The sealed OOS window. Touching it is fatal, not advisory.'"
+   },
+   "why_this_matters_beyond_the_bug": "the evaluator, like the IAM, still encodes the PRE-redesignation architecture. The role transfer was a governance act; it has not been propagated to either control surface."
+  },
+  "target": "apps/backend/app/research/mr002/phase3c/__init__.py window constants, consumed by phase3c/replay.py:run_config_validation",
+  "\u26d4 the_wrong_fix": {
+   "what": "run_config_validation already takes assert_oos_boundary: bool = True. Passing False would make Validation-2 run today.",
+   "why_forbidden": "that is disabling a safety interlock to make a run succeed. The interlock is not wrong \u2014 it is correctly enforcing a boundary that governance has since MOVED. The fix is to move the boundary in a registered amendment, not to switch off the check that enforces it."
+  }
+ },
+ "authorizes": "NOTHING. Applying any of these requires a separate owner ruling.",
+ "bound": {
+  "partition_identity": "3b3910d00395d90189b94fd0f9901811b1813905f17219010b336c567cfa1296",
+  "pre_amendment_iam_evidence": "55a81cba8a136ceda2efe96c82fb25dbd8c0f06d5e3b175a65d9af8e4292975f",
+  "registration": "93ee468801c92edd9dd1ba49944b381a6d9172c2e22f9bcc76a9dcbe8541af57",
+  "structural_preflight": "3810e071761a5100fe8cda6754488ebac5230f74b1b5e0f812ec53764d94436a"
+ },
+ "boundary": {
+  "amendments_applied": 0,
+  "validation_2_bytes_read": 0,
+  "validation_2_opening": "NOT AUTHORIZED"
+ },
+ "combined_proof_no_amendment_opens_validation_2": {
+  "A": "capability change only; no read issued; reader assumable only by the run-host, whose only instance is stopped; the opening latch remains applied",
+  "B": "explicitly denied s3:* on oos/* and validation/*; cannot read raw holdout content by construction",
+  "C": "source constants only; issues no read; IAM denies the six independently",
+  "joint": "even with ALL THREE applied, reading the six still requires (a) the run-host instance started, (b) the reader assumed, and (c) the opening latch released by the owner. Three independent gates remain."
+ },
+ "date": "2026-08-20",
+ "opening_latch": {
+  "design": "the permanent reader policy grants capability; the LATCH grants permission to exercise it, and is released only after the owner opening grant and re-applied immediately afterwards. The permanent policy must never become the one-shot authorization.",
+  "existing_mechanism_found": {
+   "evidence": "MR002_Phase3C_ReconstructedExecutionCustodyEvidence_v1.0 records four governed_latch_mutations on 2026-08-19 at 00:26:56, 00:27:08, 12:49:23 and 12:56:40Z",
+   "ruling_applied": "PRESERVE AND BIND IT. The owner said not to invent a redesign, and one does not need inventing \u2014 the latch exists and is audited.",
+   "what": "a governed IAM latch already exists and was exercised for the consumed opening: an inline policy on the run-host path (mr002-phase3c-qualification-only) whose statement count was mutated 7 -> 8 -> 7 -> 8 around the opening window"
+  },
+  "owner_requirement": "mr002-validation-reader being structurally capable of reading the six must NOT mean anyone can start reading whenever they assume it.",
+  "\u26a0 measured_operational_hazard": {
+   "consequence": "a released latch is NOT in force immediately. This already burned one latch cycle on this program when a call was made at +5s.",
+   "fact": "a released deny latch takes a MEASURED ~286 seconds to reach STS",
+   "rule": "\u26d4 do NOT make 'wait 286 seconds' the proof. Poll the effective capability until the intended matrix is OBSERVED, then proceed. Bind the observed effective policy, never elapsed time."
+  }
+ },
+ "ordering_recommendation": {
+  "sequence": [
+   "C (source constants \u2014 no AWS surface touched)",
+   "B (new role \u2014 additive, denies raw access by construction)",
+   "A (reader policy \u2014 the only one that grants any read capability, applied last)"
+  ],
+  "why": "apply the least-privileged-impact change first and the capability-granting one last, so that at every intermediate state the six remain unreadable by every principal."
+ },
+ "propagation_verification_procedure": {
+  "iam_pass_requires_both": "a role can be assumable but overprivileged, or perfectly scoped but not assumable. Neither leg alone is an IAM PASS.",
+  "rule": "bind the OBSERVED EFFECTIVE POLICY, never elapsed time",
+  "sentinel_caution": "if a sentinel object is used, it must sit under the SAME resource policy as the six, or it proves nothing about them. It must NOT be written into the oos/ prefix, because that mutates the sealed store and would appear in the access history as a write to the partition being certified.",
+  "steps": [
+   "1. apply the approved policies; record the IAM policy identities and version ids",
+   "2. wait for propagation - do NOT treat any fixed duration as the proof",
+   "3. repeat simulate-principal-policy until the INTENDED matrix is observed; record the polling series, including the transitional decisions, not only the final one",
+   "4. perform the real AssumeRole from the authorized run-host path, proving ASSUMABILITY",
+   "5. prove post-assumption capability with non-content tests or a sentinel; keep assumability and authorization-after-assumption as SEPARATE fields",
+   "6. still perform ZERO GetObject against the six before the opening grant"
+  ]
+ },
+ "record_identity_sha256": "a259b0dc2a1aa1e51de24ffdf06ee7b9f21cec618128d1ed5d77e12b8185d758",
+ "record_type": "MR002_Validation2_ProspectiveAmendmentDrafts",
+ "status": "DRAFT PROPOSAL \u2014 NOT APPLIED",
+ "version": "1.0",
+ "what_this_record_does_NOT_do": [
+  "apply any policy or source change",
+  "open Validation-2",
+  "authorize starting instance i-00c1034f7026db45e",
+  "supersede the pre-amendment IAM evidence, which is preserved immutably"
+ ]
+}
