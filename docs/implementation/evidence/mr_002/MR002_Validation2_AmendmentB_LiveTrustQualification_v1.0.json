@@ -1,0 +1,161 @@
+{
+ "authority": "owner ruling 2026-08-20 \u2014 live STS qualification AUTHORIZED, narrowly scoped",
+ "bound": {
+  "amendment_B_application_evidence": "aebe4612f9a8f84a5a35f4e92372313370d746550c601b4a43c2c1510eb1daef",
+  "amendment_B_v1_2": "1d27410c626a5748133723a3680625ca07256c334ae39fd1e9bc8529aeb4ed7d",
+  "registration": "93ee468801c92edd9dd1ba49944b381a6d9172c2e22f9bcc76a9dcbe8541af57"
+ },
+ "boundary": {
+  "amendment_A": "NOT APPLIED",
+  "amendments_applied": [
+   "C",
+   "B v1.2"
+  ],
+  "validation_2_opening": "NOT AUTHORIZED",
+  "withheld_reads": 0
+ },
+ "capability_matrix": {
+  "all_intended": true,
+  "attempts_to_converge": 1,
+  "bound_to": "the OBSERVED effective decision, never elapsed time",
+  "cells": [
+   {
+    "cell": "evidence-publisher -> sealed Validation-2",
+    "observed": "explicitDeny",
+    "required": "explicitDeny"
+   },
+   {
+    "cell": "evidence-publisher -> consumed Validation-1",
+    "observed": "explicitDeny",
+    "required": "explicitDeny"
+   },
+   {
+    "cell": "evidence-publisher -> governed evidence",
+    "observed": "allowed",
+    "required": "allowed"
+   },
+   {
+    "cell": "evidence-publisher -> read staging",
+    "observed": "allowed",
+    "required": "allowed"
+   },
+   {
+    "cell": "publisher base role -> sealed store",
+    "observed": "explicitDeny",
+    "required": "explicitDeny"
+   },
+   {
+    "cell": "evaluator run-host -> staging PutObject",
+    "observed": "allowed",
+    "required": "allowed"
+   },
+   {
+    "cell": "evaluator run-host -> read staging",
+    "observed": "explicitDeny",
+    "required": "explicitDeny"
+   },
+   {
+    "cell": "validation-reader -> governing evidence write",
+    "observed": "implicitDeny",
+    "required": "implicitDeny"
+   },
+   {
+    "cell": "base role -> AssumeRole publisher",
+    "observed": "allowed",
+    "required": "allowed"
+   },
+   {
+    "cell": "base role -> AssumeRole reader",
+    "observed": "explicitDeny",
+    "required": "explicitDeny"
+   },
+   {
+    "cell": "evaluator run-host -> AssumeRole publisher",
+    "observed": "explicitDeny",
+    "required": "explicitDeny"
+   },
+   {
+    "cell": "evidence-publisher -> AssumeRole reader",
+    "observed": "explicitDeny",
+    "required": "explicitDeny"
+   }
+  ]
+ },
+ "date": "2026-08-20",
+ "disposition": "AMENDMENT_B_LIVE_TRUST_PASS",
+ "how_the_proofs_were_run_without_broadening_the_sealed_role": {
+  "bonus_evidence": "that publication is itself a LIVE proof that the governed-evidence write path works end to end, performed by the publisher session.",
+  "evaluator_host": "already carried AmazonSSMManagedInstanceCore, so proof 2 ran via SSM with no IAM change.",
+  "problem": "SSM administration requires SSM permissions on the instance role, but the sealed base role grants none, and attaching AmazonSSMManagedInstanceCore would have made the deployed role differ from the sealed record.",
+  "solution": "the publisher host executed proofs 1 and 3 from EC2 user-data at boot, using ONLY permissions Amendment B already grants, and published the result through the publisher's own PutObject grant."
+ },
+ "lifecycle_after_the_tests": {
+  "cleanup_verified": true,
+  "evaluator_host": {
+   "id": "i-00c1034f7026db45e",
+   "re_stopped": true,
+   "state": "stopped"
+  },
+  "iam_retained": [
+   "mr002-validation2-publish-host-role",
+   "mr002-validation2-evidence-publisher",
+   "instance profile mr002-validation2-publish-host"
+  ],
+  "temporary_publisher_instance": {
+   "id": "i-0c7ae1f9fd67394a5",
+   "state": "terminated",
+   "terminated": true
+  },
+  "temporary_security_group": "deleted; had NO inbound rules and egress restricted to tcp/443",
+  "why_retain_iam_but_not_compute": "there is no reason to pay ongoing EC2 cost merely to preserve an IAM trust proof"
+ },
+ "reader_latch": {
+  "LOAD_BEARING": "8 statements = CLOSED (Deny + Allow, explicit Deny wins); 7 = RELEASED. This is the one-shot control, NOT dead configuration.",
+  "never_released_during_this_qualification": true,
+  "policy": "mr002-phase3c-qualification-only",
+  "state": "CLOSED",
+  "statements": "8"
+ },
+ "reader_latch_released": false,
+ "real_sts_proofs": {
+  "all_three_as_required": true,
+  "no_secrets_recorded": "caller ARNs and decisions only; no session tokens or keys",
+  "note": "simulate-principal-policy NEVER evaluates a trust policy. All three below are REAL sts:AssumeRole calls made by the actual principals. No trust policy was modified to make any test easier.",
+  "proof_1_base_role_to_evidence_publisher": {
+   "caller_after_assumerole": "arn:aws:sts::219024422756:assumed-role/mr002-validation2-evidence-publisher/b12-trust-proof",
+   "caller_before_assumerole": "arn:aws:sts::219024422756:assumed-role/mr002-validation2-publish-host-role/i-0c7ae1f9fd67394a5",
+   "error": "",
+   "required": "SUCCESS",
+   "result": "SUCCESS"
+  },
+  "proof_2_evaluator_runhost_to_evidence_publisher": {
+   "caller_before_assumerole": "arn:aws:sts::219024422756:assumed-role/mr002-phase3c-run-host/i-00c1034f7026db45e",
+   "error": "AccessDenied \u2014 assumed-role/mr002-phase3c-run-host/i-00c1034f7026db45e is not authorized to perform: sts:AssumeRole on resource: arn:aws:iam::219024422756:role/mr002-validation2-evidence-publisher",
+   "executed_via": "SSM AWS-RunShellScript on the real evaluator instance",
+   "required": "DENIED",
+   "result": "DENIED"
+  },
+  "proof_3_publisher_SESSION_to_validation_reader": {
+   "caller_before_assumerole": "arn:aws:sts::219024422756:assumed-role/mr002-validation2-evidence-publisher/b12-trust-proof",
+   "error": "\nAn error occurred (AccessDenied) when calling the AssumeRole operation: User: arn:aws:sts::219024422756:assumed-role/mr002-validation2-evidence-publisher/b12-trust-proof is not authorized to perform: sts:AssumeRole on resource: arn:aws:iam::219024422756:role/mr002-validation-reader",
+   "executed_as": "the assumed PUBLISHER SESSION, not the host base credentials",
+   "required": "DENIED",
+   "result": "DENIED"
+  },
+  "why_proof_3_used_the_session_not_the_host": "per the owner's nuance, it was executed by the principal HOLDING publisher credentials after proof 1 succeeded. That proves the privileged publisher BRANCH cannot pivot into withheld data, not merely that the host base role cannot."
+ },
+ "record_identity_sha256": "6b8a73a6633a9e709409caf9ce339c777cd49b98f5b300fd30d7acf4b130c8bc",
+ "record_type": "MR002_Validation2_AmendmentB_LiveTrustQualification",
+ "sealed_store_getobject_calls": 0,
+ "validation_2_objects_read": 0,
+ "version": "1.0",
+ "what_this_closes": "the publisher side of Blocker 1. Amendment A \u2014 the only remaining capability-granting change \u2014 is still NOT APPLIED and remains last.",
+ "withheld_reads_still_zero": {
+  "chain_verifies": true,
+  "denied_attempts": 7,
+  "post_proof_access_history": "44989af946f09c907223a218b08fe6cb2a6f37443726494c8cc4b6f8bc3a0726",
+  "status": "VERIFIED",
+  "successful_reads": 0,
+  "verified": true
+ }
+}
