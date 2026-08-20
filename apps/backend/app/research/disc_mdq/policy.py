@@ -22,7 +22,7 @@ import hashlib
 import json
 from collections.abc import Iterable
 from dataclasses import dataclass, field
-from datetime import date
+from datetime import date, timedelta
 from pathlib import Path
 from typing import Any
 
@@ -222,10 +222,42 @@ def check_period_holdout_claim(artifact: dict[str, Any], window: ReviewWindow) -
         )
         return "derived_from_governed_review_window_artifact_unstamped"
 
+    derived = (window.holdout_start, window.holdout_end_exclusive)
+
+    if isinstance(claim, dict):
+        # The stamped form. Bounds are named explicitly rather than written as a
+        # bare "A..B" range, because the inclusive/exclusive reading of such a
+        # range differs by a day at each end - the defect registration section
+        # 8.2 ruling 4 exists to correct. All three bounds are cross-checked.
+        try:
+            start = date.fromisoformat(str(claim["start_inclusive"]))
+            end_excl = date.fromisoformat(str(claim["end_exclusive"]))
+        except (KeyError, ValueError) as exc:
+            raise PolicyError(
+                f"stamped period_holdout_dates is malformed ({exc!r}); refusing to guess "
+                "which dates are quarantined"
+            ) from exc
+
+        if (start, end_excl) != derived:
+            raise PolicyError(
+                "holdout artifact period disagrees with the frozen rule: artifact states "
+                f"[{start}, {end_excl}), rule derives [{derived[0]}, {derived[1]})"
+            )
+
+        end_incl_raw = claim.get("end_inclusive")
+        if end_incl_raw is not None:
+            end_incl = date.fromisoformat(str(end_incl_raw))
+            if end_incl != end_excl - timedelta(days=1):
+                raise PolicyError(
+                    f"stamped period is internally inconsistent: end_inclusive {end_incl} "
+                    f"is not one day before end_exclusive {end_excl}"
+                )
+        return "artifact_stamped_and_matches_rule"
+
     if isinstance(claim, str) and ".." in claim:
+        # Legacy bare-range form, retained so an older artifact still validates.
         raw_start, raw_end = (part.strip() for part in claim.split("..", 1))
         stated = (date.fromisoformat(raw_start), date.fromisoformat(raw_end))
-        derived = (window.holdout_start, window.holdout_end_exclusive)
         if stated != derived:
             raise PolicyError(
                 "holdout artifact period disagrees with the frozen rule: artifact "

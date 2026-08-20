@@ -272,7 +272,7 @@ Ratified by / date:           Jay Wang (owner) — 2026-08-17, ratification issu
                               not reopened. Applied by the developer session same day.
 ```
 
-### 8.2 v1.0 correction set — owner rulings, 2026-08-18 *(three CORRECTIONS; one ADDITION — **signed 2026-08-19, §8.3**)*
+### 8.2 v1.0 correction set — owner rulings, 2026-08-18 *(three CORRECTIONS; one ADDITION — **signed 2026-08-19, §8.3**; see also §8.4, K5 discriminating status, signed 2026-08-20)*
 
 Review of the governed text on 2026-08-18 — after the first scheduled governed capture was **refused by the deployed
 fail-closed free-space guard** (09:25:02 EDT, `9G available < 10G floor`; zero cycles, no partition, **clock not
@@ -488,6 +488,86 @@ Expiry rule:                    SIGNED - repeat of the triggering cell => STOP;
                                 no second HOLD in the same review sequence
 Signed before exploration:      YES - no exploratory read has occurred
 Signed by / date:               Jay Wang (owner) — 2026-08-19
+```
+
+---
+
+### 8.4 K5 discriminating status — SIGNED, 2026-08-20
+
+**Status: SIGNED.** Signed **2026-08-20**, **before any exploratory read of the corpus** and therefore before
+§8.1's evidence firewall forecloses revising a verdict or evaluability clause. This subsection is
+**additive**: the signed §8 block, the ratified §8.1 block, §8.2 and §8.3 are **not edited**.
+
+This is the mirror image of the §4.11 verdict-reachability problem. §4.11 protected against criteria that
+can never be **evaluated**. K5 is a criterion that can never **fail** — and an auto-passing criterion is the
+more dangerous of the two, because it looks like evidence and **counts toward the ratified GO floor**.
+
+#### 8.4.1 Determination — made from the frozen definition, before any coverage result
+
+**K5 as frozen cannot return FAIL for its intended coverage question.** Under the frozen population rule,
+fills without a valid matched quote are excluded from **both** numerator and denominator; for the fills that
+remain, the coverage numerator and denominator are therefore **structurally equivalent except for
+computation/integrity failures**. The K5 coverage ratio consequently approaches **100% by construction on any
+admissible corpus**.
+
+**This determination is made from the frozen definition before any governed K5 coverage result is examined.**
+That ordering is the substance of the ruling, not a formality: the same statement made in October, after
+results exist, would be a post-hoc judgement about whether a criterion "really" discriminates — arguable in
+whichever direction happened to be convenient.
+
+#### 8.4.2 Effect on reporting and on the GO floor
+
+1. **K5 is still calculated and reported exactly as frozen.** No result is suppressed and no metric is
+   recomputed under a different rule.
+2. **If `N_min` is not met, K5 is NOT EVALUABLE** — unchanged from §4.3.
+3. **If `N_min` is met and the frozen computation succeeds, K5 may mechanically report PASS**, and that
+   result **remains a K5 PASS in the evidence record**.
+4. **That non-discriminating PASS does not count toward the ≥2 independent evaluable-and-PASS criteria
+   required for GO** (§8.1).
+
+⭐ The historical result is **preserved, not rewritten.** K5's mechanical PASS stands on the record as a K5
+PASS; only its *contribution to the GO floor* is qualified. This is the P-2 precedent applied again: preserve
+the run, mark the criterion on its own terms, version forward.
+
+#### 8.4.3 What is NOT changed
+
+**No K5 threshold, denominator, matching rule, `N_min`, evaluability clause, or metric definition is
+changed.** Specifically unchanged: the 90% coverage threshold; `N_min` = 50; the R2 quote-match rule
+(`0 <= ref_ts - cycle_ts <= 5s`); the population definition (all paper fills, Phase-A symbols only); the
+exclusion of no-quote fills from numerator and denominator; and the NOT-EVALUABLE-below-`N_min` semantics.
+
+§4.10.1 forbids revising a K definition once value-extraction work begins, and the R2 ruling was correctly
+frozen **before** coverage was seen. Reopening either would be exactly the post-hoc move the firewall exists
+to stop. What §8.4 decides is a **verdict-clause** question — how a PASS is *counted* toward the GO floor —
+which is the same class as §8.3's ruling 3.
+
+#### 8.4.4 Consequence for the verdict, stated plainly
+
+With K2 NOT EVALUABLE (no G10), K4 NOT EVALUABLE (no in-window Stage-0 run), K6 NOT EVALUABLE absent a
+captured IEX stub occurrence, and K5's PASS now non-contributing, **the GO floor rests on K1 and K3**. If
+only one of those is both evaluable and PASS, the disposition is **HOLD with one stated extension** under
+§8.3's matrix. That is a real outcome the ratified rules already provide for — not a failure of the process,
+and not a reason to relax a threshold.
+
+#### 8.4.5 Sign-off
+
+```
+K5 discriminating status:       SIGNED - K5 as frozen CANNOT return FAIL for the
+                                coverage question (numerator == denominator by
+                                construction after the no-quote exclusion)
+Determination timing:           SIGNED - determined from the frozen definition
+                                BEFORE any governed K5 coverage result examined
+Reporting:                      SIGNED - K5 still computed and reported exactly
+                                as frozen; a mechanical PASS remains a K5 PASS
+                                in the evidence record
+GO-floor contribution:          SIGNED - a non-discriminating PASS does NOT count
+                                toward the >=2 independent evaluable-and-PASS
+                                criteria required for GO
+Definitions changed:            NONE - threshold, denominator, matching rule,
+                                N_min, evaluability clause and metric definition
+                                are all unchanged
+Signed before exploration:      YES - no exploratory read has occurred
+Signed by / date:               Jay Wang (owner) — 2026-08-20
 ```
 
 ---

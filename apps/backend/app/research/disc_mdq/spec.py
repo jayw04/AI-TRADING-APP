@@ -57,14 +57,31 @@ REVIEW_WINDOW_DAYS = 60
 # artifact carries concrete dates (see policy.load_holdout_artifact).
 PERIOD_HOLDOUT_DAYS = 12
 
-# The holdout artifact ships this literal until someone stamps the concrete
-# dates into it. It has NOT been stamped since D0, so the period holdout is not
-# machine-readable from the artifact alone — the policy fails closed rather
-# than guessing. See policy.load_holdout_artifact.
+# The literal the artifact shipped BEFORE it was stamped. It was STAMPED on
+# 2026-08-20 with explicit start_inclusive / end_inclusive / end_exclusive
+# bounds; this constant is retained so the pre-stamp form is still recognised
+# and so a regression back to it is detected rather than silently re-derived.
 PERIOD_HOLDOUT_UNSTAMPED = "STAMPED_AT_FIRST_ADMISSIBLE_CAPTURE"
 
 HOLDOUT_ARTIFACT_ID = "MDQ001_EXPLORATION_HOLDOUT"
 UNIVERSE_SYMBOLS_SHA256 = "0c57bd71c0b73565328ec27036c6573f11b87594acb49ca461458a7d947f88d4"
+
+# Canonical identity of the ten quarantined symbols: sha256 of the comma-joined
+# list in artifact order (already sorted). This is the value that must NOT move
+# when the artifact is stamped, re-serialised, or otherwise edited. The
+# artifact's own file hash changes on any edit, so it cannot carry this
+# guarantee by itself.
+HOLDOUT_SYMBOLS_SHA256 = "320a8c3b634d68ee907400c39900abdb6fbc259d8f6e6213a914e915f6797be0"
+
+# Identity of the holdout artifact BEFORE the 2026-08-20 period stamp, retained
+# as evidence that the symbol quarantine was selected and hashed *before capture
+# began* (committed 63c0c52 on 2026-08-17; D0 = 2026-08-19). That pre-D0 freeze
+# is the property that makes it a genuine holdout under registration section 8
+# item 17, and it is exactly what an in-place edit would otherwise erase - hence
+# the same v0.1 -> v0.2 preservation pattern used for the Program Start Record.
+PRE_STAMP_HOLDOUT_ARTIFACT_SHA256 = (
+    "6c6cf03a80598f54df89b599f2ffbbda09ea44af8f3596421d6c58104e2393bb"
+)
 
 
 class ReadPurpose(StrEnum):
