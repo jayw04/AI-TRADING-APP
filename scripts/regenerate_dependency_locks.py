@@ -44,6 +44,27 @@ GOVERNED_PLATFORM = "x86_64-unknown-linux-gnu"
 GOVERNED_UV_VERSION = "0.12.0"
 GOVERNED_EXTRAS = ("dev",)
 
+# The resolution CUTOFF. Without it the resolver's candidate set is "whatever PyPI holds at
+# the instant it runs", so a re-resolution can never be required to match a file committed
+# earlier — upstream publishes continuously. Measured 2026-08-04: a freshly regenerated set
+# drifted again within six hours (mako 1.3.12->1.4.0, packaging 26.2->26.3). The cutoff is
+# what makes "the committed graph is exactly reproducible" a satisfiable statement, so it is
+# part of the governed tuple, not an optimisation.
+#
+# This value reproduces the reviewed graph committed in #543 (2026-07-29): websockets 17.0
+# published at 18:04:23Z that day, and the reviewed resolution predates it.
+#
+# ADVANCING THE CUTOFF is the ONLY sanctioned way to take dependency upgrades. It is a
+# deliberate, reviewed act — never a side effect of running this script:
+#   1. Change GOVERNED_EXCLUDE_NEWER here and in scripts/check_dependency_locks.py together.
+#   2. Regenerate ALL projects in one change: python scripts/regenerate_dependency_locks.py
+#   3. Review the dependency diff in the PR — added/removed packages, version changes,
+#      hash-only changes, marker changes, index/source changes — and call out every MAJOR
+#      version move explicitly with the evidence that it is safe.
+#   4. Run the full Tier 3 suite, plus `gh workflow run ci.yml --ref <branch>` so the
+#      schedule/dispatch-only `Fresh resolution proof (uncached)` job actually executes.
+GOVERNED_EXCLUDE_NEWER = "2026-07-29T18:00:00Z"
+
 PROJECTS: dict[str, str] = {
     "backend": "apps/backend",
     "mcp-server": "apps/mcp-server",
@@ -65,6 +86,8 @@ def header(project: str, directory: str) -> str:
         f"requires-python >=3.12,<3.13)\n"
         f"#   platform      : {GOVERNED_PLATFORM}\n"
         f"#   resolver      : uv {GOVERNED_UV_VERSION}\n"
+        f"#   exclude-newer : {GOVERNED_EXCLUDE_NEWER}  (resolution cutoff; advancing it is\n"
+        f"#                   the only sanctioned way to take upgrades - see the script)\n"
         f"#   source        : {directory}/pyproject.toml\n"
         f"#   extras        : {extras}\n"
         f"#\n"
@@ -102,6 +125,7 @@ def compile_one(project: str, directory: str, dest: Path, system_certs: bool) ->
             "--python-platform", GOVERNED_PLATFORM,
             "--generate-hashes",
             "--no-header",
+            "--exclude-newer", GOVERNED_EXCLUDE_NEWER,
             "--output-file", str(raw),
         ]
         if system_certs:
@@ -175,7 +199,8 @@ def main(argv: list[str] | None = None) -> int:
         print(f"  {project:<16}-> constraints/{dest.name}  ({n} hashes)")
 
     print(f"\nGenerated with uv {GOVERNED_UV_VERSION}, CPython {GOVERNED_PYTHON_FULL}, "
-          f"{GOVERNED_PLATFORM}, extras={','.join(GOVERNED_EXTRAS)}")
+          f"{GOVERNED_PLATFORM}, extras={','.join(GOVERNED_EXTRAS)}, "
+          f"exclude-newer={GOVERNED_EXCLUDE_NEWER}")
     print("Commit constraints/ and review the dependency diff in the PR.")
     return 0
 
