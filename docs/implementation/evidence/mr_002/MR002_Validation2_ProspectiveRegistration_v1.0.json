@@ -125,10 +125,9 @@
   ],
   "pristine_proof_producer": [
    {
-    "enforced": false,
-    "path": "scripts/mr002_custody/oos_pristine_proof.py",
-    "pending_reason": "written during Cycle 2C; binds on the commit that tracks it",
-    "worktree_lf_sha256": "31e1fd269ad9602ccafd2dedc5b8822b28f7c627fe80f97f77e6db804bc41eb2"
+    "enforced": true,
+    "file_blob_sha256": "31e1fd269ad9602ccafd2dedc5b8822b28f7c627fe80f97f77e6db804bc41eb2",
+    "path": "scripts/mr002_custody/oos_pristine_proof.py"
    },
    {
     "enforced": true,
@@ -377,9 +376,9 @@
  },
  "governing_principle": "The next validation opening must be capable of producing a legitimate economic verdict even if a numerical component encounters an expected registered numerical termination. It must never again be consumed merely because infrastructure or numerical classification failed.",
  "identity_basis": {
-  "head": "6d018631e8c56d745d5e6b8f4fe55674c3e13f24",
+  "head": "b0d881d54f667790bcaef92cf0eb9e276d774fbb",
   "head_is_pushed": true,
-  "remote_head": "6d018631e8c56d745d5e6b8f4fe55674c3e13f24",
+  "remote_head": "b0d881d54f667790bcaef92cf0eb9e276d774fbb",
   "rule": "a Git-blob identity is only a PUSHED identity once HEAD has reached the remote branch"
  },
  "n3_derived_harness_invariant": {
@@ -416,9 +415,7 @@
   "seal_date": "2026-08-20",
   "why_this_is_stronger": "unlike Validation-2, the new OOS is temporally unknowable at registration, so it carries none of the elapsed-calendar limitation recorded above."
  },
- "pending_bindings": [
-  "scripts/mr002_custody/oos_pristine_proof.py"
- ],
+ "pending_bindings": [],
  "pristine_proof": {
   "claim": "no successful governed read of any of the six Validation-2 objects has ever occurred",
   "coverage_limitation": "CloudTrail data events were enabled on the sealed bucket BEFORE any partition object was written, so no object has ever sat in this store unlogged. The claim is scoped to the SEALED STORE. The earlier period, when the corpus existed only as a DuckDB file on the developer workstation, has no store-level access log and none can be manufactured; that period rests on the procedural seal recorded in preregistration v1.0.4 (sealed_data_read=false), which is a weaker basis and is deliberately NOT restated here as if it were audited.",
@@ -453,8 +450,8 @@
   "record": "MR002_OOSPartitionAccessHistory_v1.0"
  },
  "program": "MR-002 Sector-Neutral Residual Reversion",
- "record_identity_sha256": "9d12f7296f105863b5e51c0db898fe2204a68d7af823811e3f24bdf663752cf8",
- "record_status": "DRAFT",
+ "record_identity_sha256": "93ee468801c92edd9dd1ba49944b381a6d9172c2e22f9bcc76a9dcbe8541af57",
+ "record_status": "SEALED",
  "record_type": "MR002_VALIDATION2_PROSPECTIVE_REGISTRATION",
  "role_transfer": {
   "made_before_any_read": true,

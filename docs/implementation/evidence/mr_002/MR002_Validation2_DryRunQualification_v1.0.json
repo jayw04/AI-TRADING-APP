@@ -1,13 +1,13 @@
 {
  "authority": {
-  "identity_sha256": "9d12f7296f105863b5e51c0db898fe2204a68d7af823811e3f24bdf663752cf8",
+  "identity_sha256": "93ee468801c92edd9dd1ba49944b381a6d9172c2e22f9bcc76a9dcbe8541af57",
   "registration": "MR002_Validation2_ProspectiveRegistration_v1.0",
-  "registration_status": "DRAFT"
+  "registration_status": "SEALED"
  },
  "bound_sources": {
-  "apps/backend/scripts/mr002_v2_harness.py": null,
-  "docs/implementation/evidence/mr_002/_gen_v2_registration.py": null,
-  "scripts/mr002_custody/oos_pristine_proof.py": null
+  "apps/backend/scripts/mr002_v2_harness.py": "fd4437a4fbb6410ec2b7c59daa066bac2e5cadd69ffbaa96d78c2aabfc156f41",
+  "docs/implementation/evidence/mr_002/_gen_v2_registration.py": "2322c88cc9a68ab071b9c6707f764e1148e5cfec85a5d5f35d558f2599cd176c",
+  "scripts/mr002_custody/oos_pristine_proof.py": "31e1fd269ad9602ccafd2dedc5b8822b28f7c627fe80f97f77e6db804bc41eb2"
  },
  "boundary": {
   "consumed_original_opening": "unchanged",
@@ -70,7 +70,7 @@
    "fired": true
   }
  },
- "record_identity_sha256": "853855e4ecfa9e6c942d8688c678244e660351eb0091177cb2ec2f47ef076949",
+ "record_identity_sha256": "ac5a864abf1941b59b8e5a59dc43ddeb1937adcab9c6193a326affe5f3f15022",
  "record_type": "MR002_VALIDATION2_DRYRUN_QUALIFICATION",
  "sealed_store_touched_by_the_dry_run": false,
  "surrogate": "development corpus 2013-01-02.. (first 300 sessions), config C",
