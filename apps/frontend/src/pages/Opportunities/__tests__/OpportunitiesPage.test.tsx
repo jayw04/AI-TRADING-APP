@@ -37,6 +37,19 @@ function emptyResponse(): OpportunitiesResponse {
       date: null,
       stale: true,
     },
+    candidate_watchlist: {
+      as_of: now,
+      as_of_session: null,
+      universe_id: "SEP-liquid-v0",
+      screen_id: "DISC-001-WATCHLIST",
+      screen_version: "v0.3.0",
+      subtitle: "Watch, not a signal",
+      vix: null,
+      families: {},
+      all_items: [],
+      all_count: 0,
+      stale: true,
+    },
     as_of: now,
   };
 }
@@ -130,6 +143,7 @@ describe("OpportunitiesPage", () => {
       expect(screen.getByText("Orders nearing expiry")).toBeInTheDocument();
       expect(screen.getByText("Risk rejections")).toBeInTheDocument();
       expect(screen.getByText("Recent fills")).toBeInTheDocument();
+      expect(screen.getByText("Candidate Watchlist")).toBeInTheDocument();
     });
   });
 
