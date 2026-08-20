@@ -21,7 +21,9 @@ from app.research.disc_mdq.policy import (
     load_holdout_artifact,
 )
 from app.research.disc_mdq.spec import (
+    HOLDOUT_SYMBOLS_SHA256,
     PERIOD_HOLDOUT_UNSTAMPED,
+    PRE_STAMP_HOLDOUT_ARTIFACT_SHA256,
     REVIEW_D0,
     REVIEW_END_EXCLUSIVE,
     UNIVERSE_SYMBOLS_SHA256,
@@ -226,19 +228,67 @@ def test_policy_builds_from_the_real_frozen_artifacts() -> None:
     )
 
 
-def test_real_holdout_artifact_is_still_unstamped_and_we_fail_closed_to_the_rule() -> None:
-    """Regression guard for a live governance gap.
+def test_real_holdout_artifact_is_STAMPED_and_matches_the_frozen_rule() -> None:
+    """The 2026-08-20 stamp (PX-4b), and the counterpart of the guard it replaced.
 
-    ``period_holdout_dates`` was never stamped after D0 (2026-08-19), so the
-    period holdout is not machine-readable from the artifact. We derive it from
-    the frozen rule instead of guessing. If someone stamps the artifact, this
-    test flips to the ``matches_rule`` branch and should be updated deliberately.
+    This test previously asserted the artifact was *unstamped* and pinned that
+    state deliberately, so that stamping it would fail CI by design and force
+    the stamp and the test update into one commit. This is that commit: the
+    assertion is inverted rather than deleted, so the transition is visible in
+    the diff instead of silently disappearing.
+
+    The bounds are named explicitly in the artifact because the
+    inclusive/exclusive reading of a bare ``A..B`` range differs by a day at
+    each end -- the defect registration section 8.2 ruling 4 exists to correct.
     """
     artifact = load_holdout_artifact(repo_config("mdq_phase_a_holdout.json"))
-    assert artifact["period_holdout_dates"] == PERIOD_HOLDOUT_UNSTAMPED
+    claim = artifact["period_holdout_dates"]
+
+    assert claim != PERIOD_HOLDOUT_UNSTAMPED, "the artifact should now be stamped"
+    assert isinstance(claim, dict), "the stamp must name its bounds, not use a bare range"
+    assert claim["start_inclusive"] == "2026-10-06"
+    assert claim["end_inclusive"] == "2026-10-17"
+    assert claim["end_exclusive"] == "2026-10-18"
 
     provenance = check_period_holdout_claim(artifact, ReviewWindow.governed())
-    assert provenance == "derived_from_governed_review_window_artifact_unstamped"
+    assert provenance == "artifact_stamped_and_matches_rule"
+
+    # And the stamped bounds are the ones the policy actually enforces.
+    w = ReviewWindow.governed()
+    assert w.holdout_start == date.fromisoformat(claim["start_inclusive"])
+    assert w.holdout_end_exclusive == date.fromisoformat(claim["end_exclusive"])
+
+
+def test_the_stamp_did_NOT_change_the_governed_symbol_quarantine() -> None:
+    """The invariant the stamp had to preserve.
+
+    ``mdq_phase_a_holdout.json`` is a genuine holdout *because it was frozen
+    before capture began* (registration section 8 item 17; committed 63c0c52 on
+    2026-08-17, D0 = 2026-08-19). Editing it after D0 is therefore only safe if
+    the ten quarantined symbols are provably untouched.
+
+    The artifact's own file hash necessarily changes on any edit, so it cannot
+    carry that guarantee -- hence a separate canonical hash over the symbol list
+    alone, plus the retained pre-stamp identity.
+    """
+    artifact = load_holdout_artifact(repo_config("mdq_phase_a_holdout.json"))
+    symbols = artifact["holdout_symbols"]
+
+    # 1. The set and the ORDER are both unchanged.
+    assert symbols == HOLDOUT
+    assert sorted(symbols) == symbols, "artifact order is the sorted order"
+    assert len(symbols) == 10
+
+    # 2. The canonical symbol-list hash is the pre-stamp value.
+    canonical = hashlib.sha256(",".join(symbols).encode("utf-8")).hexdigest()
+    assert canonical == HOLDOUT_SYMBOLS_SHA256
+    assert artifact["holdout_symbols_sha256"] == HOLDOUT_SYMBOLS_SHA256
+
+    # 3. The pre-D0 identity is retained as evidence, not overwritten.
+    assert artifact["pre_stamp_identity"]["sha256_lf"] == PRE_STAMP_HOLDOUT_ARTIFACT_SHA256
+
+    # 4. The universe pin the holdout was drawn from is unchanged.
+    assert artifact["universe_symbols_sha256"] == UNIVERSE_SYMBOLS_SHA256
 
 
 def test_a_stamped_artifact_that_disagrees_with_the_rule_is_fatal(tmp_path: Path) -> None:
@@ -314,3 +364,71 @@ def test_universe_pin_is_defined_over_LF_NORMALISED_bytes_not_raw_bytes() -> Non
     # rather than cosmetic.
     if raw != lf:
         assert hashlib.sha256(raw).hexdigest() != pinned
+
+
+def test_from_config_accepts_the_stamped_artifact_end_to_end() -> None:
+    """The whole path, not just the claim checker."""
+    policy = MdqExplorationPolicy.from_config(
+        universe_symbols_path=repo_config("mdq_phase_a_universe_symbols.json"),
+        holdout_path=repo_config("mdq_phase_a_holdout.json"),
+    )
+    assert policy.period_holdout_provenance == "artifact_stamped_and_matches_rule"
+    assert policy.window.holdout_start == date(2026, 10, 6)
+    assert policy.window.holdout_end_exclusive == date(2026, 10, 18)
+    # The last quarantined day is denied; the day before the window is allowed.
+    assert policy.can_read("AAPL", date(2026, 10, 17), ReadPurpose.EXPLORATION).decision is (
+        Decision.DENIED_HOLDOUT_PERIOD
+    )
+    assert policy.can_read("AAPL", date(2026, 10, 5), ReadPurpose.EXPLORATION).allowed
+
+
+def test_a_stamped_period_that_is_internally_inconsistent_is_fatal() -> None:
+    """end_inclusive must be exactly one day before end_exclusive."""
+    artifact = {
+        "artifact": "MDQ001_EXPLORATION_HOLDOUT",
+        "holdout_symbols": HOLDOUT,
+        "period_holdout_dates": {
+            "start_inclusive": "2026-10-06",
+            "end_inclusive": "2026-10-18",  # off by one
+            "end_exclusive": "2026-10-18",
+        },
+    }
+    with pytest.raises(PolicyError, match="internally inconsistent"):
+        check_period_holdout_claim(artifact, ReviewWindow.governed())
+
+
+def test_a_stamped_dict_that_disagrees_with_the_rule_is_fatal() -> None:
+    artifact = {
+        "artifact": "MDQ001_EXPLORATION_HOLDOUT",
+        "holdout_symbols": HOLDOUT,
+        "period_holdout_dates": {
+            "start_inclusive": "2026-10-01",
+            "end_exclusive": "2026-10-18",
+        },
+    }
+    with pytest.raises(PolicyError, match="disagrees with the frozen rule"):
+        check_period_holdout_claim(artifact, ReviewWindow.governed())
+
+
+def test_a_malformed_stamp_refuses_to_guess() -> None:
+    artifact = {
+        "artifact": "MDQ001_EXPLORATION_HOLDOUT",
+        "holdout_symbols": HOLDOUT,
+        "period_holdout_dates": {"start_inclusive": "2026-10-06"},  # no end
+    }
+    with pytest.raises(PolicyError, match="malformed"):
+        check_period_holdout_claim(artifact, ReviewWindow.governed())
+
+
+def test_the_unstamped_form_is_still_recognised_and_derives_from_the_rule() -> None:
+    """Retained so a regression to the placeholder is detected, not silently
+    re-derived as if nothing had changed."""
+    artifact = {
+        "artifact": "MDQ001_EXPLORATION_HOLDOUT",
+        "holdout_symbols": HOLDOUT,
+        "period_holdout_dates": PERIOD_HOLDOUT_UNSTAMPED,
+    }
+    assert (
+        check_period_holdout_claim(artifact, ReviewWindow.governed())
+        == "derived_from_governed_review_window_artifact_unstamped"
+    )

@@ -12,9 +12,21 @@
   "XLV",
   "XOM"
  ],
- "period_holdout_dates": "STAMPED_AT_FIRST_ADMISSIBLE_CAPTURE",
+ "period_holdout_dates": {
+  "start_inclusive": "2026-10-06",
+  "end_inclusive": "2026-10-17",
+  "end_exclusive": "2026-10-18",
+  "stamped_on": "2026-08-20",
+  "provenance": "Derived from the frozen rule \"final 12 calendar days of the 60-day review window\" applied to the governed review window [2026-08-19, 2026-10-18), which was established by D0 = 2026-08-19, the first admissible governed frozen partition. Matches the pre-registered expectation exactly. Both bounds are stated explicitly because the inclusive/exclusive reading of a bare \"A..B\" range differs by a day at each end - the defect corrected by registration section 8.2 ruling 4."
+ },
  "period_holdout_rule": "final 12 calendar days of the 60-day review window",
  "rule": "plan v0.8 4.10.2: symbol holdout = 10/50 (20%) drawn by random.Random(int(sha256(universe_symbols_file_LF),16)).sample(sorted_universe,10); period holdout = final 20% (last 12 calendar days) of the 60-day review window, dates stamped when the review clock stamps at first admissible governed capture. Holdout is quarantined from ALL exploratory/value-extraction access; a graduating hypothesis is evaluated on it once.",
  "universe_symbols_sha256": "0c57bd71c0b73565328ec27036c6573f11b87594acb49ca461458a7d947f88d4",
- "version": 1
+ "version": 1,
+ "holdout_symbols_sha256": "320a8c3b634d68ee907400c39900abdb6fbc259d8f6e6213a914e915f6797be0",
+ "pre_stamp_identity": {
+  "sha256_lf": "6c6cf03a80598f54df89b599f2ffbbda09ea44af8f3596421d6c58104e2393bb",
+  "committed": "63c0c52 (2026-08-17, PR #634)",
+  "note": "Identity of this artifact BEFORE the 2026-08-20 period stamp. Retained as evidence that the symbol quarantine was selected and hashed before capture began (D0 = 2026-08-19), which is the property that makes it a genuine holdout under registration section 8 item 17. The stamp adds the period bounds and this provenance only; holdout_symbols is unchanged, as holdout_symbols_sha256 attests."
+ }
 }
