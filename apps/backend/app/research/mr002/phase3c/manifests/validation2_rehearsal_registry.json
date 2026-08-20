@@ -1,32 +1,47 @@
 {
+  "fixture_corpus": {
+    "builder": "apps/backend/scripts/mr002_v2_build_rehearsal_fixtures.py",
+    "determinism": "verified by double build; both builds produced identical SHA-256 for all 10 objects",
+    "fixture_only_columns": {
+      "predecessor_overrides.review_status": "FIXTURE_ONLY constant; the development corpus has no such column",
+      "security_sector_overrides.review_status": "FIXTURE_ONLY constant; the development corpus has no such column"
+    },
+    "frozen_before_registry_seal": true,
+    "source": "development corpus apps/backend/data/mr002_research.duckdb, slice 2013-01-02 .. 2013-12-31",
+    "why_not_runtime_hashing": "hashes computed at launcher run time would verify the fixture against itself. The chain that carries evidentiary weight is: development source -> frozen fixture bytes -> committed fixture SHA registry -> rehearsal. The expected value must exist BEFORE the rehearsal invocation admitted as evidence."
+  },
   "purpose": "the object-identity registry for the CLOSED-LATCH FIXTURE REHEARSAL. It exercises the orchestration topology and the governance classification. It NEVER touches S3 and no credential path exists for it.",
   "record_type": "MR002_Validation2_RehearsalRegistry",
   "reference_objects": [
     {
+      "fixture_bytes": 11657,
       "key": "reference/crosswalk.parquet",
       "partition_role": "REFERENCE_NONCONSUMING",
-      "sha256": "PENDING_FIXTURE_BUILD",
+      "sha256": "c411b0c64fd77fbd4165000b099da39101d346c4a0099995e0a15da891198750",
       "table": "crosswalk",
       "version_id": "fixture://crosswalk/v1"
     },
     {
+      "fixture_bytes": 2116,
       "key": "reference/sic_mapping.parquet",
       "partition_role": "REFERENCE_NONCONSUMING",
-      "sha256": "PENDING_FIXTURE_BUILD",
+      "sha256": "b6b9ee2b769d666265cfaea51a7416c4ec62bee20f700160cd74d4168bc95ad8",
       "table": "sic_mapping",
       "version_id": "fixture://sic_mapping/v1"
     },
     {
+      "fixture_bytes": 1210,
       "key": "reference/predecessor_overrides.parquet",
       "partition_role": "REFERENCE_NONCONSUMING",
-      "sha256": "PENDING_FIXTURE_BUILD",
+      "sha256": "39fac932aaa05fee4cc66620b13bcfa2c1a79629f5fedf4f1c120f16f8d78587",
       "table": "predecessor_overrides",
       "version_id": "fixture://predecessor_overrides/v1"
     },
     {
+      "fixture_bytes": 1110,
       "key": "reference/security_sector_overrides.parquet",
       "partition_role": "REFERENCE_NONCONSUMING",
-      "sha256": "PENDING_FIXTURE_BUILD",
+      "sha256": "b8882d199e16cbf545566bceb1e926285c532bd592524bcff0e5589e3ec0b0d9",
       "table": "security_sector_overrides",
       "version_id": "fixture://security_sector_overrides/v1"
     }
@@ -34,51 +49,57 @@
   "registry_role": "DEVELOPMENT_REHEARSAL_ONLY",
   "sealed_validation2_objects": [
     {
+      "fixture_bytes": 17080,
       "key": "oos/actions.parquet",
       "partition_role": "VALIDATION2_CONSUMING",
-      "sha256": "PENDING_FIXTURE_BUILD",
+      "sha256": "eede59c09a41126180d69f96884830a7dfbe44b8105cf3eec3f3fe5b4271ee75",
       "table": "actions",
       "version_id": "fixture://actions/v1"
     },
     {
+      "fixture_bytes": 38403,
       "key": "oos/anchors.parquet",
       "partition_role": "VALIDATION2_CONSUMING",
-      "sha256": "PENDING_FIXTURE_BUILD",
+      "sha256": "79b369d1025a26daeadd96f8c916fa52e0afcd93727a3485604850687c590b8e",
       "table": "anchors",
       "version_id": "fixture://anchors/v1"
     },
     {
+      "fixture_bytes": 9360,
       "key": "oos/etf_prices.parquet",
       "partition_role": "VALIDATION2_CONSUMING",
-      "sha256": "PENDING_FIXTURE_BUILD",
+      "sha256": "6fd7df76b58c242dd29e21516d2fae67a771adba8308e53eabe272b9078a95ae",
       "table": "etf_prices",
       "version_id": "fixture://etf_prices/v1"
     },
     {
+      "fixture_bytes": 2688112,
       "key": "oos/prices.parquet",
       "partition_role": "VALIDATION2_CONSUMING",
-      "sha256": "PENDING_FIXTURE_BUILD",
+      "sha256": "16d1a4f9f25bf0472933655825409d4ddab52d3726c1668177aceccce5a9cfdf",
       "table": "prices",
       "version_id": "fixture://prices/v1"
     },
     {
+      "fixture_bytes": 454183,
       "key": "oos/sic_observations.parquet",
       "partition_role": "VALIDATION2_CONSUMING",
-      "sha256": "PENDING_FIXTURE_BUILD",
+      "sha256": "ccfacb20daa076ac81ac1563a3e7bca1d9e0892f6bbb4f07e0f557c56a37d9c8",
       "table": "sic_observations",
       "version_id": "fixture://sic_observations/v1"
     },
     {
+      "fixture_bytes": 328484,
       "key": "oos/universe.parquet",
       "partition_role": "VALIDATION2_CONSUMING",
-      "sha256": "PENDING_FIXTURE_BUILD",
+      "sha256": "5d0daa3398468376b5eaadd86fb7e1d9aa11e139128c6f1ed1141963f7afc41f",
       "table": "universe",
       "version_id": "fixture://universe/v1"
     }
   ],
   "sha256_are_fixture_hashes": "the sha256 values are hashes of the LOCAL FIXTURE BYTES, not of any sealed object. They are what FixtureReader.verify() checks against.",
   "topology_mirrors_production": "same six logical Validation-2 table roles and same four reference roles, so the rehearsal proves the real orchestration shape.",
-  "version": "1.0",
+  "version": "1.1",
   "version_ids_are_synthetic": "VersionId values here are UNMISTAKABLY SYNTHETIC (fixture://...). The real registered S3 VersionIds are deliberately NOT reused: a rehearsal record that carried them could later be misread as having exercised the exact production object versions, which it never did. No S3 version is accessed by a rehearsal.",
   "\u26d4 NOT_A_PRODUCTION_REGISTRY": "this registry MUST NOT be usable with --reader s3. The launcher enforces the permitted (reader, window, contract) triples before object construction and before any credential acquisition."
 }

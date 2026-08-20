@@ -67,3 +67,5 @@ docs/implementation/TradingWorkbench_MR002_PreRegistration_*.md text eol=lf
 # fail-closes locally even though the blob is correct — the same trap the phase3c dirs already
 # pin against. The file's committed bytes are unchanged; only the checkout is pinned.
 apps/backend/scripts/mr002_development_run.py text eol=lf
+# rehearsal fixture builder: its bytes are provenance for the frozen fixture hashes
+apps/backend/scripts/mr002_v2_build_rehearsal_fixtures.py text eol=lf
