@@ -54,7 +54,7 @@ Proposed values below are the plan's §4.3 defaults verbatim; the owner may adju
 
 **Cancel (C1):** no K criterion met, judged **net of cost** — measured value vs subscription **plus** incremental storage/compute attributable to MDQ-001/OPRA-CAP-001. *Criteria scored NOT EVALUABLE (K2 without G10; K4 without an in-window Stage-0 run; K5 below `N_min`; K6 without an observed occurrence under its option (a)) leave the keep/cancel denominator entirely: they can neither satisfy GO nor count toward Cancel (plan v0.5 §8.8).*
 
-> *Edit note — 2026-08-18, owner ruling 3 (scope clarification here; the **addition** itself lives in §5).* Read with the §8.1 GO floor, C1/STOP is the case **≥ 2 criteria evaluable and 0 PASS**. The bare wording “no K criterion met” is what left the **≥ 2 evaluable and exactly 1 PASS** case with no disposition at all — not GO, not STOP, and not covered by §8.1’s HOLD clause, which addresses *fewer than two evaluable*. The completed disposition table is in **§5**; its fourth row is an **addition awaiting explicit owner sign-off** and is not ratified by this note. The C1 threshold itself is unchanged.
+> *Edit note — 2026-08-18, owner ruling 3 (scope clarification here; the **addition** itself lives in §5).* Read with the §8.1 GO floor, C1/STOP is the case **≥ 2 criteria evaluable and 0 PASS**. The bare wording “no K criterion met” is what left the **≥ 2 evaluable and exactly 1 PASS** case with no disposition at all — not GO, not STOP, and not covered by §8.1’s HOLD clause, which addresses *fewer than two evaluable*. The completed disposition table is in **§5**; its fourth row was an addition requiring explicit owner sign-off and was **signed 2026-08-19 at §8.3** — not by this note. The C1 threshold itself is unchanged.
 
 **Pre-registration quarantine:** thresholds freeze **before** data collection, so any capture made before §8 sign-off carries the manifest label `PRE_REGISTRATION_SMOKE` and is **inadmissible** to K1–K6/C1 — engineering/implementation evidence only. The 2026-08-14 collector smoke (IEX 4,818 vs SIP 7,057 one-minute bar rows on the 14-symbol default universe, ≈46% more SIP rows) is exactly such evidence: an encouraging coverage indication, but it measures extra bars, not the K3 missing-bar-rate metric, and it never enters the qualification corpus.
 
@@ -78,6 +78,7 @@ One recorded disposition at the review date, as a governed artifact (ADR 0051 en
 
 - **GO** — retain subscription; open the governed SIP adoption path (plan §3.3 migration rule per strategy/program).
 - **HOLD** — extend **exactly one** additional period, for a named reason stated at the verdict.
+  *(§8.3 adds two invocation requirements to this rule without changing it: the verdict must also state the **extension duration** and the **next adjudication date**, and a repeat of the triggering cell at that next adjudication resolves to **STOP**.)*
 - **STOP** — cancel; unwind pinned-SIP paths back to `feed=iex`.
 
 **Disposition table — which review result produces which verdict** *(added 2026-08-18, owner ruling 3)*
@@ -87,11 +88,13 @@ One recorded disposition at the review date, as a governed artifact (ADR 0051 en
 | ≥ 2 criteria evaluable and ≥ 2 PASS | **GO** |
 | ≥ 2 criteria evaluable and 0 PASS | **STOP** |
 | Fewer than 2 criteria evaluable | **HOLD**, one stated extension |
-| ≥ 2 criteria evaluable and **exactly 1 PASS** | **HOLD**, one stated extension — ⚠ **NEW DISPOSITION, PENDING EXPLICIT OWNER SIGN-OFF** |
+| ≥ 2 criteria evaluable and **exactly 1 PASS** | **HOLD**, exactly one additional period — **SIGNED, §8.3** |
 
-> ⚠ **Read the fourth row separately from the other three.**
+> ✅ **The fourth row is SIGNED (§8.3, 2026-08-19).**
 >
-> Rows 1–3 restate decisions that are already ratified: rows 1 and 3 are the §8.1 GO floor verbatim, and row 2 is C1 read with that floor. **Row 4 is different in kind.** The combined rules genuinely left `≥ 2 evaluable and exactly 1 PASS` **undefined** — it is not GO (which needs ≥ 2 passes), it is not STOP under the old “no K criterion met” wording (one criterion *was* met), and it is not covered by §8.1’s HOLD clause (which addresses *fewer than two evaluable*). Assigning it HOLD-with-one-stated-extension therefore **adds a disposition rather than correcting stale prose**, and it is recorded here as **proposed and pending the owner’s explicit sign-off**. It **must be signed before value-extraction work starts** — once exploration touches the corpus, §8.1’s evidence firewall forbids revising an evaluability or verdict clause, so an unsigned gap here becomes unfixable rather than merely open. **Nothing in this document may be read as if row 4 were already ratified.** See §8.2 ruling 3 for the sign-off stanza.
+> Rows 1–3 restate decisions that were already ratified: rows 1 and 3 are the §8.1 GO floor verbatim, and row 2 is C1 read with that floor. **Row 4 was different in kind** — the combined rules genuinely left `≥ 2 evaluable and exactly 1 PASS` **undefined**: not GO (which needs ≥ 2 passes), not STOP under the old “no K criterion met” wording (one criterion *was* met), and not covered by §8.1’s HOLD clause (which addresses *fewer than two evaluable*). Assigning it HOLD therefore **added a disposition rather than correcting stale prose**, which is why it required an explicit signature rather than being ratified by its presence in this table.
+>
+> It was signed on **2026-08-19**, **before any exploratory read of the corpus** and therefore before §8.1’s evidence firewall closed the ability to revise a verdict or evaluability clause. The full signed ruling, including the two invocation requirements it adds to every HOLD, is at **§8.3**; the §8.2 ruling-3 stanza is completed accordingly.
 
 ## 6. Operational constraints (frozen from plan §4.5, restated for the §7 architecture)
 
@@ -325,7 +328,7 @@ re-stamped there before the first admissible capture.)*
 The §4 sentence was never updated when §8.1 was ratified; this is that update and nothing more. **No threshold, no
 evaluability clause, and no signed block is reopened.**
 
-#### Ruling 3 — the undefined verdict *(⚠ ADDITION — PENDING EXPLICIT OWNER SIGN-OFF)*
+#### Ruling 3 — the undefined verdict *(ADDITION — **SIGNED 2026-08-19**; full ruling at §8.3)*
 
 The combined rules left **≥ 2 evaluable and exactly 1 PASS** genuinely undefined: not GO (needs ≥ 2 passes), not
 STOP under the old “no K criterion met” wording (one criterion *was* met), and not covered by §8.1’s HOLD clause
@@ -335,18 +338,19 @@ is recorded as proposed rather than applied:
 
 ```
 Undefined-verdict disposition
-(>= 2 evaluable, exactly 1 PASS):  [ ] SIGNED — HOLD with one stated extension
+(>= 2 evaluable, exactly 1 PASS):  [x] SIGNED - HOLD, exactly one additional period
                                    [ ] adjusted to: ____________
-                                   Status at drafting: PROPOSED, UNSIGNED. Rows 1-3 of
-                                   the section 5 table are ratified restatements; THIS
-                                   row is an addition and is not ratified by its
-                                   presence there.
-                                   Must be signed BEFORE value-extraction work begins:
-                                   once exploration touches the corpus, the 8.1 evidence
-                                   firewall forbids revising a verdict/evaluability
-                                   clause, and an unsigned gap becomes unfixable rather
-                                   than merely open.
-Signed by / date:                  ____________________
+                                   Status: SIGNED 2026-08-19, BEFORE any exploratory
+                                   read of the corpus and therefore before the 8.1
+                                   evidence firewall closed the ability to revise a
+                                   verdict/evaluability clause. Rows 1-3 of the
+                                   section 5 table are ratified restatements; THIS row
+                                   was an addition and is ratified by the signature
+                                   below and by section 8.3, not by its presence in
+                                   that table.
+                                   The signed ruling adds two invocation requirements
+                                   to EVERY hold and one expiry rule; see section 8.3.
+Signed by / date:                  Jay Wang (owner) — 2026-08-19
 ```
 
 #### Ruling 4 — holdout boundary and exploration embargo *(CORRECTION — makes the ratified §8.1 rule arithmetically exact)*
@@ -389,9 +393,101 @@ Rulings 1, 2, 4 (corrections):  APPLIED to this document 2026-08-18 by the devel
                                 session, as owner-stated. Additive only; the signed
                                 section 8 block and the ratified section 8.1 block are
                                 untouched.
-Ruling 3 (addition):            RECORDED, NOT APPLIED AS RATIFIED. Awaiting the owner
-                                sign-off stanza above.
+Ruling 3 (addition):            SIGNED 2026-08-19 and APPLIED. The sign-off stanza
+                                above is completed; the full ruling, including the two
+                                invocation requirements it adds to every HOLD and the
+                                expiry rule, is at section 8.3.
 Ruled by / date:                Jay Wang (owner) — 2026-08-18, rulings issued in session.
+```
+
+### 8.3 Undefined-verdict disposition — SIGNED, 2026-08-19
+
+**Status: SIGNED.** Signed **2026-08-19**, the same day D0 was established and **before any exploratory read of
+the corpus**. That timing is load-bearing, not incidental: once exploration touches the corpus, §8.1’s evidence
+firewall forbids revising a verdict or evaluability clause, so an unsigned gap here would have become *unfixable*
+rather than merely open. This subsection is **additive**. The signed §8 block and the ratified §8.1 block are
+**not edited**, exactly as §8.1 and §8.2 were additive before it.
+
+#### 8.3.1 The complete disposition matrix
+
+| Evaluable | PASS | Disposition |
+|---|---|---|
+| < 2 | any | **HOLD** — exactly one additional period |
+| ≥ 2 | 0 | **STOP** |
+| ≥ 2 | **exactly 1** | **HOLD** — exactly one additional period |
+| ≥ 2 | ≥ 2 | **GO** |
+
+The matrix is **total and mutually exclusive**: PASS ⊆ EVALUABLE, so the `< 2 evaluable` row can only ever carry
+0 or 1 PASS, and no combination falls outside the four rows.
+
+**What was already ratified, and what this signature adds.** Rows 1, 2 and 4 restate existing decisions — rows 1
+and 4 are the §8.1 GO floor verbatim, row 2 is C1 read with that floor. **Row 3 is the addition.** The combined
+rules left `≥ 2 evaluable and exactly 1 PASS` genuinely undefined: not GO (which needs ≥ 2 passes), not STOP under
+the old “no K criterion met” wording (one criterion *was* met), and not covered by §8.1’s HOLD clause (which
+addresses *fewer than two evaluable*).
+
+**Why HOLD and not GO or STOP.** One passing criterion is below the already-ratified ≥ 2-PASS GO floor, so GO would
+weaken a ratified threshold. But one PASS is also materially different from zero PASS, so STOP would discard
+potentially useful evidence prematurely. **HOLD is the only disposition that preserves both rules without weakening
+either one.**
+
+#### 8.3.2 Invocation requirements — applies to EVERY HOLD, both rows
+
+§5 already defines HOLD as *“extend **exactly one** additional period, for a named reason stated at the verdict.”*
+That rule is **unchanged and is not reopened**. This signature **adds** two requirements to it:
+
+1. **The extension duration** must be stated at the moment HOLD is invoked.
+2. **The next adjudication date** must be stated at the moment HOLD is invoked.
+
+Both are stated **when HOLD is invoked**, from what is known then — they are **not** pre-set here from future data,
+and they are **not** to be chosen after seeing the evidence that triggered the HOLD.
+
+These requirements bind **both** HOLD rows identically. Bounding only the `exactly 1 PASS` row would have left
+`< 2 evaluable` as the likelier indefinite path, since evaluability can remain low indefinitely without anyone
+having to decide anything.
+
+#### 8.3.3 Expiry — what "exactly one" actually means
+
+At the stated next adjudication date the matrix is re-applied **once**:
+
+| Outcome at re-adjudication | Disposition |
+|---|---|
+| Cell improved to `≥ 2 evaluable, ≥ 2 PASS` | **GO** |
+| Cell fell to `≥ 2 evaluable, 0 PASS` | **STOP** |
+| **The same triggering cell still applies** | **STOP** |
+
+**No second HOLD is permitted for the same review sequence.** Without this rule “exactly one additional period”
+would be unenforceable: `HOLD → HOLD` would be reachable, and HOLD would degrade into an indefinite
+subscription-renewal mechanism — renewing the subscription by never quite deciding. The purpose of the bound is
+that the decision is **forced**, not deferred.
+
+#### 8.3.4 Scope — what this signature does not do
+
+It does **not** amend, reopen, or reinterpret the signed §8 block or the ratified §8.1 block. It does **not** adjust
+any K-criterion, threshold, tolerance, denominator, or evaluability clause — in particular the ≥ 2-PASS GO floor
+and the C1/STOP threshold are untouched. It does **not** decide any actual verdict: no K criterion has been
+evaluated, and the review date is 2026-10-18. It settles only **which disposition follows from which review
+result**, plus the invocation and expiry mechanics above.
+
+#### 8.3.5 Effect on the exploration embargo
+
+The embargo existed because this row was unsigned and §7.2 forbids revising a disposition rule once exploration
+begins. **With this ruling signed and landed, that specific blocker is cleared** and the planned value-extraction
+sequence may begin in the owner’s priority order (MOM-SIP-0 → CEE → feature library → DISC-001 → RANGE-SIP-OBS).
+
+All other constraints are **unchanged**: the two-way evidence firewall stands, value-extraction outputs remain
+**inadmissible** to K1–K6, no K criterion may be revised once exploration begins, and **exploration never reads the
+holdout** — 10 of 50 symbols (AMZN EFA KMLM MSTR NBIS NOW TSLA XLK XLV XOM) over `[2026-10-06, 2026-10-18)`.
+Capture continues normally on the governed schedule.
+
+```
+Undefined-verdict disposition:  SIGNED - HOLD, exactly one additional period
+Invocation requirements:        SIGNED - duration + next adjudication date,
+                                stated at invocation, both HOLD rows
+Expiry rule:                    SIGNED - repeat of the triggering cell => STOP;
+                                no second HOLD in the same review sequence
+Signed before exploration:      YES - no exploratory read has occurred
+Signed by / date:               Jay Wang (owner) — 2026-08-19
 ```
 
 ---
