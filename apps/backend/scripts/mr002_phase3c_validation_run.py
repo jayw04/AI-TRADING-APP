@@ -158,10 +158,15 @@ def _ledger(opened: list) -> dict:
         ).hexdigest()
         prev = row["row_hash"]
         rows.append(row)
-    return {"record_type": "ValidationOpenedObjectLedger", "chain_verifies": True,
-            "counts": {"sealed_reads": len(rows), "oos_reads": 0, "attempts": len(rows),
+    return {"record_type": "Validation2OpenedObjectLedger", "chain_verifies": True,
+            "counts": {"validation2_consuming_reads": len(rows), "attempts": len(rows),
                        "permitted": len(rows), "blocked": 0,
                        "unregistered_data_source_reads": 0},
+            "semantics": (
+                "counts are by GOVERNANCE ROLE, never by physical prefix. The Validation-2 "
+                "population physically lives under oos/, so a count keyed on the string OOS or "
+                "VALIDATION would be meaningless here - and an 'oos_reads: 0' field would be an "
+                "outright false statement, since every consuming read IS an oos/ object."),
             "ledger": rows}
 
 
@@ -278,14 +283,41 @@ def main() -> int:
     materialization_complete(journal, args.materialized, ev)
     report["materialization"] = {k: v for k, v in ev.items() if k != "objects_opened"}
     report["objects_opened"] = ev["objects_opened"]
-    report["opened_object_ledger"] = _ledger(
-        [o for o in ev["objects_opened"] if o["partition"] == "VALIDATION"])
+    # ⛔ CONSUMPTION STATUS IS CARRIED FROM THE SEALED CONTRACT, never re-derived from the
+    # physical key prefix. PinnedObject.partition is mechanically key.split("/")[0].upper(), so
+    # under Cycle-2C it returns "OOS" for every consuming object. Filtering on == "VALIDATION"
+    # here would have produced an EMPTY consuming-read ledger AFTER the holdout was consumed -
+    # destroying the one piece of evidence that must survive a post-exposure failure.
+    #
+    # This is the role-transfer defect on the EVIDENCE side: input selection was moved to
+    # Validation-2 while custody classification stayed on Validation-1 semantics. The fix is not
+    # to compare against a different string, but to stop deriving governance meaning from a
+    # physical prefix at all.
+    consuming_keys = {k for k, _ in SEALED.values()}
+    opened = ev["objects_opened"]
+    consuming = [o for o in opened if o["key"] in consuming_keys]
+    reference_keys = {k for k, _ in REFERENCE.values()}
+    reference = [o for o in opened if o["key"] in reference_keys]
+    unclassified = [o for o in opened
+                    if o["key"] not in consuming_keys and o["key"] not in reference_keys]
+    if unclassified:
+        raise IntegrityFailure("UNCLASSIFIED_OPENED_OBJECT",
+                               ",".join(sorted(o["key"] for o in unclassified)))
+    if len(consuming) != 6 or len(reference) != 4:
+        raise IntegrityFailure(
+            "CUSTODY_CLASSIFICATION_MISMATCH",
+            f"{len(consuming)} consuming / {len(reference)} reference / {len(opened)} opened")
+
+    report["opened_object_ledger"] = _ledger(consuming)
     report["read_split"] = {
-        "sealed_consuming_the_opening":
-            sum(1 for o in ev["objects_opened"] if o["partition"] == "VALIDATION"),
-        "reference_not_consuming_the_opening":
-            sum(1 for o in ev["objects_opened"] if o["partition"] == "REFERENCE"),
-        "oos_reads": 0,
+        "validation2_consuming_reads": len(consuming),
+        "reference_nonconsuming_reads": len(reference),
+        "opened_total": len(opened),
+        "unclassified_reads": 0,
+        "physical_prefix_note": (
+            "the consuming objects physically live under oos/. That prefix is a storage path, "
+            "NOT a governance role - under Cycle-2C oos/ IS Validation-2. Consumption status "
+            "here is taken from the SEALED contract, not from the prefix."),
     }
 
     ds = FrozenDataset(args.materialized)
