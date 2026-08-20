@@ -32,6 +32,11 @@
       "status": "active"
     },
     {
+      "artifact_id": "mr002-n2-execution-evidence",
+      "manifest_path": "manifests/s3/objects/mr002-n2-execution-evidence.v1.json",
+      "status": "active"
+    },
+    {
       "artifact_id": "repo-docs-adr",
       "manifest_path": "manifests/s3/objects/repo-docs-adr.v1.json",
       "status": "active"

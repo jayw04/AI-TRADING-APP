@@ -44,7 +44,7 @@ from app.research.mr002.n1 import reference as R  # noqa: E402
 
 STRESS_NPZ = "/work/.mr002out/n2/stress.npz"
 OUT_DIR = "/work/.mr002out/n2"
-POPULATION_HASH = "65a21933440be44111a1da3cbed8c1fdeeaf7297bd08d06a1c2d4fb1ac650d73"
+POPULATION_HASH = "4334649c46439868adb2ccad3f20daa9aacb97be3af431b41788775dfd045ace"
 
 A_PROFILE = "QUADPROG_SQRT"
 B_PROFILE = "PIQP_P2"

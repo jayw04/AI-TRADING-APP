@@ -1,0 +1,289 @@
+{
+ "authority_chain": {
+  "generator_defect_and_seal": {
+   "identity_sha256": "7d69299dd5be626887a1daaf48a22960b710a9ba43b0c52bd4064c1998420739",
+   "record": "MR002_N2_StressGeneratorDefect_v1.0",
+   "sealed_before_solving": true
+  },
+  "n1_final_verdict": "629eee0ee1c257a23312b539fbac8542b40cbf6f2cef296ba2c829fb6b29bd81",
+  "n2_grant": "owner, 2026-08-19",
+  "sealed_registration": {
+   "identity_sha256": "7f8a56e34e6d5d36a3914ecb825de015debdc83ebae2967887e5e37ca3d684af",
+   "record": "MR002_N1_ProspectiveRegistration_v1.0 \u00a78"
+  }
+ },
+ "authorizes": "nothing beyond N2 \u2014 N3 requires its own grant",
+ "boundary": {
+  "N3": "NOT AUTHORIZED \u2014 requires its own grant",
+  "consumed_validation_opening": "unchanged",
+  "development_domain_only": true,
+  "oos": "NOT AUTHORIZED",
+  "sealed_or_reference_bytes_read": 0,
+  "validation_2": "PROHIBITED",
+  "validation_store_opened": false
+ },
+ "corrected_A1_confirms_the_defect_diagnosis": {
+  "A_certified": 400,
+  "B_rescue": 0,
+  "axis": "A1 \u2014 Hessian conditioning swept to kappa 5e9 at registered target scale",
+  "instances": 400,
+  "max_agreement_deviation": 4.231469786166589e-09,
+  "reading": "with target scale held inside the registered envelope, conditioning through kappa 5e9 is resolved by Solver A alone on every instance. The rejected population's A1 failures were absolute-scale artifacts, as the controlled experiment indicated.",
+  "unresolved": 0
+ },
+ "date": "2026-08-19",
+ "diagnostics_are_not_thresholds": "per-axis figures are diagnostic only. No additional pass threshold is derived from them, before or after seeing them.",
+ "disposition": "N2_PASS",
+ "execution_identities": {
+  "bound_source": {
+   "apps/backend/app/research/mr002/n1/method.py": "76e6afcca09e33014eee5f6c657355596445e2c0ad7350edb7cb6bd9fbdb6ff0",
+   "apps/backend/app/research/mr002/n1/reference.py": "474683a04f60d5adb5f94056af5abe5be93c322f61f50a86da9c876db1c4cee1",
+   "apps/backend/scripts/mr002_n2_derive_scale_envelope.py": "c0ecfcd405cca3812bac4c7755edeb3c089a37ae67a0a8f0340275544f3b679a",
+   "apps/backend/scripts/mr002_n2_generate.py": "7fe816a76d8be3cfb969e17a7dad9217b52ad5c271d5e82bdeae3130f57d32bd",
+   "apps/backend/scripts/mr002_n2_qualify.py": "2e00bd2c4376f8665850af07bb618d7ad9ffa49eaddaecb48d7223143f1df3d0"
+  },
+  "frozen_thread_env": {
+   "MKL_NUM_THREADS": "1",
+   "NUMEXPR_NUM_THREADS": "1",
+   "OMP_NUM_THREADS": "1",
+   "OPENBLAS_CORETYPE": "HASWELL",
+   "OPENBLAS_NUM_THREADS": "1"
+  },
+  "network": "none",
+  "qualification_report_sha256": "e024625fb2eb8fe4522f9b134fd087e4b8ab2ea3e973af710d802a1502132c1c",
+  "run_once": true,
+  "runtime_image": "mr002-research:v1.4"
+ },
+ "gate": "N2",
+ "headline_finding": {
+  "PIQP_P2_iteration_limit_terminations": 62,
+  "conclusion": "the fragility class N2 exists to test is removed: 62 iteration-limit terminations occurred, none became an integrity defect, and the method resolved 3,000 of 3,000.",
+  "how_v2_classified_them": "every one as NO_CERTIFIED_CANDIDATE with the REGISTERED reason ITERATION_LIMIT_REACHED, read from the library's status enum, never from message text",
+  "instances_left_unresolved": 0,
+  "integrity_defects_produced": 0,
+  "under_the_v1_method": "PIQP had no registered numerical status, so an identical termination mapped to UNREGISTERED_EXCEPTION -> INTEGRITY_DEFECT -> INVALID_RUN. Any coincidence of a PIQP iteration limit with a QUADPROG_SQRT failure was therefore fatal, which is exactly what happened on the consumed validation instance.",
+  "unregistered_termination_reasons": 0,
+  "what_that_is": "PIQP_MAX_ITER_REACHED \u2014 the exact failure mode that consumed the sealed validation opening on 2026-08-19 and produced an INTEGRITY_FAILURE with no economic verdict"
+ },
+ "pass_rule": {
+  "all_satisfied": true,
+  "checks": {
+   "agreement_evidence_clean": true,
+   "deterministic_rerun": true,
+   "full_registered_resolution": true,
+   "no_certified_solution_disagreement": true,
+   "no_system_integrity_defect": true,
+   "no_unregistered_termination_reason": true
+  },
+  "rule": "100% registered resolution or STOP",
+  "single_unexplained_unresolved_tail_would_mean": "N2_STOP"
+ },
+ "per_axis_diagnostics": {
+  "A1": {
+   "A_certified": 400,
+   "A_reasons": {},
+   "B_reasons": {
+    "ITERATION_LIMIT_REACHED": 61
+   },
+   "B_rescue": 0,
+   "R_exact": 378,
+   "R_skipped_size_budget": 0,
+   "R_unavailable": 22,
+   "instances": 400,
+   "integrity_defects": 0,
+   "max_agreement_deviation": 4.231469786166589e-09,
+   "repair_bound_available": 272,
+   "repair_bound_unavailable": 128,
+   "reproducibility_mismatches": 0,
+   "runtime_seconds": 1103.0,
+   "unregistered_termination_reasons": 0,
+   "unresolved": 0
+  },
+  "A2": {
+   "A_certified": 600,
+   "A_reasons": {},
+   "B_reasons": {},
+   "B_rescue": 0,
+   "R_exact": 469,
+   "R_skipped_size_budget": 129,
+   "R_unavailable": 2,
+   "instances": 600,
+   "integrity_defects": 0,
+   "max_agreement_deviation": 6.680880789773509e-09,
+   "repair_bound_available": 593,
+   "repair_bound_unavailable": 7,
+   "reproducibility_mismatches": 0,
+   "runtime_seconds": 13502.0,
+   "unregistered_termination_reasons": 0,
+   "unresolved": 0
+  },
+  "A3": {
+   "A_certified": 399,
+   "A_reasons": {
+    "CERTIFICATE_PREDICATE_FALSE": 1
+   },
+   "B_reasons": {},
+   "B_rescue": 1,
+   "R_exact": 235,
+   "R_skipped_size_budget": 0,
+   "R_unavailable": 165,
+   "instances": 400,
+   "integrity_defects": 0,
+   "max_agreement_deviation": 1.3145680051851889e-08,
+   "repair_bound_available": 290,
+   "repair_bound_unavailable": 110,
+   "reproducibility_mismatches": 0,
+   "runtime_seconds": 1081.8,
+   "unregistered_termination_reasons": 0,
+   "unresolved": 0
+  },
+  "A4": {
+   "A_certified": 398,
+   "A_reasons": {
+    "CERTIFICATE_PREDICATE_FALSE": 2
+   },
+   "B_reasons": {
+    "ITERATION_LIMIT_REACHED": 1
+   },
+   "B_rescue": 2,
+   "R_exact": 195,
+   "R_skipped_size_budget": 0,
+   "R_unavailable": 205,
+   "instances": 400,
+   "integrity_defects": 0,
+   "max_agreement_deviation": 3.838848973876652e-08,
+   "repair_bound_available": 212,
+   "repair_bound_unavailable": 188,
+   "reproducibility_mismatches": 0,
+   "runtime_seconds": 5218.9,
+   "unregistered_termination_reasons": 0,
+   "unresolved": 0
+  },
+  "A5": {
+   "A_certified": 300,
+   "A_reasons": {},
+   "B_reasons": {},
+   "B_rescue": 0,
+   "R_exact": 250,
+   "R_skipped_size_budget": 0,
+   "R_unavailable": 50,
+   "instances": 300,
+   "integrity_defects": 0,
+   "max_agreement_deviation": 2.4968726772368137e-09,
+   "repair_bound_available": 248,
+   "repair_bound_unavailable": 52,
+   "reproducibility_mismatches": 0,
+   "runtime_seconds": 226.0,
+   "unregistered_termination_reasons": 0,
+   "unresolved": 0
+  },
+  "A6": {
+   "A_certified": 200,
+   "A_reasons": {},
+   "B_reasons": {},
+   "B_rescue": 0,
+   "R_exact": 191,
+   "R_skipped_size_budget": 0,
+   "R_unavailable": 9,
+   "instances": 200,
+   "integrity_defects": 0,
+   "max_agreement_deviation": 1.1165935101209682e-08,
+   "repair_bound_available": 176,
+   "repair_bound_unavailable": 24,
+   "reproducibility_mismatches": 0,
+   "runtime_seconds": 34.9,
+   "unregistered_termination_reasons": 0,
+   "unresolved": 0
+  },
+  "A7": {
+   "A_certified": 300,
+   "A_reasons": {},
+   "B_reasons": {},
+   "B_rescue": 0,
+   "R_exact": 259,
+   "R_skipped_size_budget": 0,
+   "R_unavailable": 41,
+   "instances": 300,
+   "integrity_defects": 0,
+   "max_agreement_deviation": 1.6171347090339501e-09,
+   "repair_bound_available": 271,
+   "repair_bound_unavailable": 29,
+   "reproducibility_mismatches": 0,
+   "runtime_seconds": 425.7,
+   "unregistered_termination_reasons": 0,
+   "unresolved": 0
+  },
+  "A8": {
+   "A_certified": 400,
+   "A_reasons": {},
+   "B_reasons": {},
+   "B_rescue": 0,
+   "R_exact": 114,
+   "R_skipped_size_budget": 286,
+   "R_unavailable": 0,
+   "instances": 400,
+   "integrity_defects": 0,
+   "max_agreement_deviation": 7.151617824782809e-08,
+   "repair_bound_available": 400,
+   "repair_bound_unavailable": 0,
+   "reproducibility_mismatches": 0,
+   "runtime_seconds": 1068.6,
+   "unregistered_termination_reasons": 0,
+   "unresolved": 0
+  }
+ },
+ "population": {
+  "axes": {
+   "A1": 400,
+   "A2": 600,
+   "A3": 400,
+   "A4": 400,
+   "A5": 300,
+   "A6": 200,
+   "A7": 300,
+   "A8": 400
+  },
+  "instances": 3000,
+  "population_hash": "4334649c46439868adb2ccad3f20daa9aacb97be3af431b41788775dfd045ace",
+  "rejected_predecessor": "65a21933440be44111a1da3cbed8c1fdeeaf7297bd08d06a1c2d4fb1ac650d73",
+  "sealed_unsolved_at_commit": "3cdecc7",
+  "seed": 20260819,
+  "stress_npz_sha256": "d722de748567aecc3fd65b1092a6d368724e8b9aa6f64c8c55f964688406f34a"
+ },
+ "program": "MR-002 / SPQ-1",
+ "record_identity_sha256": "27f98548067b3017870937c22196212e5bb1b11fdbd6a961a329f85f82aae471",
+ "record_status": "FINAL",
+ "record_type": "MR002_N2_VERDICT",
+ "reference_solver_R": {
+  "R_exact": 2091,
+  "R_skipped_size_budget": 415,
+  "R_unavailable": 494,
+  "budget_is_deterministic_not_wall_clock": "a wall-clock budget would make R availability depend on machine load, so the same instance could be R_EXACT in one run and R_UNAVAILABLE in the next \u2014 which would break the reproducibility requirement this gate tests",
+  "size_budget_max_dim": 80
+ },
+ "solver_A": "QUADPROG_SQRT",
+ "solver_B": "PIQP_P2",
+ "solver_pair_unchanged_by_N2": true,
+ "totals": {
+  "A_certified": 2997,
+  "B_rescue": 3,
+  "R_exact": 2091,
+  "R_skipped_size_budget": 415,
+  "R_unavailable": 494,
+  "agreement_by_bound": 125,
+  "agreement_by_slack_floor": 2810,
+  "agreement_checked": 2935,
+  "agreement_unavailable": 0,
+  "certified_disagreements": 0,
+  "instances": 3000,
+  "integrity_defects": 0,
+  "max_agreement_deviation": 7.151617824782809e-08,
+  "repair_bound_available": 2462,
+  "repair_bound_unavailable": 538,
+  "reproducibility_mismatches": 0,
+  "resolved": 3000,
+  "unregistered_termination_reasons": 0,
+  "unresolved": 0
+ },
+ "version": "1.0"
+}

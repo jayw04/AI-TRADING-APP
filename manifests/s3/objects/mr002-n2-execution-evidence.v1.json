@@ -1,0 +1,85 @@
+{
+  "artifact_id": "mr002-n2-execution-evidence",
+  "bucket": "workbench-backups-219024422756",
+  "byte_length": 73539907,
+  "content_type": "application/json",
+  "created_at": "2026-08-20T02:40:27Z",
+  "frozen_thread_env": {
+    "MKL_NUM_THREADS": "1",
+    "NUMEXPR_NUM_THREADS": "1",
+    "OMP_NUM_THREADS": "1",
+    "OPENBLAS_CORETYPE": "HASWELL",
+    "OPENBLAS_NUM_THREADS": "1"
+  },
+  "notes": "MR-002 Gate N2 evidence, produced in mr002-research:v1.4 under the registered FROZEN_THREAD_ENV. Contains the SEALED corrected stress population 4334649c46439868adb2ccad3f20daa9aacb97be3af431b41788775dfd045ace and its qualification (N2_PASS, 3000/3000), the mechanically derived scale envelope, AND the REJECTED population 65a21933... with its smoke run, retained as generator-specification-defect evidence and INADMISSIBLE for method qualification.",
+  "object_key": "artifacts/governed/mr002-n2-execution-evidence/1.0/",
+  "owner": "Engineering / Architecture",
+  "package_members": [
+    {
+      "byte_length": 580758,
+      "name": "n2_population.json",
+      "object_key": "artifacts/governed/mr002-n2-execution-evidence/1.0/n2_population.json",
+      "readback_verified_by_version_id": true,
+      "s3_version_id": "lgotzlQNhOZSWrb700KlzjtxCXEJoYQ.",
+      "sha256": "8dd37fd204a5a4a93fef7086c990acc531fa2152565a53f49ab34c19d3c80942"
+    },
+    {
+      "byte_length": 580510,
+      "name": "n2_population_DEFECTIVE_65a21933.json",
+      "object_key": "artifacts/governed/mr002-n2-execution-evidence/1.0/n2_population_DEFECTIVE_65a21933.json",
+      "readback_verified_by_version_id": true,
+      "s3_version_id": "Xok9SscqaLrkQZ9ODGQSXnA_yMVzk6vb",
+      "sha256": "68f7d8db9532dedc19c8aacd6643805e5d38d40204dcddb4a12672f711677d5a"
+    },
+    {
+      "byte_length": 6537,
+      "name": "n2_qualification.json",
+      "object_key": "artifacts/governed/mr002-n2-execution-evidence/1.0/n2_qualification.json",
+      "readback_verified_by_version_id": true,
+      "s3_version_id": "DQDLeUXT_qiBFU1_8eHoL7_JNEhouLM0",
+      "sha256": "e024625fb2eb8fe4522f9b134fd087e4b8ab2ea3e973af710d802a1502132c1c"
+    },
+    {
+      "byte_length": 8440,
+      "name": "n2_qualification_limit60.json",
+      "object_key": "artifacts/governed/mr002-n2-execution-evidence/1.0/n2_qualification_limit60.json",
+      "readback_verified_by_version_id": true,
+      "s3_version_id": "l_DNLM7mjNQNGWWUr8CpDmXw6NrZksxi",
+      "sha256": "4319ce2bf240e745706dd754010b9f383bf737c9dae81a6186525a70d0bb07f7"
+    },
+    {
+      "byte_length": 1818,
+      "name": "n2_scale_envelope.json",
+      "object_key": "artifacts/governed/mr002-n2-execution-evidence/1.0/n2_scale_envelope.json",
+      "readback_verified_by_version_id": true,
+      "s3_version_id": "M_Z2B2RqD0cKAIsUGxJR7yp9ThEoie0n",
+      "sha256": "43ba31a51b79f406223873282c238d28954c3490cc3285714947d93ee8ac4b4d"
+    },
+    {
+      "byte_length": 36179889,
+      "name": "stress.npz",
+      "object_key": "artifacts/governed/mr002-n2-execution-evidence/1.0/stress.npz",
+      "readback_verified_by_version_id": true,
+      "s3_version_id": "Q4MJHsnDrMfrgtYwujaib.yvswhHWU2c",
+      "sha256": "d722de748567aecc3fd65b1092a6d368724e8b9aa6f64c8c55f964688406f34a"
+    },
+    {
+      "byte_length": 36181955,
+      "name": "stress_DEFECTIVE_65a21933.npz",
+      "object_key": "artifacts/governed/mr002-n2-execution-evidence/1.0/stress_DEFECTIVE_65a21933.npz",
+      "readback_verified_by_version_id": true,
+      "s3_version_id": "bO5UGRuHwKIs6QAYe0WVm8JoxhdaPNKc",
+      "sha256": "1a47debbb08c42198756904f3985ee17bfc013ef65fbe816a9ae9ea30829acb0"
+    }
+  ],
+  "package_sha256_basis": "sha256 of the canonical JSON of package_members",
+  "producing_job_or_run": "mr002-n1-clean-rerun@3cdecc7",
+  "retention_class": "governed",
+  "runtime_image": "mr002-research:v1.4",
+  "s3_version_id": "PACKAGE",
+  "schema_or_format_version": "1.0",
+  "schema_version": "1.0",
+  "sensitivity": "internal",
+  "sha256": "7df11a4d8cd1acc5c292bbc6e2d2b6bf52f13e49251eac4c1bc6e0003b2c2eac",
+  "source_commit": "3cdecc7"
+}
