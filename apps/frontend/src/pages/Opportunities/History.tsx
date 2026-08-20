@@ -1,0 +1,227 @@
+import { useCallback, useEffect, useState } from "react";
+import { Link } from "react-router-dom";
+import { opportunitiesApi } from "@/api/opportunities";
+import type { OppHistoryOccurrence } from "@/api/types";
+
+function fmtPrice(v: number | null | undefined): string {
+  if (v == null) return "—";
+  return `$${v.toFixed(2)}`;
+}
+
+function fmtChange(v: number | null | undefined): string {
+  if (v == null) return "—";
+  const pct = v * 100;
+  const sign = pct > 0 ? "+" : "";
+  return `${sign}${pct.toFixed(1)}%`;
+}
+
+function changeClass(v: number | null | undefined): string {
+  if (v == null) return "text-neutral-500";
+  if (v > 0) return "text-emerald-300";
+  if (v < 0) return "text-rose-300";
+  return "text-neutral-400";
+}
+
+function chipLine(row: OppHistoryOccurrence): string {
+  const chips = row.reason.chips ?? [];
+  return chips.map((c) => c.value).join(" · ");
+}
+
+export default function OpportunityHistoryPage() {
+  const [rows, setRows] = useState<OppHistoryOccurrence[]>([]);
+  const [timeline, setTimeline] = useState<OppHistoryOccurrence[]>([]);
+  const [selected, setSelected] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      const resp = await opportunitiesApi.history();
+      setRows(resp.items);
+      setError(null);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    void load();
+  }, [load]);
+
+  const openSymbol = async (symbol: string) => {
+    if (selected === symbol) {
+      setSelected(null);
+      setTimeline([]);
+      return;
+    }
+    setSelected(symbol);
+    try {
+      const resp = await opportunitiesApi.history({ symbol });
+      setTimeline(resp.items);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    }
+  };
+
+  return (
+    <div className="grid gap-4">
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-lg font-semibold text-neutral-100">
+            Opportunity History
+          </h2>
+          <p className="text-xs text-neutral-500">
+            Durable DISC-001 occurrences. Current price is live SEP, not stored
+            on the occurrence. Not a signal, and not in the order path.
+          </p>
+        </div>
+        <div className="flex items-center gap-3">
+          <Link
+            to="/opportunities"
+            className="rounded border border-neutral-800 bg-neutral-900 px-3 py-1 text-sm text-neutral-200 hover:bg-neutral-800"
+          >
+            Watchlist
+          </Link>
+          <button
+            type="button"
+            onClick={() => void load()}
+            disabled={loading}
+            className="rounded border border-neutral-800 bg-neutral-900 px-3 py-1 text-sm text-neutral-200 hover:bg-neutral-800 disabled:opacity-60"
+          >
+            {loading ? "…" : "Refresh"}
+          </button>
+        </div>
+      </div>
+
+      {error && (
+        <div className="rounded border border-rose-800 bg-rose-950/40 p-2 text-sm text-rose-200">
+          {error}
+        </div>
+      )}
+
+      <div className="overflow-x-auto rounded-lg border border-neutral-800 bg-neutral-900">
+        {rows.length === 0 ? (
+          <div className="py-8 text-center text-sm text-neutral-500">
+            No durable occurrences yet. They appear after the 16:20 ET snapshot
+            job ingests a CandidateSnapshot.
+          </div>
+        ) : (
+          <table className="w-full text-left text-sm">
+            <thead className="border-b border-neutral-800 text-[10px] uppercase tracking-wide text-neutral-500">
+              <tr>
+                <th className="px-3 py-2 font-medium">Symbol</th>
+                <th className="px-3 py-2 font-medium">Family</th>
+                <th className="px-3 py-2 font-medium">Last seen</th>
+                <th className="px-3 py-2 font-medium">First seen</th>
+                <th className="px-3 py-2 font-medium">N</th>
+                <th className="px-3 py-2 font-medium">Proposal</th>
+                <th className="px-3 py-2 font-medium">Current</th>
+                <th className="px-3 py-2 font-medium">Change</th>
+                <th className="px-3 py-2 font-medium">Status</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-neutral-800">
+              {rows.map((row) => {
+                const active = selected === row.symbol;
+                return (
+                  <tr
+                    key={`${row.symbol}-${row.family}`}
+                    className={active ? "bg-neutral-800/60" : ""}
+                  >
+                    <td className="px-3 py-2">
+                      <button
+                        type="button"
+                        onClick={() => void openSymbol(row.symbol)}
+                        className="font-semibold text-sky-300 hover:underline"
+                      >
+                        {row.symbol}
+                      </button>
+                    </td>
+                    <td className="px-3 py-2 text-[10px] uppercase tracking-wide text-neutral-400">
+                      {row.family}
+                    </td>
+                    <td className="px-3 py-2 font-mono text-xs text-neutral-300">
+                      {row.last_seen}
+                    </td>
+                    <td className="px-3 py-2 font-mono text-xs text-neutral-500">
+                      {row.first_seen}
+                    </td>
+                    <td className="px-3 py-2 text-neutral-400">
+                      {row.occurrence_count}
+                    </td>
+                    <td className="px-3 py-2 font-mono text-xs">
+                      {fmtPrice(row.proposal_price)}
+                    </td>
+                    <td className="px-3 py-2 font-mono text-xs">
+                      {fmtPrice(row.current_price)}
+                    </td>
+                    <td
+                      className={`px-3 py-2 font-mono text-xs ${changeClass(row.change_pct)}`}
+                    >
+                      {fmtChange(row.change_pct)}
+                    </td>
+                    <td className="px-3 py-2 text-[10px] text-neutral-400">
+                      {row.status_at_proposal}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        )}
+      </div>
+
+      {selected && (
+        <div className="rounded-lg border border-neutral-800 bg-neutral-900 p-3">
+          <h3 className="text-sm font-semibold text-neutral-100">
+            {selected} timeline
+          </h3>
+          <p className="mb-2 text-[10px] text-neutral-500">
+            Append-only family rows. Same-as-of re-ingest does not overwrite
+            proposal facts.
+          </p>
+          {timeline.length === 0 ? (
+            <div className="py-3 text-center text-xs text-neutral-500">
+              No timeline rows.
+            </div>
+          ) : (
+            <ul className="divide-y divide-neutral-800 text-sm">
+              {timeline.map((row) => (
+                <li
+                  key={`${row.candidate_date}-${row.family}-${row.snapshot_sha256}`}
+                  className="py-1.5"
+                >
+                  <div className="flex items-baseline justify-between gap-2">
+                    <div>
+                      <span className="font-mono text-xs text-neutral-300">
+                        {row.candidate_date}
+                      </span>
+                      <span className="ml-2 text-[10px] uppercase tracking-wide text-neutral-500">
+                        {row.family} · {row.horizon}
+                      </span>
+                    </div>
+                    <span className="font-mono text-xs text-neutral-300">
+                      {fmtPrice(row.proposal_price)}
+                      <span className={`ml-2 ${changeClass(row.change_pct)}`}>
+                        {fmtChange(row.change_pct)}
+                      </span>
+                    </span>
+                  </div>
+                  <div className="mt-0.5 font-mono text-[10px] text-neutral-400">
+                    {chipLine(row)}
+                  </div>
+                  {row.reason.why ? (
+                    <p className="mt-1 text-xs text-neutral-500">{row.reason.why}</p>
+                  ) : null}
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}

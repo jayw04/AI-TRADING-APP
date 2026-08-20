@@ -6,6 +6,7 @@ touch the order path. Empty families are valid; stale/missing SEP fails closed.
 
   python apps/backend/scripts/disc001_watchlist_snapshot.py
   python apps/backend/scripts/disc001_watchlist_snapshot.py --inspect
+  python apps/backend/scripts/disc001_watchlist_snapshot.py --ingest-history
 """
 
 from __future__ import annotations
@@ -30,7 +31,24 @@ def main() -> int:
     )
 
     inspect_only = "--inspect" in sys.argv
+    ingest_only = "--ingest-history" in sys.argv
     directory = resolve_snapshot_dir()
+    if ingest_only:
+        from app.services.opportunity_history import ingest_snapshot_dir
+
+        result = ingest_snapshot_dir(directory)
+        print(
+            json.dumps(
+                {
+                    "inserted": result.inserted,
+                    "skipped": result.skipped,
+                    "conflicts": result.conflicts,
+                    "snapshot_dir": str(directory),
+                },
+                indent=2,
+            )
+        )
+        return 0
     if not inspect_only:
         try:
             store = FactorDataStore(read_only=True)

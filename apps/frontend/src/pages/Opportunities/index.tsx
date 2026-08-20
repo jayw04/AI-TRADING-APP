@@ -1,3 +1,4 @@
+import { Link } from "react-router-dom";
 import { useCallback, useEffect, useState } from "react";
 import { opportunitiesApi } from "@/api/opportunities";
 import type { OpportunitiesResponse } from "@/api/types";
@@ -68,6 +69,12 @@ export default function OpportunitiesPage() {
           >
             {loading ? "…" : "Refresh"}
           </button>
+          <Link
+            to="/opportunities/history"
+            className="rounded border border-neutral-800 bg-neutral-900 px-3 py-1 text-sm text-neutral-200 hover:bg-neutral-800"
+          >
+            History
+          </Link>
         </div>
       </div>
 

@@ -558,6 +558,36 @@ export interface OpportunitiesResponse {
   as_of: string;
 }
 
+export interface OppHistoryOccurrence {
+  symbol: string;
+  family: string;
+  candidate_date: string;
+  horizon: string;
+  status_at_proposal: string;
+  proposal_price: number;
+  proposal_price_source: string;
+  adjustment_basis: string;
+  reason: { chips?: { key: string; value: string }[]; why?: string };
+  screen_id: string;
+  screen_version: string;
+  snapshot_sha256: string;
+  snapshot_generated_at: string;
+  first_seen: string;
+  last_seen: string;
+  occurrence_count: number;
+  current_price: number | null;
+  current_price_as_of: string | null;
+  current_price_source: string | null;
+  change_pct: number | null;
+}
+
+export interface OppHistoryResponse {
+  view: "summary" | "timeline";
+  count: number;
+  items: OppHistoryOccurrence[];
+  as_of: string;
+}
+
 // ===== Agent (P3) =====
 // Mirrors apps/backend/app/api/v1/schemas/agent.py. B3_AUTONOMOUS is in
 // the enum for completeness but the backend rejects it at the schema

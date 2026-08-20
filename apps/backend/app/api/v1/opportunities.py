@@ -11,7 +11,7 @@ from __future__ import annotations
 from datetime import UTC, datetime, timedelta
 from zoneinfo import ZoneInfo
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -20,6 +20,8 @@ from app.api.v1.schemas.opportunities import (
     OppDiscoveryMatchesWidget,
     OppDiscoveryMatchItem,
     OppFillItem,
+    OppHistoryOccurrence,
+    OppHistoryResponse,
     OppLiveSignalsWidget,
     OppOpenOrderItem,
     OppOpenOrdersExpiringWidget,
@@ -48,6 +50,7 @@ from app.db.enums import (
 )
 from app.db.models.audit_log import AuditLog
 from app.db.models.fill import Fill
+from app.db.models.opportunity_occurrence import OpportunityOccurrence
 from app.db.models.order import Order
 from app.db.models.risk_check import RiskCheck
 from app.db.models.scanner_definition import ScannerDefinition
@@ -56,6 +59,7 @@ from app.db.models.signal import Signal
 from app.db.models.strategy import Strategy as StrategyRow
 from app.db.models.symbol import Symbol
 from app.db.session import get_session
+from app.services.opportunity_history import PriceQuote, latest_closes, parse_reason_json
 from app.services.premarket_gappers import read_latest_gappers
 from app.utils.time import EASTERN
 
@@ -127,6 +131,122 @@ async def get_opportunities(
         premarket_gappers=premarket_gappers,
         candidate_watchlist=candidate_watchlist,
         as_of=now,
+    )
+
+
+@router.get("/history", response_model=OppHistoryResponse)
+async def get_opportunity_history(
+    current_user: CurrentUser = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+    symbol: str | None = Query(default=None),
+    family: str | None = Query(default=None),
+    limit: int = Query(default=200, ge=1, le=500),
+) -> OppHistoryResponse:
+    """Durable CandidateSnapshot occurrences. Current price is read-time only."""
+    _ = current_user
+    now = datetime.now(UTC)
+    stmt = select(OpportunityOccurrence)
+    if symbol:
+        stmt = stmt.where(OpportunityOccurrence.symbol == symbol.strip().upper())
+    if family:
+        stmt = stmt.where(OpportunityOccurrence.family == family.strip())
+    stmt = stmt.order_by(
+        OpportunityOccurrence.candidate_date.asc(),
+        OpportunityOccurrence.family.asc(),
+        OpportunityOccurrence.symbol.asc(),
+    )
+    rows = list((await session.execute(stmt)).scalars().all())
+    if symbol:
+        items = _history_timeline(rows, limit=limit)
+        view = "timeline"
+    else:
+        items = _history_summaries(rows, limit=limit)
+        view = "summary"
+    quotes = latest_closes([item.symbol for item in items])
+    enriched = [_enrich_history_item(item, quotes) for item in items]
+    return OppHistoryResponse(view=view, count=len(enriched), items=enriched, as_of=now)
+
+
+def _history_summaries(
+    rows: list[OpportunityOccurrence], *, limit: int
+) -> list[OppHistoryOccurrence]:
+    grouped: dict[tuple[str, str], list[OpportunityOccurrence]] = {}
+    for row in rows:
+        grouped.setdefault((row.symbol, row.family), []).append(row)
+    summaries: list[OppHistoryOccurrence] = []
+    for _key, group in grouped.items():
+        ordered = sorted(group, key=lambda r: r.candidate_date)
+        last = ordered[-1]
+        first_seen = ordered[0].candidate_date
+        last_seen = last.candidate_date
+        summaries.append(
+            _occurrence_item(last, first_seen=first_seen, last_seen=last_seen, count=len(ordered))
+        )
+    summaries.sort(key=lambda item: (item.symbol, item.family))
+    summaries.sort(key=lambda item: item.last_seen, reverse=True)
+    return summaries[:limit]
+
+
+def _history_timeline(
+    rows: list[OpportunityOccurrence], *, limit: int
+) -> list[OppHistoryOccurrence]:
+    if not rows:
+        return []
+    dates = [row.candidate_date for row in rows]
+    first_seen = min(dates)
+    last_seen = max(dates)
+    count = len(rows)
+    items = [
+        _occurrence_item(row, first_seen=first_seen, last_seen=last_seen, count=count)
+        for row in rows
+    ]
+    return items[:limit]
+
+
+def _occurrence_item(
+    row: OpportunityOccurrence,
+    *,
+    first_seen: str,
+    last_seen: str,
+    count: int,
+) -> OppHistoryOccurrence:
+    return OppHistoryOccurrence(
+        symbol=row.symbol,
+        family=row.family,
+        candidate_date=row.candidate_date,
+        horizon=row.horizon,
+        status_at_proposal=row.status_at_proposal,
+        proposal_price=row.proposal_price,
+        proposal_price_source=row.proposal_price_source,
+        adjustment_basis=row.adjustment_basis,
+        reason=parse_reason_json(row.reason_json),
+        screen_id=row.screen_id,
+        screen_version=row.screen_version,
+        snapshot_sha256=row.snapshot_sha256,
+        snapshot_generated_at=row.snapshot_generated_at,
+        first_seen=first_seen,
+        last_seen=last_seen,
+        occurrence_count=count,
+    )
+
+
+def _enrich_history_item(
+    item: OppHistoryOccurrence,
+    quotes: dict[str, PriceQuote],
+) -> OppHistoryOccurrence:
+    quote = quotes.get(item.symbol)
+    if quote is None:
+        return item
+    change = None
+    if item.proposal_price:
+        change = (quote.price / item.proposal_price) - 1.0
+    return item.model_copy(
+        update={
+            "current_price": quote.price,
+            "current_price_as_of": quote.as_of,
+            "current_price_source": quote.source,
+            "change_pct": change,
+        }
     )
 
 
