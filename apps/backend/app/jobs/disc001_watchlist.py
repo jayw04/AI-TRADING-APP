@@ -1,7 +1,7 @@
 """DISC-001 Phase-1 watchlist snapshot job (~16:20 ET, Mon–Fri).
 
-Research-plane only: reads the factor store + gappers file, writes a dated
-CandidateSnapshot. Fail-soft — a bad day is logged and skipped.
+Writes a dated CandidateSnapshot, then fail-soft ingests durable
+opportunity_occurrence rows. Does not touch family gates or the order path.
 """
 
 from __future__ import annotations
@@ -42,3 +42,16 @@ def run_disc001_watchlist_snapshot(*, factor_store: Any, snapshot_dir: str) -> N
         )
     except Exception:
         logger.exception("disc001_watchlist_snapshot_failed")
+        return
+    try:
+        from app.services.opportunity_history import ingest_snapshot_dir
+
+        result = ingest_snapshot_dir(snapshot_dir)
+        logger.info(
+            "disc001_history_ingested",
+            inserted=result.inserted,
+            skipped=result.skipped,
+            conflicts=result.conflicts,
+        )
+    except Exception:
+        logger.exception("disc001_history_ingest_failed")
