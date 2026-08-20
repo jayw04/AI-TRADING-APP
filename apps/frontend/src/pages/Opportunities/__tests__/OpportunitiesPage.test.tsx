@@ -144,6 +144,7 @@ describe("OpportunitiesPage", () => {
       expect(screen.getByText("Risk rejections")).toBeInTheDocument();
       expect(screen.getByText("Recent fills")).toBeInTheDocument();
       expect(screen.getByText("Candidate Watchlist")).toBeInTheDocument();
+      expect(screen.getByRole("link", { name: "History" })).toBeInTheDocument();
     });
   });
 
