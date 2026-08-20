@@ -1,0 +1,144 @@
+{
+ "authorizes": "NOTHING. Applying this requires the owner's separate go-ahead.",
+ "bound_registration": "93ee468801c92edd9dd1ba49944b381a6d9172c2e22f9bcc76a9dcbe8541af57",
+ "boundary": {
+  "amendments_applied": 1,
+  "applied": [
+   "C"
+  ],
+  "validation_2_bytes_read": 0,
+  "validation_2_opening": "NOT AUTHORIZED"
+ },
+ "chosen_architecture": {
+  "chain": [
+   "mr002-validation2-publish-host  (EC2 instance, distinct from the evaluator host)",
+   "  -> instance profile ->  mr002-validation2-publish-host-role  (BASE role, trusts ec2.amazonaws.com)",
+   "  -> sts:AssumeRole   ->  mr002-validation2-evidence-publisher",
+   "  -> governed evidence only"
+  ],
+  "shape": "TWO-STAGE, mirroring the deployed mr002-validation-reader",
+  "symmetry_with_the_reader": {
+   "note": "identical form on both branches, so a reviewer reads one pattern, not two.",
+   "publisher": "publish-host base role (ec2 trust) -> AssumeRole -> evidence-publisher, whose trust is Principal=account-root + Condition aws:PrincipalArn=mr002-validation2-publish-host-role",
+   "reader": "run-host base role (ec2 trust) -> AssumeRole -> mr002-validation-reader, whose trust is Principal=account-root + Condition aws:PrincipalArn=mr002-phase3c-run-host"
+  },
+  "why_this_one": "the registered proof is an AssumeRole proof, so the trust must be an AssumeRole trust. It also mirrors an ALREADY-VALIDATED deployed control rather than inventing a third shape.",
+  "\u26d4 do_not_change_the_reader_trust_form": "aws:PrincipalArn IS the role ARN there and the form is correct. It is copied, not corrected."
+ },
+ "date": "2026-08-20",
+ "defect_being_corrected": {
+  "found_by": "owner review. Recorded plainly.",
+  "severity": "mechanical, not architectural. The separation v1.1 describes is right; the mechanism named for enforcing it was not.",
+  "what_v1_1_said": {
+   "proof": "publish-host -> AssumeRole evidence-publisher = allowed; evaluator-host -> AssumeRole evidence-publisher = fail - STS proofs",
+   "trust": "Principal {\"Service\": \"ec2.amazonaws.com\"} constrained to an instance profile - the DIRECT pattern, credentials via IMDS, no AssumeRole call"
+  },
+  "why_it_is_wrong": "an STS AssumeRole proof against a non-STS trust. Under the direct pattern the application on the publisher host never calls AssumeRole into that role at all, so the registered proof could not have meant what it claimed - and the evaluator-host FAIL would have been trivially true for the wrong reason."
+ },
+ "does_this_amendment_open_validation_2": {
+  "answer": "NO",
+  "proof": "no permission is added or widened by v1.2 - only the trust mechanism is corrected. The publisher remains denied s3:* on the entire sealed store and denied assuming the reader, and the run-host latch is untouched."
+ },
+ "live_proof_now_well_defined": {
+  "propagation": "bind the OBSERVED EFFECTIVE POLICY, never elapsed time. Poll until the intended matrix is observed, recording transitional decisions too.",
+  "required_results": {
+   "evaluator run-host -> AssumeRole evidence-publisher": "DENIED (real STS call, must FAIL)",
+   "evidence-publisher -> AssumeRole validation-reader": "DENIED",
+   "evidence-publisher -> GetObject sealed oos/*": "explicitDeny",
+   "evidence-publisher -> GetObject sealed validation/*": "explicitDeny",
+   "evidence-publisher -> PutObject governed evidence prefix": "allowed",
+   "publish-host base role -> AssumeRole evidence-publisher": "SUCCESS (real STS call)",
+   "publish-host base role -> AssumeRole validation-reader": "DENIED",
+   "validation-reader -> PutObject governed evidence prefix": "implicit or explicit deny"
+  },
+  "why_it_is_meaningful_only_after_this_correction": "under v1.1's trust these AssumeRole calls were not the mechanism in use, so neither a pass nor a fail would have evidenced the separation.",
+  "\u26a0 trust_cannot_be_simulated": "simulate-principal-policy NEVER evaluates a trust policy. The first three rows above MUST be real sts:AssumeRole attempts. A passing simulation is not evidence for them."
+ },
+ "permissions_carried_forward_unchanged_from_v1_1": {
+  "evaluator_side": [
+   "PutObject-only to the evidence staging prefix",
+   "DenyAssumingTheEvidencePublisherRole",
+   "existing DenyAllAccessToTheSealedStore unchanged"
+  ],
+  "evidence_publisher_allow": [
+   "GetObject on the evidence staging prefix (read the handoff)",
+   "PutObject on the governed Validation-2 evidence prefix",
+   "GetObject/GetObjectVersion on its OWN publications, for the VersionId + SHA-256 read-back flow"
+  ],
+  "evidence_publisher_deny": [
+   "s3:* on the ENTIRE sealed store, so a future new-OOS prefix cannot be forgotten",
+   "sts:AssumeRole on mr002-validation-reader",
+   "delete/lifecycle/bucket-policy mutations",
+   "iam:* self-widening"
+  ],
+  "handoff": "evaluator PutObject-only -> staging -> publisher GetObject-only. Raw content, sealed-store credentials and reader session credentials never cross.",
+  "run_host_latch": "DenyAssumingTheValidationReaderRole on the run host is UNCHANGED and is LOAD-BEARING CONFIGURATION, not technical debt. It is the opening latch: the standing state is unable to assume the reader, and the owner opening grant causes a governed latch mutation that temporarily changes that effective capability. \u26d4 A future security cleanup must NOT remove it as dead configuration."
+ },
+ "record_identity_sha256": "1d27410c626a5748133723a3680625ca07256c334ae39fd1e9bc8529aeb4ed7d",
+ "record_type": "MR002_Validation2_AmendmentB_TrustCorrection",
+ "scope": "TRUST / ASSUMPTION MECHANISM ONLY. Permissions and evidence-flow topology are carried forward from v1.1 unchanged.",
+ "status": "DRAFT PROPOSAL - NOT APPLIED",
+ "supersedes": {
+  "v1.0": {
+   "identity_sha256": "a259b0dc2a1aa1e51de24ffdf06ee7b9f21cec618128d1ed5d77e12b8185d758",
+   "preserved_unmodified": true
+  },
+  "v1.1": {
+   "identity_sha256": "a2e6795e50f91c7781dd727fb0b3242497f83673d872346dad632706010c9917",
+   "preserved_unmodified": true
+  },
+  "why": "each is the INPUT to the next. Editing either to look correct would destroy the before/after audit structure."
+ },
+ "trust_policies": {
+  "mr002-validation2-evidence-publisher": {
+   "permissions": "UNCHANGED from v1.1 - see permissions_carried_forward below",
+   "run_host_is_absent_from_the_allow": true,
+   "trust": {
+    "Action": "sts:AssumeRole",
+    "Condition": {
+     "StringEquals": {
+      "aws:PrincipalArn": "arn:aws:iam::219024422756:role/mr002-validation2-publish-host-role"
+     }
+    },
+    "Principal": {
+     "AWS": "arn:aws:iam::219024422756:root"
+    }
+   },
+   "why_the_condition_is_load_bearing": "Principal=account-root alone would let ANY principal in the account assume it. The aws:PrincipalArn condition is the entire control, exactly as it is for the reader.",
+   "\u26a0 what_this_replaces": "v1.1's Principal {\"Service\": \"ec2.amazonaws.com\"}"
+  },
+  "mr002-validation2-publish-host-role (BASE)": {
+   "allow": [
+    {
+     "Action": "sts:AssumeRole",
+     "Resource": "arn:aws:iam::219024422756:role/mr002-validation2-evidence-publisher",
+     "Sid": "AssumeTheEvidencePublisherOnly"
+    }
+   ],
+   "attached_to": "instance profile mr002-validation2-publish-host, on a host DISTINCT from the evaluator",
+   "deny": [
+    {
+     "Action": "sts:AssumeRole",
+     "Resource": "arn:aws:iam::219024422756:role/mr002-validation-reader",
+     "Sid": "DenyAssumingTheValidationReaderRole"
+    },
+    {
+     "Action": "s3:*",
+     "Resource": [
+      "arn:aws:s3:::workbench-mr002-sealed-219024422756",
+      "arn:aws:s3:::workbench-mr002-sealed-219024422756/*"
+     ],
+     "Sid": "DenyAllAccessToTheSealedStore"
+    }
+   ],
+   "note": "the base role carries NO data capability of its own. Its only power is to assume the publisher.",
+   "trust": {
+    "Action": "sts:AssumeRole",
+    "Principal": {
+     "Service": "ec2.amazonaws.com"
+    }
+   }
+  }
+ },
+ "version": "1.2"
+}
