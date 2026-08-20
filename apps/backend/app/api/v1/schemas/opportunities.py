@@ -232,3 +232,35 @@ class OpportunitiesResponse(BaseModel):
     premarket_gappers: OppPremarketGappersWidget
     candidate_watchlist: OppCandidateWatchlistWidget
     as_of: datetime
+
+
+class OppHistoryOccurrence(BaseModel):
+    """One durable family-row occurrence. Current price is read-time only."""
+
+    symbol: str
+    family: str
+    candidate_date: str
+    horizon: str
+    status_at_proposal: str
+    proposal_price: float
+    proposal_price_source: str
+    adjustment_basis: str
+    reason: dict[str, object] = Field(default_factory=dict)
+    screen_id: str
+    screen_version: str
+    snapshot_sha256: str
+    snapshot_generated_at: str
+    first_seen: str
+    last_seen: str
+    occurrence_count: int = 1
+    current_price: float | None = None
+    current_price_as_of: str | None = None
+    current_price_source: str | None = None
+    change_pct: float | None = None
+
+
+class OppHistoryResponse(BaseModel):
+    view: str
+    count: int
+    items: list[OppHistoryOccurrence]
+    as_of: datetime
