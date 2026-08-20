@@ -9,8 +9,10 @@ import subprocess
 import sys
 import tempfile
 
-BASE = json.load(open("/work/apps/backend/app/research/mr002/phase3c/manifests/"
-                      "validation2_object_registry.json"))
+_REG = ("/work/apps/backend/app/research/mr002/phase3c/manifests/"
+        "validation2_object_registry.json")
+with open(_REG, encoding="utf-8") as _fh:
+    BASE = json.load(_fh)
 RUN = "/work/apps/backend/scripts/mr002_phase3c_validation_run.py"
 CODES = ("CONSUMED_PARTITION_ACCESS_ATTEMPT", "CONSUMED_PARTITION_IN_REGISTRY",
          "UNREGISTERED_VALIDATION2_OBJECT_IN_REGISTRY", "UNREGISTERED_VALIDATION2_OBJECT",
