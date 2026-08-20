@@ -1,0 +1,127 @@
+{
+ "FINDINGS": {
+  "1_reader_cannot_read_validation_2": {
+   "also_means": "belt-and-braces corroboration of the pristine claim \u2014 the partition is denied even to the reader",
+   "cause": "mr002-validation-only grants GetObject on validation/* only, and carries an explicit statement DenyOOSEntirelyIncludingListing denying s3:* on oos/*",
+   "meaning": "the deployed IAM does NOT implement the OOS\u2192Validation-2 redesignation. No deployed role can read the Validation-2 population.",
+   "observed": "explicitDeny",
+   "remediation": "a REGISTERED, controlled policy amendment. \u26a0 a released deny latch takes a MEASURED ~286s to reach STS; it is NOT in force immediately.",
+   "required_by_owner_matrix": "ALLOW"
+  },
+  "2_no_role_can_write_governing_evidence": {
+   "cause": "mr002-evaluator-publisher is an ECR IMAGE publisher (ecr:PutImage to mr002-evaluator-p5 plus read of publish-staging). It is not an evidence publisher. N1/N2/N3 evidence was published to S3 by the admin principal, not by a scoped role.",
+   "meaning": "the reader/publisher separation the registration assumes is NOT deployed for evidence publication.",
+   "observed": "implicitDeny for BOTH reader and publisher",
+   "remediation": "either provision a scoped evidence-publisher role, or register that evidence publication is performed by a named principal outside the role separation and bind that decision explicitly.",
+   "required_by_owner_matrix": "reader DENY (satisfied), publisher ALLOW (NOT satisfied)"
+  }
+ },
+ "assumability": {
+  "mr002-evaluator-publisher": {
+   "assumable_by": "ec2.amazonaws.com",
+   "live_assume_role_performed": false
+  },
+  "mr002-phase3c-run-host": {
+   "assumable_by": "ec2.amazonaws.com via instance profile mr002-phase3c-run-host",
+   "instance_state": "stopped (NOT terminated)",
+   "live_assume_role_performed": false,
+   "only_instance": "i-00c1034f7026db45e"
+  },
+  "mr002-validation-reader": {
+   "assumable_by": "arn:aws:iam::219024422756:role/mr002-phase3c-run-host ONLY (aws:PrincipalArn condition)",
+   "assumable_by_this_workstation": false,
+   "live_assume_role_performed": false
+  },
+  "why_not_performed_yet": "the capability leg already FAILS (below), so an IAM PASS is impossible on the present policy set regardless of assumability. Proving assumability against policies that must change first would have to be redone after the amendment. The instance is stopped, not terminated, so the proof remains available."
+ },
+ "authority": "owner ruling 2026-08-20 \u2014 live IAM capability proof authorized, NO GetObject against the six sealed objects",
+ "boundary": {
+  "sealed_store_getobject_calls": 0,
+  "validation_2_objects_read": 0
+ },
+ "capability_matrix_after_assumption": [
+  {
+   "action": "s3:GetObject",
+   "capability": "read Validation-2 object",
+   "decision": "explicitDeny",
+   "resource": "arn:aws:s3:::workbench-mr002-sealed-219024422756/oos/prices.parquet",
+   "role": "mr002-validation-reader"
+  },
+  {
+   "action": "s3:GetObject",
+   "capability": "read consumed Validation-1",
+   "decision": "allowed",
+   "resource": "arn:aws:s3:::workbench-mr002-sealed-219024422756/validation/prices.parquet",
+   "role": "mr002-validation-reader"
+  },
+  {
+   "action": "s3:PutObject",
+   "capability": "overwrite sealed V2 object",
+   "decision": "explicitDeny",
+   "resource": "arn:aws:s3:::workbench-mr002-sealed-219024422756/oos/prices.parquet",
+   "role": "mr002-validation-reader"
+  },
+  {
+   "action": "s3:DeleteObject",
+   "capability": "delete sealed V2 object",
+   "decision": "explicitDeny",
+   "resource": "arn:aws:s3:::workbench-mr002-sealed-219024422756/oos/prices.parquet",
+   "role": "mr002-validation-reader"
+  },
+  {
+   "action": "s3:PutObject",
+   "capability": "write governing evidence",
+   "decision": "implicitDeny",
+   "resource": "arn:aws:s3:::workbench-backups-219024422756/artifacts/governed/x",
+   "role": "mr002-validation-reader"
+  },
+  {
+   "action": "s3:GetObject",
+   "capability": "read Validation-2 object",
+   "decision": "explicitDeny",
+   "resource": "arn:aws:s3:::workbench-mr002-sealed-219024422756/oos/prices.parquet",
+   "role": "mr002-evaluator-publisher"
+  },
+  {
+   "action": "s3:PutObject",
+   "capability": "overwrite sealed V2 object",
+   "decision": "explicitDeny",
+   "resource": "arn:aws:s3:::workbench-mr002-sealed-219024422756/oos/prices.parquet",
+   "role": "mr002-evaluator-publisher"
+  },
+  {
+   "action": "s3:PutObject",
+   "capability": "write governing evidence",
+   "decision": "implicitDeny",
+   "resource": "arn:aws:s3:::workbench-backups-219024422756/artifacts/governed/x",
+   "role": "mr002-evaluator-publisher"
+  },
+  {
+   "action": "s3:GetObject",
+   "capability": "read Validation-2 object",
+   "decision": "explicitDeny",
+   "resource": "arn:aws:s3:::workbench-mr002-sealed-219024422756/oos/prices.parquet",
+   "role": "mr002-phase3c-run-host"
+  }
+ ],
+ "cells_that_PASS": [
+  "reader cannot write/overwrite/delete sealed Validation-2 objects \u2014 explicitDeny",
+  "publisher cannot read Validation-2 \u2014 explicitDeny",
+  "publisher cannot read consumed Validation-1 \u2014 explicitDeny",
+  "publisher cannot write/overwrite sealed Validation-2 objects \u2014 explicitDeny",
+  "run-host cannot read Validation-2 directly \u2014 explicitDeny",
+  "reader cannot write governing evidence \u2014 implicitDeny"
+ ],
+ "date": "2026-08-20",
+ "disposition": "IAM_NOT_READY",
+ "disposition_reason": "two required matrix cells fail. Neither is a test defect; both are real gaps between the deployed IAM and what the Validation-2 registration assumes.",
+ "method": {
+  "authorization_after_assumption": "iam simulate-principal-policy \u2014 evaluates identity AND resource policies",
+  "live_denial_evidence": "six CloudTrail-recorded HeadObject AccessDenied events against oos/* by the admin principal on 2026-08-20T15:08Z, already bound in MR002_OOSPartitionAccessHistory_v1.0 (edb50634\u2026). Real IAM evaluation, not simulation.",
+  "\u26a0 known_blind_spot": "simulate-principal-policy NEVER evaluates the trust policy. It proves capability-once-assumed, not assumability. These are reported as SEPARATE fields because a role can be assumable but overprivileged, or perfectly scoped but not assumable."
+ },
+ "no_getobject_against_the_six": true,
+ "record_identity_sha256": "55a81cba8a136ceda2efe96c82fb25dbd8c0f06d5e3b175a65d9af8e4292975f",
+ "record_type": "MR002_Validation2_IAMCapabilityEvidence",
+ "version": "1.0"
+}

@@ -1,0 +1,152 @@
+{
+ "BOUND_to_the_sealed_objects_WITHOUT_reading_them": {
+  "claim_strength": "WEAKER \u2014 this is a BINDING, not a direct verification. Each VersionId corresponds to the object uploaded from the committed source content because its checksum was validated server-side at write and is frozen in the upload manifest. The sealed parquet bytes were NOT hashed by this preflight, because doing so would require a GetObject and would consume the opening.",
+  "matches_registered_partition_identity": true,
+  "objects": [
+   {
+    "bytes": 57069,
+    "key": "oos/actions.parquet",
+    "server_validated_at_write": true,
+    "sha256": "a08c0ed6ba6c6609e67c501a938e0245277e11c82f3d7242e7e2683790acb100",
+    "table": "actions",
+    "version_id": "F6m6am6cBahBd95p41C1.aAVmYd8GuNG"
+   },
+   {
+    "bytes": 177252,
+    "key": "oos/anchors.parquet",
+    "server_validated_at_write": true,
+    "sha256": "5095149d39d26c7af19de3814a7178e93bf3cc3ab87f92512991a81e64013dc9",
+    "table": "anchors",
+    "version_id": "RsJZG3TkDXvNPERJhZVanJ.Vqg8_dulw"
+   },
+   {
+    "bytes": 67010,
+    "key": "oos/etf_prices.parquet",
+    "server_validated_at_write": true,
+    "sha256": "f53f448312f94820d76aad80f378a53ea2b9104654cbb7c69bb82363b2a5da15",
+    "table": "etf_prices",
+    "version_id": "Z3OsUeuucMYIl2v9JDoVNDx1nw.0avDj"
+   },
+   {
+    "bytes": 16173068,
+    "key": "oos/prices.parquet",
+    "server_validated_at_write": true,
+    "sha256": "0f45ddc58170bd1131b9820576080eae861dff65b716bc3f03d08fb284f29e9a",
+    "table": "prices",
+    "version_id": "1ope9PR._oR303.EbZNGPVlIJRy.SZbA"
+   },
+   {
+    "bytes": 138814,
+    "key": "oos/sic_observations.parquet",
+    "server_validated_at_write": true,
+    "sha256": "176a84bc155b5ec8c24444e091b19a78b97c0d31c0da606f22eca44ace7e12cf",
+    "table": "sic_observations",
+    "version_id": "DPhtWW3Pca3TKtSa1LOnGKA.yrZ98EIt"
+   },
+   {
+    "bytes": 111278,
+    "key": "oos/universe.parquet",
+    "server_validated_at_write": true,
+    "sha256": "4c1a2b2e876f7ffdd1f651e5c99079d5fe045e74003af556c3c8b3273d746e0d",
+    "table": "universe",
+    "version_id": "0gaqJ9TuECc3U_zar99sqls2UHRDnkkY"
+   }
+  ],
+  "partition_identity_sha256": "3b3910d00395d90189b94fd0f9901811b1813905f17219010b336c567cfa1296",
+  "what_would_close_this_gap": "only a read of the six objects, which is exactly what the consumption boundary forbids before the opening grant. The gap is therefore STRUCTURAL and permanent until the opening; it is disclosed rather than closed."
+ },
+ "DIRECTLY_VERIFIED_from_the_pre_sealing_source": {
+  "claim_strength": "STRONG \u2014 recomputed now, from the pinned source, by the audited custodian producer, with the snapshot digest proved on both sides of the read",
+  "eligible_ordinal_range": [
+   70,
+   844
+  ],
+  "eligible_sessions": 775,
+  "folds": [
+   {
+    "first_ordinal": 70,
+    "fold": 1,
+    "last_ordinal": 224,
+    "sessions": 155
+   },
+   {
+    "first_ordinal": 225,
+    "fold": 2,
+    "last_ordinal": 379,
+    "sessions": 155
+   },
+   {
+    "first_ordinal": 380,
+    "fold": 3,
+    "last_ordinal": 534,
+    "sessions": 155
+   },
+   {
+    "first_ordinal": 535,
+    "fold": 4,
+    "last_ordinal": 689,
+    "sessions": 155
+   },
+   {
+    "first_ordinal": 690,
+    "fold": 5,
+    "last_ordinal": 844,
+    "sessions": 155
+   }
+  ],
+  "formation_exclude_sessions": 69,
+  "governed_calendar": {
+   "governed_session_list_sha256_observed": "b873421516ba5c4bbeb4ff3859e574f64f7251a956a2ba6ddea0e753981dad3f",
+   "governed_session_list_sha256_registered": "b873421516ba5c4bbeb4ff3859e574f64f7251a956a2ba6ddea0e753981dad3f",
+   "governed_sessions_expected": 3400,
+   "governed_sessions_observed": 3400,
+   "reproduces_registered_calendar": true
+  },
+  "p9_cross_check_agrees": true,
+  "partition_content_matches_P6": true,
+  "partition_content_sha256_recomputed": "a0595fd8179ca22e47afd90a55ff449239fe87c29b88a6ec5a0ddcbbf020932f",
+  "realization_horizon": 6,
+  "remainder": 0,
+  "schema_identity_sha256": "eabd10bdfa82981d88d98a18cfc65c0e93cbf8ee89431a3b232ac1ddd063c31e",
+  "sessions_per_fold": 155,
+  "tables": [
+   "actions",
+   "anchors",
+   "etf_prices",
+   "prices",
+   "sic_observations",
+   "universe"
+  ],
+  "window_sessions": {
+   "declared_end": "2026-07-10",
+   "declared_start": "2023-02-17",
+   "expected_sessions": 850,
+   "first_session": "2023-02-17",
+   "last_session": "2026-07-10",
+   "observed_sessions": 850,
+   "session_list_sha256": "54e8d1f11e8934a3482e5eeae651fb83aaf6974a75e63c52f7eee9d986c79003"
+  }
+ },
+ "authority": "owner ruling 2026-08-20 \u2014 custodian-only, value-blind structural verification via the P6/P9/snapshot chain",
+ "bound_registration_identity": "93ee468801c92edd9dd1ba49944b381a6d9172c2e22f9bcc76a9dcbe8541af57",
+ "boundary": "EVIDENCE ONLY. This record grants nothing, opens nothing, and does not authorize the Validation-2 opening.",
+ "custodian": "Jay Wang",
+ "evidence_chain": [
+  "pre-sealing snapshot apps/backend/data/mr002_research.duckdb sha256=24e5153cc0ebed77c7b422562e5a8ebfa147aad3019b27035b5314aaaacfad5a",
+  "-> P6 ValidationPartitionContentCommitment 574854a839fc8663982aaea6d289d6517976c07eaf713d253ad98961367c0756 (oos_partition content a0595fd8179ca22e47afd90a55ff449239fe87c29b88a6ec5a0ddcbbf020932f)",
+  "-> P9 ValidationStructuralManifest ce276f58840790369480543c067e1df672b8300081e8ce17e05d2e88a0f9603c",
+  "-> SealedStoreUploadManifest 3834ba8068b0c12bce49a8f65b772f4bc271833f2b90a612d37e40d74587de8d (server-validated SHA-256 at write)",
+  "-> six sealed VersionIds",
+  "-> Validation-2 partition identity 3b3910d00395d90189b94fd0f9901811b1813905f17219010b336c567cfa1296"
+ ],
+ "method": "the audited custodian producer sealed_partition_commitment.py, run against the PRE-SEALING snapshot. The sealed store is never contacted.",
+ "problems": [],
+ "produced_at_utc": "2026-08-20T00:00:00Z",
+ "record_identity_sha256": "3810e071761a5100fe8cda6754488ebac5230f74b1b5e0f812ec53764d94436a",
+ "record_type": "MR002_Validation2_StructuralPreflight",
+ "sealed_store_getobject_calls": 0,
+ "status": "STRUCTURAL_PREFLIGHT_PASS",
+ "validation_2_objects_read": 0,
+ "value_blind": true,
+ "version": "1.0"
+}
