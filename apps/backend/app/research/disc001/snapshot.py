@@ -237,6 +237,9 @@ def prune_snapshots(directory: Path) -> list[str]:
 
     Never deletes the newest file or a pinned as-of. Logs a warning *before*
     unlinking. Returns the as-of dates removed.
+
+    JSON retention is independent of durable ``opportunity_occurrence`` rows in
+    workbench.sqlite — prune must never delete Opportunity History.
     """
     dates = list_snapshot_dates(directory)
     if not dates:
