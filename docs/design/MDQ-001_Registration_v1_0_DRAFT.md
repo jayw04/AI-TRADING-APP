@@ -496,7 +496,11 @@ Signed by / date:               Jay Wang (owner) — 2026-08-19
 
 **Status: SIGNED.** Signed **2026-08-20**, **before any exploratory read of the corpus** and therefore before
 §8.1's evidence firewall forecloses revising a verdict or evaluability clause. This subsection is
-**additive**: the signed §8 block, the ratified §8.1 block, §8.2 and §8.3 are **not edited**.
+**additive**: the signed §8 block, the ratified §8.1 block, and the **rulings bodies** of §8.2 and
+§8.3 are **not edited**. One exception, stated precisely because a governing document that overstates
+its own integrity is worse than one that admits a footnote: **§8.2's heading line** gained a
+cross-reference to this subsection in the same commit. No ruling text, no threshold and no signature
+moved — only the pointer in the heading.
 
 This is the mirror image of the §4.11 verdict-reachability problem. §4.11 protected against criteria that
 can never be **evaluated**. K5 is a criterion that can never **fail** — and an auto-passing criterion is the
