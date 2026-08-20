@@ -1,0 +1,112 @@
+{
+ "amendment_C_files_that_MUST_change_on_the_host": {
+  "phase3c/__init__.py": {
+   "required": "ad3b578c5e9965c21e734b18431f82d5602463481d1dd57ee242b8c0e5483c9f",
+   "stale": "ec3a8c3129e58ee1ff00bf125cfaff13e50ec2befa0ad6fe1047b513aedbcbd7"
+  },
+  "phase3c/folds.py": {
+   "required": "8033265051b02d730900538693a662b4af6e2bc80a410090add83d8d38db103f",
+   "stale": "e925799c099c5cfd17ab60917a94f806370165acd905422f5828c3a2db984bb9"
+  },
+  "phase3c/gates.py": {
+   "note": "unchanged by Amendment C",
+   "required": "3782ecf59189dacbbfa04a57cf6f503118721db6a40271a0a2994e15fd377ad3",
+   "stale": "3782ecf59189dacbbfa04a57cf6f503118721db6a40271a0a2994e15fd377ad3"
+  },
+  "phase3c/replay.py": {
+   "required": "e90cbe8edf2c50d90e7d4fd3c87d2ce6b4605a7023b0e3a75d506bfec4ad8b87",
+   "stale": "bddd8a67924aad6fc2afabc6c7f7f6898241e2a7f6f8d74f3fe9b39d9a24721b"
+  }
+ },
+ "authority": "owner ruling 2026-08-20 - execution-package remediation AUTHORIZED; opening/read NOT",
+ "authorizes": "deployment and host qualification ONLY. NOT a latch release, NOT a read, NOT an opening.",
+ "boundary": {
+  "latch": "8 / CLOSED",
+  "prior_opening_authorization": "SUSPENDED - not reusable",
+  "validation_2_opening": "NOT AUTHORIZED",
+  "withheld_reads": 0
+ },
+ "date": "2026-08-20",
+ "deployment_cannot_touch_the_holdout": {
+  "can_read_the_six_withheld_objects": false,
+  "mutates_the_reader_latch": false,
+  "why": "deployment is a tar extraction onto the host filesystem. It issues no S3 call against the sealed store, assumes no role, and the latch remains 8/CLOSED throughout. The host's own policy denies s3:* on the sealed store; only the reader role can read it, and that role cannot be assumed while the latch is closed."
+ },
+ "execution_critical_source_identities": {
+  "apps/backend/app/research/mr002/dataset.py": "a8a11c0c2b5e9ddefb87eb0ebcc9e659eff5104115d5493685707597e157c957",
+  "apps/backend/app/research/mr002/execution.py": "4710d3869ec4d1294e9a7a7888d80fab0f85d2cd0176df67bba323ef90365b62",
+  "apps/backend/app/research/mr002/joint_portfolio.py": "4efd57393e2d99e0733f70ceba5e24d9629fb3d4aa8a18837efc36eb157bac43",
+  "apps/backend/app/research/mr002/n1/method.py": "76e6afcca09e33014eee5f6c657355596445e2c0ad7350edb7cb6bd9fbdb6ff0",
+  "apps/backend/app/research/mr002/n1/seam.py": "503d11f50e99846e5afacbf31415c956db16090631509d99e8e4e63465081409",
+  "apps/backend/app/research/mr002/phase3b/readers.py": "690cc3f61c423e360b96fed779db19e3d2170f4a719421dadddbfd129835bf48",
+  "apps/backend/app/research/mr002/phase3c/__init__.py": "ad3b578c5e9965c21e734b18431f82d5602463481d1dd57ee242b8c0e5483c9f",
+  "apps/backend/app/research/mr002/phase3c/adopted.py": "8b3cfa9d72b12f2f9545ae84810cb5cd346cf6483aaaa59142224d98d79fda3f",
+  "apps/backend/app/research/mr002/phase3c/credential_readiness.py": "4a0d6eb5daf5f5a661a8a03f9839c72be385a80963c308629951a3a603b0912f",
+  "apps/backend/app/research/mr002/phase3c/durable_evidence.py": "6bd599384fa530da73f9cf99c5f16da39b2637703cb31f9c5ce60085e02a87cb",
+  "apps/backend/app/research/mr002/phase3c/exits.py": "2724f372ef62a6b6a0c15173c7d6146cf9a44748940f759773dca61219bde7d7",
+  "apps/backend/app/research/mr002/phase3c/folds.py": "8033265051b02d730900538693a662b4af6e2bc80a410090add83d8d38db103f",
+  "apps/backend/app/research/mr002/phase3c/gates.py": "3782ecf59189dacbbfa04a57cf6f503118721db6a40271a0a2994e15fd377ad3",
+  "apps/backend/app/research/mr002/phase3c/materialize.py": "f5d1f4106d88dfcf226be3f6660e47b8fa436b8ddc0201eefa439411c06bfd67",
+  "apps/backend/app/research/mr002/phase3c/replay.py": "e90cbe8edf2c50d90e7d4fd3c87d2ce6b4605a7023b0e3a75d506bfec4ad8b87",
+  "apps/backend/app/research/mr002/runner.py": "87dd6e71a60ba89297ed4653eb1abf94052f34f927e8865b8ea41515e290b34f",
+  "apps/backend/app/research/mr002/stage3_cascade.py": "1021cc287051a61a088c4a715604922f03ee4dfcff41a334681dab12cb3265ef",
+  "apps/backend/app/research/mr002/stage3_route.py": "42335ad9d67ccea60020731550c4d04887d744cd6d56d40506269994960554a2",
+  "mr002_coverage_signed_gap.py": "f9e440c6188582037a7813dc8ffc6f828132d72131ff2d54d6a35056f9e5f741",
+  "mr002_development_run.py": "57d0fcac37e466496e62463b4174a430801f1a74100efdb22bd3f0256c367ee9"
+ },
+ "frozen_method": {
+  "max_iter": 1000,
+  "no_selection_occurs": true,
+  "solver_A": "QUADPROG_SQRT",
+  "solver_B": "PIQP_P2"
+ },
+ "host": {
+  "administration": "SSM only",
+  "container_mount": "/work (read-only), so the tree resolves as /work/apps/backend",
+  "destination_tree": "/opt/mr002/phase3c_src",
+  "instance_id": "i-00c1034f7026db45e"
+ },
+ "import_resolution_is_the_point": "matching files at /opt/mr002/phase3c_src is INSUFFICIENT if the runner imports a different copy. Step 4 is the gate, not a formality.",
+ "post_deployment_verification_procedure": [
+  "1. re-hash EVERY execution-critical file on the host against this package",
+  "2. IMPORT the deployed tree from the exact path the opening runner uses, and assert the LIVE constants from that import: VALIDATION_WINDOW_START 2023-02-17, VALIDATION_WINDOW_END 2026-07-10, SCORING_ELIGIBLE_FIRST 2023-05-30, SCORING_ELIGIBLE_LAST 2026-07-01, OUT_OF_BOUNDS_AFTER 2026-07-10, and the five Validation-2 folds",
+  "3. prove the FATAL INTERLOCK on the deployed host with a synthetic session beyond the boundary",
+  "4. prove IMPORT RESOLUTION - print module __file__ and assert it resolves under the deployed tree, not another installed package or a stale sys.path entry",
+  "5. re-run non-withheld conformance on development/synthetic inputs FROM the deployed environment"
+ ],
+ "record_identity_sha256": "6c2484f892b753f622f4151071e524001140980d5e48f0b7c99dbdde7d3c85d7",
+ "record_type": "MR002_Validation2_ExecutionPackage",
+ "rollback": {
+  "basis": "sha256 over the sorted per-file sha256 list of apps/backend/app/research/mr002/** and apps/backend/scripts/**.py in the pre-deployment tree",
+  "preserved_as": "/opt/mr002/phase3c_src_pre_amendmentC (moved, not deleted)",
+  "previous_tree_aggregate_sha256": "ff0308be99dd82087b03ef3b48006f4a7c4b87ca37bd951a8be42794c03f4bbc",
+  "prior_deployment_checkpoint": "34eeee00e03ee66fb9ac8702503b89463fa70f67"
+ },
+ "runtime": {
+  "dependency_bundle": "MUST be mounted at /opt/mr002/deps - the image carries no boto3/botocore, and omitting this mount caused an earlier released-but-refused execution",
+  "frozen_thread_env": {
+   "MKL_NUM_THREADS": "1",
+   "NUMEXPR_NUM_THREADS": "1",
+   "OMP_NUM_THREADS": "1",
+   "OPENBLAS_CORETYPE": "HASWELL",
+   "OPENBLAS_NUM_THREADS": "1"
+  },
+  "image": "mr002-research:v1.4",
+  "image_config_digest": "sha256:770553aeae6c3d47f1735f61a4e0df75515c105ddda0431dcc2a07b8bdbfe4b6",
+  "source_oci_index_digest": "sha256:aa930021c072d01a5a14f389b53bea9d338e53b71e2aac08550972060a08610a",
+  "\u26a0 two_digests_are_NOT_a_mismatch": "the package v2.2 records three TYPED identities because a generic 'image_id' whose meaning depends on the daemon already caused one false mismatch. aa930021 is the OCI/index identity on the qualification machine; 770553ae is the Docker config digest of the SAME image as loaded on the host."
+ },
+ "source": {
+  "archive_bytes": 8796160,
+  "archive_sha256": "dd35b845098909af64a6a5701cece0516816f81c89f8b4e3bc63d7c8ac19d811",
+  "branch": "research/mr002-preregistration",
+  "commit": "6aca0d80225b6aa650eb9b90712d7f88b55c21e8",
+  "mechanism": "git archive --format=tar <PUSHED commit> apps/backend",
+  "pushed": true,
+  "python_files": 1064,
+  "why_git_archive": "it emits GIT BLOB bytes (LF), never the Windows working tree (CRLF). The CRLF trap already broke the adopted-runner binding once; a working-tree tar would reintroduce it."
+ },
+ "status": "FROZEN BEFORE ANY HOST MUTATION - deployment has NOT yet occurred",
+ "version": "1.0",
+ "why_this_exists": "the prior opening was halted at precondition verification because the execution host carried pre-Amendment-C source. The readiness gates checked the REPOSITORY, not the HOST. This package binds the host-side identity so that gap cannot recur."
+}

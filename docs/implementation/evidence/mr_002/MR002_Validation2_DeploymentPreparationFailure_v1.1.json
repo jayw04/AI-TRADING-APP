@@ -1,0 +1,102 @@
+{
+ "ROOT_CAUSE": {
+  "my_error": "the v1.0 package asserted 'git archive emits GIT BLOB bytes (LF), never the Windows working tree (CRLF)'. That is FALSE for unpinned files. I treated git archive as a blob-faithful exporter when it is a checkout-faithful one, and bound an archive hash on that assumption.",
+  "proof": "the in-archive joint_portfolio.py hashes 7e9b55c3...; LF-normalising those same bytes yields 4efd5739..., which IS the Git blob.",
+  "the_correct_invocation": "git -c core.autocrlf=false -c core.eol=lf archive --format=tar <commit>",
+  "verified": "all 12 spot-checked files, including all 10 that failed, are now blob-identical",
+  "what": "git archive applied CRLF conversion on export to every file WITHOUT an explicit 'eol=lf' gitattribute. The perfect correlation is the tell: the ONLY files that matched are the ones carrying an eol pin \u2014 phase3c/** (pinned earlier) and mr002_development_run.py (pinned by me during Amendment C).",
+  "why_core_eol_lf_alone_did_NOT_fix_it": "core.autocrlf=true OVERRIDES core.eol. Setting only core.eol=lf produced a byte-identical archive (same dd35b845 sha) \u2014 a silent no-op that would have looked like a fix."
+ },
+ "THE_FAILURE": {
+  "candidate_removed": true,
+  "failed_candidate_aggregate": "d36afa9de030f130e93c93574ad416f8d287b41023062927748d7587ef94272f",
+  "mismatched": [
+   "phase3b/readers.py",
+   "joint_portfolio.py",
+   "stage3_route.py",
+   "stage3_cascade.py",
+   "n1/method.py",
+   "n1/seam.py",
+   "runner.py",
+   "dataset.py",
+   "execution.py",
+   "scripts/mr002_coverage_signed_gap.py"
+  ],
+  "passed": "all phase3c/* files and mr002_development_run.py",
+  "result": "10 of 20 execution-critical files mismatched their registered Git-blob identities",
+  "where": "candidate verification, BEFORE the atomic rename \u2014 exactly where the owner's staged pattern was designed to catch it"
+ },
+ "added_verification_step": "the candidate check must ALSO assert that no execution-critical file contains CRLF, so a byte mismatch cannot be re-diagnosed from hashes alone",
+ "authorizes": "NOTHING. Deployment of the corrected package requires a fresh go-ahead; the v1.0 authorization named an archive identity now known to be defective.",
+ "boundary": {
+  "host_state": "live tree unchanged; failed candidate and defective archive removed",
+  "latch": "8 / CLOSED",
+  "validation_2_opening": "NOT AUTHORIZED",
+  "withheld_reads": 0
+ },
+ "corrected_package": {
+  "archive_bytes": 8622080,
+  "archive_sha256": "19d5e4b208c533768f3184fd64ae3076ff94bfd1a15e36c3eb4b52e348c500ce",
+  "everything_else_unchanged_from_v1_0": [
+   "host",
+   "destination tree",
+   "container mount",
+   "rollback policy",
+   "runtime and image typed identities",
+   "dependency-bundle mount",
+   "frozen thread env",
+   "frozen QUADPROG_SQRT + PIQP_P2",
+   "the five-step post-deployment verification procedure"
+  ],
+  "execution_critical_source_identities": {
+   "apps/backend/app/research/mr002/dataset.py": "a8a11c0c2b5e9ddefb87eb0ebcc9e659eff5104115d5493685707597e157c957",
+   "apps/backend/app/research/mr002/execution.py": "4710d3869ec4d1294e9a7a7888d80fab0f85d2cd0176df67bba323ef90365b62",
+   "apps/backend/app/research/mr002/joint_portfolio.py": "4efd57393e2d99e0733f70ceba5e24d9629fb3d4aa8a18837efc36eb157bac43",
+   "apps/backend/app/research/mr002/n1/method.py": "76e6afcca09e33014eee5f6c657355596445e2c0ad7350edb7cb6bd9fbdb6ff0",
+   "apps/backend/app/research/mr002/n1/seam.py": "503d11f50e99846e5afacbf31415c956db16090631509d99e8e4e63465081409",
+   "apps/backend/app/research/mr002/phase3b/readers.py": "690cc3f61c423e360b96fed779db19e3d2170f4a719421dadddbfd129835bf48",
+   "apps/backend/app/research/mr002/phase3c/__init__.py": "ad3b578c5e9965c21e734b18431f82d5602463481d1dd57ee242b8c0e5483c9f",
+   "apps/backend/app/research/mr002/phase3c/adopted.py": "8b3cfa9d72b12f2f9545ae84810cb5cd346cf6483aaaa59142224d98d79fda3f",
+   "apps/backend/app/research/mr002/phase3c/credential_readiness.py": "4a0d6eb5daf5f5a661a8a03f9839c72be385a80963c308629951a3a603b0912f",
+   "apps/backend/app/research/mr002/phase3c/durable_evidence.py": "6bd599384fa530da73f9cf99c5f16da39b2637703cb31f9c5ce60085e02a87cb",
+   "apps/backend/app/research/mr002/phase3c/exits.py": "2724f372ef62a6b6a0c15173c7d6146cf9a44748940f759773dca61219bde7d7",
+   "apps/backend/app/research/mr002/phase3c/folds.py": "8033265051b02d730900538693a662b4af6e2bc80a410090add83d8d38db103f",
+   "apps/backend/app/research/mr002/phase3c/gates.py": "3782ecf59189dacbbfa04a57cf6f503118721db6a40271a0a2994e15fd377ad3",
+   "apps/backend/app/research/mr002/phase3c/materialize.py": "f5d1f4106d88dfcf226be3f6660e47b8fa436b8ddc0201eefa439411c06bfd67",
+   "apps/backend/app/research/mr002/phase3c/replay.py": "e90cbe8edf2c50d90e7d4fd3c87d2ce6b4605a7023b0e3a75d506bfec4ad8b87",
+   "apps/backend/app/research/mr002/runner.py": "87dd6e71a60ba89297ed4653eb1abf94052f34f927e8865b8ea41515e290b34f",
+   "apps/backend/app/research/mr002/stage3_cascade.py": "1021cc287051a61a088c4a715604922f03ee4dfcff41a334681dab12cb3265ef",
+   "apps/backend/app/research/mr002/stage3_route.py": "42335ad9d67ccea60020731550c4d04887d744cd6d56d40506269994960554a2",
+   "apps/backend/scripts/mr002_coverage_signed_gap.py": "f9e440c6188582037a7813dc8ffc6f828132d72131ff2d54d6a35056f9e5f741",
+   "apps/backend/scripts/mr002_development_run.py": "57d0fcac37e466496e62463b4174a430801f1a74100efdb22bd3f0256c367ee9"
+  },
+  "mechanism": "git -c core.autocrlf=false -c core.eol=lf archive --format=tar 6aca0d80225b6aa650eb9b90712d7f88b55c21e8 apps/backend",
+  "pushed": true,
+  "source_commit": "6aca0d80225b6aa650eb9b90712d7f88b55c21e8"
+ },
+ "date": "2026-08-20",
+ "disposition": "DEPLOYMENT_PREPARATION_FAILURE \u2014 CUTOVER NOT PERFORMED",
+ "latch": "8 / CLOSED \u2014 never touched",
+ "live_tree_untouched": {
+  "aggregate_after": "ff0308be99dd82087b03ef3b48006f4a7c4b87ca37bd951a8be42794c03f4bbc",
+  "aggregate_before": "ff0308be99dd82087b03ef3b48006f4a7c4b87ca37bd951a8be42794c03f4bbc",
+  "cutover_performed": false,
+  "identical": true
+ },
+ "opening_consumed": false,
+ "record_identity_sha256": "ed2ffcf458314e19d102e7261ddf78691c9fd5725337f68e6af51d4bb42c57d6",
+ "record_type": "MR002_Validation2_DeploymentPreparationFailure_and_PackageCorrection",
+ "supersedes": {
+  "execution_package_v1.0": "6c2484f892b753f622f4151071e524001140980d5e48f0b7c99dbdde7d3c85d7",
+  "preserved_unmodified": true,
+  "why": "its bound archive_sha256 dd35b845... is DEFECTIVE \u2014 the archive carries CRLF for every file without an explicit eol pin"
+ },
+ "version": "1.1",
+ "withheld_reads": 0,
+ "\u26a0 WIDER_IMPLICATION": {
+  "meaning": "CRLF hashes have been embedded in governance records before. Package v2.2 already records a SourceIdentityCorrection that fixed 16 such defective identities, all Windows working-tree hashes.",
+  "not_fixed_here": "outside this deployment's scope; flagged for a separate sweep.",
+  "observation": "7e9b55c3... \u2014 the CRLF hash of joint_portfolio.py \u2014 is the value recorded in prior program notes as the governing 'module identity' for the joint construction.",
+  "so_what": "this defect class is recurrent and may not be fully eradicated. Any binding derived from a Windows checkout, or from git archive without both flags, is suspect until re-derived from Git blobs."
+ }
+}
