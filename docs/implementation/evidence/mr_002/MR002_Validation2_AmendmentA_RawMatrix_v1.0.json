@@ -1,0 +1,701 @@
+{
+ "cells": [
+  {
+   "cell": "reader -> actions @ REGISTERED version",
+   "observed": "allowed",
+   "required": "allowed"
+  },
+  {
+   "cell": "reader -> anchors @ REGISTERED version",
+   "observed": "allowed",
+   "required": "allowed"
+  },
+  {
+   "cell": "reader -> etf_prices @ REGISTERED version",
+   "observed": "allowed",
+   "required": "allowed"
+  },
+  {
+   "cell": "reader -> prices @ REGISTERED version",
+   "observed": "allowed",
+   "required": "allowed"
+  },
+  {
+   "cell": "reader -> sic_observations @ REGISTERED version",
+   "observed": "allowed",
+   "required": "allowed"
+  },
+  {
+   "cell": "reader -> universe @ REGISTERED version",
+   "observed": "allowed",
+   "required": "allowed"
+  },
+  {
+   "cell": "reader -> actions @ ANOTHER key's version",
+   "observed": "implicitDeny",
+   "required": "explicitDeny"
+  },
+  {
+   "cell": "reader -> anchors @ ANOTHER key's version",
+   "observed": "implicitDeny",
+   "required": "explicitDeny"
+  },
+  {
+   "cell": "reader -> etf_prices @ ANOTHER key's version",
+   "observed": "implicitDeny",
+   "required": "explicitDeny"
+  },
+  {
+   "cell": "reader -> prices @ ANOTHER key's version",
+   "observed": "implicitDeny",
+   "required": "explicitDeny"
+  },
+  {
+   "cell": "reader -> sic_observations @ ANOTHER key's version",
+   "observed": "implicitDeny",
+   "required": "explicitDeny"
+  },
+  {
+   "cell": "reader -> universe @ ANOTHER key's version",
+   "observed": "implicitDeny",
+   "required": "explicitDeny"
+  },
+  {
+   "cell": "reader -> prices @ FABRICATED version",
+   "observed": "explicitDeny",
+   "required": "explicitDeny"
+  },
+  {
+   "cell": "reader -> plain GetObject on oos/prices",
+   "observed": "explicitDeny",
+   "required": "explicitDeny"
+  },
+  {
+   "cell": "reader -> other object under oos/",
+   "observed": "implicitDeny",
+   "required": "explicitDeny"
+  },
+  {
+   "cell": "reader -> consumed validation/*",
+   "observed": "explicitDeny",
+   "required": "explicitDeny"
+  },
+  {
+   "cell": "reader -> PutObject sealed",
+   "observed": "explicitDeny",
+   "required": "explicitDeny"
+  },
+  {
+   "cell": "reader -> DeleteObjectVersion sealed",
+   "observed": "explicitDeny",
+   "required": "explicitDeny"
+  },
+  {
+   "cell": "reader -> write governing evidence",
+   "observed": "explicitDeny",
+   "required": "explicitDeny"
+  },
+  {
+   "cell": "reader -> ListBucket (development ok)",
+   "observed": "implicitDeny",
+   "required": "allowed"
+  },
+  {
+   "cell": "reader -> development/*",
+   "observed": "allowed",
+   "required": "allowed"
+  },
+  {
+   "cell": "reader -> reference/*",
+   "observed": "allowed",
+   "required": "allowed"
+  },
+  {
+   "cell": "run-host -> AssumeRole reader (latch CLOSED)",
+   "observed": "explicitDeny",
+   "required": "explicitDeny"
+  },
+  {
+   "cell": "run-host -> sealed oos direct",
+   "observed": "explicitDeny",
+   "required": "explicitDeny"
+  },
+  {
+   "cell": "publisher -> AssumeRole reader",
+   "observed": "explicitDeny",
+   "required": "explicitDeny"
+  },
+  {
+   "cell": "publisher -> sealed oos",
+   "observed": "explicitDeny",
+   "required": "explicitDeny"
+  },
+  {
+   "cell": "publisher -> governed evidence write",
+   "observed": "allowed",
+   "required": "allowed"
+  },
+  {
+   "cell": "reader -> AssumeRole publisher",
+   "observed": "explicitDeny",
+   "required": "explicitDeny"
+  }
+ ],
+ "all_intended": false,
+ "attempts": 12,
+ "polling_series": [
+  {
+   "attempt": 1,
+   "all_intended": false,
+   "mismatches": [
+    {
+     "cell": "reader -> actions @ ANOTHER key's version",
+     "observed": "implicitDeny",
+     "required": "explicitDeny"
+    },
+    {
+     "cell": "reader -> anchors @ ANOTHER key's version",
+     "observed": "implicitDeny",
+     "required": "explicitDeny"
+    },
+    {
+     "cell": "reader -> etf_prices @ ANOTHER key's version",
+     "observed": "implicitDeny",
+     "required": "explicitDeny"
+    },
+    {
+     "cell": "reader -> prices @ ANOTHER key's version",
+     "observed": "implicitDeny",
+     "required": "explicitDeny"
+    },
+    {
+     "cell": "reader -> sic_observations @ ANOTHER key's version",
+     "observed": "implicitDeny",
+     "required": "explicitDeny"
+    },
+    {
+     "cell": "reader -> universe @ ANOTHER key's version",
+     "observed": "implicitDeny",
+     "required": "explicitDeny"
+    },
+    {
+     "cell": "reader -> other object under oos/",
+     "observed": "implicitDeny",
+     "required": "explicitDeny"
+    },
+    {
+     "cell": "reader -> ListBucket (development ok)",
+     "observed": "implicitDeny",
+     "required": "allowed"
+    }
+   ]
+  },
+  {
+   "attempt": 2,
+   "all_intended": false,
+   "mismatches": [
+    {
+     "cell": "reader -> actions @ ANOTHER key's version",
+     "observed": "implicitDeny",
+     "required": "explicitDeny"
+    },
+    {
+     "cell": "reader -> anchors @ ANOTHER key's version",
+     "observed": "implicitDeny",
+     "required": "explicitDeny"
+    },
+    {
+     "cell": "reader -> etf_prices @ ANOTHER key's version",
+     "observed": "implicitDeny",
+     "required": "explicitDeny"
+    },
+    {
+     "cell": "reader -> prices @ ANOTHER key's version",
+     "observed": "implicitDeny",
+     "required": "explicitDeny"
+    },
+    {
+     "cell": "reader -> sic_observations @ ANOTHER key's version",
+     "observed": "implicitDeny",
+     "required": "explicitDeny"
+    },
+    {
+     "cell": "reader -> universe @ ANOTHER key's version",
+     "observed": "implicitDeny",
+     "required": "explicitDeny"
+    },
+    {
+     "cell": "reader -> other object under oos/",
+     "observed": "implicitDeny",
+     "required": "explicitDeny"
+    },
+    {
+     "cell": "reader -> ListBucket (development ok)",
+     "observed": "implicitDeny",
+     "required": "allowed"
+    }
+   ]
+  },
+  {
+   "attempt": 3,
+   "all_intended": false,
+   "mismatches": [
+    {
+     "cell": "reader -> actions @ ANOTHER key's version",
+     "observed": "implicitDeny",
+     "required": "explicitDeny"
+    },
+    {
+     "cell": "reader -> anchors @ ANOTHER key's version",
+     "observed": "implicitDeny",
+     "required": "explicitDeny"
+    },
+    {
+     "cell": "reader -> etf_prices @ ANOTHER key's version",
+     "observed": "implicitDeny",
+     "required": "explicitDeny"
+    },
+    {
+     "cell": "reader -> prices @ ANOTHER key's version",
+     "observed": "implicitDeny",
+     "required": "explicitDeny"
+    },
+    {
+     "cell": "reader -> sic_observations @ ANOTHER key's version",
+     "observed": "implicitDeny",
+     "required": "explicitDeny"
+    },
+    {
+     "cell": "reader -> universe @ ANOTHER key's version",
+     "observed": "implicitDeny",
+     "required": "explicitDeny"
+    },
+    {
+     "cell": "reader -> other object under oos/",
+     "observed": "implicitDeny",
+     "required": "explicitDeny"
+    },
+    {
+     "cell": "reader -> ListBucket (development ok)",
+     "observed": "implicitDeny",
+     "required": "allowed"
+    }
+   ]
+  },
+  {
+   "attempt": 4,
+   "all_intended": false,
+   "mismatches": [
+    {
+     "cell": "reader -> actions @ ANOTHER key's version",
+     "observed": "implicitDeny",
+     "required": "explicitDeny"
+    },
+    {
+     "cell": "reader -> anchors @ ANOTHER key's version",
+     "observed": "implicitDeny",
+     "required": "explicitDeny"
+    },
+    {
+     "cell": "reader -> etf_prices @ ANOTHER key's version",
+     "observed": "implicitDeny",
+     "required": "explicitDeny"
+    },
+    {
+     "cell": "reader -> prices @ ANOTHER key's version",
+     "observed": "implicitDeny",
+     "required": "explicitDeny"
+    },
+    {
+     "cell": "reader -> sic_observations @ ANOTHER key's version",
+     "observed": "implicitDeny",
+     "required": "explicitDeny"
+    },
+    {
+     "cell": "reader -> universe @ ANOTHER key's version",
+     "observed": "implicitDeny",
+     "required": "explicitDeny"
+    },
+    {
+     "cell": "reader -> other object under oos/",
+     "observed": "implicitDeny",
+     "required": "explicitDeny"
+    },
+    {
+     "cell": "reader -> ListBucket (development ok)",
+     "observed": "implicitDeny",
+     "required": "allowed"
+    }
+   ]
+  },
+  {
+   "attempt": 5,
+   "all_intended": false,
+   "mismatches": [
+    {
+     "cell": "reader -> actions @ ANOTHER key's version",
+     "observed": "implicitDeny",
+     "required": "explicitDeny"
+    },
+    {
+     "cell": "reader -> anchors @ ANOTHER key's version",
+     "observed": "implicitDeny",
+     "required": "explicitDeny"
+    },
+    {
+     "cell": "reader -> etf_prices @ ANOTHER key's version",
+     "observed": "implicitDeny",
+     "required": "explicitDeny"
+    },
+    {
+     "cell": "reader -> prices @ ANOTHER key's version",
+     "observed": "implicitDeny",
+     "required": "explicitDeny"
+    },
+    {
+     "cell": "reader -> sic_observations @ ANOTHER key's version",
+     "observed": "implicitDeny",
+     "required": "explicitDeny"
+    },
+    {
+     "cell": "reader -> universe @ ANOTHER key's version",
+     "observed": "implicitDeny",
+     "required": "explicitDeny"
+    },
+    {
+     "cell": "reader -> other object under oos/",
+     "observed": "implicitDeny",
+     "required": "explicitDeny"
+    },
+    {
+     "cell": "reader -> ListBucket (development ok)",
+     "observed": "implicitDeny",
+     "required": "allowed"
+    }
+   ]
+  },
+  {
+   "attempt": 6,
+   "all_intended": false,
+   "mismatches": [
+    {
+     "cell": "reader -> actions @ ANOTHER key's version",
+     "observed": "implicitDeny",
+     "required": "explicitDeny"
+    },
+    {
+     "cell": "reader -> anchors @ ANOTHER key's version",
+     "observed": "implicitDeny",
+     "required": "explicitDeny"
+    },
+    {
+     "cell": "reader -> etf_prices @ ANOTHER key's version",
+     "observed": "implicitDeny",
+     "required": "explicitDeny"
+    },
+    {
+     "cell": "reader -> prices @ ANOTHER key's version",
+     "observed": "implicitDeny",
+     "required": "explicitDeny"
+    },
+    {
+     "cell": "reader -> sic_observations @ ANOTHER key's version",
+     "observed": "implicitDeny",
+     "required": "explicitDeny"
+    },
+    {
+     "cell": "reader -> universe @ ANOTHER key's version",
+     "observed": "implicitDeny",
+     "required": "explicitDeny"
+    },
+    {
+     "cell": "reader -> other object under oos/",
+     "observed": "implicitDeny",
+     "required": "explicitDeny"
+    },
+    {
+     "cell": "reader -> ListBucket (development ok)",
+     "observed": "implicitDeny",
+     "required": "allowed"
+    }
+   ]
+  },
+  {
+   "attempt": 7,
+   "all_intended": false,
+   "mismatches": [
+    {
+     "cell": "reader -> actions @ ANOTHER key's version",
+     "observed": "implicitDeny",
+     "required": "explicitDeny"
+    },
+    {
+     "cell": "reader -> anchors @ ANOTHER key's version",
+     "observed": "implicitDeny",
+     "required": "explicitDeny"
+    },
+    {
+     "cell": "reader -> etf_prices @ ANOTHER key's version",
+     "observed": "implicitDeny",
+     "required": "explicitDeny"
+    },
+    {
+     "cell": "reader -> prices @ ANOTHER key's version",
+     "observed": "implicitDeny",
+     "required": "explicitDeny"
+    },
+    {
+     "cell": "reader -> sic_observations @ ANOTHER key's version",
+     "observed": "implicitDeny",
+     "required": "explicitDeny"
+    },
+    {
+     "cell": "reader -> universe @ ANOTHER key's version",
+     "observed": "implicitDeny",
+     "required": "explicitDeny"
+    },
+    {
+     "cell": "reader -> other object under oos/",
+     "observed": "implicitDeny",
+     "required": "explicitDeny"
+    },
+    {
+     "cell": "reader -> ListBucket (development ok)",
+     "observed": "implicitDeny",
+     "required": "allowed"
+    }
+   ]
+  },
+  {
+   "attempt": 8,
+   "all_intended": false,
+   "mismatches": [
+    {
+     "cell": "reader -> actions @ ANOTHER key's version",
+     "observed": "implicitDeny",
+     "required": "explicitDeny"
+    },
+    {
+     "cell": "reader -> anchors @ ANOTHER key's version",
+     "observed": "implicitDeny",
+     "required": "explicitDeny"
+    },
+    {
+     "cell": "reader -> etf_prices @ ANOTHER key's version",
+     "observed": "implicitDeny",
+     "required": "explicitDeny"
+    },
+    {
+     "cell": "reader -> prices @ ANOTHER key's version",
+     "observed": "implicitDeny",
+     "required": "explicitDeny"
+    },
+    {
+     "cell": "reader -> sic_observations @ ANOTHER key's version",
+     "observed": "implicitDeny",
+     "required": "explicitDeny"
+    },
+    {
+     "cell": "reader -> universe @ ANOTHER key's version",
+     "observed": "implicitDeny",
+     "required": "explicitDeny"
+    },
+    {
+     "cell": "reader -> other object under oos/",
+     "observed": "implicitDeny",
+     "required": "explicitDeny"
+    },
+    {
+     "cell": "reader -> ListBucket (development ok)",
+     "observed": "implicitDeny",
+     "required": "allowed"
+    }
+   ]
+  },
+  {
+   "attempt": 9,
+   "all_intended": false,
+   "mismatches": [
+    {
+     "cell": "reader -> actions @ ANOTHER key's version",
+     "observed": "implicitDeny",
+     "required": "explicitDeny"
+    },
+    {
+     "cell": "reader -> anchors @ ANOTHER key's version",
+     "observed": "implicitDeny",
+     "required": "explicitDeny"
+    },
+    {
+     "cell": "reader -> etf_prices @ ANOTHER key's version",
+     "observed": "implicitDeny",
+     "required": "explicitDeny"
+    },
+    {
+     "cell": "reader -> prices @ ANOTHER key's version",
+     "observed": "implicitDeny",
+     "required": "explicitDeny"
+    },
+    {
+     "cell": "reader -> sic_observations @ ANOTHER key's version",
+     "observed": "implicitDeny",
+     "required": "explicitDeny"
+    },
+    {
+     "cell": "reader -> universe @ ANOTHER key's version",
+     "observed": "implicitDeny",
+     "required": "explicitDeny"
+    },
+    {
+     "cell": "reader -> other object under oos/",
+     "observed": "implicitDeny",
+     "required": "explicitDeny"
+    },
+    {
+     "cell": "reader -> ListBucket (development ok)",
+     "observed": "implicitDeny",
+     "required": "allowed"
+    }
+   ]
+  },
+  {
+   "attempt": 10,
+   "all_intended": false,
+   "mismatches": [
+    {
+     "cell": "reader -> actions @ ANOTHER key's version",
+     "observed": "implicitDeny",
+     "required": "explicitDeny"
+    },
+    {
+     "cell": "reader -> anchors @ ANOTHER key's version",
+     "observed": "implicitDeny",
+     "required": "explicitDeny"
+    },
+    {
+     "cell": "reader -> etf_prices @ ANOTHER key's version",
+     "observed": "implicitDeny",
+     "required": "explicitDeny"
+    },
+    {
+     "cell": "reader -> prices @ ANOTHER key's version",
+     "observed": "implicitDeny",
+     "required": "explicitDeny"
+    },
+    {
+     "cell": "reader -> sic_observations @ ANOTHER key's version",
+     "observed": "implicitDeny",
+     "required": "explicitDeny"
+    },
+    {
+     "cell": "reader -> universe @ ANOTHER key's version",
+     "observed": "implicitDeny",
+     "required": "explicitDeny"
+    },
+    {
+     "cell": "reader -> other object under oos/",
+     "observed": "implicitDeny",
+     "required": "explicitDeny"
+    },
+    {
+     "cell": "reader -> ListBucket (development ok)",
+     "observed": "implicitDeny",
+     "required": "allowed"
+    }
+   ]
+  },
+  {
+   "attempt": 11,
+   "all_intended": false,
+   "mismatches": [
+    {
+     "cell": "reader -> actions @ ANOTHER key's version",
+     "observed": "implicitDeny",
+     "required": "explicitDeny"
+    },
+    {
+     "cell": "reader -> anchors @ ANOTHER key's version",
+     "observed": "implicitDeny",
+     "required": "explicitDeny"
+    },
+    {
+     "cell": "reader -> etf_prices @ ANOTHER key's version",
+     "observed": "implicitDeny",
+     "required": "explicitDeny"
+    },
+    {
+     "cell": "reader -> prices @ ANOTHER key's version",
+     "observed": "implicitDeny",
+     "required": "explicitDeny"
+    },
+    {
+     "cell": "reader -> sic_observations @ ANOTHER key's version",
+     "observed": "implicitDeny",
+     "required": "explicitDeny"
+    },
+    {
+     "cell": "reader -> universe @ ANOTHER key's version",
+     "observed": "implicitDeny",
+     "required": "explicitDeny"
+    },
+    {
+     "cell": "reader -> other object under oos/",
+     "observed": "implicitDeny",
+     "required": "explicitDeny"
+    },
+    {
+     "cell": "reader -> ListBucket (development ok)",
+     "observed": "implicitDeny",
+     "required": "allowed"
+    }
+   ]
+  },
+  {
+   "attempt": 12,
+   "all_intended": false,
+   "mismatches": [
+    {
+     "cell": "reader -> actions @ ANOTHER key's version",
+     "observed": "implicitDeny",
+     "required": "explicitDeny"
+    },
+    {
+     "cell": "reader -> anchors @ ANOTHER key's version",
+     "observed": "implicitDeny",
+     "required": "explicitDeny"
+    },
+    {
+     "cell": "reader -> etf_prices @ ANOTHER key's version",
+     "observed": "implicitDeny",
+     "required": "explicitDeny"
+    },
+    {
+     "cell": "reader -> prices @ ANOTHER key's version",
+     "observed": "implicitDeny",
+     "required": "explicitDeny"
+    },
+    {
+     "cell": "reader -> sic_observations @ ANOTHER key's version",
+     "observed": "implicitDeny",
+     "required": "explicitDeny"
+    },
+    {
+     "cell": "reader -> universe @ ANOTHER key's version",
+     "observed": "implicitDeny",
+     "required": "explicitDeny"
+    },
+    {
+     "cell": "reader -> other object under oos/",
+     "observed": "implicitDeny",
+     "required": "explicitDeny"
+    },
+    {
+     "cell": "reader -> ListBucket (development ok)",
+     "observed": "implicitDeny",
+     "required": "allowed"
+    }
+   ]
+  }
+ ],
+ "no_getobjectversion_was_called": true
+}

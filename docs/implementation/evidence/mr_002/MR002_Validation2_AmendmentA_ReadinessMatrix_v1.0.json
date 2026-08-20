@@ -1,0 +1,100 @@
+{
+ "PROPOSED_REMEDY_NOT_APPLIED": {
+  "change": "replace the single shared-list deny with SIX per-key denies, each 'Deny s3:* on <that key>' with StringNotEquals s3:versionid = <that key's OWN version>, plus one deny for any object under oos/ that is not one of the six registered keys",
+  "effect": "key A presented with key B's version would then hit key A's OWN deny -> explicitDeny",
+  "note": "this changes only the DENY layer. The six Allow statements already bind independently and all six positive cells passed.",
+  "status": "NOT APPLIED. Requires the owner's ruling; it is a re-issue of Amendment A, not an interactive patch."
+ },
+ "TEST_DEFECT_not_a_policy_defect": {
+  "cause": "my matrix omitted the s3:prefix context entry, so the Allow's StringLike condition could not match",
+  "cell": "reader -> ListBucket (development ok)",
+  "conclusion": "the POLICY is correct for listing. The matrix cell was wrong, not the deployment. Recorded as a test defect rather than silently re-scored.",
+  "diagnostic_rerun_with_context": {
+   "no prefix supplied": "implicitDeny",
+   "prefix=development/": "allowed",
+   "prefix=oos/": "explicitDeny",
+   "prefix=reference/": "allowed",
+   "prefix=validation/": "explicitDeny"
+  },
+  "matrix_observed": "implicitDeny",
+  "matrix_required": "allowed"
+ },
+ "WHAT_FAILED": {
+  "cells": [
+   {
+    "cell": "reader -> actions @ ANOTHER key's version",
+    "observed": "implicitDeny",
+    "required": "explicitDeny"
+   },
+   {
+    "cell": "reader -> anchors @ ANOTHER key's version",
+    "observed": "implicitDeny",
+    "required": "explicitDeny"
+   },
+   {
+    "cell": "reader -> etf_prices @ ANOTHER key's version",
+    "observed": "implicitDeny",
+    "required": "explicitDeny"
+   },
+   {
+    "cell": "reader -> prices @ ANOTHER key's version",
+    "observed": "implicitDeny",
+    "required": "explicitDeny"
+   },
+   {
+    "cell": "reader -> sic_observations @ ANOTHER key's version",
+    "observed": "implicitDeny",
+    "required": "explicitDeny"
+   },
+   {
+    "cell": "reader -> universe @ ANOTHER key's version",
+    "observed": "implicitDeny",
+    "required": "explicitDeny"
+   },
+   {
+    "cell": "reader -> other object under oos/",
+    "observed": "implicitDeny",
+    "required": "explicitDeny"
+   }
+  ],
+  "count": 7,
+  "my_error": "I used six INDEPENDENT Allow statements, which is correct, but a SINGLE shared condition list in the corresponding Deny.",
+  "observed": "implicitDeny",
+  "required": "explicitDeny",
+  "root_cause": "DenyValidation2AtAnyUnregisteredVersion uses ONE shared condition StringNotEquals s3:versionid = [all six VersionIds]. When key A is probed with key B's REGISTERED VersionId, that value IS in the shared list, so StringNotEquals is FALSE and the deny does not fire. No Allow matches either, because each Allow pins its own key to its own version \u2014 so the request falls through to IMPLICIT deny.",
+  "security_effect": "NONE \u2014 access is still REFUSED in every failing cell. There is NO over-permission: no cross-key or unregistered-version read is possible.",
+  "why_it_is_still_a_failure": "the registration required EXPLICIT deny. An implicit deny is a weaker guarantee: it can be overridden by any future Allow elsewhere in the policy space, whereas an explicit deny cannot. The owner's requirement to 'mechanically demonstrate that every statement independently binds its own VersionId' is exactly what this construction fails to do at the DENY layer \u2014 the six-key/one-condition error the owner warned about, caught by the test designed to catch it."
+ },
+ "WHAT_PASSED": {
+  "amendment_B_matrix_unchanged": "publisher->reader deny, publisher->sealed deny, publisher->evidence allow, reader->publisher deny",
+  "consumed_validation_1": "explicitDeny (the old ALLOW successfully reversed)",
+  "fabricated_version": "explicitDeny",
+  "open_partitions_still_readable": "development/* and reference/* allowed",
+  "plain_GetObject_on_the_six": "explicitDeny",
+  "reader_writes_governing_evidence": "explicitDeny",
+  "run_host_assume_reader_latch_closed": "explicitDeny",
+  "run_host_direct_sealed_read": "explicitDeny",
+  "sealed_store_write_delete": "explicitDeny",
+  "six_registered_versions_ALLOW": "6/6 \u2014 each key at its OWN registered VersionId, with the s3:versionid context actually supplied, so the pinning condition was genuinely exercised"
+ },
+ "amendment_A_applied": true,
+ "attempts_polled": 12,
+ "boundary": {
+  "latch": "CLOSED / 8",
+  "validation_2_opening": "NOT AUTHORIZED",
+  "withheld_reads": 0
+ },
+ "cells_differing": 8,
+ "cells_matching": 20,
+ "cells_total": 28,
+ "date": "2026-08-20",
+ "disposition": "VALIDATION2_NOT_READY \u2014 READER_POLICY_MISMATCH",
+ "getobjectversion_calls_against_the_six": 0,
+ "not_patched_after_seeing_the_result": "per the owner ruling, the reader policy was NOT edited interactively once the readiness matrix failed. The result is brought for adjudication.",
+ "reader_latch": "8 statements / CLOSED \u2014 never released",
+ "reader_trust_document": "UNCHANGED",
+ "record_identity_sha256": "5e39ff64d8bef7af5de2462d4fafa56b0bece691994364e33524fdccb5c8c033",
+ "record_type": "MR002_Validation2_AmendmentA_ReadinessMatrix",
+ "validation_2_objects_read": 0,
+ "version": "1.0"
+}
