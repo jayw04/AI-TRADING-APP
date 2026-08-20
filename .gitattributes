@@ -61,3 +61,9 @@ docs/implementation/evidence/mr_002/**/*.sha256     text eol=lf
 # BYTES. With core.autocrlf=true a fresh clone would materialize these as CRLF (MR-002 v1.1 rev 3:
 # 35,053 B LF -> 35,688 B CRLF), producing a different hash and silently voiding the binding.
 docs/implementation/TradingWorkbench_MR002_PreRegistration_*.md text eol=lf
+
+# The Phase-3C adoption binding (phase3c/adopted.py) re-hashes this file at import and compares
+# against its LF Git-blob sha. Without an eol pin it checks out CRLF on Windows and the binding
+# fail-closes locally even though the blob is correct — the same trap the phase3c dirs already
+# pin against. The file's committed bytes are unchanged; only the checkout is pinned.
+apps/backend/scripts/mr002_development_run.py text eol=lf

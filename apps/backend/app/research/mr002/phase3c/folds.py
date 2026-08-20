@@ -1,4 +1,4 @@
-"""The five frozen walk-forward folds.
+"""The five frozen walk-forward folds — Validation-2 (amended 2026-08-20, Amendment C).
 
 Literal boundaries from `phase3a/ValidationRunSpecification_v1.0.json` -> "folds", which is itself
 bound to governing preregistration v1.0.4 (`validation_folds_literal_governing`). The frozen fold
@@ -26,12 +26,30 @@ class Fold:
     sessions: int       # the frozen expected count
 
 
-FROZEN_FOLDS: tuple[Fold, ...] = (
+# AMENDED 2026-08-20 — Amendment C. Validation-1's literal fold dates belonged to the CONSUMED
+# partition and do not transfer; they are retained below as history, never as configuration.
+#
+# The Validation-2 literals are NOT newly invented boundaries. They are the same frozen rule -- 5
+# contiguous nearly-equal partitions of the eligible sessions, remainder to the FINAL fold --
+# applied to the Validation-2 window, whose eligible span is ordinals 70..844 of 850. The geometry
+# is IDENTICAL by arithmetic (850 - 69 - 6 = 775; 775/5 = 155, zero remainder), and the ordinal
+# bounds reproduce the scoring-eligible constants this codebase already carried. The date labels
+# below were derived VALUE-BLIND from the session calendar via the authorized custodian path,
+# BEFORE the opening, so there was no opportunity to tune them after seeing any result.
+VALIDATION_1_FOLDS_CONSUMED: tuple[Fold, ...] = (      # historical record only
     Fold(1, date(2020, 1, 13), date(2020, 8, 21), 155),
     Fold(2, date(2020, 8, 24), date(2021, 4, 6), 155),
     Fold(3, date(2021, 4, 7), date(2021, 11, 12), 155),
     Fold(4, date(2021, 11, 15), date(2022, 6, 28), 155),
     Fold(5, date(2022, 6, 29), date(2023, 2, 8), 155),
+)
+
+FROZEN_FOLDS: tuple[Fold, ...] = (
+    Fold(1, date(2023, 5, 30), date(2024, 1, 9), 155),
+    Fold(2, date(2024, 1, 10), date(2024, 8, 21), 155),
+    Fold(3, date(2024, 8, 22), date(2025, 4, 4), 155),
+    Fold(4, date(2025, 4, 7), date(2025, 11, 14), 155),
+    Fold(5, date(2025, 11, 17), date(2026, 7, 1), 155),
 )
 
 EXPECTED_ELIGIBLE_SESSIONS = 775

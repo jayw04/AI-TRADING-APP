@@ -99,14 +99,35 @@ def _sessions_for_frozen_folds() -> list[date]:
 
 
 def test_fold_boundaries_are_the_frozen_literals():
+    # Validation-2 literals (Amendment C, 2026-08-20). Validation-1's folds belonged to the
+    # CONSUMED partition; they are asserted separately below as history, not as configuration.
     assert [(f.index, str(f.first), str(f.last)) for f in folds.FROZEN_FOLDS] == [
+        (1, "2023-05-30", "2024-01-09"),
+        (2, "2024-01-10", "2024-08-21"),
+        (3, "2024-08-22", "2025-04-04"),
+        (4, "2025-04-07", "2025-11-14"),
+        (5, "2025-11-17", "2026-07-01"),
+    ]
+    assert sum(f.sessions for f in folds.FROZEN_FOLDS) == folds.EXPECTED_ELIGIBLE_SESSIONS == 775
+
+
+def test_validation_1_folds_are_retained_as_history_only():
+    """The consumed partition's folds must survive as a record and must NEVER be the live config."""
+    assert [(f.index, str(f.first), str(f.last)) for f in folds.VALIDATION_1_FOLDS_CONSUMED] == [
         (1, "2020-01-13", "2020-08-21"),
         (2, "2020-08-24", "2021-04-06"),
         (3, "2021-04-07", "2021-11-12"),
         (4, "2021-11-15", "2022-06-28"),
         (5, "2022-06-29", "2023-02-08"),
     ]
-    assert sum(f.sessions for f in folds.FROZEN_FOLDS) == folds.EXPECTED_ELIGIBLE_SESSIONS == 775
+    assert folds.FROZEN_FOLDS != folds.VALIDATION_1_FOLDS_CONSUMED
+
+
+def test_fold_boundaries_agree_with_the_scoring_eligible_constants():
+    """The folds and the window constants must not be able to drift apart silently."""
+    from app.research.mr002.phase3c import SCORING_ELIGIBLE_FIRST, SCORING_ELIGIBLE_LAST
+    assert folds.FROZEN_FOLDS[0].first == SCORING_ELIGIBLE_FIRST
+    assert folds.FROZEN_FOLDS[-1].last == SCORING_ELIGIBLE_LAST
 
 
 def test_fold_assignment_is_contiguous_and_total():
@@ -125,9 +146,12 @@ def test_short_fold_is_an_integrity_failure():
 
 
 def test_sessions_outside_the_scoring_span_are_not_assigned():
-    assert folds.fold_of(date(2019, 10, 3)) is None      # formation lead-in
-    assert folds.fold_of(date(2023, 2, 16)) is None      # past the scoring-eligible last
-    assert folds.fold_of(date(2020, 1, 13)) == 1
+    assert folds.fold_of(date(2023, 2, 17)) is None      # formation lead-in (window first session)
+    assert folds.fold_of(date(2026, 7, 10)) is None      # past the scoring-eligible last
+    assert folds.fold_of(date(2023, 5, 30)) == 1         # first scoring-eligible session
+    # the CONSUMED Validation-1 span must no longer map anywhere
+    assert folds.fold_of(date(2020, 1, 13)) is None
+    assert folds.fold_of(date(2023, 2, 8)) is None
 
 
 # ----------------------------------------------------------------- gates

@@ -31,17 +31,51 @@ from __future__ import annotations
 
 from datetime import date
 
-# ---- windows (phase3a/ValidationRunSpecification_v1.0.json -> "windows") -----------------
-VALIDATION_WINDOW_START = date(2019, 10, 3)
-VALIDATION_WINDOW_END = date(2023, 2, 16)
-SCORING_ELIGIBLE_FIRST = date(2020, 1, 13)
-SCORING_ELIGIBLE_LAST = date(2023, 2, 8)
+# ---- windows -----------------------------------------------------------------------------
+# AMENDED 2026-08-20 by MR002_Validation2_ProspectiveAmendmentDrafts_v1.0 Amendment C, under the
+# owner ruling that redesignated the pristine former-OOS partition as Validation-2 and reassigned
+# the OOS role to prospective post-seal accrual.
+#
+# ⛔ WHY THIS AMENDMENT WAS NECESSARY, and what it deliberately does NOT do.
+# Governance moved the holdout boundary; this module kept enforcing the old one, exactly as it
+# should have. The previous OOS_WINDOW_START (2023-05-30) is the FIRST SCORING-ELIGIBLE session of
+# what is now Validation-2, so the interlock would have aborted the replay at the very session
+# scoring begins. The fix is to move the governed boundary. The interlock itself is UNCHANGED and
+# still fatal. `assert_oos_boundary=False` remains PROHIBITED for qualifying or executing
+# Validation-2 -- switching off the check that enforces a boundary is not the same as moving it.
+#
+# Validation-1 (2019-10-03 .. 2023-02-16) is CONSUMED and permanently inadmissible; its literals
+# are retained below as history, never as configuration.
+VALIDATION_1_WINDOW_START = date(2019, 10, 3)      # CONSUMED - historical record only
+VALIDATION_1_WINDOW_END = date(2023, 2, 16)        # CONSUMED - historical record only
+
+VALIDATION_WINDOW_START = date(2023, 2, 17)
+VALIDATION_WINDOW_END = date(2026, 7, 10)
+SCORING_ELIGIBLE_FIRST = date(2023, 5, 30)
+SCORING_ELIGIBLE_LAST = date(2026, 7, 1)
 VALIDATION_WINDOW_SESSIONS = 850
 ELIGIBLE_SESSIONS = 775
 
-# The sealed OOS window. Touching it is fatal, not advisory.
-OOS_WINDOW_START = date(2023, 5, 30)
-OOS_WINDOW_END = date(2026, 7, 1)
+# ⭐ The scoring-eligible bounds above are ordinals 70 and 844 of the 850-session window. They were
+# NOT chosen: they are the identical values this module already carried as the OOS scoring window,
+# frozen long before Cycle 2C from the same 69-formation / 6-realization arithmetic, and they were
+# independently recomputed by MR002_Validation2_StructuralPreflight_v1.0
+# (3810e071761a5100fe8cda6754488ebac5230f74b1b5e0f812ec53764d94436a). That agreement is
+# corroboration, not the derivation.
+
+# The sealed holdout beyond Validation-2. Touching it is fatal, not advisory.
+#
+# The new OOS is PROSPECTIVE post-seal accrual and does not exist in the governed corpus, whose
+# latest source date is 2026-07-10. A concrete start date therefore CANNOT be derived today and is
+# deliberately not invented. The interlock is expressed against the Validation-2 window END, which
+# is mechanical and needs no future calendar: any session beyond the Validation-2 partition is out
+# of bounds, whether it is unallocated or new OOS.
+NEW_OOS_ACCRUAL_RULE = (
+    "the first eligible market session under the governing calendar STRICTLY AFTER the Cycle-2C "
+    "seal of 2026-08-20. Resolved by the calendar when accrual begins; not hard-coded here, "
+    "because the corpus ends 2026-07-10 and any literal would be fabricated."
+)
+OUT_OF_BOUNDS_AFTER = VALIDATION_WINDOW_END
 
 # ---- frozen economics (phase3a/ValidationCostExecutionSpecification_v1.0.json) -----------
 NAV0 = 10_000_000.0

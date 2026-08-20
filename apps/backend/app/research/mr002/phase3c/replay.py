@@ -53,7 +53,7 @@ from app.research.mr002.runner import _candidates
 from . import (
     DRIFT_REPAIR_QUANTITY_UNDEFINED,
     OOS_BOUNDARY_VIOLATION,
-    OOS_WINDOW_START,
+    OUT_OF_BOUNDS_AFTER,
     IntegrityFailure,
 )
 from .adopted import load as _load_adopted
@@ -138,10 +138,15 @@ def run_config_validation(days, cfg, *, assert_oos_boundary: bool = True) -> Val
     prev: date | None = None
 
     for idx, inp in enumerate(days):
-        if assert_oos_boundary and inp.session >= OOS_WINDOW_START:
+        # Amendment C: the interlock is UNCHANGED and still fatal. Only the governed boundary it
+        # guards has moved. It is now expressed against the Validation-2 window END, which needs no
+        # future calendar: any session beyond the partition is out of bounds, whether unallocated
+        # or new OOS. ⛔ assert_oos_boundary=False remains PROHIBITED for Validation-2.
+        if assert_oos_boundary and inp.session > OUT_OF_BOUNDS_AFTER:
             raise IntegrityFailure(
                 OOS_BOUNDARY_VIOLATION,
-                f"session {inp.session} is at or beyond the sealed OOS start {OOS_WINDOW_START}",
+                f"session {inp.session} is beyond the Validation-2 window end "
+                f"{OUT_OF_BOUNDS_AFTER}; sessions past it are unallocated or sealed new OOS",
             )
 
         nav_open = a.nav
