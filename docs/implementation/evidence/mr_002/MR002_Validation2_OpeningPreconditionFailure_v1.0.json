@@ -1,0 +1,71 @@
+{
+ "REMEDIATION_REQUIRED_BEFORE_ANY_OPENING": [
+  "deploy the Amendment C source to the execution host and bind its identity, so the deployed phase3c matches ad3b578c / 80332650 / e90cbe8e / 3782ecf5",
+  "add a readiness gate that verifies DEPLOYED source identity on the execution host, not only repository state - the gap this incident exposes",
+  "re-verify the full precondition set, then seek a fresh opening ruling"
+ ],
+ "THE_FINDING": {
+  "deployed_constants": {
+   "FROZEN_FOLDS": "Fold(1, 2020-01-13 ..) .. Fold(5, .., 2023-02-08) - Validation-1 folds",
+   "OOS_WINDOW_START": "2023-05-30 (the OLD boundary)",
+   "SCORING_ELIGIBLE_FIRST": "2020-01-13 (Validation-1 folds)",
+   "VALIDATION_WINDOW_START": "2019-10-03 (CONSUMED Validation-1)"
+  },
+  "host": "i-00c1034f7026db45e, source tree /opt/mr002/phase3c_src deployed 2026-08-19 02:48Z, BEFORE Amendment C was authored",
+  "source_identity_comparison": {
+   "__init__.py": {
+    "deployed_on_host": "ec3a8c3129e58ee1ff00bf125cfaff13e50ec2befa0ad6fe1047b513aedbcbd7",
+    "matches": false,
+    "required_amendment_C": "ad3b578c5e9965c21e734b18431f82d5602463481d1dd57ee242b8c0e5483c9f"
+   },
+   "folds.py": {
+    "deployed_on_host": "e925799c099c5cfd17ab60917a94f806370165acd905422f5828c3a2db984bb9",
+    "matches": false,
+    "required_amendment_C": "8033265051b02d730900538693a662b4af6e2bc80a410090add83d8d38db103f"
+   },
+   "gates.py": {
+    "deployed_on_host": "3782ecf59189dacbbfa04a57cf6f503118721db6a40271a0a2994e15fd377ad3",
+    "matches": true,
+    "required_amendment_C": "3782ecf59189dacbbfa04a57cf6f503118721db6a40271a0a2994e15fd377ad3"
+   },
+   "replay.py": {
+    "deployed_on_host": "bddd8a67924aad6fc2afabc6c7f7f6898241e2a7f6f8d74f3fe9b39d9a24721b",
+    "matches": false,
+    "required_amendment_C": "e90cbe8edf2c50d90e7d4fd3c87d2ce6b4605a7023b0e3a75d506bfec4ad8b87"
+   }
+  },
+  "summary": "the execution host carries PRE-Amendment-C source. Running the opening as deployed would have consumed Validation-2 and produced NO economic verdict - the exact failure mode that consumed Validation-1 on 2026-08-19.",
+  "three_of_four_differ": "__init__.py, folds.py and replay.py - exactly the three files Amendment C changed. gates.py matches because Amendment C did not touch it.",
+  "what_would_have_happened": [
+   "1. the six Validation-2 objects are read and materialised -> THE OPENING IS CONSUMED",
+   "2. mr002_phase3c_validation_run.py selects its window from VALIDATION_WINDOW_START/END, which on this host are 2019-10-03..2023-02-16 - the CONSUMED Validation-1 range",
+   "3. that range has ZERO overlap with the Validation-2 partition (2023-02-17..2026-07-10), so day_inputs returns an empty session list and the run fails on days[0] or on fold verification",
+   "4. and had it reached 2023-05-30, the OLD interlock would have raised OOS_BOUNDARY_VIOLATION",
+   "=> opening consumed, no economic verdict, for a second time"
+  ],
+  "why_the_readiness_record_did_not_catch_it": "the readiness qualification bound the AMENDED source by Git blob and verified Amendment C was applied IN THE REPOSITORY. It did not verify that the EXECUTION HOST carries that source. That is a real gap in my readiness gates, not a subtlety - 'applied' was checked at the wrong place."
+ },
+ "authorization_under_which_this_was_checked": "owner one-shot Validation-2 opening ruling 2026-08-20, step 1 (verify governing identities) and step 2 (start required infrastructure)",
+ "boundary": {
+  "latch": "8 / CLOSED",
+  "validation_2_opening": "NOT CONSUMED \u2014 still available",
+  "withheld_reads": 0
+ },
+ "date": "2026-08-20",
+ "disposition": "OPENING_NOT_BEGUN \u2014 PRECONDITION_FAILED_AT_VERIFICATION",
+ "host_returned_to_intended_state": "stopped",
+ "latch_state": "8 / CLOSED \u2014 never touched",
+ "not_an_abort": "this is NOT PRE_READ_ABORT_NOT_CONSUMED. The opening sequence was never STARTED. The failure was caught at the owner's own step 1, 'verify immediately before opening that the governing identities still match'. The latch was never mutated and no reader was assumed.",
+ "opening_consumed": false,
+ "record_identity_sha256": "c2f4d8b2be50fb9c405b967e714cd4f3351d84323ecda492281348876ffb510d",
+ "record_type": "MR002_Validation2_OpeningPreconditionFailure",
+ "validation_2_objects_read": 0,
+ "version": "1.0",
+ "what_was_NOT_done": [
+  "the latch was NOT released",
+  "no reader was assumed",
+  "no Validation-2 object was read",
+  "no evaluator was executed",
+  "no source was deployed or modified on the host during this check"
+ ]
+}
