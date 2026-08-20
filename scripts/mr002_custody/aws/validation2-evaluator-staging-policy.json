@@ -1,0 +1,23 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "StageValidation2EvidenceWriteOnly",
+      "Effect": "Allow",
+      "Action": "s3:PutObject",
+      "Resource": "arn:aws:s3:::workbench-backups-219024422756/mr002/validation2-evidence-staging/*"
+    },
+    {
+      "Sid": "DenyAssumingTheEvidencePublisherRole",
+      "Effect": "Deny",
+      "Action": "sts:AssumeRole",
+      "Resource": "arn:aws:iam::219024422756:role/mr002-validation2-evidence-publisher"
+    },
+    {
+      "Sid": "DenyReadingTheEvidenceStaging",
+      "Effect": "Deny",
+      "Action": ["s3:GetObject", "s3:GetObjectVersion", "s3:ListBucket"],
+      "Resource": "arn:aws:s3:::workbench-backups-219024422756/mr002/validation2-evidence-staging/*"
+    }
+  ]
+}

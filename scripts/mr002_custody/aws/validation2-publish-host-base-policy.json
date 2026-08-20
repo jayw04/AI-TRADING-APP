@@ -1,0 +1,35 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "AssumeTheEvidencePublisherOnly",
+      "Effect": "Allow",
+      "Action": "sts:AssumeRole",
+      "Resource": "arn:aws:iam::219024422756:role/mr002-validation2-evidence-publisher"
+    },
+    {
+      "Sid": "DenyAssumingTheValidationReaderRole",
+      "Effect": "Deny",
+      "Action": "sts:AssumeRole",
+      "Resource": "arn:aws:iam::219024422756:role/mr002-validation-reader"
+    },
+    {
+      "Sid": "DenyAllAccessToTheSealedStore",
+      "Effect": "Deny",
+      "Action": "s3:*",
+      "Resource": [
+        "arn:aws:s3:::workbench-mr002-sealed-219024422756",
+        "arn:aws:s3:::workbench-mr002-sealed-219024422756/*"
+      ]
+    },
+    {
+      "Sid": "DenyEditingTheCredentialReleaseControl",
+      "Effect": "Deny",
+      "Action": [
+        "iam:UpdateAssumeRolePolicy", "iam:PutRolePolicy", "iam:AttachRolePolicy",
+        "iam:CreateRole", "iam:DeleteRolePolicy"
+      ],
+      "Resource": "*"
+    }
+  ]
+}

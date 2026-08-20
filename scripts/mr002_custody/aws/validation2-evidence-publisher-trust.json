@@ -1,0 +1,16 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "AssumableOnlyByThePublisherHostBaseRole",
+      "Effect": "Allow",
+      "Principal": { "AWS": "arn:aws:iam::219024422756:root" },
+      "Action": "sts:AssumeRole",
+      "Condition": {
+        "StringEquals": {
+          "aws:PrincipalArn": "arn:aws:iam::219024422756:role/mr002-validation2-publish-host-role"
+        }
+      }
+    }
+  ]
+}

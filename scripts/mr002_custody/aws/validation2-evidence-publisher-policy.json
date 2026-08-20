@@ -1,0 +1,49 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "ReadTheStagedEvidencePackageOnly",
+      "Effect": "Allow",
+      "Action": "s3:GetObject",
+      "Resource": "arn:aws:s3:::workbench-backups-219024422756/mr002/validation2-evidence-staging/*"
+    },
+    {
+      "Sid": "PublishGovernedValidation2Evidence",
+      "Effect": "Allow",
+      "Action": "s3:PutObject",
+      "Resource": "arn:aws:s3:::workbench-backups-219024422756/artifacts/governed/mr002-validation2-execution-evidence/1.0/*"
+    },
+    {
+      "Sid": "ReadBackOwnPublicationForVerification",
+      "Effect": "Allow",
+      "Action": ["s3:GetObject", "s3:GetObjectVersion"],
+      "Resource": "arn:aws:s3:::workbench-backups-219024422756/artifacts/governed/mr002-validation2-execution-evidence/1.0/*"
+    },
+    {
+      "Sid": "DenyAllAccessToTheSealedStore",
+      "Effect": "Deny",
+      "Action": "s3:*",
+      "Resource": ["arn:aws:s3:::workbench-mr002-sealed-219024422756", "arn:aws:s3:::workbench-mr002-sealed-219024422756/*"]
+    },
+    {
+      "Sid": "DenyAssumingTheValidationReaderRole",
+      "Effect": "Deny",
+      "Action": "sts:AssumeRole",
+      "Resource": "arn:aws:iam::219024422756:role/mr002-validation-reader"
+    },
+    {
+      "Sid": "DenyDestroyingPublishedEvidence",
+      "Effect": "Deny",
+      "Action": ["s3:DeleteObject", "s3:DeleteObjectVersion", "s3:PutBucketPolicy",
+                 "s3:PutBucketVersioning", "s3:PutBucketLifecycleConfiguration"],
+      "Resource": "*"
+    },
+    {
+      "Sid": "DenyEditingTheCredentialReleaseControl",
+      "Effect": "Deny",
+      "Action": ["iam:UpdateAssumeRolePolicy", "iam:PutRolePolicy", "iam:AttachRolePolicy",
+                 "iam:CreateRole", "iam:DeleteRolePolicy"],
+      "Resource": "*"
+    }
+  ]
+}

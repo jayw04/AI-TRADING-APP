@@ -1,0 +1,165 @@
+{
+ "STILL_OUTSTANDING_real_STS_proofs": {
+  "rows": [
+   {
+    "blocked_by": "the base role trusts ec2.amazonaws.com, so only an EC2 instance carrying the new mr002-validation2-publish-host instance profile can assume it. No such instance exists yet.",
+    "proof": "publish-host base role -> AssumeRole evidence-publisher",
+    "required": "SUCCESS"
+   },
+   {
+    "blocked_by": "requires instance i-00c1034f7026db45e, currently STOPPED (not terminated)",
+    "proof": "evaluator run-host -> AssumeRole evidence-publisher",
+    "required": "DENIED"
+   },
+   {
+    "blocked_by": "must be executed by the principal HOLDING publisher credentials after the first proof succeeds, per the owner's nuance \u2014 proves the publisher BRANCH cannot pivot, not merely that the base role cannot",
+    "proof": "publisher SESSION -> AssumeRole validation-reader",
+    "required": "DENIED"
+   }
+  ],
+  "what_it_would_take": "launch one small instance with the new instance profile, and start the stopped evaluator host. Both are outward-facing infrastructure actions not yet requested.",
+  "why_simulation_cannot_close_these": "simulate-principal-policy NEVER evaluates a trust policy"
+ },
+ "amendment_applied": {
+  "identity_sha256": "1d27410c626a5748133723a3680625ca07256c334ae39fd1e9bc8529aeb4ed7d",
+  "record": "MR002_Validation2_AmendmentB_TrustCorrection_v1.2"
+ },
+ "authority": "owner ruling 2026-08-20 \u2014 Amendment B v1.2 AUTHORIZED FOR APPLICATION",
+ "boundary": {
+  "amendment_A": "NOT APPLIED",
+  "amendments_applied": [
+   "C",
+   "B v1.2"
+  ],
+  "validation_2_opening": "NOT AUTHORIZED",
+  "withheld_reads": 0
+ },
+ "capability_matrix": {
+  "all_cells_intended": true,
+  "attempts_to_converge": 1,
+  "cells": [
+   {
+    "cell": "evidence-publisher -> sealed Validation-2",
+    "observed": "explicitDeny",
+    "required": "explicitDeny"
+   },
+   {
+    "cell": "evidence-publisher -> consumed Validation-1",
+    "observed": "explicitDeny",
+    "required": "explicitDeny"
+   },
+   {
+    "cell": "evidence-publisher -> governed evidence",
+    "observed": "allowed",
+    "required": "allowed"
+   },
+   {
+    "cell": "evidence-publisher -> read staging",
+    "observed": "allowed",
+    "required": "allowed"
+   },
+   {
+    "cell": "publisher base role -> sealed store",
+    "observed": "explicitDeny",
+    "required": "explicitDeny"
+   },
+   {
+    "cell": "evaluator run-host -> staging PutObject",
+    "observed": "allowed",
+    "required": "allowed"
+   },
+   {
+    "cell": "evaluator run-host -> read staging",
+    "observed": "explicitDeny",
+    "required": "explicitDeny"
+   },
+   {
+    "cell": "validation-reader -> governing evidence write",
+    "observed": "implicitDeny",
+    "required": "implicitDeny"
+   },
+   {
+    "cell": "base role -> AssumeRole publisher",
+    "observed": "allowed",
+    "required": "allowed"
+   },
+   {
+    "cell": "base role -> AssumeRole reader",
+    "observed": "explicitDeny",
+    "required": "explicitDeny"
+   },
+   {
+    "cell": "evaluator run-host -> AssumeRole publisher",
+    "observed": "explicitDeny",
+    "required": "explicitDeny"
+   },
+   {
+    "cell": "evidence-publisher -> AssumeRole reader",
+    "observed": "explicitDeny",
+    "required": "explicitDeny"
+   }
+  ],
+  "converged_on_first_poll": true,
+  "method": "iam simulate-principal-policy, polled until the intended matrix was OBSERVED",
+  "propagation_note": "bound to the OBSERVED effective decision, not to elapsed time"
+ },
+ "created": {
+  "evaluator_side_policy": "mr002-validation2-evaluator-staging (a SEPARATE inline policy)",
+  "instance_profile": "mr002-validation2-publish-host",
+  "roles": [
+   "mr002-validation2-publish-host-role",
+   "mr002-validation2-evidence-publisher"
+  ]
+ },
+ "date": "2026-08-20",
+ "deployed_trust_matches_the_sealed_document": {
+  "base_trust": {
+   "Action": "sts:AssumeRole",
+   "Effect": "Allow",
+   "Principal": {
+    "Service": "ec2.amazonaws.com"
+   },
+   "Sid": "AssumedByThePublisherHostInstanceOnly"
+  },
+  "publisher_trust": {
+   "Action": "sts:AssumeRole",
+   "Condition": {
+    "StringEquals": {
+     "aws:PrincipalArn": "arn:aws:iam::219024422756:role/mr002-validation2-publish-host-role"
+    }
+   },
+   "Effect": "Allow",
+   "Principal": {
+    "AWS": "arn:aws:iam::219024422756:root"
+   },
+   "Sid": "AssumableOnlyByThePublisherHostBaseRole"
+  }
+ },
+ "disposition": "AMENDMENT_B_APPLIED_CAPABILITY_PROVEN_TRUST_PROOF_OUTSTANDING",
+ "latch_preserved": {
+  "latch_semantics_now_determined": {
+   "7_statements": "RELEASED / OPEN \u2014 Deny removed, Allow stands",
+   "8_statements": "LATCHED / CLOSED \u2014 both present, explicit Deny wins",
+   "LOAD_BEARING": "this is NOT technical debt. A future security cleanup must NOT remove the Deny as dead configuration; it is the one-shot control.",
+   "corroboration": "released 12:49:23Z (7), sealed read 12:54:46Z, re-latched 12:56:40Z (8) on 2026-08-19 \u2014 the read falls exactly inside the released interval",
+   "current_state": "8 = CLOSED",
+   "statement_4": "DenyAssumingTheValidationReaderRole (Deny sts:AssumeRole)",
+   "statement_8": "AssumeOnlyTheGovernedValidationReader (Allow sts:AssumeRole)"
+  },
+  "policy": "mr002-phase3c-qualification-only",
+  "signature_preserved": true,
+  "statements_after": 8,
+  "statements_before": 8,
+  "why_a_separate_policy_was_used": "the opening latch is tracked by STATEMENT COUNT \u2014 the 2026-08-19 governed_latch_mutations run 7 -> 8 -> 7 -> 8. Adding the Validation-2 statements into that policy would have shifted its signature to 9/10 and broken any monitor keyed to 7/8. The evaluator-side changes therefore went into a separate inline policy."
+ },
+ "record_identity_sha256": "aebe4612f9a8f84a5a35f4e92372313370d746550c601b4a43c2c1510eb1daef",
+ "record_type": "MR002_Validation2_AmendmentB_ApplicationEvidence",
+ "sealed_store_getobject_calls": 0,
+ "trust_condition_negative_probes": {
+  "admin -> AssumeRole evidence-publisher": "AccessDenied (real STS)",
+  "admin -> AssumeRole validation-reader": "AccessDenied (real STS)",
+  "significance": "the aws:PrincipalArn condition is LIVE, not merely written. A principal outside the allowed base role cannot assume the publisher."
+ },
+ "validation_2_objects_read": 0,
+ "version": "1.0"
+}
