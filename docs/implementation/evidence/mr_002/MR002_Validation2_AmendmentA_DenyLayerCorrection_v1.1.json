@@ -1,0 +1,512 @@
+{
+ "action_scoping_rationale": {
+  "owner_caution_applied": "the per-key denies are scoped to s3:GetObjectVersion, NOT s3:*",
+  "registered_subtlety": "StringNotEquals against an ABSENT context key evaluates TRUE, so a GetObjectVersion carrying NO version on key K also hits K's deny. That is intended, and is added as an explicit test cell rather than left implied.",
+  "why": "a Deny s3:* carrying a VersionId condition behaves confusingly for operations that do not supply that context key. Ordinary GetObject, writes and deletes are left to the existing UNCONDITIONAL denies, which already return explicitDeny for them."
+ },
+ "authorizes": "NOTHING. Application requires the owner's separate go-ahead after reviewing this identity and the diff.",
+ "boundary": {
+  "amendments_applied": [
+   "C",
+   "B v1.2",
+   "A v1.0"
+  ],
+  "latch": "CLOSED / 8",
+  "validation_2_opening": "NOT AUTHORIZED",
+  "withheld_reads": 0
+ },
+ "condition_key_casing": {
+  "material": false,
+  "v1_0": "s3:versionid",
+  "v1_1": "s3:VersionId",
+  "why": "IAM condition-key NAMES are case-insensitive; all six v1.0 positive cells passed. Changed for readability only."
+ },
+ "date": "2026-08-20",
+ "defect": {
+  "mechanism": "a valid VersionId for key B suppresses the deny while probing key A, leaving only implicit denial",
+  "observed": "7 cells implicitDeny where explicitDeny was registered",
+  "over_permission": "NONE - every such request was still refused",
+  "what": "one shared condition StringNotEquals s3:VersionId=[all six] cannot express six independent key/version exclusions"
+ },
+ "does_this_open_validation_2": {
+  "answer": "NO",
+  "proof": "it only NARROWS access: one deny is replaced by seven stricter denies. No Allow is added or widened."
+ },
+ "exact_diff": {
+  "added": 7,
+  "allow_layer_identical_modulo_casing": true,
+  "allow_statement_count": "8 -> 8",
+  "condition_key_casing_only": 6,
+  "preserved_unchanged": [
+   "DenyAnyWriteToTheSealedStore",
+   "DenyPublishingGoverningEvidence",
+   "DenyAssumingTheEvidencePublisherRole",
+   "DenyTheConsumedValidation1Partition",
+   "DenyEveryActionOnValidation2ExceptPinnedVersionReads",
+   "DenyListingTheHoldoutPrefixes"
+  ],
+  "removed": 1,
+  "semantically_changed": 0,
+  "statement_count": "15 -> 21"
+ },
+ "policy_document_v1_0_as_applied": {
+  "Statement": [
+   {
+    "Action": "s3:GetObjectVersion",
+    "Condition": {
+     "StringEquals": {
+      "s3:versionid": "F6m6am6cBahBd95p41C1.aAVmYd8GuNG"
+     }
+    },
+    "Effect": "Allow",
+    "Resource": "arn:aws:s3:::workbench-mr002-sealed-219024422756/oos/actions.parquet",
+    "Sid": "ReadValidation2ActionsAtItsRegisteredVersionOnly"
+   },
+   {
+    "Action": "s3:GetObjectVersion",
+    "Condition": {
+     "StringEquals": {
+      "s3:versionid": "RsJZG3TkDXvNPERJhZVanJ.Vqg8_dulw"
+     }
+    },
+    "Effect": "Allow",
+    "Resource": "arn:aws:s3:::workbench-mr002-sealed-219024422756/oos/anchors.parquet",
+    "Sid": "ReadValidation2AnchorsAtItsRegisteredVersionOnly"
+   },
+   {
+    "Action": "s3:GetObjectVersion",
+    "Condition": {
+     "StringEquals": {
+      "s3:versionid": "Z3OsUeuucMYIl2v9JDoVNDx1nw.0avDj"
+     }
+    },
+    "Effect": "Allow",
+    "Resource": "arn:aws:s3:::workbench-mr002-sealed-219024422756/oos/etf_prices.parquet",
+    "Sid": "ReadValidation2EtfPricesAtItsRegisteredVersionOnly"
+   },
+   {
+    "Action": "s3:GetObjectVersion",
+    "Condition": {
+     "StringEquals": {
+      "s3:versionid": "1ope9PR._oR303.EbZNGPVlIJRy.SZbA"
+     }
+    },
+    "Effect": "Allow",
+    "Resource": "arn:aws:s3:::workbench-mr002-sealed-219024422756/oos/prices.parquet",
+    "Sid": "ReadValidation2PricesAtItsRegisteredVersionOnly"
+   },
+   {
+    "Action": "s3:GetObjectVersion",
+    "Condition": {
+     "StringEquals": {
+      "s3:versionid": "DPhtWW3Pca3TKtSa1LOnGKA.yrZ98EIt"
+     }
+    },
+    "Effect": "Allow",
+    "Resource": "arn:aws:s3:::workbench-mr002-sealed-219024422756/oos/sic_observations.parquet",
+    "Sid": "ReadValidation2SicObservationsAtItsRegisteredVersionOnly"
+   },
+   {
+    "Action": "s3:GetObjectVersion",
+    "Condition": {
+     "StringEquals": {
+      "s3:versionid": "0gaqJ9TuECc3U_zar99sqls2UHRDnkkY"
+     }
+    },
+    "Effect": "Allow",
+    "Resource": "arn:aws:s3:::workbench-mr002-sealed-219024422756/oos/universe.parquet",
+    "Sid": "ReadValidation2UniverseAtItsRegisteredVersionOnly"
+   },
+   {
+    "Action": [
+     "s3:GetObject",
+     "s3:GetObjectVersion"
+    ],
+    "Effect": "Allow",
+    "Resource": [
+     "arn:aws:s3:::workbench-mr002-sealed-219024422756/reference/*",
+     "arn:aws:s3:::workbench-mr002-sealed-219024422756/development/*"
+    ],
+    "Sid": "ReadOpenReferenceAndDevelopmentPartitions"
+   },
+   {
+    "Action": "s3:ListBucket",
+    "Condition": {
+     "StringLike": {
+      "s3:prefix": [
+       "development/*",
+       "reference/*"
+      ]
+     }
+    },
+    "Effect": "Allow",
+    "Resource": "arn:aws:s3:::workbench-mr002-sealed-219024422756",
+    "Sid": "ListOnlyTheOpenPrefixes"
+   },
+   {
+    "Action": "s3:ListBucket",
+    "Condition": {
+     "StringLike": {
+      "s3:prefix": [
+       "oos/*",
+       "validation/*"
+      ]
+     }
+    },
+    "Effect": "Deny",
+    "Resource": "arn:aws:s3:::workbench-mr002-sealed-219024422756",
+    "Sid": "DenyListingTheHoldoutPrefixes"
+   },
+   {
+    "Action": "s3:*",
+    "Effect": "Deny",
+    "Resource": [
+     "arn:aws:s3:::workbench-mr002-sealed-219024422756/validation/*"
+    ],
+    "Sid": "DenyTheConsumedValidation1Partition"
+   },
+   {
+    "Effect": "Deny",
+    "NotAction": "s3:GetObjectVersion",
+    "Resource": [
+     "arn:aws:s3:::workbench-mr002-sealed-219024422756/oos/*"
+    ],
+    "Sid": "DenyEveryActionOnValidation2ExceptPinnedVersionReads"
+   },
+   {
+    "Action": "s3:*",
+    "Condition": {
+     "StringNotEquals": {
+      "s3:versionid": [
+       "F6m6am6cBahBd95p41C1.aAVmYd8GuNG",
+       "RsJZG3TkDXvNPERJhZVanJ.Vqg8_dulw",
+       "Z3OsUeuucMYIl2v9JDoVNDx1nw.0avDj",
+       "1ope9PR._oR303.EbZNGPVlIJRy.SZbA",
+       "DPhtWW3Pca3TKtSa1LOnGKA.yrZ98EIt",
+       "0gaqJ9TuECc3U_zar99sqls2UHRDnkkY"
+      ]
+     }
+    },
+    "Effect": "Deny",
+    "Resource": [
+     "arn:aws:s3:::workbench-mr002-sealed-219024422756/oos/*"
+    ],
+    "Sid": "DenyValidation2AtAnyUnregisteredVersion"
+   },
+   {
+    "Action": [
+     "s3:PutObject",
+     "s3:DeleteObject",
+     "s3:DeleteObjectVersion",
+     "s3:PutBucketPolicy",
+     "s3:DeleteBucketPolicy",
+     "s3:PutBucketVersioning"
+    ],
+    "Effect": "Deny",
+    "Resource": [
+     "arn:aws:s3:::workbench-mr002-sealed-219024422756",
+     "arn:aws:s3:::workbench-mr002-sealed-219024422756/*"
+    ],
+    "Sid": "DenyAnyWriteToTheSealedStore"
+   },
+   {
+    "Action": [
+     "s3:PutObject",
+     "s3:DeleteObject",
+     "s3:DeleteObjectVersion"
+    ],
+    "Effect": "Deny",
+    "Resource": [
+     "arn:aws:s3:::workbench-backups-219024422756/artifacts/governed/*",
+     "arn:aws:s3:::workbench-backups-219024422756/mr002/*"
+    ],
+    "Sid": "DenyPublishingGoverningEvidence"
+   },
+   {
+    "Action": "sts:AssumeRole",
+    "Effect": "Deny",
+    "Resource": "arn:aws:iam::219024422756:role/mr002-validation2-evidence-publisher",
+    "Sid": "DenyAssumingTheEvidencePublisherRole"
+   }
+  ],
+  "Version": "2012-10-17"
+ },
+ "policy_document_v1_1": {
+  "Statement": [
+   {
+    "Action": "s3:GetObjectVersion",
+    "Condition": {
+     "StringEquals": {
+      "s3:VersionId": "F6m6am6cBahBd95p41C1.aAVmYd8GuNG"
+     }
+    },
+    "Effect": "Allow",
+    "Resource": "arn:aws:s3:::workbench-mr002-sealed-219024422756/oos/actions.parquet",
+    "Sid": "ReadValidation2ActionsAtItsRegisteredVersionOnly"
+   },
+   {
+    "Action": "s3:GetObjectVersion",
+    "Condition": {
+     "StringEquals": {
+      "s3:VersionId": "RsJZG3TkDXvNPERJhZVanJ.Vqg8_dulw"
+     }
+    },
+    "Effect": "Allow",
+    "Resource": "arn:aws:s3:::workbench-mr002-sealed-219024422756/oos/anchors.parquet",
+    "Sid": "ReadValidation2AnchorsAtItsRegisteredVersionOnly"
+   },
+   {
+    "Action": "s3:GetObjectVersion",
+    "Condition": {
+     "StringEquals": {
+      "s3:VersionId": "Z3OsUeuucMYIl2v9JDoVNDx1nw.0avDj"
+     }
+    },
+    "Effect": "Allow",
+    "Resource": "arn:aws:s3:::workbench-mr002-sealed-219024422756/oos/etf_prices.parquet",
+    "Sid": "ReadValidation2EtfPricesAtItsRegisteredVersionOnly"
+   },
+   {
+    "Action": "s3:GetObjectVersion",
+    "Condition": {
+     "StringEquals": {
+      "s3:VersionId": "1ope9PR._oR303.EbZNGPVlIJRy.SZbA"
+     }
+    },
+    "Effect": "Allow",
+    "Resource": "arn:aws:s3:::workbench-mr002-sealed-219024422756/oos/prices.parquet",
+    "Sid": "ReadValidation2PricesAtItsRegisteredVersionOnly"
+   },
+   {
+    "Action": "s3:GetObjectVersion",
+    "Condition": {
+     "StringEquals": {
+      "s3:VersionId": "DPhtWW3Pca3TKtSa1LOnGKA.yrZ98EIt"
+     }
+    },
+    "Effect": "Allow",
+    "Resource": "arn:aws:s3:::workbench-mr002-sealed-219024422756/oos/sic_observations.parquet",
+    "Sid": "ReadValidation2SicObservationsAtItsRegisteredVersionOnly"
+   },
+   {
+    "Action": "s3:GetObjectVersion",
+    "Condition": {
+     "StringEquals": {
+      "s3:VersionId": "0gaqJ9TuECc3U_zar99sqls2UHRDnkkY"
+     }
+    },
+    "Effect": "Allow",
+    "Resource": "arn:aws:s3:::workbench-mr002-sealed-219024422756/oos/universe.parquet",
+    "Sid": "ReadValidation2UniverseAtItsRegisteredVersionOnly"
+   },
+   {
+    "Action": [
+     "s3:GetObject",
+     "s3:GetObjectVersion"
+    ],
+    "Effect": "Allow",
+    "Resource": [
+     "arn:aws:s3:::workbench-mr002-sealed-219024422756/reference/*",
+     "arn:aws:s3:::workbench-mr002-sealed-219024422756/development/*"
+    ],
+    "Sid": "ReadOpenReferenceAndDevelopmentPartitions"
+   },
+   {
+    "Action": "s3:ListBucket",
+    "Condition": {
+     "StringLike": {
+      "s3:prefix": [
+       "development/*",
+       "reference/*"
+      ]
+     }
+    },
+    "Effect": "Allow",
+    "Resource": "arn:aws:s3:::workbench-mr002-sealed-219024422756",
+    "Sid": "ListOnlyTheOpenPrefixes"
+   },
+   {
+    "Action": "s3:ListBucket",
+    "Condition": {
+     "StringLike": {
+      "s3:prefix": [
+       "oos/*",
+       "validation/*"
+      ]
+     }
+    },
+    "Effect": "Deny",
+    "Resource": "arn:aws:s3:::workbench-mr002-sealed-219024422756",
+    "Sid": "DenyListingTheHoldoutPrefixes"
+   },
+   {
+    "Action": "s3:*",
+    "Effect": "Deny",
+    "Resource": [
+     "arn:aws:s3:::workbench-mr002-sealed-219024422756/validation/*"
+    ],
+    "Sid": "DenyTheConsumedValidation1Partition"
+   },
+   {
+    "Effect": "Deny",
+    "NotAction": "s3:GetObjectVersion",
+    "Resource": [
+     "arn:aws:s3:::workbench-mr002-sealed-219024422756/oos/*"
+    ],
+    "Sid": "DenyEveryActionOnValidation2ExceptPinnedVersionReads"
+   },
+   {
+    "Action": "s3:GetObjectVersion",
+    "Condition": {
+     "StringNotEquals": {
+      "s3:VersionId": "F6m6am6cBahBd95p41C1.aAVmYd8GuNG"
+     }
+    },
+    "Effect": "Deny",
+    "Resource": "arn:aws:s3:::workbench-mr002-sealed-219024422756/oos/actions.parquet",
+    "Sid": "DenyValidation2ActionsAtAnyVersionButItsOwn"
+   },
+   {
+    "Action": "s3:GetObjectVersion",
+    "Condition": {
+     "StringNotEquals": {
+      "s3:VersionId": "RsJZG3TkDXvNPERJhZVanJ.Vqg8_dulw"
+     }
+    },
+    "Effect": "Deny",
+    "Resource": "arn:aws:s3:::workbench-mr002-sealed-219024422756/oos/anchors.parquet",
+    "Sid": "DenyValidation2AnchorsAtAnyVersionButItsOwn"
+   },
+   {
+    "Action": "s3:GetObjectVersion",
+    "Condition": {
+     "StringNotEquals": {
+      "s3:VersionId": "Z3OsUeuucMYIl2v9JDoVNDx1nw.0avDj"
+     }
+    },
+    "Effect": "Deny",
+    "Resource": "arn:aws:s3:::workbench-mr002-sealed-219024422756/oos/etf_prices.parquet",
+    "Sid": "DenyValidation2EtfPricesAtAnyVersionButItsOwn"
+   },
+   {
+    "Action": "s3:GetObjectVersion",
+    "Condition": {
+     "StringNotEquals": {
+      "s3:VersionId": "1ope9PR._oR303.EbZNGPVlIJRy.SZbA"
+     }
+    },
+    "Effect": "Deny",
+    "Resource": "arn:aws:s3:::workbench-mr002-sealed-219024422756/oos/prices.parquet",
+    "Sid": "DenyValidation2PricesAtAnyVersionButItsOwn"
+   },
+   {
+    "Action": "s3:GetObjectVersion",
+    "Condition": {
+     "StringNotEquals": {
+      "s3:VersionId": "DPhtWW3Pca3TKtSa1LOnGKA.yrZ98EIt"
+     }
+    },
+    "Effect": "Deny",
+    "Resource": "arn:aws:s3:::workbench-mr002-sealed-219024422756/oos/sic_observations.parquet",
+    "Sid": "DenyValidation2SicObservationsAtAnyVersionButItsOwn"
+   },
+   {
+    "Action": "s3:GetObjectVersion",
+    "Condition": {
+     "StringNotEquals": {
+      "s3:VersionId": "0gaqJ9TuECc3U_zar99sqls2UHRDnkkY"
+     }
+    },
+    "Effect": "Deny",
+    "Resource": "arn:aws:s3:::workbench-mr002-sealed-219024422756/oos/universe.parquet",
+    "Sid": "DenyValidation2UniverseAtAnyVersionButItsOwn"
+   },
+   {
+    "Action": "s3:GetObjectVersion",
+    "Effect": "Deny",
+    "NotResource": [
+     "arn:aws:s3:::workbench-mr002-sealed-219024422756/oos/actions.parquet",
+     "arn:aws:s3:::workbench-mr002-sealed-219024422756/oos/anchors.parquet",
+     "arn:aws:s3:::workbench-mr002-sealed-219024422756/oos/etf_prices.parquet",
+     "arn:aws:s3:::workbench-mr002-sealed-219024422756/oos/prices.parquet",
+     "arn:aws:s3:::workbench-mr002-sealed-219024422756/oos/sic_observations.parquet",
+     "arn:aws:s3:::workbench-mr002-sealed-219024422756/oos/universe.parquet",
+     "arn:aws:s3:::workbench-mr002-sealed-219024422756/development/*",
+     "arn:aws:s3:::workbench-mr002-sealed-219024422756/reference/*"
+    ],
+    "Sid": "DenyVersionedReadOfAnythingButTheSixRegisteredObjects"
+   },
+   {
+    "Action": [
+     "s3:PutObject",
+     "s3:DeleteObject",
+     "s3:DeleteObjectVersion",
+     "s3:PutBucketPolicy",
+     "s3:DeleteBucketPolicy",
+     "s3:PutBucketVersioning"
+    ],
+    "Effect": "Deny",
+    "Resource": [
+     "arn:aws:s3:::workbench-mr002-sealed-219024422756",
+     "arn:aws:s3:::workbench-mr002-sealed-219024422756/*"
+    ],
+    "Sid": "DenyAnyWriteToTheSealedStore"
+   },
+   {
+    "Action": [
+     "s3:PutObject",
+     "s3:DeleteObject",
+     "s3:DeleteObjectVersion"
+    ],
+    "Effect": "Deny",
+    "Resource": [
+     "arn:aws:s3:::workbench-backups-219024422756/artifacts/governed/*",
+     "arn:aws:s3:::workbench-backups-219024422756/mr002/*"
+    ],
+    "Sid": "DenyPublishingGoverningEvidence"
+   },
+   {
+    "Action": "sts:AssumeRole",
+    "Effect": "Deny",
+    "Resource": "arn:aws:iam::219024422756:role/mr002-validation2-evidence-publisher",
+    "Sid": "DenyAssumingTheEvidencePublisherRole"
+   }
+  ],
+  "Version": "2012-10-17"
+ },
+ "record_identity_sha256": "43e6acfb7732c37336fb0d7817c202225e2b773926bef9183ec5e04a3bf6c14c",
+ "record_type": "MR002_Validation2_AmendmentA_DenyLayerCorrection",
+ "rerun_requirement": "the FULL readiness matrix must be re-run from scratch after application, not only the seven failed cells - changing deny structure can break a previously passing positive cell. The ListBucket cell is fixed in the TEST HARNESS (supply s3:prefix), never by changing the policy, and the original failed observation is retained in the historical record.",
+ "scope": "DENY LAYER ONLY. No Allow, trust, latch or Amendment-B control is altered.",
+ "status": "DRAFT PROPOSAL - NOT APPLIED",
+ "supersedes": {
+  "failing_matrix_identity": "5e39ff64d8bef7af5de2462d4fafa56b0bece691994364e33524fdccb5c8c033",
+  "preserved": "v1.0 and its readiness matrix 5e39ff64... are retained UNMODIFIED. The deployment never permitted an unintended read; the defect is failure to meet the registered EXPLICIT-deny strength, not a security breach.",
+  "record": "Amendment A v1.0",
+  "status": "APPLIED, SAFE BUT INSUFFICIENTLY STRONG"
+ },
+ "the_correction": {
+  "added_six_per_key_denies": [
+   "DenyValidation2<Key>AtAnyVersionButItsOwn - Deny s3:GetObjectVersion on exactly that key, Condition StringNotEquals s3:VersionId = that key's OWN registered version"
+  ],
+  "added_unregistered_object_deny": "DenyVersionedReadOfAnythingButTheSixRegisteredObjects",
+  "allow_layer": "UNCHANGED (8 statements, byte-identical modulo condition-key casing)",
+  "removed": [
+   "DenyValidation2AtAnyUnregisteredVersion (the shared-list deny)"
+  ]
+ },
+ "unregistered_object_deny_construction": {
+  "RISK_DISCLOSED": "Deny + NotResource is a known footgun because it denies everything outside the list. Mitigations: it is scoped to ONE action, so its blast radius is a single verb and it cannot touch ListBucket, GetObject, writes or any non-S3 call; the exception list is short and explicit; and every negative case is testable.",
+  "expression": "Deny s3:GetObjectVersion with NotResource = [the six keys, development/*, reference/*]",
+  "fact": "oos/ currently holds exactly 6 objects, so this statement is DEFENSIVE against a future addition rather than covering anything that exists today - which is exactly why it must be explicitDeny and not 'there is nothing else there'.",
+  "gap_it_closes": "DenyEveryActionOnValidation2ExceptPinnedVersionReads already denies all NON-GetObjectVersion actions on oos/*, and the six per-key denies handle wrong versions on REGISTERED keys. The only survivor was GetObjectVersion on an UNREGISTERED oos key.",
+  "why_NotResource": "IAM has no 'wildcard except these ARNs' operator. This is the only mechanically sound expression of the required invariant."
+ },
+ "untouched": {
+  "amendment_B_roles_and_policies": true,
+  "evaluator_staging_policy": true,
+  "reader_trust_policy": true,
+  "run_host_latch": "8 statements / CLOSED"
+ },
+ "version": "1.1"
+}

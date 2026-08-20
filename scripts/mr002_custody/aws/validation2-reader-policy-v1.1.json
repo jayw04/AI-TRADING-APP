@@ -1,0 +1,243 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "ReadValidation2ActionsAtItsRegisteredVersionOnly",
+      "Effect": "Allow",
+      "Action": "s3:GetObjectVersion",
+      "Resource": "arn:aws:s3:::workbench-mr002-sealed-219024422756/oos/actions.parquet",
+      "Condition": {
+        "StringEquals": {
+          "s3:VersionId": "F6m6am6cBahBd95p41C1.aAVmYd8GuNG"
+        }
+      }
+    },
+    {
+      "Sid": "ReadValidation2AnchorsAtItsRegisteredVersionOnly",
+      "Effect": "Allow",
+      "Action": "s3:GetObjectVersion",
+      "Resource": "arn:aws:s3:::workbench-mr002-sealed-219024422756/oos/anchors.parquet",
+      "Condition": {
+        "StringEquals": {
+          "s3:VersionId": "RsJZG3TkDXvNPERJhZVanJ.Vqg8_dulw"
+        }
+      }
+    },
+    {
+      "Sid": "ReadValidation2EtfPricesAtItsRegisteredVersionOnly",
+      "Effect": "Allow",
+      "Action": "s3:GetObjectVersion",
+      "Resource": "arn:aws:s3:::workbench-mr002-sealed-219024422756/oos/etf_prices.parquet",
+      "Condition": {
+        "StringEquals": {
+          "s3:VersionId": "Z3OsUeuucMYIl2v9JDoVNDx1nw.0avDj"
+        }
+      }
+    },
+    {
+      "Sid": "ReadValidation2PricesAtItsRegisteredVersionOnly",
+      "Effect": "Allow",
+      "Action": "s3:GetObjectVersion",
+      "Resource": "arn:aws:s3:::workbench-mr002-sealed-219024422756/oos/prices.parquet",
+      "Condition": {
+        "StringEquals": {
+          "s3:VersionId": "1ope9PR._oR303.EbZNGPVlIJRy.SZbA"
+        }
+      }
+    },
+    {
+      "Sid": "ReadValidation2SicObservationsAtItsRegisteredVersionOnly",
+      "Effect": "Allow",
+      "Action": "s3:GetObjectVersion",
+      "Resource": "arn:aws:s3:::workbench-mr002-sealed-219024422756/oos/sic_observations.parquet",
+      "Condition": {
+        "StringEquals": {
+          "s3:VersionId": "DPhtWW3Pca3TKtSa1LOnGKA.yrZ98EIt"
+        }
+      }
+    },
+    {
+      "Sid": "ReadValidation2UniverseAtItsRegisteredVersionOnly",
+      "Effect": "Allow",
+      "Action": "s3:GetObjectVersion",
+      "Resource": "arn:aws:s3:::workbench-mr002-sealed-219024422756/oos/universe.parquet",
+      "Condition": {
+        "StringEquals": {
+          "s3:VersionId": "0gaqJ9TuECc3U_zar99sqls2UHRDnkkY"
+        }
+      }
+    },
+    {
+      "Sid": "ReadOpenReferenceAndDevelopmentPartitions",
+      "Effect": "Allow",
+      "Action": [
+        "s3:GetObject",
+        "s3:GetObjectVersion"
+      ],
+      "Resource": [
+        "arn:aws:s3:::workbench-mr002-sealed-219024422756/reference/*",
+        "arn:aws:s3:::workbench-mr002-sealed-219024422756/development/*"
+      ]
+    },
+    {
+      "Sid": "ListOnlyTheOpenPrefixes",
+      "Effect": "Allow",
+      "Action": "s3:ListBucket",
+      "Resource": "arn:aws:s3:::workbench-mr002-sealed-219024422756",
+      "Condition": {
+        "StringLike": {
+          "s3:prefix": [
+            "development/*",
+            "reference/*"
+          ]
+        }
+      }
+    },
+    {
+      "Sid": "DenyListingTheHoldoutPrefixes",
+      "Effect": "Deny",
+      "Action": "s3:ListBucket",
+      "Resource": "arn:aws:s3:::workbench-mr002-sealed-219024422756",
+      "Condition": {
+        "StringLike": {
+          "s3:prefix": [
+            "oos/*",
+            "validation/*"
+          ]
+        }
+      }
+    },
+    {
+      "Sid": "DenyTheConsumedValidation1Partition",
+      "Effect": "Deny",
+      "Action": "s3:*",
+      "Resource": [
+        "arn:aws:s3:::workbench-mr002-sealed-219024422756/validation/*"
+      ]
+    },
+    {
+      "Sid": "DenyEveryActionOnValidation2ExceptPinnedVersionReads",
+      "Effect": "Deny",
+      "NotAction": "s3:GetObjectVersion",
+      "Resource": [
+        "arn:aws:s3:::workbench-mr002-sealed-219024422756/oos/*"
+      ]
+    },
+    {
+      "Sid": "DenyValidation2ActionsAtAnyVersionButItsOwn",
+      "Effect": "Deny",
+      "Action": "s3:GetObjectVersion",
+      "Resource": "arn:aws:s3:::workbench-mr002-sealed-219024422756/oos/actions.parquet",
+      "Condition": {
+        "StringNotEquals": {
+          "s3:VersionId": "F6m6am6cBahBd95p41C1.aAVmYd8GuNG"
+        }
+      }
+    },
+    {
+      "Sid": "DenyValidation2AnchorsAtAnyVersionButItsOwn",
+      "Effect": "Deny",
+      "Action": "s3:GetObjectVersion",
+      "Resource": "arn:aws:s3:::workbench-mr002-sealed-219024422756/oos/anchors.parquet",
+      "Condition": {
+        "StringNotEquals": {
+          "s3:VersionId": "RsJZG3TkDXvNPERJhZVanJ.Vqg8_dulw"
+        }
+      }
+    },
+    {
+      "Sid": "DenyValidation2EtfPricesAtAnyVersionButItsOwn",
+      "Effect": "Deny",
+      "Action": "s3:GetObjectVersion",
+      "Resource": "arn:aws:s3:::workbench-mr002-sealed-219024422756/oos/etf_prices.parquet",
+      "Condition": {
+        "StringNotEquals": {
+          "s3:VersionId": "Z3OsUeuucMYIl2v9JDoVNDx1nw.0avDj"
+        }
+      }
+    },
+    {
+      "Sid": "DenyValidation2PricesAtAnyVersionButItsOwn",
+      "Effect": "Deny",
+      "Action": "s3:GetObjectVersion",
+      "Resource": "arn:aws:s3:::workbench-mr002-sealed-219024422756/oos/prices.parquet",
+      "Condition": {
+        "StringNotEquals": {
+          "s3:VersionId": "1ope9PR._oR303.EbZNGPVlIJRy.SZbA"
+        }
+      }
+    },
+    {
+      "Sid": "DenyValidation2SicObservationsAtAnyVersionButItsOwn",
+      "Effect": "Deny",
+      "Action": "s3:GetObjectVersion",
+      "Resource": "arn:aws:s3:::workbench-mr002-sealed-219024422756/oos/sic_observations.parquet",
+      "Condition": {
+        "StringNotEquals": {
+          "s3:VersionId": "DPhtWW3Pca3TKtSa1LOnGKA.yrZ98EIt"
+        }
+      }
+    },
+    {
+      "Sid": "DenyValidation2UniverseAtAnyVersionButItsOwn",
+      "Effect": "Deny",
+      "Action": "s3:GetObjectVersion",
+      "Resource": "arn:aws:s3:::workbench-mr002-sealed-219024422756/oos/universe.parquet",
+      "Condition": {
+        "StringNotEquals": {
+          "s3:VersionId": "0gaqJ9TuECc3U_zar99sqls2UHRDnkkY"
+        }
+      }
+    },
+    {
+      "Sid": "DenyVersionedReadOfAnythingButTheSixRegisteredObjects",
+      "Effect": "Deny",
+      "Action": "s3:GetObjectVersion",
+      "NotResource": [
+        "arn:aws:s3:::workbench-mr002-sealed-219024422756/oos/actions.parquet",
+        "arn:aws:s3:::workbench-mr002-sealed-219024422756/oos/anchors.parquet",
+        "arn:aws:s3:::workbench-mr002-sealed-219024422756/oos/etf_prices.parquet",
+        "arn:aws:s3:::workbench-mr002-sealed-219024422756/oos/prices.parquet",
+        "arn:aws:s3:::workbench-mr002-sealed-219024422756/oos/sic_observations.parquet",
+        "arn:aws:s3:::workbench-mr002-sealed-219024422756/oos/universe.parquet",
+        "arn:aws:s3:::workbench-mr002-sealed-219024422756/development/*",
+        "arn:aws:s3:::workbench-mr002-sealed-219024422756/reference/*"
+      ]
+    },
+    {
+      "Sid": "DenyAnyWriteToTheSealedStore",
+      "Effect": "Deny",
+      "Action": [
+        "s3:PutObject",
+        "s3:DeleteObject",
+        "s3:DeleteObjectVersion",
+        "s3:PutBucketPolicy",
+        "s3:DeleteBucketPolicy",
+        "s3:PutBucketVersioning"
+      ],
+      "Resource": [
+        "arn:aws:s3:::workbench-mr002-sealed-219024422756",
+        "arn:aws:s3:::workbench-mr002-sealed-219024422756/*"
+      ]
+    },
+    {
+      "Sid": "DenyPublishingGoverningEvidence",
+      "Effect": "Deny",
+      "Action": [
+        "s3:PutObject",
+        "s3:DeleteObject",
+        "s3:DeleteObjectVersion"
+      ],
+      "Resource": [
+        "arn:aws:s3:::workbench-backups-219024422756/artifacts/governed/*",
+        "arn:aws:s3:::workbench-backups-219024422756/mr002/*"
+      ]
+    },
+    {
+      "Sid": "DenyAssumingTheEvidencePublisherRole",
+      "Effect": "Deny",
+      "Action": "sts:AssumeRole",
+      "Resource": "arn:aws:iam::219024422756:role/mr002-validation2-evidence-publisher"
+    }
+  ]
+}
