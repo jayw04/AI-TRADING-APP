@@ -1,0 +1,181 @@
+{
+ "authorizes": "NOTHING. Applying this requires a separate owner ruling.",
+ "bound": {
+  "pre_amendment_iam_evidence": "55a81cba8a136ceda2efe96c82fb25dbd8c0f06d5e3b175a65d9af8e4292975f",
+  "registration": "93ee468801c92edd9dd1ba49944b381a6d9172c2e22f9bcc76a9dcbe8541af57"
+ },
+ "boundary": {
+  "amendments_applied": 0,
+  "validation_2_bytes_read": 0,
+  "validation_2_opening": "NOT AUTHORIZED"
+ },
+ "companion_change_to_the_evaluator_side": {
+  "CAUTION": "the existing DenyAssumingTheValidationReaderRole on the run host is NOT a mistake to clean up. It is the latch. Do not remove it as part of this amendment.",
+  "add_deny": [
+   {
+    "Action": "sts:AssumeRole",
+    "Effect": "Deny",
+    "Resource": "arn:aws:iam::219024422756:role/mr002-validation2-evidence-publisher",
+    "Sid": "DenyAssumingTheEvidencePublisherRole"
+   }
+  ],
+  "add_staging_write": [
+   {
+    "Action": "s3:PutObject",
+    "Effect": "Allow",
+    "Resource": "arn:aws:s3:::workbench-backups-219024422756/mr002/validation2-evidence-staging/*",
+    "Sid": "StageValidation2EvidenceWriteOnly"
+   }
+  ],
+  "target": "mr002-phase3c-run-host inline policy",
+  "unchanged": [
+   "DenyAssumingTheValidationReaderRole - this is the OPENING LATCH and is released only under an owner opening grant, then re-applied",
+   "DenyAllAccessToTheSealedStore",
+   "DenyEditingTheCredentialReleaseControl"
+  ]
+ },
+ "date": "2026-08-20",
+ "defect_being_corrected": {
+  "found_by": "owner review, not by me. Recorded plainly.",
+  "severity": "the bucket policies would still stop the publisher READING raw data, which is worth having, but that is not the reader/publisher PRINCIPAL separation the registration claims. The claim would have been stronger than the control.",
+  "what_the_v1_0_draft_said": [
+   "the publisher is assumable by the Validation-2 run host via instance profile",
+   "it must NOT be assumable by the same principal that assumes the reader"
+  ],
+  "why_those_cannot_both_hold": "mr002-phase3c-run-host IS the principal that assumes mr002-validation-reader. Granting it the publisher too means one compromised or erroneous run-host session can obtain both capabilities sequentially."
+ },
+ "does_this_amendment_open_validation_2": {
+  "answer": "NO",
+  "proof": "the publisher is denied s3:* on the entire sealed store and denied assuming the reader. It cannot reach raw holdout content by any path. Provisioning it issues no read, and the opening latch on the evaluator branch is untouched."
+ },
+ "new_role_mr002_validation2_evidence_publisher": {
+  "allow": [
+   {
+    "Action": [
+     "s3:GetObject"
+    ],
+    "Resource": "arn:aws:s3:::workbench-backups-219024422756/mr002/validation2-evidence-staging/*",
+    "Sid": "ReadTheStagedEvidencePackageOnly"
+   },
+   {
+    "Action": [
+     "s3:PutObject"
+    ],
+    "Resource": "arn:aws:s3:::workbench-backups-219024422756/artifacts/governed/mr002-validation2-execution-evidence/1.0/*",
+    "Sid": "PublishGovernedValidation2Evidence"
+   },
+   {
+    "Action": [
+     "s3:GetObject",
+     "s3:GetObjectVersion"
+    ],
+    "Resource": "arn:aws:s3:::workbench-backups-219024422756/artifacts/governed/mr002-validation2-execution-evidence/1.0/*",
+    "Sid": "ReadBackOwnPublicationForVerification",
+    "note": "supports the proven VersionId + SHA-256 read-back flow WITHOUT any raw-input access"
+   }
+  ],
+  "create_not_overwrite": "S3 has no native append. 'Create, never destroy' is enforced by bucket versioning plus DenyDestroyingPublishedEvidence: an overwrite creates a NEW version and cannot destroy the pinned one, which is what the custody model actually relies on.",
+  "deny": [
+   {
+    "Action": "s3:*",
+    "Resource": [
+     "arn:aws:s3:::workbench-mr002-sealed-219024422756",
+     "arn:aws:s3:::workbench-mr002-sealed-219024422756/*"
+    ],
+    "Sid": "DenyAllAccessToTheSealedStore",
+    "note": "covers Validation-1, Validation-2 and any future new-OOS prefix in one statement, so a later prefix cannot be forgotten"
+   },
+   {
+    "Action": "sts:AssumeRole",
+    "Resource": "arn:aws:iam::219024422756:role/mr002-validation-reader",
+    "Sid": "DenyAssumingTheValidationReaderRole"
+   },
+   {
+    "Action": [
+     "s3:DeleteObject",
+     "s3:DeleteObjectVersion",
+     "s3:PutBucketPolicy",
+     "s3:PutBucketVersioning",
+     "s3:PutBucketLifecycleConfiguration"
+    ],
+    "Resource": "*",
+    "Sid": "DenyDestroyingPublishedEvidence"
+   },
+   {
+    "Action": [
+     "iam:UpdateAssumeRolePolicy",
+     "iam:PutRolePolicy",
+     "iam:AttachRolePolicy",
+     "iam:CreateRole",
+     "iam:DeleteRolePolicy"
+    ],
+    "Resource": "*",
+    "Sid": "DenyEditingTheCredentialReleaseControl",
+    "note": "mirrors the deployed run-host statement - a principal must not be able to widen its own or another role's grant"
+   }
+  ],
+  "trust_policy": {
+   "constrained_to": "the mr002-validation2-publish-host instance profile via an aws:SourceArn / instance-profile condition, so the EVALUATOR host cannot assume it even though both are EC2",
+   "principal": {
+    "Service": "ec2.amazonaws.com"
+   },
+   "why_the_condition_is_load_bearing": "a bare ec2.amazonaws.com trust would let ANY instance in the account assume this role, including the evaluator host. That would silently re-create the exact defect this revision exists to fix."
+  }
+ },
+ "principal_separation": {
+  "evaluator_branch": {
+   "evidence_capability": "s3:PutObject on the staging prefix ONLY. Write-only: it cannot read back, list, or publish.",
+   "may_assume": [
+    "mr002-validation-reader"
+   ],
+   "must_be_denied_assuming": [
+    "arn:aws:iam::219024422756:role/mr002-validation2-evidence-publisher"
+   ],
+   "principal": "mr002-phase3c-run-host (instance profile on the EVALUATOR host)",
+   "sealed_store": "Deny s3:* (already deployed as DenyAllAccessToTheSealedStore) - the run host reaches sealed input ONLY through the reader"
+  },
+  "handoff": {
+   "evaluator": "s3:PutObject only",
+   "mechanism": "a write-only staging prefix, mirroring the deployed image-publish path",
+   "publisher": "s3:GetObject only",
+   "staging_prefix": "arn:aws:s3:::workbench-backups-219024422756/mr002/validation2-evidence-staging/*",
+   "what_crosses": "the evaluator's COMPLETED evidence package",
+   "what_never_crosses": "raw Validation-2 content, sealed-store credentials, and reader session credentials"
+  },
+  "publisher_branch": {
+   "may_assume": [
+    "arn:aws:iam::219024422756:role/mr002-validation2-evidence-publisher"
+   ],
+   "must_be_denied_assuming": [
+    "arn:aws:iam::219024422756:role/mr002-validation-reader"
+   ],
+   "must_not_be": "the same instance profile, the same instance, or any principal that can reach the reader. If the two branches share a principal the separation is cosmetic.",
+   "principal": "a NEW, SEPARATE instance profile mr002-validation2-publish-host, on a host distinct from the evaluator",
+   "sealed_store": "Deny s3:* on the whole sealed store, all prefixes"
+  }
+ },
+ "record_identity_sha256": "a2e6795e50f91c7781dd727fb0b3242497f83673d872346dad632706010c9917",
+ "record_type": "MR002_Validation2_AmendmentB_Revised",
+ "status": "DRAFT PROPOSAL - NOT APPLIED",
+ "supersedes": {
+  "identity_sha256": "a259b0dc2a1aa1e51de24ffdf06ee7b9f21cec618128d1ed5d77e12b8185d758",
+  "preserved_unmodified": true,
+  "record": "MR002_Validation2_ProspectiveAmendmentDrafts_v1.0 -> amendment_B",
+  "why": "it is the INPUT to this revision. Editing it to look correct would destroy the before/after audit structure."
+ },
+ "verification_that_the_invariant_holds": {
+  "method": "iam simulate-principal-policy on sts:AssumeRole for BOTH directions, plus the sealed-store matrix, after propagation is observed",
+  "required_results": {
+   "evidence-publisher -> GetObject sealed oos/*": "explicitDeny",
+   "evidence-publisher -> GetObject sealed validation/*": "explicitDeny",
+   "evidence-publisher -> PutObject governed evidence": "allowed",
+   "publish-host -> AssumeRole evidence-publisher": "allowed",
+   "publish-host -> AssumeRole validation-reader": "explicitDeny ALWAYS",
+   "run-host -> AssumeRole evidence-publisher": "explicitDeny ALWAYS",
+   "run-host -> AssumeRole validation-reader": "explicitDeny in the LATCHED state",
+   "validation-reader -> PutObject governed evidence": "implicitDeny or explicitDeny"
+  },
+  "trust_is_not_covered_by_simulation": "simulate-principal-policy never evaluates a trust policy. The instance-profile condition on the publisher trust MUST be proven by a real AssumeRole attempt from the EVALUATOR host, which must FAIL. A passing simulation is not evidence for that cell."
+ },
+ "version": "1.1"
+}
