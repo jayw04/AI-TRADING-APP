@@ -1,0 +1,160 @@
+{
+ "authority": {
+  "identity_sha256": "9d12f7296f105863b5e51c0db898fe2204a68d7af823811e3f24bdf663752cf8",
+  "registration": "MR002_Validation2_ProspectiveRegistration_v1.0",
+  "registration_status": "DRAFT"
+ },
+ "bound_sources": {
+  "apps/backend/scripts/mr002_v2_harness.py": null,
+  "docs/implementation/evidence/mr_002/_gen_v2_registration.py": null,
+  "scripts/mr002_custody/oos_pristine_proof.py": null
+ },
+ "boundary": {
+  "consumed_original_opening": "unchanged",
+  "new_oos": "PROHIBITED \u2014 architecture approved, opening not granted",
+  "stage_3_pair": "FROZEN \u2014 QUADPROG_SQRT + PIQP_P2",
+  "validation_1": "CONSUMED \u2014 permanently inadmissible",
+  "validation_2_opening": "NOT AUTHORIZED"
+ },
+ "cycle": "2C",
+ "date": "2026-08-20",
+ "disposition": "VALIDATION2_NOT_READY",
+ "disposition_rationale": "The decision machinery is proven: every terminal path fires, an integrity failure suppresses even excellent economics, a registered numerical termination does NOT break conformance, the N3-derived guard aborts on zero invocations AND on a full census produced by the wrong solver pair, a pre-read abort leaves the opening unconsumed, and the ledger is durable on disk. That is the core of what Cycle 2C was for, and it holds. But FOUR of the proofs the registration itself demands have not been produced, and one of them is BLOCKED on an untracked script. Declaring READY with the reader/publisher capability separation untested and the fold geometry unverified against the actual window would be exactly the overstatement that consumed the first opening. The honest status is NOT_READY with a short, concrete remediation list.",
+ "negative_controls": {
+  "CONSUMPTION_BOUNDARY": {
+   "ledger_durable_on_disk": true,
+   "one_exposure_consumes": true,
+   "why": "consumed at FIRST successful exposure, not at completion. This removes the 'partial peek, repair, rerun' ambiguity."
+  },
+  "INTEGRITY_FAILURE": {
+   "economic_verdict_suppressed": true,
+   "fired": true,
+   "gates_evaluated": false,
+   "not_mislabelled_as_reject": true,
+   "note": "the economics here are deliberately EXCELLENT (5/5 folds, +90%). A conformance failure must suppress them anyway, or an infrastructure state could smuggle in a verdict."
+  },
+  "INVALID_TEST_HARNESS": {
+   "detail": "ZERO Stage-3 invocations - the seam was never exercised; ZERO Stage-3 census rows - the routing context was never entered",
+   "economic_verdict_suppressed": true,
+   "fired": true,
+   "guard_raised": true
+  },
+  "INVALID_TEST_HARNESS_wrong_pair": {
+   "caught": true,
+   "why": "a full census with v1 labels means the v2 pair was not routed. Counting rows alone would pass this."
+  },
+  "PRE_READ_ABORT_NOT_CONSUMED": {
+   "another_execution_permissible": true,
+   "fired": true,
+   "ledger_empty": true,
+   "must_be_not_consumed": true,
+   "opening_consumed": false
+  },
+  "REGISTERED_TERMINATION_IS_NOT_A_DEFECT": {
+   "conformant": true,
+   "state": "CONFORMANT",
+   "why": "62 registered terminations is exactly the N2 stress observation. If this made a run non-conformant, the governing principle of this cycle would be violated."
+  },
+  "VALIDATION_ADVANCE_REQUEST": {
+   "consumed": true,
+   "fired": true,
+   "gates_evaluated": true
+  },
+  "VALIDATION_DO_NOT_ADVANCE": {
+   "consumed": true,
+   "fired": true,
+   "gates_evaluated": true
+  },
+  "VALIDATION_INCONCLUSIVE": {
+   "consumed": true,
+   "fired": true
+  }
+ },
+ "record_identity_sha256": "853855e4ecfa9e6c942d8688c678244e660351eb0091177cb2ec2f47ef076949",
+ "record_type": "MR002_VALIDATION2_DRYRUN_QUALIFICATION",
+ "sealed_store_touched_by_the_dry_run": false,
+ "surrogate": "development corpus 2013-01-02.. (first 300 sessions), config C",
+ "surrogate_run": {
+  "carries_withheld_economic_content": false,
+  "guard_passed_on_real_routing": true,
+  "routing_guard": {
+   "basis": "lower bound + structural relationship, not a literal expected count",
+   "census_rows": 255,
+   "dispositions": {
+    "PRIMARY_CERTIFIED": 255
+   },
+   "invocations": 255,
+   "v2_pair_routed": true
+  },
+  "seconds": 1.7,
+  "stage3": {
+   "all_reconcile_to_a_registered_disposition": true,
+   "by_accepted_by": {
+    "QUADPROG_SQRT": 255
+   },
+   "by_disposition": {
+    "PRIMARY_CERTIFIED": 255
+   },
+   "fallback_invoked": 0,
+   "invocations": 255,
+   "stop_dispositions": 0,
+   "unrecognized_outcomes": 0,
+   "unregistered_termination_reasons": 0
+  },
+  "surrogate": "development corpus 2013-01-02.. (first 300 sessions), config C"
+ },
+ "terminal_path_coverage": {
+  "INTEGRITY_FAILURE": true,
+  "INVALID_TEST_HARNESS": true,
+  "PRE_READ_ABORT_NOT_CONSUMED": true,
+  "VALIDATION_ADVANCE_REQUEST": true,
+  "VALIDATION_DO_NOT_ADVANCE": true,
+  "VALIDATION_INCONCLUSIVE": true
+ },
+ "validation_2_economic_bytes_read": 0,
+ "validation_2_opened": false,
+ "version": "1.0",
+ "what_remains_OUTSTANDING": [
+  {
+   "item": "live reader/publisher role-assumption separation test",
+   "remediation": "assume mr002-validation-reader and the publisher role in turn and record the allowed/denied matrix as evidence",
+   "required_by": "registration \u00a7dry_run_requirement \u2014 'reader can read ONLY the authorized object set', 'publisher CANNOT read the sealed store', 'reader CANNOT write governing evidence', 'publisher CANNOT alter raw input'",
+   "status": "NOT PERFORMED",
+   "why_it_matters": "these four are capability claims about DEPLOYED IAM roles. The dry run verified only that this process never constructs a sealed-store client, which is a property of the harness, not a proof about the roles."
+  },
+  {
+   "item": "Validation-2 structural preflight",
+   "remediation": "produce a value-blind structural manifest for the 2023-02-17..2026-07-10 window with the custodian producer, exactly as P9 was produced for Validation-1",
+   "required_by": "registration \u00a7execution_freeze \u2014 structural preflight is a fail-closed precondition; \u00a7fold_geometry \u2014 the 850/775/155 geometry must be VERIFIED against the actual window",
+   "status": "NOT PRODUCED",
+   "why_it_matters": "the fold geometry is DERIVED arithmetic. It has not been confirmed against the oos window's own session list, and a silently short fold would move the 3-of-5 verdict."
+  },
+  {
+   "item": "economic evaluator re-qualification against the Validation-2 window",
+   "remediation": "run the full evaluator against the development surrogate under the Validation-2 opening protocol, not only the Stage-3 seam",
+   "required_by": "registration \u00a7execution_freeze \u2014 evaluator source identity",
+   "status": "NOT PERFORMED",
+   "why_it_matters": "the mr002_valoos_* evaluator was qualified for Validation-1. Its identities are bound in ValidationInputIdentityManifest_v1.0, but it has not been exercised end-to-end under the Validation-2 population definition."
+  },
+  {
+   "item": "version-controlled research-plane isolation check",
+   "remediation": "commit and hash-bind the two scripts, or establish that the Validation-2 harness depends on neither and record that vacuous satisfaction explicitly",
+   "required_by": "registration \u00a7execution_freeze.isolation_dependency",
+   "status": "BLOCKED \u2014 both ADR-0051 invariant scripts are UNTRACKED and exist at no commit",
+   "why_it_matters": "a fail-closed control that cannot be hash-bound is not a control"
+  }
+ ],
+ "what_the_dry_run_PROVES": {
+  "integrity_failure_not_mislabelled_as_reject": true,
+  "integrity_failure_suppresses_excellent_economics": true,
+  "ledger_is_durable_on_disk": true,
+  "one_exposure_consumes_the_opening": true,
+  "pre_read_abort_leaves_the_opening_unconsumed": true,
+  "registered_numerical_termination_is_not_a_defect": true,
+  "routing_guard_passes_against_REAL_routing": true,
+  "state_machine_reaches_every_terminal_path": true,
+  "wrong_solver_pair_caught_even_with_a_full_census": true,
+  "zero_stage3_invocations_aborts_as_invalid_harness": true
+ },
+ "\u26d4 this_record_authorizes": "NOTHING. It does not open Validation-2 and is not execution authorization."
+}

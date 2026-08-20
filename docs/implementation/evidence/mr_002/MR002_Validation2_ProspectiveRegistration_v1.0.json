@@ -1,0 +1,650 @@
+{
+ "authority_boundary": {
+  "cycle_2c_may_conclude_in_exactly_one_of": [
+   "VALIDATION2_READY_FOR_OWNER_OPENING_GRANT",
+   "VALIDATION2_NOT_READY"
+  ],
+  "the_opening_requires": "a SEPARATE explicit owner grant, issued after reviewing the sealed registration and the dry-run qualification record",
+  "this_record_is_not_execution_authorization": true,
+  "\u26d4 cycle_2c_MUST_NOT_open_validation_2": true
+ },
+ "authority_chain": {
+  "N1": {
+   "identity_sha256": "629eee0ee1c257a23312b539fbac8542b40cbf6f2cef296ba2c829fb6b29bd81",
+   "record": "MR002_N1_FinalVerdict_v1.0"
+  },
+  "N2": {
+   "identity_sha256": "27f98548067b3017870937c22196212e5bb1b11fdbd6a961a329f85f82aae471",
+   "record": "MR002_N2_Verdict_v1.0"
+  },
+  "N3": {
+   "identity_sha256": "5a14028024a1f78ca60ebeb174b5ecd7b8a3e1f5027f8768ec93b6f2a8195ec4",
+   "record": "MR002_N3_FinalVerdict_v1.0"
+  },
+  "governing_preregistration": {
+   "record": "MR002_ValidationOOS_Preregistration_v1.0.4",
+   "sha256": "b2a042d4cf8e4d36a70d7e087c3d0e8efc1076e3ee96db7d6c2dc7583129af9c"
+  },
+  "owner_grant": {
+   "date": "2026-08-20",
+   "instrument": "owner message granting Cycle 2C and ruling the population question",
+   "population_ruling": "Option 1 APPROVED \u2014 the pristine former-OOS partition is redesignated Validation-2; future post-seal accrual becomes the new OOS. A role reassignment made prospectively before any read, NOT a reuse of consumed validation data."
+  }
+ },
+ "authorizes": "NOTHING. This record opens no data, reads no withheld economic observation, computes no performance, and does not grant the Validation-2 opening. Its terminal disposition is a READINESS statement for the owner.",
+ "bound_sources": {
+  "consumed_opening_evidence": [
+   {
+    "enforced": true,
+    "file_blob_sha256": "547801faef2faa31d529c93908c0e9d17a75ff624573c91c49fb0471e4e9c97e",
+    "path": "docs/implementation/evidence/mr_002/MR002_Phase3C_ValidationExecutionOutcome_v1.0.json"
+   },
+   {
+    "enforced": true,
+    "file_blob_sha256": "dcb4a2c6384a84421d2035948980c337ca26a9804dc64578b6dd71b9c639efa2",
+    "path": "docs/implementation/evidence/mr_002/MR002_Phase3C_ReconstructedExecutionCustodyEvidence_v1.0.json"
+   },
+   {
+    "enforced": true,
+    "file_blob_sha256": "85f002c8b8b9c57008f734f0fc82f3d89966875e2bc2ba8db01b46232693df6b",
+    "path": "docs/implementation/evidence/mr_002/MR002_Phase3C_ValidationExecutionPackage_v2.2.json"
+   }
+  ],
+  "evaluation_contract": [
+   {
+    "enforced": true,
+    "file_blob_sha256": "8f67ec3002b43096c1e2e161d96b5df4d64bd4b683fae8260b67df4fd8313533",
+    "path": "docs/review/mr002/phase3a/MR002_Phase3A_ValidationStageDecisionSpecification_v1.0.json"
+   },
+   {
+    "enforced": true,
+    "file_blob_sha256": "d5f669fc81791b2a0e013781636539423c4d9f1e8fac6f30337f8d5d5d6c9cb1",
+    "path": "docs/review/mr002/phase3a/ValidationRunSpecification_v1.0.json"
+   },
+   {
+    "enforced": true,
+    "file_blob_sha256": "899669edf62fbdcc6fc4c1c1a8f0535608dcfb23972cfcd9498188280cde6dca",
+    "path": "docs/review/mr002/phase3a/ValidationMetricSpecification_v1.0.json"
+   },
+   {
+    "enforced": true,
+    "file_blob_sha256": "b8287e5a46694c04d019632d46884486098c4843f29cb7a945621e44ccbd41af",
+    "path": "docs/review/mr002/phase3a/ValidationCostExecutionSpecification_v1.0.json"
+   },
+   {
+    "enforced": true,
+    "file_blob_sha256": "0b460345fdd8163869eccdcab7e593d92cd003764728a4544069133adff23a1a",
+    "path": "docs/review/mr002/phase3a/ShortBorrowLocateModelSpecification_v1.0.json"
+   }
+  ],
+  "frozen_method": [
+   {
+    "enforced": true,
+    "file_blob_sha256": "76e6afcca09e33014eee5f6c657355596445e2c0ad7350edb7cb6bd9fbdb6ff0",
+    "path": "apps/backend/app/research/mr002/n1/method.py"
+   },
+   {
+    "enforced": true,
+    "file_blob_sha256": "503d11f50e99846e5afacbf31415c956db16090631509d99e8e4e63465081409",
+    "path": "apps/backend/app/research/mr002/n1/seam.py"
+   },
+   {
+    "enforced": true,
+    "file_blob_sha256": "474683a04f60d5adb5f94056af5abe5be93c322f61f50a86da9c876db1c4cee1",
+    "path": "apps/backend/app/research/mr002/n1/reference.py"
+   }
+  ],
+  "gate_authority": [
+   {
+    "enforced": true,
+    "file_blob_sha256": "064ad8fab44d4d6e7824664e6c87b5b32e8791788eb7e807477c12092160aec9",
+    "path": "docs/implementation/evidence/mr_002/MR002_N1_FinalVerdict_v1.0.json"
+   },
+   {
+    "enforced": true,
+    "file_blob_sha256": "a46af214c2717ab96dc315edab86db778e5b60ef7f59880079d79fe94257517e",
+    "path": "docs/implementation/evidence/mr_002/MR002_N2_Verdict_v1.0.json"
+   },
+   {
+    "enforced": true,
+    "file_blob_sha256": "1d2395662950008674eeb6c31d13667acf7bc32f5e31a8d0a7c80b192fafcc23",
+    "path": "docs/implementation/evidence/mr_002/MR002_N3_FinalVerdict_v1.0.json"
+   }
+  ],
+  "population_provenance": [
+   {
+    "enforced": true,
+    "file_blob_sha256": "b16bc89f3fdbdeec3c59e9fa03e237c1d845f0c0fee440b923abb0c5fba2cc15",
+    "path": "docs/review/mr002/phase3bc/MR002_SealedStoreUploadManifest_v1.0.json"
+   },
+   {
+    "enforced": true,
+    "file_blob_sha256": "6b81a319f53d7b1a9ccf45c8f363ca6761909898d5b1e2c9921beb367f518e19",
+    "path": "docs/review/mr002/phase3bc/MR002_ValidationStructuralManifest_v1.0.json"
+   }
+  ],
+  "pristine_proof_producer": [
+   {
+    "enforced": false,
+    "path": "scripts/mr002_custody/oos_pristine_proof.py",
+    "pending_reason": "written during Cycle 2C; binds on the commit that tracks it",
+    "worktree_lf_sha256": "31e1fd269ad9602ccafd2dedc5b8822b28f7c627fe80f97f77e6db804bc41eb2"
+   },
+   {
+    "enforced": true,
+    "file_blob_sha256": "5be8e85ee257cd6ea92c225103f934183f9db6b57a00cffd30f5dea66cdd2f60",
+    "path": "scripts/mr002_custody/seal_verification.py"
+   }
+  ]
+ },
+ "boundary": {
+  "consumed_original_opening": "unchanged",
+  "development_domain_only_for_all_cycle_2c_execution": true,
+  "oos": "PROHIBITED",
+  "stage_3_pair": "FROZEN \u2014 QUADPROG_SQRT + PIQP_P2",
+  "validation_1": "CONSUMED \u2014 permanently inadmissible",
+  "validation_2_economic_bytes_read": 0,
+  "validation_2_opening": "NOT AUTHORIZED"
+ },
+ "consumption_semantics": {
+  "consumed_at": "the FIRST successful exposure of ANY withheld economic observation to the authorized evaluator \u2014 not at completion of the run.",
+  "mechanically_instrumented": {
+   "artifact": "ValidationOpenedObjectLedger, appended and FSYNCED per object, not serialized at the end of a successful run",
+   "boundary_marker": "a single, explicit, durable transition written BEFORE the first byte of any Validation-2 object is delivered to the evaluator",
+   "\u26d4 the_defect_this_fixes": "the consumed opening's launcher serialized its report only after a successful replay, so the ledger was never written and was lost when replay raised. For a consumed one-time opening, evidence MUST survive the very failures it documents."
+  },
+  "no_adhoc_retry_after_exposure": {
+   "consequence": "any such requirement means the opening is CONSUMED and a new prospective governance decision by the owner is required before another opening.",
+   "once_the_first_withheld_observation_is_read_these_are_FORBIDDEN": [
+    "source changes",
+    "environment changes",
+    "threshold edits",
+    "solver or profile changes",
+    "evaluator edits",
+    "fix and rerun"
+   ]
+  },
+  "pre_read_technical_abort_does_NOT_consume": {
+   "fail_closed": "if it cannot be determined whether exposure occurred, the opening is treated as CONSUMED. Ambiguity resolves against us, never for us.",
+   "instrumented_boundary": "the ledger's first entry IS the boundary. No ledger entry means no exposure means not consumed. An entry means consumed.",
+   "qualifying_preconditions": [
+    "source identity verification",
+    "runtime/image identity",
+    "dependency identity",
+    "manifest verification",
+    "KMS / credential access",
+    "IAM latch state",
+    "structural preflight",
+    "fold-geometry verification",
+    "dry-run qualification currency"
+   ],
+   "rule": "if a precondition fails BEFORE any withheld economic byte is exposed, the opening remains UNOPENED and may be attempted again after the precondition is fixed."
+  },
+  "why_first_exposure": "it removes the 'partial peek, repair, rerun' ambiguity entirely. A run that read one session and then crashed has still seen withheld data."
+ },
+ "custody": {
+  "bucket": "workbench-backups-219024422756",
+  "durability_rule": "the opened-object ledger and the execution evidence must be written and flushed AS THEY HAPPEN, so they survive the failures they document",
+  "frozen_before_opening": true,
+  "governing_verdict_and_manifest": "Git",
+  "model": "the pattern proven by N1, N2 and N3",
+  "object_key_prefix": "artifacts/governed/mr002-validation2-execution-evidence/1.0/",
+  "raw_and_large_outputs": "versioned S3, pinned by VersionId + SHA-256, read back and re-verified, fail-closed on mismatch",
+  "raw_output_immutable": true,
+  "\u26d4": "no 'we will arrange custody after the run'. The consumed opening lost its ledger precisely because evidence handling was left until after success."
+ },
+ "cycle": "2C \u2014 prospective Validation-2 design and registration",
+ "date": "2026-08-20",
+ "dry_run_requirement": {
+  "currency": "the dry-run qualification must be current for the bound source. If any bound source identity changes after qualification, the qualification is STALE and the opening precondition is not met.",
+  "must_prove": [
+   "reader can read ONLY the authorized object set",
+   "publisher CANNOT read the sealed store",
+   "reader CANNOT write governing evidence",
+   "publisher CANNOT alter raw input",
+   "source and runtime hashes bind correctly and fail closed on mismatch",
+   "Stage-3 census is non-empty and the v2 pair was actually routed",
+   "evidence files are produced and are durable across a mid-run failure",
+   "S3 read-back by pinned VersionId works",
+   "the verdict generator can produce EVERY terminal state"
+  ],
+  "negative_controls_required": {
+   "rule": "at least one negative-control fixture PER TERMINAL PATH. A path that has never been observed to fire is not known to work.",
+   "terminal_paths": [
+    "VALIDATION_ADVANCE_REQUEST",
+    "VALIDATION_DO_NOT_ADVANCE",
+    "VALIDATION_INCONCLUSIVE",
+    "INTEGRITY_FAILURE",
+    "INVALID_TEST_HARNESS",
+    "PRE_READ_ABORT_NOT_CONSUMED"
+   ]
+  },
+  "rule": "the ENTIRE Validation-2 mechanism must be executed against an admissible NON-VALIDATION surrogate before the opening is granted.",
+  "surrogate": "the development-domain corpus, which is already fully used and carries no withheld economic content"
+ },
+ "epistemic_limitation": {
+  "how_it_is_remedied": "by the new OOS, which is defined prospectively below and is genuinely temporally unknowable at registration.",
+  "resulting_hierarchy": [
+   "development 2013-01-02..2019-10-02 \u2014 used for development, N1 and N3",
+   "consumed Validation-1 2019-10-03..2023-02-16 \u2014 inadmissible forever",
+   "Validation-2 2023-02-17..2026-07-10, 850 sessions, former OOS, ZERO governed reads before redesignation",
+   "new OOS \u2014 prospective sessions after the Cycle-2C seal, never observable at registration"
+  ],
+  "statement": "Validation-2 is machine-pristine but historically elapsed. Its economic observations have never been read from the governed sealed corpus, as established by custody/access evidence, but the calendar period itself is known to analysts. Consequently Validation-2 is a genuine withheld historical validation test, not prospective forward validation.",
+  "what_it_does_NOT_claim": "epistemic equivalence to future data",
+  "why_recorded_prominently": "the whole value of a holdout is that nobody has adapted to it. Machine custody proves the corpus was not READ; it cannot prove that no human knows what 2023-2026 markets did. Claiming otherwise would be the kind of overstatement this program exists to prevent."
+ },
+ "execution_freeze": {
+  "frozen_thread_env": {
+   "MKL_NUM_THREADS": "1",
+   "NUMEXPR_NUM_THREADS": "1",
+   "OMP_NUM_THREADS": "1",
+   "OPENBLAS_CORETYPE": "HASWELL",
+   "OPENBLAS_NUM_THREADS": "1"
+  },
+  "identity_checks_required_before_any_read_ALL_fail_closed": [
+   "evaluator source identity \u2014 every module bound by pushed Git blob SHA-256",
+   "runtime image identity \u2014 digest, not tag",
+   "dependency identity \u2014 the image's own pinned lock report",
+   "numeric runtime identity \u2014 BLAS/LAPACK variant and thread environment",
+   "sealed object identity \u2014 key + VersionId + SHA-256 for all six, verified on read",
+   "structural preflight \u2014 window sessions, fold geometry, schema identity",
+   "research-plane isolation \u2014 see isolation_dependency below"
+  ],
+  "isolation_dependency": {
+   "requirement": "any research-plane / order-path isolation check the Validation-2 harness depends upon MUST be VERSION-CONTROLLED and HASH-BOUND before the opening.",
+   "scope_note": "this is recorded as a Validation-2 PRECONDITION, not as a coupling to the separate ADR-0051 governance work item. If the harness ends up depending on no such script, this precondition is satisfied vacuously and that must be stated rather than assumed.",
+   "why": "the two ADR-0051 invariant scripts are currently UNTRACKED and have never been committed, so they exist at no commit and cannot be bound. Depending on an untracked local script for a fail-closed control is not a control."
+  },
+  "max_iter": 1000,
+  "network": "none for the evaluator; the reader is the ONLY component permitted network access, and only to the sealed store and KMS",
+  "no_solver_selection_in_validation_2": true,
+  "solver_A": "QUADPROG_SQRT",
+  "solver_B": "PIQP_P2",
+  "stage_3_method": "the N1/N2/N3-qualified v2 certificate-driven cascade, unchanged"
+ },
+ "fold_geometry": {
+  "bound_by_ORDINAL_not_date": {
+   "date_labels": "emitted by the reader at open time from the window session list, and recorded in the opening record BEFORE any economic evaluation",
+   "eligible_ordinal_range": [
+    70,
+    844
+   ],
+   "fold_ordinals": [
+    {
+     "first_ordinal": 70,
+     "fold": 1,
+     "last_ordinal": 224
+    },
+    {
+     "first_ordinal": 225,
+     "fold": 2,
+     "last_ordinal": 379
+    },
+    {
+     "first_ordinal": 380,
+     "fold": 3,
+     "last_ordinal": 534
+    },
+    {
+     "first_ordinal": 535,
+     "fold": 4,
+     "last_ordinal": 689
+    },
+    {
+     "first_ordinal": 690,
+     "fold": 5,
+     "last_ordinal": 844
+    }
+   ],
+   "why": "the seam rule is already defined on registered session ordinals rather than calendar-day arithmetic. Binding by ordinal fixes the folds completely NOW, without inventing date literals and without reading one session date out of the sealed partition."
+  },
+  "derivation": "850 window sessions - 69 formation-excluded - 6 realization-horizon = 775 scoring-eligible. 775 / 5 = 155 per fold, zero remainder. Identical geometry to Validation-1 by arithmetic, not by assumption.",
+  "eligible_sessions": 775,
+  "fail_closed": "if the observed window does not yield exactly 850 sessions reproducing session_list_sha256, or the eligible count is not exactly 775, or any fold is not exactly 155, the run terminates as an integrity stop BEFORE economic evaluation. A silently short fold would move the 3-of-5 verdict.",
+  "folds": 5,
+  "formation_exclude_sessions": 69,
+  "realization_horizon_governing": 6,
+  "remainder": 0,
+  "sessions_per_fold": 155,
+  "window_sessions": 850
+ },
+ "frozen_evaluation_contract": {
+  "INCONCLUSIVE": {
+   "genuinely_allowed": true,
+   "meaning": "VALIDATION_INCONCLUSIVE is a member of the frozen verdict domain and is retained. It is NOT a discretionary escape hatch: it may be returned only where the frozen metric specification itself defines an indeterminate result on an otherwise admissible run.",
+   "\u26d4": "it may NEVER be used to avoid recording a REJECT, and never to describe an integrity or numerical fault, which is what INTEGRITY_FAILURE is for."
+  },
+  "INTEGRITY_STOP": "INTEGRITY_FAILURE \u2014 the run is not admissible. gates_evaluated=false. An integrity stop is NEVER reported as VALIDATION_DO_NOT_ADVANCE, which would falsely imply the economic gates ran and failed.",
+  "PASS": "VALIDATION_ADVANCE_REQUEST \u2014 all four advance conditions met. This authorizes a REQUEST for separate OOS authorization. It does NOT open the new OOS and evaluates no OOS gate.",
+  "REJECT": "VALIDATION_DO_NOT_ADVANCE \u2014 the economic gates were evaluated on an admissible run and at least one failed.",
+  "advance_conditions_ALL_required": [
+   "every validation integrity gate passes",
+   "Config B net-positive in >= 3 of 5 folds",
+   "Configs A and C each cumulative net return > 0",
+   "no post-validation tuning requested"
+  ],
+  "allowed_verdicts": [
+   "VALIDATION_ADVANCE_REQUEST",
+   "VALIDATION_DO_NOT_ADVANCE",
+   "VALIDATION_INCONCLUSIVE",
+   "INTEGRITY_FAILURE"
+  ],
+  "diagnostics_cannot_change_the_verdict": {
+   "DIAGNOSTIC_ONLY": [
+    "pbo_cscv",
+    "concentration",
+    "directional_coherence"
+   ],
+   "rule": "reported but cannot independently change the advancement verdict. No discretionary red-flag test may be introduced after Validation-2 is observed."
+  },
+  "no_generic_owner_discretion": "there is no 'owner decides after seeing results' branch. The four conditions above are binding and deterministic.",
+  "oos_only_metrics_PROHIBITED_during_validation_2": [
+   "net_oos_sharpe_ge_0.70",
+   "net_oos_calmar_ge_0.75",
+   "net_annualized_return_ge_0.03",
+   "net_max_drawdown_le_0.15",
+   "dsr_significance_ge_0.95_N5",
+   "one_sided_95pct_bootstrap_lower_bound_daily_mean_net_return_gt_0",
+   "cost_stress_profitable_20bps_300bps",
+   "severe_cost_30bps_1000bps",
+   "breadth_trades_ge_500_entrydates_ge_100_long_ge_100_short_ge_100",
+   "annual_herfindahl",
+   "annual_profile_min_3_positive_years_largest_le_0.50",
+   "trade_concentration_single_le_0.10_top10_le_0.20",
+   "positive_pnl_regime_concentration",
+   "regime_gates_2of3_trend_positive_no_vol_sharpe_lt_-0.5",
+   "expected_L10_bootstrap_sensitivity",
+   "frictionless_short_attribution",
+   "diversifier_tier_tag"
+  ],
+  "prohibition_note": "evaluating any of the above on Validation-2 is a preregistration breach, exactly as it would have been on Validation-1. Redesignating the partition does not move a metric from the OOS stage to the validation stage.",
+  "provenance": {
+   "borrow_model": "ShortBorrowLocateModelSpecification_v1.0",
+   "cost_execution_specification": "ValidationCostExecutionSpecification_v1.0",
+   "decision_specification": {
+    "record": "MR002_Phase3A_ValidationStageDecisionSpecification_v1.0",
+    "sha256": "8f67ec3002b43096c1e2e161d96b5df4d64bd4b683fae8260b67df4fd8313533"
+   },
+   "governing_preregistration": {
+    "record": "MR002_ValidationOOS_Preregistration_v1.0.4",
+    "sha256": "b2a042d4cf8e4d36a70d7e087c3d0e8efc1076e3ee96db7d6c2dc7583129af9c"
+   },
+   "metric_specification": "ValidationMetricSpecification_v1.0",
+   "run_specification": "ValidationRunSpecification_v1.0 (fold and seam rule)"
+  },
+  "rule": "COPIED MECHANICALLY from the governing artifacts. No reinterpretation, no new threshold, no threshold selected using Validation-2 results."
+ },
+ "governing_principle": "The next validation opening must be capable of producing a legitimate economic verdict even if a numerical component encounters an expected registered numerical termination. It must never again be consumed merely because infrastructure or numerical classification failed.",
+ "identity_basis": {
+  "head": "6d018631e8c56d745d5e6b8f4fe55674c3e13f24",
+  "head_is_pushed": true,
+  "remote_head": "6d018631e8c56d745d5e6b8f4fe55674c3e13f24",
+  "rule": "a Git-blob identity is only a PUSHED identity once HEAD has reached the remote branch"
+ },
+ "n3_derived_harness_invariant": {
+  "bound_explicitly_here": true,
+  "expected_invocation_count_for_validation_2": {
+   "registered_form": "the guard therefore binds a LOWER BOUND and a structural relationship rather than a literal count: invocations > 0, census rows == invocations, and at least one invocation per scoring-eligible session that reaches Stage-3. A literal expected count invented now would be a fabricated threshold.",
+   "status": "NOT PREDICTABLE FROM DEVELOPMENT \u2014 the Stage-3 invocation count is a property of the data and cannot be known before the window is replayed.",
+   "\u26d4": "do NOT substitute the development counts (A 1427 / B 1535 / C 933). Those describe a different window."
+  },
+  "invariant": "A validation run with ZERO or UNEXPECTED Stage-3 invocation count MUST terminate as INVALID_TEST_HARNESS before any economic verdict is produced.",
+  "origin": "the N3 build captured the solver handle BEFORE entering the routing context, silently un-routing every arm and producing a FALSE all-identical PASS. The only tell was an empty Stage-3 disposition census.",
+  "required_behaviour": {
+   "checks": [
+    "Stage-3 census is non-empty",
+    "census row count equals the observed invocation count",
+    "invocation count is within the registered expectation for the run",
+    "the frozen v2 pair was actually routed, evidenced by the census disposition vocabulary"
+   ],
+   "not_a_recorded_flag": "a guard that records a flag would not have stopped the N3 defect; it must abort",
+   "ordering": "evaluated BEFORE any economic gate is computed",
+   "raises": true,
+   "terminal_state": "INVALID_TEST_HARNESS"
+  },
+  "why_not_inherited_by_assumption": "N3's routing_guard protects the N3 differential only. Nothing makes a future validation runner inherit it. Assuming inheritance is how the guard silently fails to exist where it matters most."
+ },
+ "new_oos_definition": {
+  "accrual_begins": "the FIRST eligible market session under the governing calendar STRICTLY AFTER this registration is sealed",
+  "boundary_is_mechanical": "determined by the calendar, not chosen. It is NOT 'after Validation-2 finishes' and NOT selected after observing market behaviour.",
+  "data_remains_sealed_and_unread_while_it_accumulates": true,
+  "independence": "the new-OOS boundary is deliberately independent of whatever Validation-2 reports, so the OOS start cannot be influenced by the validation outcome.",
+  "not_yet_specified_here": "the new OOS sample LENGTH, its fold geometry and its accrual machinery are NOT registered by this record. They require their own prospective registration before that opening. Registering them now, against data that does not exist and a pipeline that has not been built, would be fabrication.",
+  "opening": "NOT AUTHORIZED. The new OOS requires its own separate grant, after and distinct from any Validation-2 opening grant.",
+  "role": "the OOS role is reassigned to prospective post-seal accrual",
+  "seal_date": "2026-08-20",
+  "why_this_is_stronger": "unlike Validation-2, the new OOS is temporally unknowable at registration, so it carries none of the elapsed-calendar limitation recorded above."
+ },
+ "pending_bindings": [
+  "scripts/mr002_custody/oos_pristine_proof.py"
+ ],
+ "pristine_proof": {
+  "claim": "no successful governed read of any of the six Validation-2 objects has ever occurred",
+  "coverage_limitation": "CloudTrail data events were enabled on the sealed bucket BEFORE any partition object was written, so no object has ever sat in this store unlogged. The claim is scoped to the SEALED STORE. The earlier period, when the corpus existed only as a DuckDB file on the developer workstation, has no store-level access log and none can be manufactured; that period rests on the procedural seal recorded in preregistration v1.0.4 (sealed_data_read=false), which is a weaker basis and is deliberately NOT restated here as if it were audited.",
+  "denied_attempts_fully_attributed": {
+   "1_on_2026-08-11": "pre-existing HeadObject from the Phase-3C run host; matches the oos_read_attempts_denied=1 already recorded in ValidationPartitionAccessHistory_v1.1",
+   "6_on_2026-08-20": "SELF-DISCLOSED \u2014 the Cycle-2C investigation's own HeadObject metadata probes while pinning object identities for this registration. All DENIED. HeadObject returns metadata, not content, so nothing was exposed; identities were taken from the seal-time upload manifest and cross-checked with ListObjectVersions instead.",
+   "significance": "the deny latch on the Validation-2 prefix is ACTIVELY IN FORCE, not merely assumed. It was tested by accident and held."
+  },
+  "history_identity_sha256": "edb50634f3651bcb1e600f0b060e72eb4999e783b06be48b0e3f0aa2f3b1652c",
+  "objects_unchanged_since_sealing": {
+   "delete_markers": 0,
+   "every_byte_length_matches": true,
+   "every_version_id_matches_seal_time_manifest": true,
+   "extra_versions": 0,
+   "live_versions": 6,
+   "meaning": "no object has been replaced, overwritten or deleted since it was sealed, so the SHA-256 recorded at upload still describes the bytes that would be read",
+   "method": "ListObjectVersions compared against the seal-time upload manifest"
+  },
+  "observed": {
+   "hash_chain_rows": 106,
+   "hash_chain_verifies": true,
+   "oos_denied_or_errored_read_attempts": 7,
+   "oos_successful_reads": 0,
+   "scan_window": "2026-08-11 .. 2026-08-20 (CloudTrail data-event days)",
+   "total_events_naming_the_sealed_store": 106
+  },
+  "producer": {
+   "path": "scripts/mr002_custody/oos_pristine_proof.py",
+   "reuses": "the audited CloudTrail collection and hash-chain code of scripts/mr002_custody/seal_verification.py, by import",
+   "touches": "only the CloudTrail log bucket. It never opens the sealed store, never issues GetObject against any partition prefix, and never reads a snapshot. Reading the log of who read what is not reading the data."
+  },
+  "record": "MR002_OOSPartitionAccessHistory_v1.0"
+ },
+ "program": "MR-002 Sector-Neutral Residual Reversion",
+ "record_identity_sha256": "9d12f7296f105863b5e51c0db898fe2204a68d7af823811e3f24bdf663752cf8",
+ "record_status": "DRAFT",
+ "record_type": "MR002_VALIDATION2_PROSPECTIVE_REGISTRATION",
+ "role_transfer": {
+  "made_before_any_read": true,
+  "made_prospectively": true,
+  "new_oos_role": "assigned to prospective post-seal accrual, defined below.",
+  "what_changes": "the OOS ROLE is RETIRED for the 2023-02-17 .. 2026-07-10 partition. Those exact six objects become the Validation-2 population.",
+  "what_does_not_change": "not one byte. This is a custody-role reassignment, not a data change, and it changes none of the economic gate mathematics.",
+  "\u26d4 not_a_rename": "this record does NOT rename a Validation-1 artifact and does NOT imply the underlying bytes are the same. Validation-1's identifiers refer to objects under validation/ that are consumed. Validation-2 binds the six objects under oos/ by their own keys, VersionIds and SHA-256s, under a new partition identity."
+ },
+ "sealing_requirement": "this record is DRAFT while any binding is non-enforced. Sealing re-derives every binding from PUSHED Git and re-emits the identity.",
+ "separation_of_conformance_from_judgment": {
+  "combination_rule": {
+   "CONFORMANT + economic verdict": "the verdict stands as the result of the opening",
+   "NON_CONFORMANT": "the economic verdict is NOT_EVALUATED and the terminal record is INTEGRITY_FAILURE"
+  },
+  "if_execution_becomes_invalid": {
+   "default": "if any withheld economic observation was exposed before the invalidity, the opening IS consumed and another execution requires a NEW prospective governance decision by the owner. There is no automatic re-run.",
+   "the_record_must_state_explicitly": [
+    "whether the opening is consumed",
+    "under what conditions another execution is permissible"
+   ]
+  },
+  "the_evaluator_MUST_emit_two_logically_distinct_outputs": {
+   "OUTPUT_1_numerical_execution_conformance": {
+    "domain": [
+     "CONFORMANT",
+     "NON_CONFORMANT"
+    ],
+    "fields": [
+     "all_required_instances_resolved",
+     "no_integrity_defect",
+     "runtime_identity_correct",
+     "source_identity_correct",
+     "evidence_complete",
+     "stage3_invocation_count",
+     "unregistered_termination_reasons"
+    ],
+    "note": "a registered numerical termination (for example an iteration limit that the v2 method classifies as NO_CERTIFIED_CANDIDATE with a registered reason) is an EXPECTED outcome and does NOT by itself make the run non-conformant. That is precisely the fragility class N2 qualified away."
+   },
+   "OUTPUT_2_economic_validation_verdict": {
+    "domain": [
+     "VALIDATION_ADVANCE_REQUEST",
+     "VALIDATION_DO_NOT_ADVANCE",
+     "VALIDATION_INCONCLUSIVE",
+     "NOT_EVALUATED"
+    ],
+    "note": "NOT_EVALUATED is returned when and only when conformance failed. It is not a verdict; it is the explicit absence of one."
+   }
+  },
+  "why": "this is the central lesson of the consumed opening. A numerical fault was translated into a terminal outcome that produced no economic verdict at all, and the single opening was spent on it.",
+  "\u26d4 forbidden_translations": [
+   "a numerical fault reported as an economic failure",
+   "an economic miss obscured by an infrastructure state",
+   "an integrity stop recorded as VALIDATION_DO_NOT_ADVANCE",
+   "a conformance failure recorded as VALIDATION_INCONCLUSIVE"
+  ]
+ },
+ "transfer_inventory": {
+  "explicitly_does_NOT_transfer": [
+   "the consumed Validation-1 object identities under validation/",
+   "the Validation-1 literal fold dates",
+   "any Validation-1 execution package, countersignature or authorization",
+   "the lost ValidationOpenedObjectLedger, which never existed in durable form"
+  ],
+  "receives_a_NEW_identity": {
+   "access_history": "MR002_OOSPartitionAccessHistory_v1.0, a new record, not a renamed one",
+   "fold_date_literals": "Validation-1's literal fold dates (2020-01-13..2023-02-08) are SPECIFIC TO THE CONSUMED PARTITION and DO NOT transfer. Validation-2's folds are bound by ordinal below and their date labels are emitted by the reader at open time.",
+   "partition_object_set": "the six oos/ objects, bound by their own keys, VersionIds and SHA-256s under partition_identity_sha256 above",
+   "run_id": "MR002-VALIDATION2 (Validation-1's run_id MR002-SPQ1-VALIDATION-V1 is retired)",
+   "structural_manifest": "a Validation-2 structural preflight must be produced against the oos window before opening; Validation-1's is not reusable"
+  },
+  "rule": "enumerate. Nothing transfers by implication.",
+  "transfers_without_modification": {
+   "advance_and_rejection_semantics": true,
+   "borrow_locate_model": true,
+   "configs": {
+    "oos_candidate": "B only",
+    "validation": [
+     "A",
+     "B",
+     "C"
+    ]
+   },
+   "cost_and_execution_treatment": true,
+   "economic_hypotheses": true,
+   "eligibility_rule": "formation_exclude_sessions=69, realization_horizon_governing=6, on registered session ORDINALS, not calendar-day arithmetic",
+   "fold_geometry": "5 x 155, zero remainder \u2014 DERIVED below, not assumed",
+   "fold_rule": "5 contiguous non-overlapping nearly-equal partitions of the eligible sessions; any remainder to the FINAL fold",
+   "gates_and_thresholds": true,
+   "sample_size_850_sessions": true,
+   "solver_A": "QUADPROG_SQRT",
+   "solver_B": "PIQP_P2",
+   "stage_3_method": "v2 certificate-driven cascade, unchanged"
+  }
+ },
+ "validation_1_is_permanently_inadmissible": {
+  "against_the_two_tests": {
+   "logically_unconsumed": "FALSE \u2014 materialized into a queryable database and replayed over",
+   "physically_unread": "FALSE \u2014 all six objects were downloaded"
+  },
+  "evidence": {
+   "consumed_at": "2026-08-19T12:54:46Z (first sealed validation read)",
+   "declared_sealed_objects": 6,
+   "materialized_artifact": {
+    "bytes": 14430208,
+    "path": "/opt/mr002/work/validation.duckdb",
+    "sha256": "c4cabab228e7824144036afde09f5c949d9dea6144eb0b24d41e1fcad0856c82"
+   },
+   "objects_read": 6,
+   "source": "MR002_Phase3C_ReconstructedExecutionCustodyEvidence_v1.0 (8218ad62f1cb358fbb96782a85378c92570cfd8f50b004365bd91431f767ba1d): sealed_reads 6 of 6 expected, every sealed VersionId matching the package"
+  },
+  "finding": "NOTHING of it remains untouched \u2014 not a residual, not a sub-window.",
+  "ledger_loss": "the ValidationOpenedObjectLedger was never persisted and CANNOT be recreated (EXECUTION_EVIDENCE_NOT_DURABLE), so row-level bounding is unavailable. It is moot: object-level exposure was total.",
+  "partition": {
+   "end": "2023-02-16",
+   "sessions": 850,
+   "start": "2019-10-03"
+  },
+  "status": "CONSUMED \u2014 permanently inadmissible as a holdout. DO NOT REOPEN."
+ },
+ "validation_2_population": {
+  "bucket": "workbench-mr002-sealed-219024422756",
+  "object_count": 6,
+  "objects": [
+   {
+    "bytes": 57069,
+    "key": "oos/actions.parquet",
+    "sha256": "a08c0ed6ba6c6609e67c501a938e0245277e11c82f3d7242e7e2683790acb100",
+    "table": "actions",
+    "version_id": "F6m6am6cBahBd95p41C1.aAVmYd8GuNG"
+   },
+   {
+    "bytes": 177252,
+    "key": "oos/anchors.parquet",
+    "sha256": "5095149d39d26c7af19de3814a7178e93bf3cc3ab87f92512991a81e64013dc9",
+    "table": "anchors",
+    "version_id": "RsJZG3TkDXvNPERJhZVanJ.Vqg8_dulw"
+   },
+   {
+    "bytes": 67010,
+    "key": "oos/etf_prices.parquet",
+    "sha256": "f53f448312f94820d76aad80f378a53ea2b9104654cbb7c69bb82363b2a5da15",
+    "table": "etf_prices",
+    "version_id": "Z3OsUeuucMYIl2v9JDoVNDx1nw.0avDj"
+   },
+   {
+    "bytes": 16173068,
+    "key": "oos/prices.parquet",
+    "sha256": "0f45ddc58170bd1131b9820576080eae861dff65b716bc3f03d08fb284f29e9a",
+    "table": "prices",
+    "version_id": "1ope9PR._oR303.EbZNGPVlIJRy.SZbA"
+   },
+   {
+    "bytes": 138814,
+    "key": "oos/sic_observations.parquet",
+    "sha256": "176a84bc155b5ec8c24444e091b19a78b97c0d31c0da606f22eca44ace7e12cf",
+    "table": "sic_observations",
+    "version_id": "DPhtWW3Pca3TKtSa1LOnGKA.yrZ98EIt"
+   },
+   {
+    "bytes": 111278,
+    "key": "oos/universe.parquet",
+    "sha256": "4c1a2b2e876f7ffdd1f651e5c99079d5fe045e74003af556c3c8b3273d746e0d",
+    "table": "universe",
+    "version_id": "0gaqJ9TuECc3U_zar99sqls2UHRDnkkY"
+   }
+  ],
+  "partition_identity_basis": "sha256 over the canonical JSON of the six objects sorted by key, each carrying table, key, VersionId, bytes and SHA-256",
+  "partition_identity_sha256": "3b3910d00395d90189b94fd0f9901811b1813905f17219010b336c567cfa1296",
+  "prefix": "oos/",
+  "prefix_note": "the S3 prefix keeps its historical name. The prefix string is a storage path, not the governing role; the role is set by THIS record. Renaming objects would change their VersionIds and destroy the pristine chain, which is a far worse outcome than a stale-looking prefix.",
+  "provenance_of_the_hashes": {
+   "every_object_server_validated": true,
+   "identity_sha256": "3834ba8068b0c12bce49a8f65b772f4bc271833f2b90a612d37e40d74587de8d",
+   "method": "each object was uploaded with its SHA-256 already verified against the P6 content commitment, and S3 recomputed it server-side on the received bytes. No object was read back.",
+   "record": "MR002_SealedStoreUploadManifest_v1.0"
+  },
+  "session_list_sha256": "54e8d1f11e8934a3482e5eeae651fb83aaf6974a75e63c52f7eee9d986c79003",
+  "total_bytes": 16724491,
+  "window": {
+   "end": "2026-07-10",
+   "sessions": 850,
+   "start": "2023-02-17"
+  }
+ },
+ "version": "1.0",
+ "what_this_record_does_NOT_establish": [
+  "that MR-002 has economic merit \u2014 Validation-2 has not been read",
+  "that Validation-2 will produce a verdict",
+  "epistemic equivalence between Validation-2 and prospective data",
+  "the new OOS sample length or fold geometry, which are deliberately unregistered"
+ ]
+}
