@@ -1,0 +1,430 @@
+{
+ "authority_chain": {
+  "N1": {
+   "disposition": "N1_ADVANCE",
+   "identity_sha256": "629eee0ee1c257a23312b539fbac8542b40cbf6f2cef296ba2c829fb6b29bd81",
+   "record": "MR002_N1_FinalVerdict_v1.0"
+  },
+  "N2": {
+   "disposition": "N2 CLOSED \u2014 PASS",
+   "identity_sha256": "27f98548067b3017870937c22196212e5bb1b11fdbd6a961a329f85f82aae471",
+   "record": "MR002_N2_Verdict_v1.0"
+  },
+  "owner_grant": {
+   "date": "2026-08-20",
+   "instrument": "owner message granting Gate N3 after accepting Gate N2",
+   "quoted_purpose": "The purpose is not to find a better strategy and not to re-select the solver."
+  }
+ },
+ "authorizes": "nothing \u2014 this record freezes the N3 rule; it grants no execution beyond N3 itself and no economic conclusion of any kind",
+ "bound_sources": {
+  "fold_authority": [
+   {
+    "enforced": true,
+    "file_blob_sha256": "e925799c099c5cfd17ab60917a94f806370165acd905422f5828c3a2db984bb9",
+    "path": "apps/backend/app/research/mr002/phase3c/folds.py"
+   }
+  ],
+  "frozen_method": [
+   {
+    "enforced": true,
+    "file_blob_sha256": "76e6afcca09e33014eee5f6c657355596445e2c0ad7350edb7cb6bd9fbdb6ff0",
+    "path": "apps/backend/app/research/mr002/n1/method.py"
+   },
+   {
+    "enforced": true,
+    "file_blob_sha256": "503d11f50e99846e5afacbf31415c956db16090631509d99e8e4e63465081409",
+    "path": "apps/backend/app/research/mr002/n1/seam.py"
+   },
+   {
+    "enforced": true,
+    "file_blob_sha256": "474683a04f60d5adb5f94056af5abe5be93c322f61f50a86da9c876db1c4cee1",
+    "path": "apps/backend/app/research/mr002/n1/reference.py"
+   }
+  ],
+  "governing_construction": [
+   {
+    "enforced": true,
+    "file_blob_sha256": "4efd57393e2d99e0733f70ceba5e24d9629fb3d4aa8a18837efc36eb157bac43",
+    "path": "apps/backend/app/research/mr002/joint_portfolio.py"
+   },
+   {
+    "enforced": true,
+    "file_blob_sha256": "87dd6e71a60ba89297ed4653eb1abf94052f34f927e8865b8ea41515e290b34f",
+    "path": "apps/backend/app/research/mr002/runner.py"
+   },
+   {
+    "enforced": true,
+    "file_blob_sha256": "a8a11c0c2b5e9ddefb87eb0ebcc9e659eff5104115d5493685707597e157c957",
+    "path": "apps/backend/app/research/mr002/dataset.py"
+   }
+  ],
+  "prior_gate_machinery_reused": [
+   {
+    "enforced": true,
+    "file_blob_sha256": "eeb5092d81eff85e2b0000fd64357bab6b60099ba93449465325b1a7f3e08814",
+    "path": "apps/backend/scripts/mr002_n1_preservation.py"
+   }
+  ],
+  "replay_and_certifier": [
+   {
+    "enforced": true,
+    "file_blob_sha256": "57d0fcac37e466496e62463b4174a430801f1a74100efdb22bd3f0256c367ee9",
+    "path": "apps/backend/scripts/mr002_development_run.py"
+   },
+   {
+    "enforced": true,
+    "file_blob_sha256": "f9e440c6188582037a7813dc8ffc6f828132d72131ff2d54d6a35056f9e5f741",
+    "path": "apps/backend/scripts/mr002_coverage_signed_gap.py"
+   }
+  ],
+  "v1_baseline_path": [
+   {
+    "enforced": true,
+    "file_blob_sha256": "42335ad9d67ccea60020731550c4d04887d744cd6d56d40506269994960554a2",
+    "path": "apps/backend/app/research/mr002/stage3_route.py"
+   },
+   {
+    "enforced": true,
+    "file_blob_sha256": "1021cc287051a61a088c4a715604922f03ee4dfcff41a334681dab12cb3265ef",
+    "path": "apps/backend/app/research/mr002/stage3_cascade.py"
+   }
+  ]
+ },
+ "boundary": {
+  "consumed_validation_opening": "unchanged",
+  "cycle_2C": "NOT AUTHORIZED - it follows an N3 PASS and requires its own grant",
+  "development_domain_only": true,
+  "oos": "PROHIBITED",
+  "sealed_or_reference_bytes_read": 0,
+  "validation_2": "PROHIBITED",
+  "validation_store_opened": false
+ },
+ "comparison_surface": {
+  "granularity": "per config (A/B/C) x per session, plus per Stage-3 invocation and per closed trade",
+  "reconciliation_evidence_only": {
+   "fields": [
+    "cumulative return",
+    "fold results",
+    "Sharpe",
+    "max drawdown",
+    "trade count",
+    "turnover",
+    "cost totals"
+   ],
+   "rule": "these are quoted to show the two arms reconcile. No N3 threshold is derived from any of them, and no new economic statistic is introduced to judge N3.",
+   "source": "the metrics() block already present in the frozen replay output",
+   "status": "REPORTED, NEVER DECISIONAL"
+  },
+  "required_by_owner": {
+   "accepted_holdings_weights": {
+    "comparison": "byte identity of the float64 payload, in order",
+    "observable": "(a) per-invocation accepted allocation vector z returned to build_joint; (b) per-session res.y and res.x books (permaticker -> float64)"
+   },
+   "borrow": {
+    "comparison": "byte identity",
+    "observable": "per-session delta and cumulative borrow"
+   },
+   "costs": {
+    "comparison": "byte identity",
+    "observable": "per-session delta and cumulative costs"
+   },
+   "cumulative_config_return": {
+    "comparison": "byte identity",
+    "observable": "nav_curve[-1] / NAV0 - 1 per config"
+   },
+   "daily_return": {
+    "comparison": "byte identity of the full series",
+    "observable": "per-session daily_ret"
+   },
+   "dividends_cash_distributions": {
+    "comparison": "reconciled through the two channels that carry them: the gap-filter candidate set and the action-exit hard exits",
+    "observable": "DISCLOSED PROPERTY OF THE FROZEN CONSTRUCTION \u2014 see scope_disclosures.dividends_have_no_independent_ledger"
+   },
+   "entry_exit_decisions": {
+    "comparison": "exact equality per session",
+    "observable": "per session: orders, exits, reductions, entries_long, entries_short, exit-reason multiset, hard_exits_due / _executed / _pending_missing_open, adv_clipped, over_cap_days"
+   },
+   "executed_notional": {
+    "comparison": "byte identity",
+    "observable": "per-session delta and cumulative traded_notional"
+   },
+   "fold_membership": {
+    "comparison": "exact equality \u2014 but MECHANICALLY VACUOUS on this domain, see scope_disclosures.fold_membership_is_vacuous_on_development",
+    "observable": "phase3c.folds.fold_of(session) for every replayed session"
+   },
+   "nav": {
+    "comparison": "byte identity of the full curve",
+    "observable": "per-session NAV level (nav_curve) and final NAV"
+   },
+   "run_config_hashes": {
+    "comparison": "exact equality of every session hash, in order",
+    "observable": "the ordered per-session determinism-hash sequence and the run hash derived from it"
+   },
+   "stage3_disposition": {
+    "comparison": "exact equality of the ordered sequence",
+    "observable": "ordered per-invocation census row from the routing seam: disposition, accepted_by generator, termination reason"
+   },
+   "trades_orders_implied": {
+    "comparison": "record-by-record, in order; float fields by byte identity",
+    "observable": "the closed-trade ledger Acc.trades: permaticker, side, entry_session, exit_session, reason, gross_pnl, costs, net_pnl"
+   }
+  }
+ },
+ "custody_plan": {
+  "binds": [
+   "execution commit",
+   "runtime image",
+   "frozen thread environment",
+   "dataset identity",
+   "v1 baseline identity",
+   "N1 and N2 verdict identities",
+   "this registration identity"
+  ],
+  "manifest_path": "manifests/s3/objects/mr002-n3-execution-evidence.v1.json",
+  "model": "the pattern proven by N1 and N2: large row/session-level differential to versioned S3 pinned by VersionId + SHA-256 with read-back confirmation; the concise governing verdict and the manifest in Git.",
+  "object_key_prefix": "artifacts/governed/mr002-n3-execution-evidence/1.0/",
+  "s3_bucket": "workbench-backups-219024422756",
+  "scratch": ".mr002out/ remains 'scratch, never evidence' and is not a governance store"
+ },
+ "date": "2026-08-20",
+ "disposition_semantic_class": {
+  "allocation_requirement_unchanged": "STRICT. The N1 ruling is explicit that the semantic-class reading is 'not a relaxation of the allocation requirement, which stays strict'. C1 remains byte identity of the accepted allocation.",
+  "amendment_note": {
+   "added": "2026-08-20, BEFORE any governed N3 execution",
+   "trigger": "a scratch smoke run on a non-governed 124-session window (explicitly not evidence) surfaced the vocabulary disjunction as a CODING defect in the differential.",
+   "why_this_is_not_post_results_rule_invention": "no governed N3 result existed, none had been computed, and no threshold was moved. The clarification names the label spaces the already-adjudicated N1 ruling was about. It is recorded here rather than applied silently in code."
+  },
+  "authority": {
+   "note": "N3 applies this ruling verbatim. It does not extend it and does not invent a vocabulary of its own.",
+   "record": "MR002_N1_FinalVerdict_v1.0 \u2014 owner ruling of 2026-08-19, D3 clause 5",
+   "ruling": "'Method disposition' means the TERMINAL SEMANTIC CLASS of the two-generator method \u2014 resolved certified allocation vs unresolved / integrity stop \u2014 not the accepted_by generator attribution."
+  },
+  "compared_as": "the ordered PER-INVOCATION sequence of semantic classes must be exactly equal between the arms",
+  "generator_attribution_is_diagnostic": {
+   "rule": "which generator produced the accepted point (primary vs fallback/secondary) is RECORDED AND REPORTED but is NOT a pass criterion, exactly as N1 retained Solver A's permutation instability as an explicit diagnostic rather than presuming it away.",
+   "why": "the governed v1 census contains 4 FALLBACK_QUALIFIED invocations across A/B/C. If v2 certifies any of those on its primary generator, the terminal semantic class is unchanged and the accepted allocation must STILL be byte-identical."
+  },
+  "mapping": {
+   "INVALID_RUN": {
+    "v1": [
+     "INVALID_RUN"
+    ],
+    "v2": [
+     "INVALID_RUN"
+    ]
+   },
+   "RESOLVED_CERTIFIED_ALLOCATION": {
+    "v1": [
+     "PRIMARY_QUALIFIED",
+     "FALLBACK_QUALIFIED"
+    ],
+    "v2": [
+     "PRIMARY_CERTIFIED",
+     "SECONDARY_CERTIFIED"
+    ]
+   },
+   "UNREGISTERED": {
+    "effect": "fails C6 \u2014 an unregistered termination reason",
+    "v1": [
+     "<any other label>"
+    ],
+    "v2": [
+     "<any other label>"
+    ]
+   },
+   "UNRESOLVED": {
+    "v1": [
+     "UNRESOLVED_NUMERICAL_FAILURE"
+    ],
+    "v2": [
+     "UNRESOLVED_INSTANCE"
+    ]
+   }
+  },
+  "problem": "the v1 cascade and the v2 method reconcile to DISJOINT label vocabularies. v1 emits PRIMARY_QUALIFIED / FALLBACK_QUALIFIED / UNRESOLVED_NUMERICAL_FAILURE / INVALID_RUN; v2 emits PRIMARY_CERTIFIED / SECONDARY_CERTIFIED / UNRESOLVED_INSTANCE / INVALID_RUN. Comparing the raw strings would fail on EVERY invocation by construction. That is a broken check, not a strict one."
+ },
+ "domain": {
+  "configs": [
+   "A",
+   "B",
+   "C"
+  ],
+  "consumed_validation_opening": "unchanged",
+  "dataset": {
+   "path": "apps/backend/data/mr002_research.duckdb",
+   "referent": "the data_manifest_identity bound in MR002_EvaluatorBinding.json and in custody_review/sealed_partition_commitment.py",
+   "sha256": "24e5153cc0ebed77c7b422562e5a8ebfa147aad3019b27035b5314aaaacfad5a"
+  },
+  "governed_stage3_census_expected": {
+   "A": {
+    "FALLBACK_QUALIFIED": 1,
+    "PRIMARY_QUALIFIED": 1426,
+    "invocations": 1427
+   },
+   "B": {
+    "FALLBACK_QUALIFIED": 3,
+    "PRIMARY_QUALIFIED": 1532,
+    "invocations": 1535
+   },
+   "C": {
+    "FALLBACK_QUALIFIED": 0,
+    "PRIMARY_QUALIFIED": 933,
+    "invocations": 933
+   },
+   "total_invocations": 3895
+  },
+  "oos": "PROHIBITED",
+  "plane": "development only",
+  "sealed_or_reference_bytes_read": 0,
+  "validation_2": "PROHIBITED",
+  "validation_store_opened": false,
+  "window": [
+   "2013-01-02",
+   "2019-10-02"
+  ]
+ },
+ "execution_plan": {
+  "arms_per_config": [
+   "v1 uninstrumented (inertness control)",
+   "v1 instrumented (baseline)",
+   "v2 instrumented (QUADPROG_SQRT + PIQP_P2)"
+  ],
+  "determinism": "a deterministic rerun of the v2 arm must reproduce its own outputs bit-for-bit, as N1 and N2 both required",
+  "frozen_thread_env": {
+   "MKL_NUM_THREADS": "1",
+   "NUMEXPR_NUM_THREADS": "1",
+   "OMP_NUM_THREADS": "1",
+   "OPENBLAS_CORETYPE": "HASWELL",
+   "OPENBLAS_NUM_THREADS": "1"
+  },
+  "network": "none",
+  "runtime_image": "mr002-research:v1.4"
+ },
+ "firewalls": {
+  "N1_prior_evidence_does_not_soften_N3": {
+   "and_the_converse": "reproducing the N1 numbers is NOT itself the pass criterion. The pass criterion is the rule registered above.",
+   "prior": "MR002_N1_FinalVerdict_v1.0 finding preservation_governed_v1_replay reported byte identity for PIQP_P2 on this same window and configs",
+   "rule": "that is helpful prior evidence and nothing more. N3 registers its rule before its result, executes independently, and is adjudicated on its own output. The prior does not lower any requirement, shrink the comparison surface, or excuse a failure."
+  },
+  "better_is_not_a_win": {
+   "enforced_mechanically": "the differential compares MAGNITUDES and is SIGN-BLIND; the pass rule contains no directional term, so a favourable difference cannot pass a test an unfavourable one fails",
+   "rule": "improvement OR degradation beyond the registered numerical reconciliation bound => N3_STOP / investigate. Never 'accept because better'.",
+   "why": "Stage-3 v2 repairs numerical resolution. It is not licensed to alter economic behaviour. A return improvement is evidence that something other than numerical resolution changed, which is a defect signal, not a result."
+  },
+  "no_new_economic_statistics": {
+   "rule": "N3 introduces no economic statistic that the frozen replay does not already produce. Sharpe and drawdown are quoted only because metrics() already computes them."
+  },
+  "no_rerun_of_N2": "the N2 stress population is not regenerated, re-scored or re-run. N2 is closed.",
+  "no_solver_selection": "N3 evaluates one frozen pair. It ranks nothing and recommends no solver."
+ },
+ "frozen_method": {
+  "candidate_set_evaluated_in_N3": [],
+  "max_iter": 1000,
+  "max_iter_status": "FROZEN \u2014 unchanged from N1/N2",
+  "selection_occurs_in_N3": false,
+  "solver_A": "QUADPROG_SQRT",
+  "solver_B": "PIQP_P2",
+  "unchanged_from_N1_N2": [
+   "profiles and limits",
+   "certificate predicate",
+   "Stage 1",
+   "Stage 2",
+   "constraints and R/Q retention bands",
+   "A/B/C configurations",
+   "exits",
+   "costs",
+   "borrow",
+   "dividend / cash-distribution handling",
+   "corporate-action handling",
+   "fold rule",
+   "execution semantics",
+   "governed development dataset identity",
+   "runtime image identity"
+  ],
+  "why_no_candidate_set": "N1 selected Solver B under a sealed rule on the frozen bakeoff corpus and N2 confirmed the pair under stress. N3 receives that pair as an input. Evaluating PIQP_P1 here \u2014 as the N1 preservation run legitimately did while selection was still open \u2014 would re-open a closed selection on replay economics, which is selection on returns and is forbidden outright."
+ },
+ "gate": "N3 \u2014 FULL DEVELOPMENT BEHAVIOURAL / ECONOMIC EQUIVALENCE",
+ "identity_basis": {
+  "head": "ed4cf12b5b4de76e812965afdef541663ddfe610",
+  "head_is_pushed": true,
+  "remote_head": "ed4cf12b5b4de76e812965afdef541663ddfe610",
+  "rule": "a Git-blob identity is only a PUSHED identity once HEAD has reached the remote branch"
+ },
+ "implementation_binding": {
+  "bound_by": "MR002_N3_Verdict_v1.0 -> execution_identities.bound_source",
+  "path": "apps/backend/scripts/mr002_n3_equivalence.py",
+  "why_not_here": "it does not exist yet, and this record must not depend on the code it governs"
+ },
+ "numerical_reconciliation_bound": {
+  "bound_when_C1_C2_identity_holds": 0.0,
+  "bound_when_C1_identity_fails": {
+   "allocation_layer": "the ALREADY-REGISTERED N1 equivalence rule (EQUIVALENCE_TRIVIAL / EQUIVALENCE_PROVEN_BOUND). N3 does not re-derive an allocation equivalence rule.",
+   "handling": "every such instance is INDIVIDUALLY ENUMERATED in the differential and surfaced in the verdict. It is never silently absorbed.",
+   "propagation_per_session": {
+    "costs": "|d costs| <= COST_BPS*1e-4 * NAV_open * ||d z||_1",
+    "nav": "|d NAV| <= NAV_open * ||d z||_1 * (1 + COST_BPS*1e-4)",
+    "note": "these compound across sessions through NAV_open; the differential reports the realized compounding rather than a closed-form envelope",
+    "notional": "|d notional_i| <= NAV_open * |d z_i|"
+   },
+   "status": "DEFINED BUT NOT PRESUMED \u2014 engages only on instances where the accepted allocation is not byte-identical"
+  },
+  "derivation": {
+   "step_1_channels": "The v2 method can influence the replay through exactly two channels, both at the joint_portfolio._solve_qp seam that stage3_route and the v2 seam replace: (C1) the accepted allocation vector z returned to build_joint, which propagates to res.y / res.x and therefore to orders, notional, costs, borrow, mark-to-market, NAV, daily return and the trade ledger; and (C2) the solver info dict, which reaches res.outcome and diag['zero_entry_reason'] and therefore the session outcome classification. There is no third channel: every other input to the loop -- prices, candidates, eligibility, exits, sizing, the cost and borrow models -- is computed by code that is byte-identical between the two arms and consumes only frozen dataset values.",
+   "step_2_determinism": "The replay is executed in a single frozen image under FROZEN_THREAD_ENV (OMP/OPENBLAS/MKL/NUMEXPR_NUM_THREADS=1, OPENBLAS_CORETYPE=HASWELL) with --network=none. Under that environment the arithmetic is a fixed sequence of IEEE-754 double operations with no threading-order nondeterminism.",
+   "step_3_conclusion": "Therefore, conditional on C1 and C2 identity, every downstream economic quantity is produced by the SAME operations on the SAME operands in the SAME order, so the difference is EXACTLY ZERO -- not 'small'. The mechanically derived reconciliation bound on the development replay is ZERO on every compared quantity. It is not a tolerance and was not selected to fit a result."
+  },
+  "owner_instruction_honoured": "'If the existing N1 preservation machinery can prove byte identity, use byte identity. Do not weaken exact equality to a tolerance just because N3 formally permits numerical equivalence.' The primary rule below is byte identity. The bound above is a fallback that must be reported, not a relaxation applied up front."
+ },
+ "pass_rule": {
+  "primary_gate": "allocation and behavioural preservation. NOT return improvement.",
+  "scope": "every governed development replay observation, for every config A/B/C, where v1 produced an accepted economic state",
+  "six_registered_checks": [
+   "C1 Stage-3 accepted allocation equivalent under the already-registered equivalence rule",
+   "C2 downstream behavioural outputs reconcile",
+   "C3 economic outputs reconcile within the mechanically derived bound",
+   "C4 no new unresolved numerical failure",
+   "C5 no integrity defect",
+   "C6 no unregistered termination reason"
+  ],
+  "tier_1_primary": {
+   "name": "BYTE IDENTITY",
+   "requirement": "every quantity in comparison_surface.required_by_owner is byte-identical between the v1 arm and the v2 arm",
+   "verdict_if_met": "N3_PASS"
+  },
+  "tier_2_fallback": {
+   "engages": "only on quantities where Tier 1 fails",
+   "name": "REGISTERED NUMERICAL EQUIVALENCE",
+   "requirement": "the allocation layer satisfies the already-registered N1 equivalence rule AND every economic difference lies within numerical_reconciliation_bound.bound_when_C1_identity_fails",
+   "verdict_if_met": "N3_PASS_WITH_DISCLOSED_NUMERICAL_DIFFERENCE",
+   "why_a_distinct_verdict": "v2 is supposed to repair numerical resolution, not alter economic behaviour. A within-bound but non-zero economic difference is still a behavioural change. Recording it under the same label as a clean pass would hide the one thing the owner asked to be told about, so it is a separate disposition the owner adjudicates."
+  }
+ },
+ "pending_bindings": [],
+ "program": "MR-002 Sector-Neutral Residual Reversion \u2014 Stage-3 numerical method v2",
+ "question": "Does the N1/N2-qualified Stage-3 v2 method preserve the frozen MR-002 development economics end-to-end when substituted for Stage-3 v1? This is the ONLY question N3 answers. N3 does not look for a better strategy and does not re-select the solver.",
+ "record_identity_sha256": "b6b8aaca6fee92292f16d12243fdeace4a909234d12d4215c1c966b2cbb46328",
+ "record_status": "SEALED",
+ "record_type": "MR002_N3_PROSPECTIVE_REGISTRATION",
+ "scope_disclosures": {
+  "dividends_have_no_independent_ledger": {
+   "consequence": "there is no separate dividend cash ledger in the frozen replay to reconcile line-for-line.",
+   "fact": "FrozenDataset.day_inputs sets the cash-distribution term to 0.0 for every name ('dividends handled via ACTIONS below'), so the distribution argument to economic_gap is identically zero across the development window. Dividends and corporate events reach the replay only as ACTIONS (acquisitionby / delisted / bankruptcy) via DayInputs.action_exit.",
+   "how_N3_reconciles_it": "through the two channels that actually carry the effect: the gap-filter candidate set and the action-exit hard exits, both compared per session, plus the bound dataset identity. Neither channel is downstream of Stage-3, so neither can be perturbed by the method under test.",
+   "why_not_fixed": "adding a dividend accumulator would change the frozen replay and introduce an economic quantity the governing construction does not have. Disclosed rather than invented."
+  },
+  "fold_membership_is_vacuous_on_development": {
+   "consequence": "the fold-membership comparison is satisfied VACUOUSLY (None == None for all sessions) and carries no evidential weight. Fold RESULTS cannot be computed on this domain at all.",
+   "fact": "the five frozen folds span 2020-01-13 .. 2023-02-08 (phase3c/folds.py FROZEN_FOLDS). The N3 domain is the development window 2013-01-02 .. 2019-10-02. The two are DISJOINT, so fold_of(session) returns None for every session N3 replays.",
+   "recorded_as": "a DISCLOSED LIMITATION of N3, not a satisfied check. It is reported with this caveat attached in the verdict.",
+   "why_not_fixed": "the only domain with a non-vacuous fold structure is the validation window, and Validation-2 / OOS are PROHIBITED and the original opening is consumed. Partitioning the development window into substitute folds would invent a new economic construct, which the grant forbids."
+  },
+  "instrumentation_must_be_proven_inert": {
+   "additional_check": "the uninstrumented v1 arm must reproduce the governed Stage-3 census exactly (A 1426/1, B 1532/3, C 933/0), as the N1 baseline reconciliation established it does.",
+   "control": "the v1 arm is executed BOTH instrumented and uninstrumented, and the two must agree on the full per-session determinism-hash sequence and on every aggregate economic field. A mismatch is an N3_STOP for INSTRUMENT DEFECT, reported as such and never as a method result.",
+   "risk": "capturing per-session rows requires observing the replay while it runs. Observation that perturbs the replay would make the differential measure the instrument rather than the method."
+  }
+ },
+ "sealing_requirement": "this record is DRAFT while any binding is non-enforced. Sealing re-derives every binding from PUSHED Git and re-emits the identity.",
+ "version": "1.0"
+}
