@@ -1,0 +1,226 @@
+{
+ "boundary": {
+  "latch": "8 / CLOSED",
+  "prior_opening_authorization": "SUSPENDED - a fresh ruling is required",
+  "validation_2_opening": "NOT AUTHORIZED",
+  "withheld_reads": 0
+ },
+ "crlf_identity_determination": {
+  "answer": "NO",
+  "consequence": "historical CRLF identities are recorded as SUPERSEDED/CORRECTED provenance. NOT an opening blocker.",
+  "enforced_constants_in_adopted_py": {
+   "ADOPTED_RUNNER_SHA256": "57d0fcac... = the LF Git blob",
+   "MECHANICS_BLOCK_SHA256": "2ab94236... = LF basis"
+  },
+  "follow_up_debt": "Source Identity Provenance Sweep - Windows checkout / archive line-ending contamination. Future source identities must derive from Git objects or another explicitly byte-canonical source, never an ambient Windows checkout. Build control must use git -c core.autocrlf=false -c core.eol=lf archive. Tracked separately.",
+  "is_it_enforced": "NO. The source documents it as retained verbatim and NOT enforced, and its only reference outside its definition is a reporting dict - it is never compared. The code explains why it cannot be enforced: a 26-line block loses exactly 26 carriage returns under LF, so no LF checkout could reproduce it.",
+  "operational_proof": "the phase3c suite passed from the DEPLOYED LF tree, which exercises adopted.verify_binding(); both enforced hashes therefore verify against LF bytes.",
+  "question": "does any still-operative MR-002 gate, registration, manifest, certification or integrity assertion REQUIRE one of the known defective CRLF identities?",
+  "the_one_CRLF_value_present": "MECHANICS_BLOCK_SHA256_FROZEN_CRLF_BASIS = 02d9ea75..."
+ },
+ "date": "2026-08-20",
+ "deployment": {
+  "archive_deployed": "19d5e4b208c533768f3184fd64ae3076ff94bfd1a15e36c3eb4b52e348c500ce",
+  "archive_not_regenerated": "the authorized frozen bytes were re-hashed and staged; the archive was NOT rebuilt from the commit",
+  "candidate_gates": {
+   "archive_sha": "PASS",
+   "critical_hashes": "20/20",
+   "crlf_files": "0/20",
+   "ownership_mode": "root:root:664",
+   "py_file_count": 1064,
+   "safe_paths": "PASS"
+  },
+  "correction_record": "ed2ffcf458314e19d102e7261ddf78691c9fd5725337f68e6af51d4bb42c57d6",
+  "crlf_gate_is_secondary": "the hashes remain authoritative; no-CRLF cannot rescue a hash mismatch",
+  "cutover": {
+   "candidate_aggregate": "047abe0f6f103158172aaa84a1b882ebdc4ccb85378aa5f730fca23f538a1ac9",
+   "pattern": "staged extraction, full verification, then same-filesystem atomic rename",
+   "post_cutover_live_aggregate": "047abe0f6f103158172aaa84a1b882ebdc4ccb85378aa5f730fca23f538a1ac9",
+   "rename_changed_no_bytes": true,
+   "rollback_aggregate": "ff0308be99dd82087b03ef3b48006f4a7c4b87ca37bd951a8be42794c03f4bbc",
+   "rollback_tree": "/opt/mr002/phase3c_src_pre_amendmentC"
+  },
+  "package": "MR002_Validation2_ExecutionPackage_v1.0 (6c2484f8) SUPERSEDED by correction ed2ffcf4 - v1.0's bound archive hash was defective",
+  "source_commit": "6aca0d80225b6aa650eb9b90712d7f88b55c21e8"
+ },
+ "disclosed_limitations_carried_forward": [
+  "Validation-2 is machine-pristine but HISTORICALLY ELAPSED",
+  "fold RESULTS are not computable on the development surrogate",
+  "the dividend corporate-action leg is reconciled but VACUOUS on development",
+  "the six objects BYTES remain bound INDIRECTLY via write-time server-validated SHA-256; direct verification is only possible at the opening itself"
+ ],
+ "disposition": "VALIDATION2_READY_FOR_OWNER_OPENING_GRANT",
+ "evidence_chain": {
+  "N1": "629eee0ee1c257a23312b539fbac8542b40cbf6f2cef296ba2c829fb6b29bd81",
+  "N2": "27f98548067b3017870937c22196212e5bb1b11fdbd6a961a329f85f82aae471",
+  "N3": "5a14028024a1f78ca60ebeb174b5ecd7b8a3e1f5027f8768ec93b6f2a8195ec4",
+  "amendment_A_v1_2": "3ce28be1cf6c422a2f0acc9d7fe5388f0fea9c62ad91c57c30459da32d6d4735",
+  "amendment_B_live_trust": "6b8a73a6633a9e709409caf9ce339c777cd49b98f5b300fd30d7acf4b130c8bc",
+  "amendment_B_v1_2": "1d27410c626a5748133723a3680625ca07256c334ae39fd1e9bc8529aeb4ed7d",
+  "amendment_C_commit": "1498039b7ca825a555dd562513ca74a8d5145034",
+  "execution_package": "6c2484f892b753f622f4151071e524001140980d5e48f0b7c99dbdde7d3c85d7",
+  "package_correction": "ed2ffcf458314e19d102e7261ddf78691c9fd5725337f68e6af51d4bb42c57d6",
+  "partition_identity": "3b3910d00395d90189b94fd0f9901811b1813905f17219010b336c567cfa1296",
+  "prospective_registration": "93ee468801c92edd9dd1ba49944b381a6d9172c2e22f9bcc76a9dcbe8541af57",
+  "structural_preflight": "3810e071761a5100fe8cda6754488ebac5230f74b1b5e0f812ec53764d94436a"
+ },
+ "execution_critical_source_identities": {
+  "apps/backend/app/research/mr002/dataset.py": "a8a11c0c2b5e9ddefb87eb0ebcc9e659eff5104115d5493685707597e157c957",
+  "apps/backend/app/research/mr002/execution.py": "4710d3869ec4d1294e9a7a7888d80fab0f85d2cd0176df67bba323ef90365b62",
+  "apps/backend/app/research/mr002/joint_portfolio.py": "4efd57393e2d99e0733f70ceba5e24d9629fb3d4aa8a18837efc36eb157bac43",
+  "apps/backend/app/research/mr002/n1/method.py": "76e6afcca09e33014eee5f6c657355596445e2c0ad7350edb7cb6bd9fbdb6ff0",
+  "apps/backend/app/research/mr002/n1/seam.py": "503d11f50e99846e5afacbf31415c956db16090631509d99e8e4e63465081409",
+  "apps/backend/app/research/mr002/phase3b/readers.py": "690cc3f61c423e360b96fed779db19e3d2170f4a719421dadddbfd129835bf48",
+  "apps/backend/app/research/mr002/phase3c/__init__.py": "ad3b578c5e9965c21e734b18431f82d5602463481d1dd57ee242b8c0e5483c9f",
+  "apps/backend/app/research/mr002/phase3c/adopted.py": "8b3cfa9d72b12f2f9545ae84810cb5cd346cf6483aaaa59142224d98d79fda3f",
+  "apps/backend/app/research/mr002/phase3c/credential_readiness.py": "4a0d6eb5daf5f5a661a8a03f9839c72be385a80963c308629951a3a603b0912f",
+  "apps/backend/app/research/mr002/phase3c/durable_evidence.py": "6bd599384fa530da73f9cf99c5f16da39b2637703cb31f9c5ce60085e02a87cb",
+  "apps/backend/app/research/mr002/phase3c/exits.py": "2724f372ef62a6b6a0c15173c7d6146cf9a44748940f759773dca61219bde7d7",
+  "apps/backend/app/research/mr002/phase3c/folds.py": "8033265051b02d730900538693a662b4af6e2bc80a410090add83d8d38db103f",
+  "apps/backend/app/research/mr002/phase3c/gates.py": "3782ecf59189dacbbfa04a57cf6f503118721db6a40271a0a2994e15fd377ad3",
+  "apps/backend/app/research/mr002/phase3c/materialize.py": "f5d1f4106d88dfcf226be3f6660e47b8fa436b8ddc0201eefa439411c06bfd67",
+  "apps/backend/app/research/mr002/phase3c/replay.py": "e90cbe8edf2c50d90e7d4fd3c87d2ce6b4605a7023b0e3a75d506bfec4ad8b87",
+  "apps/backend/app/research/mr002/runner.py": "87dd6e71a60ba89297ed4653eb1abf94052f34f927e8865b8ea41515e290b34f",
+  "apps/backend/app/research/mr002/stage3_cascade.py": "1021cc287051a61a088c4a715604922f03ee4dfcff41a334681dab12cb3265ef",
+  "apps/backend/app/research/mr002/stage3_route.py": "42335ad9d67ccea60020731550c4d04887d744cd6d56d40506269994960554a2",
+  "apps/backend/scripts/mr002_coverage_signed_gap.py": "f9e440c6188582037a7813dc8ffc6f828132d72131ff2d54d6a35056f9e5f741",
+  "apps/backend/scripts/mr002_development_run.py": "57d0fcac37e466496e62463b4174a430801f1a74100efdb22bd3f0256c367ee9"
+ },
+ "execution_host_qualification": {
+  "effective_constants_from_loaded_objects": {
+   "ELIGIBLE_SESSIONS": 775,
+   "OUT_OF_BOUNDS_AFTER": "2026-07-10",
+   "SCORING_ELIGIBLE_FIRST": "2023-05-30",
+   "SCORING_ELIGIBLE_LAST": "2026-07-01",
+   "VALIDATION_WINDOW_END": "2026-07-10",
+   "VALIDATION_WINDOW_SESSIONS": 850,
+   "VALIDATION_WINDOW_START": "2023-02-17",
+   "all_match": true
+  },
+  "fatal_interlock": {
+   "detail": "OOS_BOUNDARY_VIOLATION: session 2026-07-11 is beyond the Validation-2 window end 2026-07-10",
+   "fired": true,
+   "probe_session": "2026-07-11"
+  },
+  "folds": [
+   [
+    1,
+    "2023-05-30",
+    "2024-01-09",
+    155
+   ],
+   [
+    2,
+    "2024-01-10",
+    "2024-08-21",
+    155
+   ],
+   [
+    3,
+    "2024-08-22",
+    "2025-04-04",
+    155
+   ],
+   [
+    4,
+    "2025-04-07",
+    "2025-11-14",
+    155
+   ],
+   [
+    5,
+    "2025-11-17",
+    "2026-07-01",
+    155
+   ]
+  ],
+  "folds_match": true,
+  "frozen_solver_pair": {
+   "A": "QUADPROG_SQRT",
+   "B": "PIQP_P2",
+   "disposition_vocabulary_present": true
+  },
+  "import_resolution": {
+   "all_modules_resolve_under_work_mount": true,
+   "module_files": {
+    "folds": "/work/apps/backend/app/research/mr002/phase3c/folds.py",
+    "gates": "/work/apps/backend/app/research/mr002/phase3c/gates.py",
+    "joint_portfolio": "/work/apps/backend/app/research/mr002/joint_portfolio.py",
+    "phase3c": "/work/apps/backend/app/research/mr002/phase3c/__init__.py",
+    "replay": "/work/apps/backend/app/research/mr002/phase3c/replay.py"
+   },
+   "why_this_is_THE_gate": "matching files at /opt/mr002/phase3c_src prove nothing if the runner imports a different copy. This asserts the LOADED modules' __file__."
+  },
+  "non_withheld_conformance": {
+   "exit_code": 0,
+   "failures": 0,
+   "suite": "phase3c, executed from the DEPLOYED tree in the opening container"
+  },
+  "run_inside": "the exact container the opening will use: mr002-research:v1.4, -v /opt/mr002/phase3c_src:/work:ro, PYTHONPATH=/work/apps/backend, FROZEN_THREAD_ENV, --network=none, deps bundle mounted",
+  "runtime": {
+   "deps_bundle_mounted": true,
+   "image_config_digest_observed": "sha256:770553aeae6c3d47f1735f61a4e0df75515c105ddda0431dcc2a07b8bdbfe4b6",
+   "libs": {
+    "duckdb": "1.1.3",
+    "numpy": "2.2.6",
+    "piqp": "0.6.3",
+    "quadprog": "present"
+   },
+   "matches_bound": true,
+   "typed_identity_note": "the qualification machine's OCI/index identity is sha256:aa930021c072... for the SAME image. Two values, two identity TYPES, not drift. A bare image_id must never be a gate."
+  },
+  "validation_1_folds_retained_as_history": true
+ },
+ "iam_state_reverified_now": {
+  "deployed_A_v1_2_equals_sealed": true,
+  "evaluator_host_state": "stopped",
+  "latch_statements": 8,
+  "reader_trust_condition": "arn:aws:iam::219024422756:role/mr002-phase3c-run-host"
+ },
+ "lineage": [
+  "daa1f7ca... READY under the eight-gate model; the deployed-source question was never asked",
+  "c2f4d8b2... opening NEVER BEGUN; the missing deployed-source gate discovered at step 1",
+  "ed2ffcf4... deployment preparation FAILED at candidate verification (CRLF archive); cutover not performed; corrected package sealed",
+  "THIS RECORD  corrected NINE-gate qualification with the execution-host gate bound"
+ ],
+ "readiness_gates": {
+  "all_bound_sources_committed": true,
+  "deployed_matrix_fully_green": true,
+  "deployed_policy_equals_sealed_document": true,
+  "every_required_identity_present": true,
+  "execution_host_source_identity_matches_registered_execution_package": true,
+  "latch_closed_8_statements": true,
+  "no_live_read_used_during_qualification": true,
+  "reader_trust_unchanged": true,
+  "zero_successful_validation2_reads": true
+ },
+ "record_identity_sha256": "3e1e6e292a02a8b5102842c2fc99baa7d00e0218b0e87679fd959cd5167a3db4",
+ "record_type": "MR002_Validation2_ReadinessQualification",
+ "supersedes_for_opening_purposes": {
+  "identity": "daa1f7ca7abb24509a2a1623a1ae3f6652f47197b7fc83106897efe73852f28f",
+  "not_rewritten": "the old record is NOT edited to pretend the ninth gate existed",
+  "preserved_unmodified": true,
+  "record": "MR002_Validation2_ReadinessQualification_v1.0",
+  "status": "READY under an EIGHT-gate model, later found INCOMPLETE by pre-opening verification"
+ },
+ "the_new_ninth_gate": {
+  "binds": "host + destination path + 20 execution-critical source hashes + IMPORT RESOLUTION + runtime/image typed identities + frozen solver identities",
+  "name": "execution_host_source_identity_matches_registered_execution_package",
+  "stronger_than_four_hashes": true,
+  "why": "the eight-gate model verified Amendment C was applied IN THE REPOSITORY and never asked whether the EXECUTION HOST carried it. Applied was checked at the wrong place. This gate closes exactly that class of defect."
+ },
+ "version": "2.0",
+ "what_this_record_does_NOT_authorize": [
+  "releasing the 8 -> 7 latch",
+  "assuming the reader",
+  "reading one Validation-2 byte",
+  "executing phase3c against Validation-2",
+  "inspecting any resulting economics"
+ ],
+ "withheld_reads": {
+  "access_history": "20dc9f69fc1d71514d718ce8894c5bfe16694d02863ce1a033641ca1e490b7a9",
+  "chain_verifies": true,
+  "denied_attempts": 7,
+  "successful": 0
+ }
+}
