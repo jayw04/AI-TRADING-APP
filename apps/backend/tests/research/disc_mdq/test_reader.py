@@ -243,3 +243,56 @@ def test_torn_final_line_is_tolerated(tmp_path: Path) -> None:
 
     result = MdqFeatureReader(store, make_scope(["AAPL"], [SESSION])).read_quotes(FEED, SESSION)
     assert len(result.observations) == 1
+
+
+# --- end-to-end binding to the REAL governed holdout artifact ----------------
+
+
+def governed_config(name: str) -> Path:
+    here = Path(__file__).resolve()
+    for parent in here.parents:
+        candidate = parent / "config" / name
+        if candidate.exists():
+            return candidate
+    raise AssertionError(f"could not locate config/{name} from {here}")
+
+
+def test_reader_is_wired_to_the_REAL_governed_holdout_artifact(tmp_path: Path) -> None:
+    """Prove the reader excludes the *governed* holdout list, not fixture literals.
+
+    Every other exclusion test builds the policy from literals that happen to
+    match the governed set. That proves the mechanism but not the wiring: if
+    the artifact were swapped, or ``from_config`` mis-parsed it, those tests
+    would still pass. Here the policy is built from the **actual on-disk
+    governed artifacts** via ``from_config``, and the fixture partition
+    contains a row for **every one of the ten governed holdout symbols**.
+    """
+    policy = MdqExplorationPolicy.from_config(
+        universe_symbols_path=governed_config("mdq_phase_a_universe_symbols.json"),
+        holdout_path=governed_config("mdq_phase_a_holdout.json"),
+    )
+    governed_holdout = sorted(policy.holdout)
+    assert len(governed_holdout) == 10, "the governed artifact should quarantine 10 of 50"
+
+    # Two universe members that are NOT held out, so the read is non-empty and
+    # the test can distinguish "excluded correctly" from "excluded everything".
+    allowed = sorted(policy.universe - policy.holdout)[:2]
+    assert len(allowed) == 2
+
+    store = CaptureStore(tmp_path / "capture")
+    ref = PartitionRef(feed=FEED, session=SESSION)
+    rows = [quote_row(sym, 0) for sym in governed_holdout + allowed]
+    store.append_jsonl(ref, "quotes", rows)
+    store.freeze(ref, provenance={**PROVENANCE, "universe": sorted(policy.universe)})
+
+    scope = policy.authorize(governed_holdout + allowed, [SESSION], ReadPurpose.EXPLORATION)
+    result = MdqFeatureReader(store, scope).read_quotes(FEED, SESSION)
+
+    returned = {o.symbol for o in result.observations}
+    assert returned == set(allowed)
+    assert not (returned & set(governed_holdout)), (
+        f"governed holdout symbols leaked: {sorted(returned & set(governed_holdout))}"
+    )
+    # All ten governed holdout rows were present in the partition and withheld.
+    assert result.rows_scanned == 12
+    assert result.rows_withheld == 10
