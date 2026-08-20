@@ -109,6 +109,19 @@ SEALED_SHA256 = {
 PARTITION_IDENTITY = "3b3910d00395d90189b94fd0f9901811b1813905f17219010b336c567cfa1296"
 DEFAULT_REGISTRY = ("/work/apps/backend/app/research/mr002/phase3c/manifests/"
                     "validation2_object_registry.json")
+REHEARSAL_REGISTRY = ("/work/apps/backend/app/research/mr002/phase3c/manifests/"
+                      "validation2_rehearsal_registry.json")
+
+# ── THE PERMITTED EXECUTION STATES ───────────────────────────────────────────────────────────
+# EXACTLY ONE triple can reach Validation-2 credentials, and it necessarily uses the production
+# registry and its real SHA-256 contract. Every other combination fails BEFORE reader
+# acquisition. The rehearsal is a separately DECLARED state, never the absence of a check:
+# "we skip the SHA contract in fixture mode" is how a production integrity check disappears on
+# one runtime branch.
+PERMITTED_STATES = {
+    ("s3", "validation", "validation2"): "VALIDATION2_PRODUCTION",
+    ("fixture", "development", "rehearsal"): "DEVELOPMENT_REHEARSAL_ONLY",
+}
 # The 4 REFERENCE objects. Identity-bound, NOT sealed, and they do NOT consume the opening.
 REFERENCE = {
     "crosswalk": ("reference/crosswalk.parquet", "ux3JpvSp7lSneFcMHhxRZ_Tp6_gx60eK"),
@@ -170,6 +183,35 @@ def _ledger(opened: list) -> dict:
             "ledger": rows}
 
 
+def _assert_production_contract_before_credentials(args, sources) -> None:
+    """The gate that stands between the CLI and Validation-2 credentials.
+
+    Unconditional within the S3 path: key, VersionId and SHA-256 must each equal the frozen
+    contract. It is deliberately a named function called from exactly one place, so a static
+    invariant test can prove that the credential call is unreachable without it.
+    """
+    if args.reader != "s3":
+        raise IntegrityFailure("CONTRACT_GATE_MISUSE",
+                               "the production contract gate is only meaningful in the S3 path")
+    if args.contract != "validation2" or args.window != "validation":
+        raise IntegrityFailure("UNPERMITTED_EXECUTION_STATE",
+                               f"S3 requires validation2+validation, got {args.contract}"
+                               f"+{args.window}")
+    sealed = {ts.table: ts.obj for ts in sources if ts.obj.key in {k for k, _ in SEALED.values()}}
+    if len(sealed) != 6:
+        raise IntegrityFailure("INPUT_CONTRACT_MISMATCH",
+                               f"{len(sealed)} sealed sources at the credential boundary")
+    for table, (key, vid) in SEALED.items():
+        obj = sealed.get(table)
+        if obj is None or obj.key != key:
+            raise IntegrityFailure("SEALED_KEY_MISMATCH", f"{table}: {obj and obj.key} != {key}")
+        if obj.version_id != vid:
+            raise IntegrityFailure("VERSION_ID_MISMATCH", f"{key}: {obj.version_id} != {vid}")
+        if obj.sha256 != SEALED_SHA256[key]:
+            raise IntegrityFailure("SHA256_CONTRACT_MISMATCH",
+                                   f"{key}: {obj.sha256} != {SEALED_SHA256[key]}")
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--reader", choices=("fixture", "s3"), required=True)
@@ -186,6 +228,10 @@ def main() -> int:
     ap.add_argument("--materialized", required=True)
     ap.add_argument("--journal", default=None,
                     help="durable evidence journal (JSONL). Default: <out>.journal.jsonl")
+    ap.add_argument("--contract", choices=("validation2", "rehearsal"), required=True,
+                    help="the DECLARED identity contract. validation2 = the real population and "
+                         "its unconditional SHA-256 contract. rehearsal = synthetic fixtures, "
+                         "structurally incapable of reaching S3.")
     ap.add_argument("--out", required=True)
     args = ap.parse_args()
 
@@ -193,6 +239,25 @@ def main() -> int:
         raise IntegrityFailure("WINDOW_MISUSE",
                                "the development window is a fixture-only rehearsal affordance")
 
+    # ---- the (reader, window, contract) state machine, BEFORE anything else ------------------
+    state = (args.reader, args.window, args.contract)
+    required_role = PERMITTED_STATES.get(state)
+    if required_role is None:
+        raise IntegrityFailure(
+            "UNPERMITTED_EXECUTION_STATE",
+            f"reader={args.reader} window={args.window} contract={args.contract}; permitted: "
+            + " | ".join(f"{r}+{w}+{c}" for r, w, c in PERMITTED_STATES))
+
+    # ---- the registry must DECLARE the role this state requires -----------------------------
+    with open(args.manifest, encoding="utf-8") as _fh:
+        _declared = json.load(_fh).get("registry_role")
+    if _declared != required_role:
+        raise IntegrityFailure(
+            "REGISTRY_ROLE_MISMATCH",
+            f"state {state} requires registry_role={required_role}, registry declares "
+            f"{_declared!r}. A mislabelled registry is fatal in EITHER direction.")
+
+    production = args.contract == "validation2"
     hashes = _object_hashes(args.manifest)
     report = {"record_type": "MR002_Phase3C_ValidationExecution", "version": "1.0",
               "reader_kind": args.reader,
@@ -217,14 +282,14 @@ def main() -> int:
         for table, (key, vid) in table_map.items():
             if key.startswith(CONSUMED_PREFIX):
                 raise IntegrityFailure("CONSUMED_PARTITION_ACCESS_ATTEMPT", key)
-            if is_sealed and key not in registered_keys:
+            if is_sealed and production and key not in registered_keys:
                 raise IntegrityFailure("UNREGISTERED_VALIDATION2_OBJECT", key)
             rec = hashes.get(key)
             if rec is None:
                 raise IntegrityFailure("UNPINNED_OBJECT", f"no recorded sha256 for {key}")
             if rec[0] != vid:
                 raise IntegrityFailure("VERSION_ID_MISMATCH", f"{key}: {rec[0]} != {vid}")
-            if is_sealed and rec[1] != SEALED_SHA256[key]:
+            if is_sealed and production and rec[1] != SEALED_SHA256[key]:
                 raise IntegrityFailure("SHA256_CONTRACT_MISMATCH",
                                        f"{key}: registry {rec[1]} != contract {SEALED_SHA256[key]}")
             obj = PinnedObject(bucket=BUCKET, key=key, version_id=vid, sha256=rec[1])
@@ -236,7 +301,7 @@ def main() -> int:
     for key in hashes:
         if key.startswith(CONSUMED_PREFIX):
             raise IntegrityFailure("CONSUMED_PARTITION_IN_REGISTRY", key)
-        if key.startswith("oos/") and key not in registered_keys:
+        if production and key.startswith("oos/") and key not in registered_keys:
             raise IntegrityFailure("UNREGISTERED_VALIDATION2_OBJECT_IN_REGISTRY", key)
     if len(sealed_meta) != 6 or len(sources) != 10:
         raise IntegrityFailure("INPUT_CONTRACT_MISMATCH",
@@ -260,6 +325,12 @@ def main() -> int:
 
     # ---- reader ------------------------------------------------------------------------------
     if args.reader == "s3":
+        # ⛔ STRUCTURAL COUPLING. The production contract is re-verified HERE, inside the only
+        # branch that can obtain credentials, IMMEDIATELY before acquisition — not as a check
+        # floating elsewhere that a refactor, alias or future reader kind could route around.
+        # There must be no executable path to acquire_reader_credentials without this having
+        # succeeded, and mr002_v2_launcher_invariants.py proves that statically.
+        _assert_production_contract_before_credentials(args, sources)
         import boto3
         sts = boto3.client("sts")
         # Bounded pre-sealed-read readiness: the latch release is not in force at STS for

@@ -1,0 +1,84 @@
+{
+  "purpose": "the object-identity registry for the CLOSED-LATCH FIXTURE REHEARSAL. It exercises the orchestration topology and the governance classification. It NEVER touches S3 and no credential path exists for it.",
+  "record_type": "MR002_Validation2_RehearsalRegistry",
+  "reference_objects": [
+    {
+      "key": "reference/crosswalk.parquet",
+      "partition_role": "REFERENCE_NONCONSUMING",
+      "sha256": "PENDING_FIXTURE_BUILD",
+      "table": "crosswalk",
+      "version_id": "fixture://crosswalk/v1"
+    },
+    {
+      "key": "reference/sic_mapping.parquet",
+      "partition_role": "REFERENCE_NONCONSUMING",
+      "sha256": "PENDING_FIXTURE_BUILD",
+      "table": "sic_mapping",
+      "version_id": "fixture://sic_mapping/v1"
+    },
+    {
+      "key": "reference/predecessor_overrides.parquet",
+      "partition_role": "REFERENCE_NONCONSUMING",
+      "sha256": "PENDING_FIXTURE_BUILD",
+      "table": "predecessor_overrides",
+      "version_id": "fixture://predecessor_overrides/v1"
+    },
+    {
+      "key": "reference/security_sector_overrides.parquet",
+      "partition_role": "REFERENCE_NONCONSUMING",
+      "sha256": "PENDING_FIXTURE_BUILD",
+      "table": "security_sector_overrides",
+      "version_id": "fixture://security_sector_overrides/v1"
+    }
+  ],
+  "registry_role": "DEVELOPMENT_REHEARSAL_ONLY",
+  "sealed_validation2_objects": [
+    {
+      "key": "oos/actions.parquet",
+      "partition_role": "VALIDATION2_CONSUMING",
+      "sha256": "PENDING_FIXTURE_BUILD",
+      "table": "actions",
+      "version_id": "fixture://actions/v1"
+    },
+    {
+      "key": "oos/anchors.parquet",
+      "partition_role": "VALIDATION2_CONSUMING",
+      "sha256": "PENDING_FIXTURE_BUILD",
+      "table": "anchors",
+      "version_id": "fixture://anchors/v1"
+    },
+    {
+      "key": "oos/etf_prices.parquet",
+      "partition_role": "VALIDATION2_CONSUMING",
+      "sha256": "PENDING_FIXTURE_BUILD",
+      "table": "etf_prices",
+      "version_id": "fixture://etf_prices/v1"
+    },
+    {
+      "key": "oos/prices.parquet",
+      "partition_role": "VALIDATION2_CONSUMING",
+      "sha256": "PENDING_FIXTURE_BUILD",
+      "table": "prices",
+      "version_id": "fixture://prices/v1"
+    },
+    {
+      "key": "oos/sic_observations.parquet",
+      "partition_role": "VALIDATION2_CONSUMING",
+      "sha256": "PENDING_FIXTURE_BUILD",
+      "table": "sic_observations",
+      "version_id": "fixture://sic_observations/v1"
+    },
+    {
+      "key": "oos/universe.parquet",
+      "partition_role": "VALIDATION2_CONSUMING",
+      "sha256": "PENDING_FIXTURE_BUILD",
+      "table": "universe",
+      "version_id": "fixture://universe/v1"
+    }
+  ],
+  "sha256_are_fixture_hashes": "the sha256 values are hashes of the LOCAL FIXTURE BYTES, not of any sealed object. They are what FixtureReader.verify() checks against.",
+  "topology_mirrors_production": "same six logical Validation-2 table roles and same four reference roles, so the rehearsal proves the real orchestration shape.",
+  "version": "1.0",
+  "version_ids_are_synthetic": "VersionId values here are UNMISTAKABLY SYNTHETIC (fixture://...). The real registered S3 VersionIds are deliberately NOT reused: a rehearsal record that carried them could later be misread as having exercised the exact production object versions, which it never did. No S3 version is accessed by a rehearsal.",
+  "\u26d4 NOT_A_PRODUCTION_REGISTRY": "this registry MUST NOT be usable with --reader s3. The launcher enforces the permitted (reader, window, contract) triples before object construction and before any credential acquisition."
+}

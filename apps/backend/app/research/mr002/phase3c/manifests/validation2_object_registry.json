@@ -43,6 +43,8 @@
       "version_id": "MuimDnyOSLtRX6BaG2Ll525ox9Hoz6ns"
     }
   ],
+  "registry_role": "VALIDATION2_PRODUCTION",
+  "registry_role_note": "the launcher validates this role BEFORE object construction. A registry whose role does not match the declared --contract is fatal, in either direction.",
   "sealed_validation2_objects": [
     {
       "bytes": 57069,
