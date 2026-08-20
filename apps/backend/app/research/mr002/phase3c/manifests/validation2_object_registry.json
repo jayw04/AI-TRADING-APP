@@ -1,0 +1,108 @@
+{
+  "bucket": "workbench-mr002-sealed-219024422756",
+  "explicitly_inadmissible": {
+    "any_other_oos_key": "only the six keys above are registered. A seventh object, or a registered key at any other VersionId, MUST fail closed BEFORE reader acquisition.",
+    "validation/": "the CONSUMED Validation-1 partition. Permanently inadmissible; the launcher MUST refuse any key under this prefix."
+  },
+  "identity_note": "every sha256 here is SHA-256 OVER OBJECT CONTENT, which is what S3 validated at write time. It is NOT a Git blob object id. Never compare unlike identity types.",
+  "partition_identity_sha256": "3b3910d00395d90189b94fd0f9901811b1813905f17219010b336c567cfa1296",
+  "provenance": "constructed from the identities already registered in MR002_Validation2_ProspectiveRegistration_v1.0 (93ee4688...) and cross-checked against MR002_SealedStoreUploadManifest_v1.0 (3834ba80...). It is NOT a copy of the untracked host-side docs_upload_manifest.json, whose lack of custody is part of the defect this amendment corrects; that artifact is preserved unchanged as historical evidence only.",
+  "purpose": "THE canonical data-identity registry for the Validation-2 opening. The launcher validates this registry against its own frozen six-object contract and refuses on ANY disagreement, so neither map can silently override the other.",
+  "record_type": "MR002_Validation2_ObjectIdentityRegistry",
+  "reference_objects": [
+    {
+      "consumes_the_opening": false,
+      "key": "reference/crosswalk.parquet",
+      "partition": "REFERENCE",
+      "sha256": "c75fe1b1362c4a6243358a1b6d68c6c5896f0823a7efe234ed0db5244dce3b16",
+      "table": "crosswalk",
+      "version_id": "ux3JpvSp7lSneFcMHhxRZ_Tp6_gx60eK"
+    },
+    {
+      "consumes_the_opening": false,
+      "key": "reference/sic_mapping.parquet",
+      "partition": "REFERENCE",
+      "sha256": "292c36a82896169f5420932af4351a822452f3a909df69b8306e3e48d2d62035",
+      "table": "sic_mapping",
+      "version_id": "_wAa1EJ0wECpUcd4DH7KhrYsYl765kWL"
+    },
+    {
+      "consumes_the_opening": false,
+      "key": "reference/predecessor_overrides.parquet",
+      "partition": "REFERENCE",
+      "sha256": "1395263b28a24c1a68af8acaf474b4c285fa313009482004b4c1b6855d8fc2ac",
+      "table": "predecessor_overrides",
+      "version_id": "Srj0T5D.VqjtTULkrLwynvhPeWf422I7"
+    },
+    {
+      "consumes_the_opening": false,
+      "key": "reference/security_sector_overrides.parquet",
+      "partition": "REFERENCE",
+      "sha256": "0790f1c5fd1ce360633c4d48cade8b591169452143c6d392109c95c5d997b5bd",
+      "table": "security_sector_overrides",
+      "version_id": "MuimDnyOSLtRX6BaG2Ll525ox9Hoz6ns"
+    }
+  ],
+  "sealed_validation2_objects": [
+    {
+      "bytes": 57069,
+      "consumes_the_opening": true,
+      "key": "oos/actions.parquet",
+      "partition": "VALIDATION2",
+      "sha256": "a08c0ed6ba6c6609e67c501a938e0245277e11c82f3d7242e7e2683790acb100",
+      "table": "actions",
+      "version_id": "F6m6am6cBahBd95p41C1.aAVmYd8GuNG"
+    },
+    {
+      "bytes": 177252,
+      "consumes_the_opening": true,
+      "key": "oos/anchors.parquet",
+      "partition": "VALIDATION2",
+      "sha256": "5095149d39d26c7af19de3814a7178e93bf3cc3ab87f92512991a81e64013dc9",
+      "table": "anchors",
+      "version_id": "RsJZG3TkDXvNPERJhZVanJ.Vqg8_dulw"
+    },
+    {
+      "bytes": 67010,
+      "consumes_the_opening": true,
+      "key": "oos/etf_prices.parquet",
+      "partition": "VALIDATION2",
+      "sha256": "f53f448312f94820d76aad80f378a53ea2b9104654cbb7c69bb82363b2a5da15",
+      "table": "etf_prices",
+      "version_id": "Z3OsUeuucMYIl2v9JDoVNDx1nw.0avDj"
+    },
+    {
+      "bytes": 16173068,
+      "consumes_the_opening": true,
+      "key": "oos/prices.parquet",
+      "partition": "VALIDATION2",
+      "sha256": "0f45ddc58170bd1131b9820576080eae861dff65b716bc3f03d08fb284f29e9a",
+      "table": "prices",
+      "version_id": "1ope9PR._oR303.EbZNGPVlIJRy.SZbA"
+    },
+    {
+      "bytes": 138814,
+      "consumes_the_opening": true,
+      "key": "oos/sic_observations.parquet",
+      "partition": "VALIDATION2",
+      "sha256": "176a84bc155b5ec8c24444e091b19a78b97c0d31c0da606f22eca44ace7e12cf",
+      "table": "sic_observations",
+      "version_id": "DPhtWW3Pca3TKtSa1LOnGKA.yrZ98EIt"
+    },
+    {
+      "bytes": 111278,
+      "consumes_the_opening": true,
+      "key": "oos/universe.parquet",
+      "partition": "VALIDATION2",
+      "sha256": "4c1a2b2e876f7ffdd1f651e5c99079d5fe045e74003af556c3c8b3273d746e0d",
+      "table": "universe",
+      "version_id": "0gaqJ9TuECc3U_zar99sqls2UHRDnkkY"
+    }
+  ],
+  "version": "1.0",
+  "window": {
+    "end": "2026-07-10",
+    "sessions": 850,
+    "start": "2023-02-17"
+  }
+}

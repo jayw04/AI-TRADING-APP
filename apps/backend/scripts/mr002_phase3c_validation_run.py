@@ -1,9 +1,15 @@
-"""MR-002 — THE governed Phase 3C validation execution. One indivisible run.
+"""MR-002 — THE governed VALIDATION-2 execution. One indivisible run.
 
-Authorized by MR002_Phase3C_ExecutionAuthorization_v2.0 (c53edf89...) under the sealed
-countersignature MR002_Phase3C_ExecutionCountersignature_v2.0 (410627f2...) and the bound
-validation package v2.1 (593a908b...), as amended by the credential-readiness control
-amendment (owner ruling 2026-08-19).
+Governed by the Cycle-2C chain: MR002_Validation2_ProspectiveRegistration_v1.0
+(93ee4688...), Validation-2 partition identity 3b3910d0..., and the readiness qualification in
+force at execution time. The superseded Phase-3C v2.0 authorization/countersignature that this
+launcher previously named are RETIRED for Validation-2 purposes and are recorded below as
+historical provenance only.
+
+⚠ CORRECTED CHARACTERISATION. This file previously claimed it "adds NO economic, numerical or
+data semantics of its own". That was FALSE as an execution-surface statement: this launcher
+SELECTS THE POPULATION and ENFORCES THE PARTITION REFUSAL. It decides what is read. It is the
+most execution-critical artifact in the opening, and it is bound as such.
 
 THE SEQUENCE IS INDIVISIBLE. There is no inspection point and no discretionary decision after the
 first sealed read:
@@ -12,8 +18,10 @@ first sealed read:
     materialization -> immediate frozen A/B/C replay -> validation decision -> (caller restores
     containment)
 
-This launcher orchestrates already-bound components and adds NO economic, numerical or data
-semantics of its own. It selects no parameters, computes no OOS metric, and never re-reads.
+It orchestrates already-bound components and introduces no ECONOMIC or NUMERICAL semantics: it
+selects no parameter, computes no metric, changes no threshold, fold, solver or gate, and never
+re-reads. Its data semantics — which objects, which versions, which partition is refused — are
+declared here and validated against the tracked registry.
 
 `--reader fixture` runs the identical sequence against local Parquet with the governed
 FixtureReader, so the whole path can be proven with zero sealed access before the latch opens.
@@ -61,18 +69,46 @@ from app.research.mr002.runner import CONFIGS  # noqa: E402
 BUCKET = "workbench-mr002-sealed-219024422756"
 READER_ROLE = "arn:aws:iam::219024422756:role/mr002-validation-reader"
 SESSION_NAME = "mr002-p3c-validation-v1"
-OOS_PREFIX = "oos/"
+# ── the CONSUMED Validation-1 partition. Permanently inadmissible. ───────────────────────────
+# The refusal POLARITY is inverted from this launcher's previous form: it used to refuse oos/
+# because oos/ was the untouched OOS holdout. The Cycle-2C role transfer made oos/ the
+# Validation-2 population and made validation/ the consumed one. Refusing the wrong prefix is
+# how the previous form would have rejected the very data it is meant to read.
+CONSUMED_PREFIX = "validation/"
 
-# The 6 SEALED validation objects. These CONSUME the validation opening and are ledgered.
+# ── the frozen SIX-OBJECT CONTRACT ───────────────────────────────────────────────────────────
+# This is a CONTRACT, not an independent identity source. The tracked registry (below) is the
+# canonical data-identity registry; this contract exists so the registry cannot be swapped for
+# another. Any disagreement between the two FAILS CLOSED before reader acquisition, so neither
+# map can silently override the other.
 SEALED = {
-    "actions": ("validation/actions.parquet", "wJ6QFkebGAidGzoWO.qzUMYjy.b6zLrx"),
-    "anchors": ("validation/anchors.parquet", "7Br5aFGWFabpIJmPgwUBQRgdhQwc2GIK"),
-    "etf_prices": ("validation/etf_prices.parquet", ".mZyHPHgamUNlHpdePGQZq.djUapjrpo"),
-    "prices": ("validation/prices.parquet", "eC8XZGBPXa6vPDW_WKPvwV8HtF05_tty"),
-    "sic_observations": ("validation/sic_observations.parquet",
-                         "OkvwAKSX8W8W3HJiBoxZ9KC4ON6Vgj5t"),
-    "universe": ("validation/universe.parquet", "8Le8rLdT2wvdSenjEQdPaUAgdmSzx3ZO"),
+    "actions": ("oos/actions.parquet", "F6m6am6cBahBd95p41C1.aAVmYd8GuNG"),
+    "anchors": ("oos/anchors.parquet", "RsJZG3TkDXvNPERJhZVanJ.Vqg8_dulw"),
+    "etf_prices": ("oos/etf_prices.parquet", "Z3OsUeuucMYIl2v9JDoVNDx1nw.0avDj"),
+    "prices": ("oos/prices.parquet", "1ope9PR._oR303.EbZNGPVlIJRy.SZbA"),
+    "sic_observations": ("oos/sic_observations.parquet",
+                         "DPhtWW3Pca3TKtSa1LOnGKA.yrZ98EIt"),
+    "universe": ("oos/universe.parquet", "0gaqJ9TuECc3U_zar99sqls2UHRDnkkY"),
 }
+# Registered content SHA-256 per key. Identity TYPE: SHA-256 OVER OBJECT CONTENT, which is what
+# S3 validated at write time. NOT a Git blob object id. Never compare unlike identity types.
+SEALED_SHA256 = {
+    "oos/actions.parquet":
+        "a08c0ed6ba6c6609e67c501a938e0245277e11c82f3d7242e7e2683790acb100",
+    "oos/anchors.parquet":
+        "5095149d39d26c7af19de3814a7178e93bf3cc3ab87f92512991a81e64013dc9",
+    "oos/etf_prices.parquet":
+        "f53f448312f94820d76aad80f378a53ea2b9104654cbb7c69bb82363b2a5da15",
+    "oos/prices.parquet":
+        "0f45ddc58170bd1131b9820576080eae861dff65b716bc3f03d08fb284f29e9a",
+    "oos/sic_observations.parquet":
+        "176a84bc155b5ec8c24444e091b19a78b97c0d31c0da606f22eca44ace7e12cf",
+    "oos/universe.parquet":
+        "4c1a2b2e876f7ffdd1f651e5c99079d5fe045e74003af556c3c8b3273d746e0d",
+}
+PARTITION_IDENTITY = "3b3910d00395d90189b94fd0f9901811b1813905f17219010b336c567cfa1296"
+DEFAULT_REGISTRY = ("/work/apps/backend/app/research/mr002/phase3c/manifests/"
+                    "validation2_object_registry.json")
 # The 4 REFERENCE objects. Identity-bound, NOT sealed, and they do NOT consume the opening.
 REFERENCE = {
     "crosswalk": ("reference/crosswalk.parquet", "ux3JpvSp7lSneFcMHhxRZ_Tp6_gx60eK"),
@@ -135,7 +171,10 @@ def main() -> int:
     ap.add_argument("--window", choices=("validation", "development"), default="validation",
                     help="fixture-only rehearsal affordance")
     ap.add_argument("--fixture-root", default="/tmp/fx")
-    ap.add_argument("--manifest", default="/opt/mr002/phase3c_src/docs_upload_manifest.json")
+    ap.add_argument("--manifest", default=DEFAULT_REGISTRY,
+                    help="the TRACKED Validation-2 object registry. The previous default was an "
+                         "UNTRACKED host-side sidecar, which is part of the defect this "
+                         "amendment corrects.")
     ap.add_argument("--latch-release-epoch", type=float, default=None,
                     help="epoch seconds at which the latch Deny was removed; bounds the "
                          "readiness deadline. Absent => measured from process start.")
@@ -152,26 +191,48 @@ def main() -> int:
     hashes = _object_hashes(args.manifest)
     report = {"record_type": "MR002_Phase3C_ValidationExecution", "version": "1.0",
               "reader_kind": args.reader,
-              "authorization": "MR002_Phase3C_ExecutionAuthorization_v2.0 / c53edf89",
-              "countersignature": "MR002_Phase3C_ExecutionCountersignature_v2.0 / 410627f2",
-              "package": "MR002_Phase3C_ValidationExecutionPackage_v2.2 / pending",
+              "authorization": "MR002_Validation2_ProspectiveRegistration_v1.0 / 93ee4688",
+              "partition_identity": PARTITION_IDENTITY,
+              "superseded_authority_historical_only": (
+                  "MR002_Phase3C_ExecutionAuthorization_v2.0 / c53edf89; "
+                  "MR002_Phase3C_ExecutionCountersignature_v2.0 / 410627f2"),
+              "package": "MR002_Validation2 execution package / pending",
               "control_amendment": "credential readiness, owner ruling 2026-08-19"}
 
     # ---- build the pinned object set; refuse anything touching the OOS prefix ---------------
+    # EVERY refusal below happens BEFORE any reader is constructed and before any credential is
+    # acquired, so a forbidden configuration fails on the SAFE SIDE of the credential boundary.
+    #
+    # The registry is the canonical data-identity source; SEALED is a frozen contract that the
+    # registry must satisfy. Disagreement in EITHER direction is fatal, so a swapped registry
+    # cannot redirect the read and a stale contract cannot override a corrected registry.
+    registered_keys = set(SEALED_SHA256)
     sources, sealed_meta = [], []
     for table_map, is_sealed in ((SEALED, True), (REFERENCE, False)):
         for table, (key, vid) in table_map.items():
-            if key.startswith(OOS_PREFIX):
-                raise IntegrityFailure("OOS_ACCESS_ATTEMPT", key)
+            if key.startswith(CONSUMED_PREFIX):
+                raise IntegrityFailure("CONSUMED_PARTITION_ACCESS_ATTEMPT", key)
+            if is_sealed and key not in registered_keys:
+                raise IntegrityFailure("UNREGISTERED_VALIDATION2_OBJECT", key)
             rec = hashes.get(key)
             if rec is None:
                 raise IntegrityFailure("UNPINNED_OBJECT", f"no recorded sha256 for {key}")
             if rec[0] != vid:
                 raise IntegrityFailure("VERSION_ID_MISMATCH", f"{key}: {rec[0]} != {vid}")
+            if is_sealed and rec[1] != SEALED_SHA256[key]:
+                raise IntegrityFailure("SHA256_CONTRACT_MISMATCH",
+                                       f"{key}: registry {rec[1]} != contract {SEALED_SHA256[key]}")
             obj = PinnedObject(bucket=BUCKET, key=key, version_id=vid, sha256=rec[1])
             sources.append(TableSource(table, obj))
             if is_sealed:
                 sealed_meta.append({"key": key, "version_id": vid, "partition": obj.partition})
+
+    # the registry must not carry a SEVENTH sealed object the contract does not know about
+    for key in hashes:
+        if key.startswith(CONSUMED_PREFIX):
+            raise IntegrityFailure("CONSUMED_PARTITION_IN_REGISTRY", key)
+        if key.startswith("oos/") and key not in registered_keys:
+            raise IntegrityFailure("UNREGISTERED_VALIDATION2_OBJECT_IN_REGISTRY", key)
     if len(sealed_meta) != 6 or len(sources) != 10:
         raise IntegrityFailure("INPUT_CONTRACT_MISMATCH",
                                f"{len(sealed_meta)} sealed / {len(sources)} total")
@@ -185,7 +246,10 @@ def main() -> int:
     _JOURNAL = journal
     journal.append("run_opened", {
         "reader_kind": args.reader, "window": args.window,
-        "authorization": report["authorization"], "countersignature": report["countersignature"],
+        "authorization": report["authorization"],
+        "partition_identity": report["partition_identity"],
+        "superseded_authority_historical_only":
+            report["superseded_authority_historical_only"],
         "package": report["package"], "sealed_declared": len(SEALED),
         "reference_declared": len(REFERENCE), "materialized_path": args.materialized})
 

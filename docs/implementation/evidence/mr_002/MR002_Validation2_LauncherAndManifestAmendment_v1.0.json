@@ -1,0 +1,102 @@
+{
+ "IDENTITY_TYPES_LABELLED": {
+  "convention_adopted": "every identity in this record names its TYPE.",
+  "why": "the owner observed that GitHub reported 2a3183ac... for the launcher while I reported 835325a9... Those are DIFFERENT IDENTITY TYPES, not a discrepancy: 2a3183ac is Git's native blob OBJECT ID (SHA-1 over 'blob <len>\u0000' + content); 835325a9 was SHA-256 over content. Both are now stated explicitly so nobody later compares unlike hashes."
+ },
+ "NEGATIVE_CASES_PROVEN": {
+  "method": "the REAL launcher executed with crafted registries, --reader fixture, no AWS",
+  "reader_acquisition_attempted_in_any_case": false,
+  "results": {
+   "--reader s3 with --window development": "WINDOW_MISUSE",
+   "consumed validation/* key in registry": "CONSUMED_PARTITION_IN_REGISTRY",
+   "registered key at wrong VersionId": "VERSION_ID_MISMATCH",
+   "registry vs contract sha disagreement": "SHA256_CONTRACT_MISMATCH",
+   "seventh unregistered oos/* object": "UNREGISTERED_VALIDATION2_OBJECT_IN_REGISTRY + UNREGISTERED_VALIDATION2_OBJECT"
+  },
+  "why_that_matters": "the rehearsal must prove not merely that forbidden configurations fail, but that they fail on the SAFE SIDE of the credential boundary. All five did."
+ },
+ "a_defect_my_own_edit_introduced_and_fixed": {
+  "fixed": "the journal now emits authorization, partition_identity and superseded_authority_historical_only",
+  "found_by": "a static check for report keys used but not defined, run before sealing",
+  "what": "removing the countersignature key from the report literal left report[\"countersignature\"] referenced in the journal run_opened row \u2014 a KeyError on the very evidence path that must survive failure"
+ },
+ "authority_strings_corrected": {
+  "authorization": "MR002_Validation2_ProspectiveRegistration_v1.0 / 93ee4688",
+  "partition_identity": "3b3910d0...",
+  "propagated_to": "both the terminal report AND the durable journal run_opened row",
+  "superseded_authority_retained_as": "superseded_authority_historical_only"
+ },
+ "authorizes": "NOTHING. Deployment requires a separate owner ruling after review of these identities and this diff.",
+ "boundary": {
+  "deployed": false,
+  "latch": "8 / CLOSED",
+  "opening_consumed": false,
+  "validation_2_opening": "NOT AUTHORIZED",
+  "withheld_reads": 0
+ },
+ "date": "2026-08-20",
+ "exact_diff": "diff --git a/apps/backend/scripts/mr002_phase3c_validation_run.py b/apps/backend/scripts/mr002_phase3c_validation_run.py\nindex 2a3183a..9f94d17 100644\n--- a/apps/backend/scripts/mr002_phase3c_validation_run.py\n+++ b/apps/backend/scripts/mr002_phase3c_validation_run.py\n@@ -1,9 +1,15 @@\n-\"\"\"MR-002 \u00e2\u20ac\u201d THE governed Phase 3C validation execution. One indivisible run.\n+\"\"\"MR-002 \u00e2\u20ac\u201d THE governed VALIDATION-2 execution. One indivisible run.\n \n-Authorized by MR002_Phase3C_ExecutionAuthorization_v2.0 (c53edf89...) under the sealed\n-countersignature MR002_Phase3C_ExecutionCountersignature_v2.0 (410627f2...) and the bound\n-validation package v2.1 (593a908b...), as amended by the credential-readiness control\n-amendment (owner ruling 2026-08-19).\n+Governed by the Cycle-2C chain: MR002_Validation2_ProspectiveRegistration_v1.0\n+(93ee4688...), Validation-2 partition identity 3b3910d0..., and the readiness qualification in\n+force at execution time. The superseded Phase-3C v2.0 authorization/countersignature that this\n+launcher previously named are RETIRED for Validation-2 purposes and are recorded below as\n+historical provenance only.\n+\n+\u00e2\u0161\u00a0 CORRECTED CHARACTERISATION. This file previously claimed it \"adds NO economic, numerical or\n+data semantics of its own\". That was FALSE as an execution-surface statement: this launcher\n+SELECTS THE POPULATION and ENFORCES THE PARTITION REFUSAL. It decides what is read. It is the\n+most execution-critical artifact in the opening, and it is bound as such.\n \n THE SEQUENCE IS INDIVISIBLE. There is no inspection point and no discretionary decision after the\n first sealed read:\n@@ -12,8 +18,10 @@ first sealed read:\n     materialization -> immediate frozen A/B/C replay -> validation decision -> (caller restores\n     containment)\n \n-This launcher orchestrates already-bound components and adds NO economic, numerical or data\n-semantics of its own. It selects no parameters, computes no OOS metric, and never re-reads.\n+It orchestrates already-bound components and introduces no ECONOMIC or NUMERICAL semantics: it\n+selects no parameter, computes no metric, changes no threshold, fold, solver or gate, and never\n+re-reads. Its data semantics \u00e2\u20ac\u201d which objects, which versions, which partition is refused \u00e2\u20ac\u201d are\n+declared here and validated against the tracked registry.\n \n `--reader fixture` runs the identical sequence against local Parquet with the governed\n FixtureReader, so the whole path can be proven with zero sealed access before the latch opens.\n@@ -61,18 +69,46 @@ from app.research.mr002.runner import CONFIGS  # noqa: E402\n BUCKET = \"workbench-mr002-sealed-219024422756\"\n READER_ROLE = \"arn:aws:iam::219024422756:role/mr002-validation-reader\"\n SESSION_NAME = \"mr002-p3c-validation-v1\"\n-OOS_PREFIX = \"oos/\"\n-\n-# The 6 SEALED validation objects. These CONSUME the validation opening and are ledgered.\n+# \u00e2\u201d\u20ac\u00e2\u201d\u20ac the CONSUMED Validation-1 partition. Permanently inadmissible. \u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\n+# The refusal POLARITY is inverted from this launcher's previous form: it used to refuse oos/\n+# because oos/ was the untouched OOS holdout. The Cycle-2C role transfer made oos/ the\n+# Validation-2 population and made validation/ the consumed one. Refusing the wrong prefix is\n+# how the previous form would have rejected the very data it is meant to read.\n+CONSUMED_PREFIX = \"validation/\"\n+\n+# \u00e2\u201d\u20ac\u00e2\u201d\u20ac the frozen SIX-OBJECT CONTRACT \u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\u00e2\u201d\u20ac\n+# This is a CONTRACT, not an independent identity source. The tracked registry (below) is the\n+# canonical data-identity registry; this contract exists so the registry cannot be swapped for\n+# another. Any disagreement between the two FAILS CLOSED before reader acquisition, so neither\n+# map can silently override the other.\n SEALED = {\n-    \"actions\": (\"validation/actions.parquet\", \"wJ6QFkebGAidGzoWO.qzUMYjy.b6zLrx\"),\n-    \"anchors\": (\"validation/anchors.parquet\", \"7Br5aFGWFabpIJmPgwUBQRgdhQwc2GIK\"),\n-    \"etf_prices\": (\"validation/etf_prices.parquet\", \".mZyHPHgamUNlHpdePGQZq.djUapjrpo\"),\n-    \"prices\": (\"validation/prices.parquet\", \"eC8XZGBPXa6vPDW_WKPvwV8HtF05_tty\"),\n-    \"sic_observations\": (\"validation/sic_observations.parquet\",\n-                         \"OkvwAKSX8W8W3HJiBoxZ9KC4ON6Vgj5t\"),\n-    \"universe\": (\"validation/universe.parquet\", \"8Le8rLdT2wvdSenjEQdPaUAgdmSzx3ZO\"),\n+    \"actions\": (\"oos/actions.parquet\", \"F6m6am6cBahBd95p41C1.aAVmYd8GuNG\"),\n+    \"anchors\": (\"oos/anchors.parquet\", \"RsJZG3TkDXvNPERJhZVanJ.Vqg8_dulw\"),\n+    \"etf_prices\": (\"oos/etf_prices.parquet\", \"Z3OsUeuucMYIl2v9JDoVNDx1nw.0avDj\"),\n+    \"prices\": (\"oos/prices.parquet\", \"1ope9PR._oR303.EbZNGPVlIJRy.SZbA\"),\n+    \"sic_observations\": (\"oos/sic_observations.parquet\",\n+                         \"DPhtWW3Pca3TKtSa1LOnGKA.yrZ98EIt\"),\n+    \"universe\": (\"oos/universe.parquet\", \"0gaqJ9TuECc3U_zar99sqls2UHRDnkkY\"),\n }\n+# Registered content SHA-256 per key. Identity TYPE: SHA-256 OVER OBJECT CONTENT, which is what\n+# S3 validated at write time. NOT a Git blob object id. Never compare unlike identity types.\n+SEALED_SHA256 = {\n+    \"oos/actions.parquet\":\n+        \"a08c0ed6ba6c6609e67c501a938e0245277e11c82f3d7242e7e2683790acb100\",\n+    \"oos/anchors.parquet\":\n+        \"5095149d39d26c7af19de3814a7178e93bf3cc3ab87f92512991a81e64013dc9\",\n+    \"oos/etf_prices.parquet\":\n+        \"f53f448312f94820d76aad80f378a53ea2b9104654cbb7c69bb82363b2a5da15\",\n+    \"oos/prices.parquet\":\n+        \"0f45ddc58170bd1131b9820576080eae861dff65b716bc3f03d08fb284f29e9a\",\n+    \"oos/sic_observations.parquet\":\n+        \"176a84bc155b5ec8c24444e091b19a78b97c0d31c0da606f22eca44ace7e12cf\",\n+    \"oos/universe.parquet\":\n+        \"4c1a2b2e876f7ffdd1f651e5c99079d5fe045e74003af556c3c8b3273d746e0d\",\n+}\n+PARTITION_IDENTITY = \"3b3910d00395d90189b94fd0f9901811b1813905f17219010b336c567cfa1296\"\n+DEFAULT_REGISTRY = (\"/work/apps/backend/app/research/mr002/phase3c/manifests/\"\n+                    \"validation2_object_registry.json\")\n # The 4 REFERENCE objects. Identity-bound, NOT sealed, and they do NOT consume the opening.\n REFERENCE = {\n     \"crosswalk\": (\"reference/crosswalk.parquet\", \"ux3JpvSp7lSneFcMHhxRZ_Tp6_gx60eK\"),\n@@ -135,7 +171,10 @@ def main() -> int:\n     ap.add_argument(\"--window\", choices=(\"validation\", \"development\"), default=\"validation\",\n                     help=\"fixture-only rehearsal affordance\")\n     ap.add_argument(\"--fixture-root\", default=\"/tmp/fx\")\n-    ap.add_argument(\"--manifest\", default=\"/opt/mr002/phase3c_src/docs_upload_manifest.json\")\n+    ap.add_argument(\"--manifest\", default=DEFAULT_REGISTRY,\n+                    help=\"the TRACKED Validation-2 object registry. The previous default was an \"\n+                         \"UNTRACKED host-side sidecar, which is part of the defect this \"\n+                         \"amendment corrects.\")\n     ap.add_argument(\"--latch-release-epoch\", type=float, default=None,\n                     help=\"epoch seconds at which the latch Deny was removed; bounds the \"\n                          \"readiness deadline. Absent => measured from process start.\")\n@@ -152,26 +191,48 @@ def main() -> int:\n     hashes = _object_hashes(args.manifest)\n     report = {\"record_type\": \"MR002_Phase3C_ValidationExecution\", \"version\": \"1.0\",\n               \"reader_kind\": args.reader,\n-              \"authorization\": \"MR002_Phase3C_ExecutionAuthorization_v2.0 / c53edf89\",\n-              \"countersignature\": \"MR002_Phase3C_ExecutionCountersignature_v2.0 / 410627f2\",\n-              \"package\": \"MR002_Phase3C_ValidationExecutionPackage_v2.2 / pending\",\n+              \"authorization\": \"MR002_Validation2_ProspectiveRegistration_v1.0 / 93ee4688\",\n+              \"partition_identity\": PARTITION_IDENTITY,\n+              \"superseded_authority_historical_only\": (\n+                  \"MR002_Phase3C_ExecutionAuthorization_v2.0 / c53edf89; \"\n+                  \"MR002_Phase3C_ExecutionCountersignature_v2.0 / 410627f2\"),\n+              \"package\": \"MR002_Validation2 execution package / pending\",\n               \"control_amendment\": \"credential readiness, owner ruling 2026-08-19\"}\n \n     # ---- build the pinned object set; refuse anything touching the OOS prefix ---------------\n+    # EVERY refusal below happens BEFORE any reader is constructed and before any credential is\n+    # acquired, so a forbidden configuration fails on the SAFE SIDE of the credential boundary.\n+    #\n+    # The registry is the canonical data-identity source; SEALED is a frozen contract that the\n+    # registry must satisfy. Disagreement in EITHER direction is fatal, so a swapped registry\n+    # cannot redirect the read and a stale contract cannot override a corrected registry.\n+    registered_keys = set(SEALED_SHA256)\n     sources, sealed_meta = [], []\n     for table_map, is_sealed in ((SEALED, True), (REFERENCE, False)):\n         for table, (key, vid) in table_map.items():\n-            if key.startswith(OOS_PREFIX):\n-                raise IntegrityFailure(\"OOS_ACCESS_ATTEMPT\", key)\n+            if key.startswith(CONSUMED_PREFIX):\n+                raise IntegrityFailure(\"CONSUMED_PARTITION_ACCESS_ATTEMPT\", key)\n+            if is_sealed and key not in registered_keys:\n+                raise IntegrityFailure(\"UNREGISTERED_VALIDATION2_OBJECT\", key)\n             rec = hashes.get(key)\n             if rec is None:\n                 raise IntegrityFailure(\"UNPINNED_OBJECT\", f\"no recorded sha256 for {key}\")\n             if rec[0] != vid:\n                 raise IntegrityFailure(\"VERSION_ID_MISMATCH\", f\"{key}: {rec[0]} != {vid}\")\n+            if is_sealed and rec[1] != SEALED_SHA256[key]:\n+                raise IntegrityFailure(\"SHA256_CONTRACT_MISMATCH\",\n+                                       f\"{key}: registry {rec[1]} != contract {SEALED_SHA256[key]}\")\n             obj = PinnedObject(bucket=BUCKET, key=key, version_id=vid, sha256=rec[1])\n             sources.append(TableSource(table, obj))\n             if is_sealed:\n                 sealed_meta.append({\"key\": key, \"version_id\": vid, \"partition\": obj.partition})\n+\n+    # the registry must not carry a SEVENTH sealed object the contract does not know about\n+    for key in hashes:\n+        if key.startswith(CONSUMED_PREFIX):\n+            raise IntegrityFailure(\"CONSUMED_PARTITION_IN_REGISTRY\", key)\n+        if key.startswith(\"oos/\") and key not in registered_keys:\n+            raise IntegrityFailure(\"UNREGISTERED_VALIDATION2_OBJECT_IN_REGISTRY\", key)\n     if len(sealed_meta) != 6 or len(sources) != 10:\n         raise IntegrityFailure(\"INPUT_CONTRACT_MISMATCH\",\n                                f\"{len(sealed_meta)} sealed / {len(sources)} total\")\n@@ -185,7 +246,10 @@ def main() -> int:\n     _JOURNAL = journal\n     journal.append(\"run_opened\", {\n         \"reader_kind\": args.reader, \"window\": args.window,\n-        \"authorization\": report[\"authorization\"], \"countersignature\": report[\"countersignature\"],\n+        \"authorization\": report[\"authorization\"],\n+        \"partition_identity\": report[\"partition_identity\"],\n+        \"superseded_authority_historical_only\":\n+            report[\"superseded_authority_historical_only\"],\n         \"package\": report[\"package\"], \"sealed_declared\": len(SEALED),\n         \"reference_declared\": len(REFERENCE), \"materialized_path\": args.materialized})\n \n",
+ "false_claim_corrected": {
+  "now": "it introduces no ECONOMIC or NUMERICAL semantics, but its DATA semantics \u2014 which objects, which versions, which partition is refused \u2014 are declared and validated here",
+  "was": "this launcher ... adds NO economic, numerical or data semantics of its own",
+  "why": "the original wording is what made it plausible to treat the launcher as mere orchestration and leave it outside the execution-critical closure"
+ },
+ "implements": "the prospective design accepted at 0ce7eee436caf1dc1fed92b59fa296cd9c9da5c290d5c0689021bdd7c3a59236",
+ "launcher": {
+  "after": {
+   "content_sha256": "ada60d099224ef5c4c0fc9390174b5da9060d886e72dfe30c24a40c0fee0b186",
+   "git_blob_object_id": "9f94d17a5bdc0df1fca509578cc3472559c0b137"
+  },
+  "before": {
+   "content_sha256": "835325a9a4cbf8cd693a42f2c4051a5f788e660877451b3c0b514f93fd239627",
+   "git_blob_object_id": "2a3183ac"
+  },
+  "diff_stat": "88 insertions, 24 deletions, 1 file",
+  "path": "apps/backend/scripts/mr002_phase3c_validation_run.py"
+ },
+ "record_identity_sha256": "5c0681fbc30ccf2a15fb5066250c87c69bb8fe31bf67ce2003ec1238244c9611",
+ "record_type": "MR002_Validation2_LauncherAndManifestAmendment",
+ "refusal_polarity_inverted": {
+  "after": "raise CONSUMED_PARTITION_ACCESS_ATTEMPT on any validation/ key",
+  "before": "raise OOS_ACCESS_ATTEMPT on any oos/ key",
+  "why": "the Cycle-2C role transfer made oos/ the Validation-2 population and validation/ the consumed one. The old polarity would have refused the very data the opening must read."
+ },
+ "single_canonical_identity_source": {
+  "enforced_by": [
+   "UNREGISTERED_VALIDATION2_OBJECT",
+   "SHA256_CONTRACT_MISMATCH",
+   "VERSION_ID_MISMATCH",
+   "UNREGISTERED_VALIDATION2_OBJECT_IN_REGISTRY"
+  ],
+  "invariant": "mismatch between contract and registry FAILS CLOSED before reader acquisition, in EITHER direction \u2014 a swapped registry cannot redirect the read, and a stale contract cannot override a corrected registry",
+  "launcher_SEALED": "a frozen six-object CONTRACT that the registry must satisfy",
+  "registry": "CANONICAL data-identity registry"
+ },
+ "status": "IMPLEMENTED AND SEALED \u2014 NOT DEPLOYED",
+ "still_outstanding_before_deployment": [
+  "the next execution package must include the tracked registry path, not an apps-only archive",
+  "the execution closure must be DERIVED by tracing launcher imports and reads",
+  "a full closed-latch fixture rehearsal of the positive orchestration path"
+ ],
+ "tracked_registry": {
+  "content_sha256": "d9ec7bf88f8d3a9ca4f43439c1d21790156726968e764bed7a053fbc1fd57cb2",
+  "git_blob_object_id": "e41f01cef319e6acb158b70d8a18880ba7859fa6",
+  "lives_inside_the_versioned_source_tree": true,
+  "new_file": true,
+  "path": "apps/backend/app/research/mr002/phase3c/manifests/validation2_object_registry.json",
+  "replaces_root_level_sidecar": "the launcher default now resolves to this tracked path instead of /opt/mr002/phase3c_src/docs_upload_manifest.json",
+  "why_not_a_restore": "the old docs_upload_manifest.json was NOT copied back. That untracked artifact's lack of custody is part of the defect. This registry was CONSTRUCTED from the identities already registered in 93ee4688... and cross-checked against the seal-time upload manifest 3834ba80... The rollback copy remains preserved, unchanged, as historical evidence only."
+ },
+ "unchanged": [
+  "economic thresholds",
+  "fold geometry",
+  "solver routing",
+  "cost model",
+  "gate semantics",
+  "the --reader fixture affordance",
+  "the --window development affordance",
+  "the WINDOW_MISUSE interlock",
+  "the durable EvidenceJournal opened before any read"
+ ],
+ "version": "1.0"
+}
