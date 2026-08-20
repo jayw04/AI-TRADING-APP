@@ -1,0 +1,546 @@
+{
+ "ADOPTED_INVARIANT": {
+  "adopted_as": "INTENTIONAL LEAST PRIVILEGE, prospectively and explicitly - not an accidental side effect of NotResource",
+  "sid_renamed_to_say_so": {
+   "now": "DenyGetObjectVersionOnEveryS3ResourceExceptTheEnumeratedExceptions",
+   "this_is_the_ONLY_document_change_from_v1.1": "Sid string only; the policy is otherwise byte-identical to the sealed v1.1 document.",
+   "was": "DenyVersionedReadOfAnythingButTheSixRegisteredObjects",
+   "why": "the old Sid implied confinement to the oos/ namespace. A future reviewer reading the policy alone must not be misled by the name, for the same reason the record must not mislead."
+  },
+  "statement": "mr002-validation-reader is FORBIDDEN from s3:GetObjectVersion on EVERY S3 resource, in every bucket, EXCEPT: (a) the six registered Validation-2 keys, and (b) the governed development/* and reference/* resources this role already reads.",
+  "why_it_is_coherent_for_this_principal": "a Validation-2 reader has no business version-reading arbitrary S3 data anywhere. The global form is a STRONGER future guarantee than a namespace-scoped one."
+ },
+ "CORRECTION_OF_MY_OWN_CLAIM": {
+  "found_by": "owner review",
+  "process_fix": "a diff must report IN-PLACE CHANGES and SURFACE CHANGE as separate lines. A technically-true metric under a headline that implies something stronger is worse than no metric.",
+  "the_actual_truth": "v1.1 DOES change semantics. It adds a GLOBAL explicit deny of s3:GetObjectVersion across all S3 for this principal, excepting only the enumerated resources. That is a real expansion of the deny surface, not an implementation detail.",
+  "what_I_reported": "'SEMANTICALLY CHANGED 0' in the v1.1 diff",
+  "why_it_was_misleading": "my diff computed that metric as 'statements present in BOTH versions whose content differs'. The new deny exists only in v1.1, so it was counted under ADDED and the counter honestly returned 0 for what it measured. But the LABEL reads as 'the policy's semantics did not change', which is FALSE: seven denies were added and one of them expands the deny surface globally."
+ },
+ "PRE_VALIDATION_BEFORE_APPLICATION": {
+  "absent_version_cell": "prices @ NO version supplied -> explicitDeny (StringNotEquals against an absent context key evaluates TRUE, so the key's own deny fires). Tested, not assumed.",
+  "all_intended": true,
+  "cells": 32,
+  "exception_cells_confirmed_surviving": [
+   "development GetObjectVersion + GetObject -> allowed",
+   "reference GetObjectVersion + GetObject -> allowed",
+   "all six registered key/version pairs -> allowed"
+  ],
+  "global_cells_included": [
+   "sealed bucket OUTSIDE dev/ref/oos -> explicitDeny",
+   "unrelated bucket entirely -> explicitDeny",
+   "unrelated third-party-style bucket -> explicitDeny"
+  ],
+  "listbucket_fixed_in_the_TEST_HARNESS": "s3:prefix context now supplied; development/ and reference/ allowed, oos/ and validation/ explicitDeny. The POLICY was never at fault and was not changed; the original failed observation is retained in the v1.0 record.",
+  "method": "iam simulate-custom-policy against the PROPOSED document - evaluates a policy without deploying it",
+  "results": [
+   {
+    "action": "s3:GetObjectVersion",
+    "cell": "actions @ OWN registered version",
+    "match": true,
+    "observed": "allowed",
+    "required": "allowed"
+   },
+   {
+    "action": "s3:GetObjectVersion",
+    "cell": "anchors @ OWN registered version",
+    "match": true,
+    "observed": "allowed",
+    "required": "allowed"
+   },
+   {
+    "action": "s3:GetObjectVersion",
+    "cell": "etf_prices @ OWN registered version",
+    "match": true,
+    "observed": "allowed",
+    "required": "allowed"
+   },
+   {
+    "action": "s3:GetObjectVersion",
+    "cell": "prices @ OWN registered version",
+    "match": true,
+    "observed": "allowed",
+    "required": "allowed"
+   },
+   {
+    "action": "s3:GetObjectVersion",
+    "cell": "sic_observations @ OWN registered version",
+    "match": true,
+    "observed": "allowed",
+    "required": "allowed"
+   },
+   {
+    "action": "s3:GetObjectVersion",
+    "cell": "universe @ OWN registered version",
+    "match": true,
+    "observed": "allowed",
+    "required": "allowed"
+   },
+   {
+    "action": "s3:GetObjectVersion",
+    "cell": "actions @ ANOTHER key's version",
+    "match": true,
+    "observed": "explicitDeny",
+    "required": "explicitDeny"
+   },
+   {
+    "action": "s3:GetObjectVersion",
+    "cell": "anchors @ ANOTHER key's version",
+    "match": true,
+    "observed": "explicitDeny",
+    "required": "explicitDeny"
+   },
+   {
+    "action": "s3:GetObjectVersion",
+    "cell": "etf_prices @ ANOTHER key's version",
+    "match": true,
+    "observed": "explicitDeny",
+    "required": "explicitDeny"
+   },
+   {
+    "action": "s3:GetObjectVersion",
+    "cell": "prices @ ANOTHER key's version",
+    "match": true,
+    "observed": "explicitDeny",
+    "required": "explicitDeny"
+   },
+   {
+    "action": "s3:GetObjectVersion",
+    "cell": "sic_observations @ ANOTHER key's version",
+    "match": true,
+    "observed": "explicitDeny",
+    "required": "explicitDeny"
+   },
+   {
+    "action": "s3:GetObjectVersion",
+    "cell": "universe @ ANOTHER key's version",
+    "match": true,
+    "observed": "explicitDeny",
+    "required": "explicitDeny"
+   },
+   {
+    "action": "s3:GetObjectVersion",
+    "cell": "prices @ FABRICATED version",
+    "match": true,
+    "observed": "explicitDeny",
+    "required": "explicitDeny"
+   },
+   {
+    "action": "s3:GetObjectVersion",
+    "cell": "prices @ NO version supplied",
+    "match": true,
+    "observed": "explicitDeny",
+    "required": "explicitDeny"
+   },
+   {
+    "action": "s3:GetObject",
+    "cell": "plain GetObject on oos/prices",
+    "match": true,
+    "observed": "explicitDeny",
+    "required": "explicitDeny"
+   },
+   {
+    "action": "s3:GetObjectVersion",
+    "cell": "UNREGISTERED key under oos/",
+    "match": true,
+    "observed": "explicitDeny",
+    "required": "explicitDeny"
+   },
+   {
+    "action": "s3:GetObjectVersion",
+    "cell": "sealed bucket, OUTSIDE dev/ref/oos",
+    "match": true,
+    "observed": "explicitDeny",
+    "required": "explicitDeny"
+   },
+   {
+    "action": "s3:GetObjectVersion",
+    "cell": "UNRELATED bucket entirely",
+    "match": true,
+    "observed": "explicitDeny",
+    "required": "explicitDeny"
+   },
+   {
+    "action": "s3:GetObjectVersion",
+    "cell": "UNRELATED third-party-style bucket",
+    "match": true,
+    "observed": "explicitDeny",
+    "required": "explicitDeny"
+   },
+   {
+    "action": "s3:GetObjectVersion",
+    "cell": "development GetObjectVersion",
+    "match": true,
+    "observed": "allowed",
+    "required": "allowed"
+   },
+   {
+    "action": "s3:GetObject",
+    "cell": "development GetObject",
+    "match": true,
+    "observed": "allowed",
+    "required": "allowed"
+   },
+   {
+    "action": "s3:GetObjectVersion",
+    "cell": "reference GetObjectVersion",
+    "match": true,
+    "observed": "allowed",
+    "required": "allowed"
+   },
+   {
+    "action": "s3:GetObject",
+    "cell": "reference GetObject",
+    "match": true,
+    "observed": "allowed",
+    "required": "allowed"
+   },
+   {
+    "action": "s3:GetObject",
+    "cell": "consumed validation/*",
+    "match": true,
+    "observed": "explicitDeny",
+    "required": "explicitDeny"
+   },
+   {
+    "action": "s3:PutObject",
+    "cell": "PutObject sealed",
+    "match": true,
+    "observed": "explicitDeny",
+    "required": "explicitDeny"
+   },
+   {
+    "action": "s3:DeleteObjectVersion",
+    "cell": "DeleteObjectVersion sealed",
+    "match": true,
+    "observed": "explicitDeny",
+    "required": "explicitDeny"
+   },
+   {
+    "action": "s3:PutObject",
+    "cell": "write governing evidence",
+    "match": true,
+    "observed": "explicitDeny",
+    "required": "explicitDeny"
+   },
+   {
+    "action": "s3:ListBucket",
+    "cell": "ListBucket prefix=development/",
+    "match": true,
+    "observed": "allowed",
+    "required": "allowed"
+   },
+   {
+    "action": "s3:ListBucket",
+    "cell": "ListBucket prefix=reference/",
+    "match": true,
+    "observed": "allowed",
+    "required": "allowed"
+   },
+   {
+    "action": "s3:ListBucket",
+    "cell": "ListBucket prefix=oos/",
+    "match": true,
+    "observed": "explicitDeny",
+    "required": "explicitDeny"
+   },
+   {
+    "action": "s3:ListBucket",
+    "cell": "ListBucket prefix=validation/",
+    "match": true,
+    "observed": "explicitDeny",
+    "required": "explicitDeny"
+   },
+   {
+    "action": "sts:AssumeRole",
+    "cell": "AssumeRole publisher",
+    "match": true,
+    "observed": "explicitDeny",
+    "required": "explicitDeny"
+   }
+  ],
+  "why_this_matters": "this is what I should have done for v1.1. The shared-list defect would have surfaced HERE instead of after application, and the owner would not have had to catch it."
+ },
+ "authorizes": "NOTHING. Application requires the owner's separate go-ahead.",
+ "boundary": {
+  "amendments_applied": [
+   "C",
+   "B v1.2",
+   "A v1.0"
+  ],
+  "latch": "CLOSED / 8",
+  "validation_2_opening": "NOT AUTHORIZED",
+  "withheld_reads": 0
+ },
+ "date": "2026-08-20",
+ "does_this_open_validation_2": {
+  "answer": "NO",
+  "proof": "v1.2 differs from v1.1 by one Sid string. Relative to the APPLIED v1.0 it only NARROWS access: one weak deny becomes seven stricter ones. No Allow is added or widened anywhere."
+ },
+ "on_application": "re-run the FULL readiness matrix from scratch against the DEPLOYED role, not only the corrected cells, and not merely trusting this pre-validation.",
+ "policy_document_v1_2": {
+  "Statement": [
+   {
+    "Action": "s3:GetObjectVersion",
+    "Condition": {
+     "StringEquals": {
+      "s3:VersionId": "F6m6am6cBahBd95p41C1.aAVmYd8GuNG"
+     }
+    },
+    "Effect": "Allow",
+    "Resource": "arn:aws:s3:::workbench-mr002-sealed-219024422756/oos/actions.parquet",
+    "Sid": "ReadValidation2ActionsAtItsRegisteredVersionOnly"
+   },
+   {
+    "Action": "s3:GetObjectVersion",
+    "Condition": {
+     "StringEquals": {
+      "s3:VersionId": "RsJZG3TkDXvNPERJhZVanJ.Vqg8_dulw"
+     }
+    },
+    "Effect": "Allow",
+    "Resource": "arn:aws:s3:::workbench-mr002-sealed-219024422756/oos/anchors.parquet",
+    "Sid": "ReadValidation2AnchorsAtItsRegisteredVersionOnly"
+   },
+   {
+    "Action": "s3:GetObjectVersion",
+    "Condition": {
+     "StringEquals": {
+      "s3:VersionId": "Z3OsUeuucMYIl2v9JDoVNDx1nw.0avDj"
+     }
+    },
+    "Effect": "Allow",
+    "Resource": "arn:aws:s3:::workbench-mr002-sealed-219024422756/oos/etf_prices.parquet",
+    "Sid": "ReadValidation2EtfPricesAtItsRegisteredVersionOnly"
+   },
+   {
+    "Action": "s3:GetObjectVersion",
+    "Condition": {
+     "StringEquals": {
+      "s3:VersionId": "1ope9PR._oR303.EbZNGPVlIJRy.SZbA"
+     }
+    },
+    "Effect": "Allow",
+    "Resource": "arn:aws:s3:::workbench-mr002-sealed-219024422756/oos/prices.parquet",
+    "Sid": "ReadValidation2PricesAtItsRegisteredVersionOnly"
+   },
+   {
+    "Action": "s3:GetObjectVersion",
+    "Condition": {
+     "StringEquals": {
+      "s3:VersionId": "DPhtWW3Pca3TKtSa1LOnGKA.yrZ98EIt"
+     }
+    },
+    "Effect": "Allow",
+    "Resource": "arn:aws:s3:::workbench-mr002-sealed-219024422756/oos/sic_observations.parquet",
+    "Sid": "ReadValidation2SicObservationsAtItsRegisteredVersionOnly"
+   },
+   {
+    "Action": "s3:GetObjectVersion",
+    "Condition": {
+     "StringEquals": {
+      "s3:VersionId": "0gaqJ9TuECc3U_zar99sqls2UHRDnkkY"
+     }
+    },
+    "Effect": "Allow",
+    "Resource": "arn:aws:s3:::workbench-mr002-sealed-219024422756/oos/universe.parquet",
+    "Sid": "ReadValidation2UniverseAtItsRegisteredVersionOnly"
+   },
+   {
+    "Action": [
+     "s3:GetObject",
+     "s3:GetObjectVersion"
+    ],
+    "Effect": "Allow",
+    "Resource": [
+     "arn:aws:s3:::workbench-mr002-sealed-219024422756/reference/*",
+     "arn:aws:s3:::workbench-mr002-sealed-219024422756/development/*"
+    ],
+    "Sid": "ReadOpenReferenceAndDevelopmentPartitions"
+   },
+   {
+    "Action": "s3:ListBucket",
+    "Condition": {
+     "StringLike": {
+      "s3:prefix": [
+       "development/*",
+       "reference/*"
+      ]
+     }
+    },
+    "Effect": "Allow",
+    "Resource": "arn:aws:s3:::workbench-mr002-sealed-219024422756",
+    "Sid": "ListOnlyTheOpenPrefixes"
+   },
+   {
+    "Action": "s3:ListBucket",
+    "Condition": {
+     "StringLike": {
+      "s3:prefix": [
+       "oos/*",
+       "validation/*"
+      ]
+     }
+    },
+    "Effect": "Deny",
+    "Resource": "arn:aws:s3:::workbench-mr002-sealed-219024422756",
+    "Sid": "DenyListingTheHoldoutPrefixes"
+   },
+   {
+    "Action": "s3:*",
+    "Effect": "Deny",
+    "Resource": [
+     "arn:aws:s3:::workbench-mr002-sealed-219024422756/validation/*"
+    ],
+    "Sid": "DenyTheConsumedValidation1Partition"
+   },
+   {
+    "Effect": "Deny",
+    "NotAction": "s3:GetObjectVersion",
+    "Resource": [
+     "arn:aws:s3:::workbench-mr002-sealed-219024422756/oos/*"
+    ],
+    "Sid": "DenyEveryActionOnValidation2ExceptPinnedVersionReads"
+   },
+   {
+    "Action": "s3:GetObjectVersion",
+    "Condition": {
+     "StringNotEquals": {
+      "s3:VersionId": "F6m6am6cBahBd95p41C1.aAVmYd8GuNG"
+     }
+    },
+    "Effect": "Deny",
+    "Resource": "arn:aws:s3:::workbench-mr002-sealed-219024422756/oos/actions.parquet",
+    "Sid": "DenyValidation2ActionsAtAnyVersionButItsOwn"
+   },
+   {
+    "Action": "s3:GetObjectVersion",
+    "Condition": {
+     "StringNotEquals": {
+      "s3:VersionId": "RsJZG3TkDXvNPERJhZVanJ.Vqg8_dulw"
+     }
+    },
+    "Effect": "Deny",
+    "Resource": "arn:aws:s3:::workbench-mr002-sealed-219024422756/oos/anchors.parquet",
+    "Sid": "DenyValidation2AnchorsAtAnyVersionButItsOwn"
+   },
+   {
+    "Action": "s3:GetObjectVersion",
+    "Condition": {
+     "StringNotEquals": {
+      "s3:VersionId": "Z3OsUeuucMYIl2v9JDoVNDx1nw.0avDj"
+     }
+    },
+    "Effect": "Deny",
+    "Resource": "arn:aws:s3:::workbench-mr002-sealed-219024422756/oos/etf_prices.parquet",
+    "Sid": "DenyValidation2EtfPricesAtAnyVersionButItsOwn"
+   },
+   {
+    "Action": "s3:GetObjectVersion",
+    "Condition": {
+     "StringNotEquals": {
+      "s3:VersionId": "1ope9PR._oR303.EbZNGPVlIJRy.SZbA"
+     }
+    },
+    "Effect": "Deny",
+    "Resource": "arn:aws:s3:::workbench-mr002-sealed-219024422756/oos/prices.parquet",
+    "Sid": "DenyValidation2PricesAtAnyVersionButItsOwn"
+   },
+   {
+    "Action": "s3:GetObjectVersion",
+    "Condition": {
+     "StringNotEquals": {
+      "s3:VersionId": "DPhtWW3Pca3TKtSa1LOnGKA.yrZ98EIt"
+     }
+    },
+    "Effect": "Deny",
+    "Resource": "arn:aws:s3:::workbench-mr002-sealed-219024422756/oos/sic_observations.parquet",
+    "Sid": "DenyValidation2SicObservationsAtAnyVersionButItsOwn"
+   },
+   {
+    "Action": "s3:GetObjectVersion",
+    "Condition": {
+     "StringNotEquals": {
+      "s3:VersionId": "0gaqJ9TuECc3U_zar99sqls2UHRDnkkY"
+     }
+    },
+    "Effect": "Deny",
+    "Resource": "arn:aws:s3:::workbench-mr002-sealed-219024422756/oos/universe.parquet",
+    "Sid": "DenyValidation2UniverseAtAnyVersionButItsOwn"
+   },
+   {
+    "Action": "s3:GetObjectVersion",
+    "Effect": "Deny",
+    "NotResource": [
+     "arn:aws:s3:::workbench-mr002-sealed-219024422756/oos/actions.parquet",
+     "arn:aws:s3:::workbench-mr002-sealed-219024422756/oos/anchors.parquet",
+     "arn:aws:s3:::workbench-mr002-sealed-219024422756/oos/etf_prices.parquet",
+     "arn:aws:s3:::workbench-mr002-sealed-219024422756/oos/prices.parquet",
+     "arn:aws:s3:::workbench-mr002-sealed-219024422756/oos/sic_observations.parquet",
+     "arn:aws:s3:::workbench-mr002-sealed-219024422756/oos/universe.parquet",
+     "arn:aws:s3:::workbench-mr002-sealed-219024422756/development/*",
+     "arn:aws:s3:::workbench-mr002-sealed-219024422756/reference/*"
+    ],
+    "Sid": "DenyGetObjectVersionOnEveryS3ResourceExceptTheEnumeratedExceptions"
+   },
+   {
+    "Action": [
+     "s3:PutObject",
+     "s3:DeleteObject",
+     "s3:DeleteObjectVersion",
+     "s3:PutBucketPolicy",
+     "s3:DeleteBucketPolicy",
+     "s3:PutBucketVersioning"
+    ],
+    "Effect": "Deny",
+    "Resource": [
+     "arn:aws:s3:::workbench-mr002-sealed-219024422756",
+     "arn:aws:s3:::workbench-mr002-sealed-219024422756/*"
+    ],
+    "Sid": "DenyAnyWriteToTheSealedStore"
+   },
+   {
+    "Action": [
+     "s3:PutObject",
+     "s3:DeleteObject",
+     "s3:DeleteObjectVersion"
+    ],
+    "Effect": "Deny",
+    "Resource": [
+     "arn:aws:s3:::workbench-backups-219024422756/artifacts/governed/*",
+     "arn:aws:s3:::workbench-backups-219024422756/mr002/*"
+    ],
+    "Sid": "DenyPublishingGoverningEvidence"
+   },
+   {
+    "Action": "sts:AssumeRole",
+    "Effect": "Deny",
+    "Resource": "arn:aws:iam::219024422756:role/mr002-validation2-evidence-publisher",
+    "Sid": "DenyAssumingTheEvidencePublisherRole"
+   }
+  ],
+  "Version": "2012-10-17"
+ },
+ "record_identity_sha256": "3ce28be1cf6c422a2f0acc9d7fe5388f0fea9c62ad91c57c30459da32d6d4735",
+ "record_type": "MR002_Validation2_AmendmentA_GlobalDenyAdoption",
+ "status": "DRAFT PROPOSAL - NOT APPLIED",
+ "supersedes": {
+  "both_preserved_unmodified": true,
+  "v1.0_applied": "5e39ff64d8bef7af5de2462d4fafa56b0bece691994364e33524fdccb5c8c033 (its readiness matrix)",
+  "v1.1": "43e6acfb7732c37336fb0d7817c202225e2b773926bef9183ec5e04a3bf6c14c"
+ },
+ "unchanged_from_v1_1": {
+  "allow_layer": true,
+  "amendment_B_controls": true,
+  "reader_trust": true,
+  "run_host_latch": "8 / CLOSED",
+  "six_per_key_denies": true
+ },
+ "version": "1.2",
+ "why_the_statement_cannot_simply_be_narrowed": {
+  "conclusion": "NotResource is the ONLY mechanism. 'Narrow the statement' is not an available option, so the real choice is to adopt the global restriction deliberately or to drop the explicit deny and accept implicitDeny for unregistered oos keys - which the registration forbids.",
+  "condition_on_the_object_key": "S3 exposes NO condition key carrying the requested object key for GetObject/GetObjectVersion. s3:prefix is ListBucket-only; s3:ExistingObjectTag would require MUTATING the sealed holdout to tag it, which is unacceptable.",
+  "goal": "deny s3:GetObjectVersion on (oos/* MINUS the six exact keys)",
+  "resource_exclusion_operator": "does not exist in IAM"
+ }
+}
