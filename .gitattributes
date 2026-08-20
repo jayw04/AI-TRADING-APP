@@ -69,3 +69,4 @@ docs/implementation/TradingWorkbench_MR002_PreRegistration_*.md text eol=lf
 apps/backend/scripts/mr002_development_run.py text eol=lf
 # rehearsal fixture builder: its bytes are provenance for the frozen fixture hashes
 apps/backend/scripts/mr002_v2_build_rehearsal_fixtures.py text eol=lf
+apps/backend/scripts/mr002_v2_execution_closure.py text eol=lf

@@ -1,0 +1,352 @@
+{
+ "closure_identity_sha256": "3c32bda64dd1cd6efe306bcf7e69e56a78c53b3bd58076d7735ddbe2d516df3b",
+ "closure_rule": "every artifact whose value can select, or cause to be selected, any of: partition, object key, VersionId, window, fold geometry, authority/countersignature identity, solver or solver routing, gate threshold, terminal disposition, or custody/consumption status",
+ "code_members": 23,
+ "derivation_method": {
+  "code": "static transitive import closure from the launcher over first-party app.* modules, parsed from Git blobs (LF), not from the Windows working tree",
+  "runtime_read_data": "manifest paths the launcher opens by path; these are DATA and are structurally invisible to an import trace, which is why the previous 20-file enumeration missed the registry twice",
+  "why_not_a_list": "a list is a snapshot; a closure is a rule. Both halts in this cycle came from an artifact one step outside the enumeration."
+ },
+ "derived_at_commit": "4e66bb90456cfa0a8da7d5cef52f4618c39c6aac",
+ "identity_type": "SHA-256 over file CONTENT as stored in Git (LF). NOT a Git blob object id (SHA-1 over 'blob <len>\\0' + content). Never compare unlike identity types.",
+ "member_count": 25,
+ "members": [
+  {
+   "bytes": 0,
+   "closure_categories": [],
+   "kind": "code",
+   "no_category_resolved": "file is EMPTY (0 bytes; sha256 is the SHA-256 of the empty string). It is a package marker and can select no partition, key, VersionId, window, fold, authority, solver, threshold, disposition or custody status. It stays in the closure so that it becoming NON-empty is a detectable change.",
+   "path": "apps/backend/app/research/mr002/__init__.py",
+   "provenance": "imported (transitively) by apps/backend/scripts/mr002_phase3c_validation_run.py",
+   "sha256_over_git_blob_content_lf": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+   "bytes": 14804,
+   "closure_categories": [
+    "fold_geometry",
+    "solver_or_routing",
+    "terminal_disposition"
+   ],
+   "kind": "code",
+   "path": "apps/backend/app/research/mr002/certificate.py",
+   "provenance": "imported (transitively) by apps/backend/app/research/mr002/stage3_cascade.py",
+   "sha256_over_git_blob_content_lf": "c679eb39bcabd90089dfaa2f3f149996e5cfcf4fc1582e58513c91b0703e31ec"
+  },
+  {
+   "bytes": 14200,
+   "closure_categories": [
+    "window"
+   ],
+   "kind": "code",
+   "path": "apps/backend/app/research/mr002/dataset.py",
+   "provenance": "imported (transitively) by apps/backend/scripts/mr002_phase3c_validation_run.py",
+   "sha256_over_git_blob_content_lf": "a8a11c0c2b5e9ddefb87eb0ebcc9e659eff5104115d5493685707597e157c957"
+  },
+  {
+   "bytes": 8847,
+   "closure_categories": [
+    "terminal_disposition"
+   ],
+   "kind": "code",
+   "path": "apps/backend/app/research/mr002/directed.py",
+   "provenance": "imported (transitively) by apps/backend/app/research/mr002/certificate.py",
+   "sha256_over_git_blob_content_lf": "7f8d44d252512f7665c720a94644c50bd122ed86727fdbdc7023f8a7d1e47fc1"
+  },
+  {
+   "bytes": 8204,
+   "closure_categories": [
+    "window"
+   ],
+   "kind": "code",
+   "path": "apps/backend/app/research/mr002/eligibility.py",
+   "provenance": "imported (transitively) by apps/backend/app/research/mr002/dataset.py",
+   "sha256_over_git_blob_content_lf": "46ecef1e0a285171afa31f751cf90c64ec53c4fe151f03a9e72081e7ac1a880a"
+  },
+  {
+   "bytes": 8483,
+   "closure_categories": [
+    "gate_threshold",
+    "window"
+   ],
+   "kind": "code",
+   "path": "apps/backend/app/research/mr002/execution.py",
+   "provenance": "imported (transitively) by apps/backend/app/research/mr002/runner.py",
+   "sha256_over_git_blob_content_lf": "4710d3869ec4d1294e9a7a7888d80fab0f85d2cd0176df67bba323ef90365b62"
+  },
+  {
+   "bytes": 37543,
+   "closure_categories": [
+    "custody_or_consumption",
+    "gate_threshold",
+    "solver_or_routing",
+    "window"
+   ],
+   "kind": "code",
+   "path": "apps/backend/app/research/mr002/joint_portfolio.py",
+   "provenance": "imported (transitively) by apps/backend/app/research/mr002/stage3_route.py",
+   "sha256_over_git_blob_content_lf": "4efd57393e2d99e0733f70ceba5e24d9629fb3d4aa8a18837efc36eb157bac43"
+  },
+  {
+   "bytes": 3516,
+   "closure_categories": [
+    "custody_or_consumption",
+    "object_key_or_versionid",
+    "partition"
+   ],
+   "kind": "code",
+   "path": "apps/backend/app/research/mr002/phase3b/readers.py",
+   "provenance": "imported (transitively) by apps/backend/scripts/mr002_phase3c_validation_run.py",
+   "sha256_over_git_blob_content_lf": "690cc3f61c423e360b96fed779db19e3d2170f4a719421dadddbfd129835bf48"
+  },
+  {
+   "bytes": 5977,
+   "closure_categories": [
+    "fold_geometry",
+    "gate_threshold",
+    "partition",
+    "terminal_disposition",
+    "window"
+   ],
+   "kind": "code",
+   "path": "apps/backend/app/research/mr002/phase3c/__init__.py",
+   "provenance": "imported (transitively) by apps/backend/scripts/mr002_phase3c_validation_run.py",
+   "sha256_over_git_blob_content_lf": "ad3b578c5e9965c21e734b18431f82d5602463481d1dd57ee242b8c0e5483c9f"
+  },
+  {
+   "bytes": 5667,
+   "closure_categories": [
+    "custody_or_consumption"
+   ],
+   "kind": "code",
+   "path": "apps/backend/app/research/mr002/phase3c/adopted.py",
+   "provenance": "imported (transitively) by apps/backend/app/research/mr002/phase3c/replay.py",
+   "sha256_over_git_blob_content_lf": "8b3cfa9d72b12f2f9545ae84810cb5cd346cf6483aaaa59142224d98d79fda3f"
+  },
+  {
+   "bytes": 5524,
+   "closure_categories": [
+    "window"
+   ],
+   "kind": "code",
+   "path": "apps/backend/app/research/mr002/phase3c/credential_readiness.py",
+   "provenance": "imported (transitively) by apps/backend/scripts/mr002_phase3c_validation_run.py",
+   "sha256_over_git_blob_content_lf": "4a0d6eb5daf5f5a661a8a03f9839c72be385a80963c308629951a3a603b0912f"
+  },
+  {
+   "bytes": 11008,
+   "closure_categories": [
+    "custody_or_consumption",
+    "object_key_or_versionid",
+    "partition",
+    "solver_or_routing",
+    "terminal_disposition"
+   ],
+   "kind": "code",
+   "path": "apps/backend/app/research/mr002/phase3c/durable_evidence.py",
+   "provenance": "imported (transitively) by apps/backend/scripts/mr002_phase3c_validation_run.py",
+   "sha256_over_git_blob_content_lf": "6bd599384fa530da73f9cf99c5f16da39b2637703cb31f9c5ce60085e02a87cb"
+  },
+  {
+   "bytes": 2859,
+   "closure_categories": [
+    "solver_or_routing",
+    "window"
+   ],
+   "kind": "code",
+   "path": "apps/backend/app/research/mr002/phase3c/exits.py",
+   "provenance": "imported (transitively) by apps/backend/app/research/mr002/phase3c/replay.py",
+   "sha256_over_git_blob_content_lf": "2724f372ef62a6b6a0c15173c7d6146cf9a44748940f759773dca61219bde7d7"
+  },
+  {
+   "bytes": 4838,
+   "closure_categories": [
+    "fold_geometry",
+    "partition",
+    "terminal_disposition",
+    "window"
+   ],
+   "kind": "code",
+   "path": "apps/backend/app/research/mr002/phase3c/folds.py",
+   "provenance": "imported (transitively) by apps/backend/scripts/mr002_phase3c_validation_run.py",
+   "sha256_over_git_blob_content_lf": "8033265051b02d730900538693a662b4af6e2bc80a410090add83d8d38db103f"
+  },
+  {
+   "bytes": 6666,
+   "closure_categories": [
+    "authority_identity",
+    "fold_geometry",
+    "gate_threshold",
+    "terminal_disposition",
+    "window"
+   ],
+   "kind": "code",
+   "path": "apps/backend/app/research/mr002/phase3c/gates.py",
+   "provenance": "imported (transitively) by apps/backend/scripts/mr002_phase3c_validation_run.py",
+   "sha256_over_git_blob_content_lf": "3782ecf59189dacbbfa04a57cf6f503118721db6a40271a0a2994e15fd377ad3"
+  },
+  {
+   "bytes": 4906,
+   "closure_categories": [
+    "authority_identity",
+    "custody_or_consumption",
+    "object_key_or_versionid",
+    "partition",
+    "window"
+   ],
+   "kind": "runtime_read_data",
+   "path": "apps/backend/app/research/mr002/phase3c/manifests/validation2_object_registry.json",
+   "provenance": "runtime-read data artifact bound to DEFAULT_REGISTRY; supplies object key, VersionId and SHA-256 \u2014 no import trace can reach it",
+   "sha256_over_git_blob_content_lf": "bbd330b7a41e338353ebd061707b5f633937e0cc82cdd97b794e72021657ae2e"
+  },
+  {
+   "bytes": 5262,
+   "closure_categories": [
+    "custody_or_consumption",
+    "object_key_or_versionid",
+    "partition"
+   ],
+   "kind": "runtime_read_data",
+   "path": "apps/backend/app/research/mr002/phase3c/manifests/validation2_rehearsal_registry.json",
+   "provenance": "runtime-read data artifact bound to REHEARSAL_REGISTRY; supplies object key, VersionId and SHA-256 \u2014 no import trace can reach it",
+   "sha256_over_git_blob_content_lf": "4fedce0e094527cbf587e63613aeec7692724e4833a221fbdbda7581479fc11b"
+  },
+  {
+   "bytes": 9337,
+   "closure_categories": [
+    "custody_or_consumption",
+    "object_key_or_versionid",
+    "partition",
+    "window"
+   ],
+   "kind": "code",
+   "path": "apps/backend/app/research/mr002/phase3c/materialize.py",
+   "provenance": "imported (transitively) by apps/backend/scripts/mr002_phase3c_validation_run.py",
+   "sha256_over_git_blob_content_lf": "f5d1f4106d88dfcf226be3f6660e47b8fa436b8ddc0201eefa439411c06bfd67"
+  },
+  {
+   "bytes": 17367,
+   "closure_categories": [
+    "custody_or_consumption",
+    "fold_geometry",
+    "partition",
+    "window"
+   ],
+   "kind": "code",
+   "path": "apps/backend/app/research/mr002/phase3c/replay.py",
+   "provenance": "imported (transitively) by apps/backend/scripts/mr002_phase3c_validation_run.py",
+   "sha256_over_git_blob_content_lf": "e90cbe8edf2c50d90e7d4fd3c87d2ce6b4605a7023b0e3a75d506bfec4ad8b87"
+  },
+  {
+   "bytes": 14212,
+   "closure_categories": [
+    "window"
+   ],
+   "kind": "code",
+   "path": "apps/backend/app/research/mr002/portfolio.py",
+   "provenance": "imported (transitively) by apps/backend/app/research/mr002/runner.py",
+   "sha256_over_git_blob_content_lf": "c324a7d7ec467ed576237335703a8c43a18f92e5f68d6c275dee9b4f978caaba"
+  },
+  {
+   "bytes": 11418,
+   "closure_categories": [
+    "terminal_disposition",
+    "window"
+   ],
+   "kind": "code",
+   "path": "apps/backend/app/research/mr002/runner.py",
+   "provenance": "imported (transitively) by apps/backend/scripts/mr002_phase3c_validation_run.py",
+   "sha256_over_git_blob_content_lf": "87dd6e71a60ba89297ed4653eb1abf94052f34f927e8865b8ea41515e290b34f"
+  },
+  {
+   "bytes": 4871,
+   "closure_categories": [
+    "window"
+   ],
+   "kind": "code",
+   "path": "apps/backend/app/research/mr002/signal.py",
+   "provenance": "imported (transitively) by apps/backend/app/research/mr002/dataset.py",
+   "sha256_over_git_blob_content_lf": "ba81c5d3585e962c71190355391cb72d5f36e4dd05bb7d306d52d793f1c39fbb"
+  },
+  {
+   "bytes": 45030,
+   "closure_categories": [
+    "authority_identity",
+    "custody_or_consumption",
+    "object_key_or_versionid",
+    "solver_or_routing",
+    "terminal_disposition"
+   ],
+   "kind": "code",
+   "path": "apps/backend/app/research/mr002/stage3_cascade.py",
+   "provenance": "imported (transitively) by apps/backend/app/research/mr002/stage3_route.py",
+   "sha256_over_git_blob_content_lf": "1021cc287051a61a088c4a715604922f03ee4dfcff41a334681dab12cb3265ef"
+  },
+  {
+   "bytes": 6077,
+   "closure_categories": [
+    "authority_identity",
+    "solver_or_routing"
+   ],
+   "kind": "code",
+   "path": "apps/backend/app/research/mr002/stage3_route.py",
+   "provenance": "imported (transitively) by apps/backend/scripts/mr002_phase3c_validation_run.py",
+   "sha256_over_git_blob_content_lf": "42335ad9d67ccea60020731550c4d04887d744cd6d56d40506269994960554a2"
+  },
+  {
+   "bytes": 27101,
+   "closure_categories": [
+    "authority_identity",
+    "custody_or_consumption",
+    "fold_geometry",
+    "gate_threshold",
+    "object_key_or_versionid",
+    "partition",
+    "solver_or_routing",
+    "terminal_disposition",
+    "window"
+   ],
+   "kind": "code",
+   "path": "apps/backend/scripts/mr002_phase3c_validation_run.py",
+   "provenance": "ENTRY POINT - the governed launcher itself",
+   "sha256_over_git_blob_content_lf": "12b1a0c4899d79a54322664ec82b2c9193b32212891eb59e61caf15f4ad9ce3a"
+  }
+ ],
+ "no_category_but_resolved_empty": [
+  "apps/backend/app/research/mr002/__init__.py"
+ ],
+ "record_type": "MR002_Validation2_ExecutionClosure",
+ "runtime_read_data_members": 2,
+ "superseded_enumeration_diff": {
+  "added_by_the_closure": [
+   "apps/backend/app/research/mr002/__init__.py",
+   "apps/backend/app/research/mr002/certificate.py",
+   "apps/backend/app/research/mr002/directed.py",
+   "apps/backend/app/research/mr002/eligibility.py",
+   "apps/backend/app/research/mr002/phase3c/manifests/validation2_object_registry.json",
+   "apps/backend/app/research/mr002/phase3c/manifests/validation2_rehearsal_registry.json",
+   "apps/backend/app/research/mr002/portfolio.py",
+   "apps/backend/app/research/mr002/signal.py",
+   "apps/backend/scripts/mr002_phase3c_validation_run.py"
+  ],
+  "removal_findings": {
+   "apps/backend/app/research/mr002/n1/method.py": {
+    "determination": "NOT REACHABLE from the launcher by any import path. It was OVER-INCLUDED in the superseded enumeration; it belongs to the N1/N3 differential harness, which is instrumentation and is not executed by the governed Validation-2 run.",
+    "matching_import_targets": [],
+    "still_imported_by_any_closure_member": false
+   },
+   "apps/backend/app/research/mr002/n1/seam.py": {
+    "determination": "NOT REACHABLE from the launcher by any import path. It was OVER-INCLUDED in the superseded enumeration; it belongs to the N1/N3 differential harness, which is instrumentation and is not executed by the governed Validation-2 run.",
+    "matching_import_targets": [],
+    "still_imported_by_any_closure_member": false
+   }
+  },
+  "removed_from_the_enumeration": [
+   "apps/backend/app/research/mr002/n1/method.py",
+   "apps/backend/app/research/mr002/n1/seam.py"
+  ],
+  "superseded": "the 20-file enumeration carried by MR002_Validation2_ExecutionPackage_v1.0",
+  "why_the_additions_matter": "the additions include THE LAUNCHER ITSELF and BOTH REGISTRIES. Every halt in this cycle originated in exactly those artifacts, and none of them was in the enumeration. That is the case for a rule over a list, stated as evidence rather than as an argument."
+ },
+ "unjustified_members": [],
+ "version": "1.0"
+}
