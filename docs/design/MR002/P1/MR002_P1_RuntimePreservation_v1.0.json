@@ -1,0 +1,194 @@
+{
+ "record_type": "MR002_P1_RUNTIME_PRESERVATION",
+ "version": "1.0",
+ "phase": "P1",
+ "date_utc": "2026-08-21",
+ "governing_protocol": "MR002_P1_NumericalInvestigation_Protocol_v1.0",
+ "predecessors": [
+  "MR002_P1_T2_EnvironmentIdentity_v1.0 (2418164)",
+  "MR002_P1_T2b_ReproductionFeasibility_v1.0 (7c77f73)"
+ ],
+ "authorization": "owner ruling 2026-08-21 — start the evaluator host once more solely to export the bound Stage-3 image sha256:770553ae..., then stop it again, within the eight-point boundary the owner enumerated.",
+ "nature_of_the_operation": {
+  "what_this_is": "PRESERVATION OF AN EXISTING RUNTIME ARTIFACT. The image was exported exactly as it existed on the evaluator host.",
+  "what_this_is_not": "NOT a rebuild, NOT a re-tag, NOT a substitution, NOT a re-creation from deploy/research/mr002/Dockerfile. No Dockerfile was read or built at any point.",
+  "why_stated_explicitly": "owner requirement — the custody record must state on its face that this preserved an existing runtime rather than manufacturing a look-alike."
+ },
+ "verdict": {
+  "preservation_of_the_artifact": "SUCCESS — the exported archive contains the bound image config blob byte-exact",
+  "runtime_identity_recovered": "YES — cryptographically. The config object extracted from the archive hashes to exactly sha256:770553aeae6c..., the eight layer DiffIDs match, and the creation metadata matches.",
+  "load_round_trip_displaying_the_bound_id": "the receiving daemon displayed a different id (180e4a3d...). Per owner ruling this is a representation artefact of the containerd image store, NOT a failure of the preserved content, and NOT grounds for changing storage backends. See P1-PRES-F1.",
+  "consequence": "F2's runtime-artifact availability component is RESOLVED: the exact runtime is now independently recoverable and self-authenticating off-host. A-2 is UNCHANGED and still FAILED; nothing here repairs F1.",
+  "A2_status": "FAILED — unchanged. Recovering the image addresses only the runtime-artifact availability component of F2. Frozen protocol §5.1 controls and T2 also requires dependency identity, which remains unconfirmable (P1-T2-F1).",
+  "narrative_explicitly_rejected": "'We recovered the image, therefore A-2 is satisfied.' It is not."
+ },
+ "authorization_boundary_compliance": {
+  "1_latch_and_deny_controls_reconfirmed_before_image_access": {
+   "before": {
+    "statements": 8,
+    "canonical_sha256": "44f5549a97042d2829a3027e764105b0ab272774ec3bb343d224bfba999fab48",
+    "state": "8 / CLOSED"
+   },
+   "after": {
+    "statements": 8,
+    "canonical_sha256": "44f5549a97042d2829a3027e764105b0ab272774ec3bb343d224bfba999fab48",
+    "state": "8 / CLOSED"
+   },
+   "deny_statements_in_force_throughout": [
+    "DenyAssumingTheValidationReaderRole",
+    "DenyAllAccessToTheSealedStore",
+    "DenyMutatingTheEvaluatorImageOrItsCustody",
+    "DenyEditingTheCredentialReleaseControl"
+   ],
+   "checked_from": "the workstation against IAM directly — authoritative, and independent of anything the host reports about itself"
+  },
+  "2_no_validation_credential_active": {
+   "caller_identity_on_host": "arn:aws:sts::219024422756:assumed-role/mr002-phase3c-run-host/i-00c1034f7026db45e",
+   "is_the_validation_reader": false,
+   "aws_env_vars": "only AWS_SSM_* set by the SSM agent; no credential variables",
+   "credential_files": "no ~/.aws for the invoking user, no /root/.aws",
+   "processes_holding_a_reader_session": "none",
+   "assume_role_attempts_during_this_operation": 0
+  },
+  "3_no_mr002_container_started": {
+   "docker_ps": "empty throughout",
+   "containers_run": 0
+  },
+  "4_no_prohibited_mounts": {
+   "mounted": "nothing",
+   "not_touched": [
+    "/opt/mr002/inputs",
+    ".mr002out",
+    "any validation DuckDB",
+    "any sealed-store path",
+    "any development dataset"
+   ],
+   "note": "docker save reads the daemon's image store only. No bind mount was created."
+  },
+  "5_source_object_established_before_export": {
+   "Id": "sha256:770553aeae6c3d47f1735f61a4e0df75515c105ddda0431dcc2a07b8bdbfe4b6",
+   "RepoTags": [
+    "mr002-research:v1.4"
+   ],
+   "RepoDigests": [],
+   "RepoDigests_significance": "EMPTY — CONSISTENT WITH, but not proof of, never having had a registry association. Corrected on owner ruling before first commit: an earlier draft asserted that an image ever pulled from or pushed to a registry MUST retain a RepoDigest. That overclaims. Moby documents RepoDigests as USUALLY present after a pull or push, and save/load and other local operations can alter what association metadata survives. This field is therefore weak corroboration only.",
+   "where_the_real_F4_evidence_lives": "the direct registry inventory — ECR contains exactly one repository, mr002-evaluator-p5, no image in it resolves to config digest 770553ae..., and neither MR002_EvaluatorImageCustody_v1.0 nor MR002_EvaluatorImageCustody_Runtime_v1.0 references it. That is the load-bearing evidence; RepoDigests merely fails to contradict it.",
+   "Created": "2026-07-13T23:39:13.458225455Z",
+   "Architecture": "amd64/linux",
+   "Size": 424047765,
+   "rootfs_layer_diff_ids": [
+    "sha256:b05a96227958df6091396f6fbd5aa4616df631a65626ac8688c91cfa70d1a7e6",
+    "sha256:58e4b66f6705027e69a0f13959bb267b94fbf95eb40846df373d8b911d090036",
+    "sha256:9183da8ec4ec68489d62a148c34db71c2367552bf712387d4816b60405a0b684",
+    "sha256:ed40c03eb03116e25285c515a324410611d0efeb9522cecfba28eb1f48369424",
+    "sha256:3de83bfa03a1442defa36c16b21806512957a774da6a1e76565fee9962e34c82",
+    "sha256:31a99ce5d8f8c24195270b57d23a10df09475c851700f3f7cb78f462f7c97239",
+    "sha256:43f29d5ab9ba8572527e1b1ade5628b0e8c7f6287c47cf3d6ecf0237c60811ce",
+    "sha256:f87fc94c25ca0ecc7680f2db768b4bc9841a9fef3c07c8f11b986152bb4d73ee"
+   ]
+  },
+  "6_export_executed_for_that_exact_image": "docker save sha256:770553aeae6c... — resolved by digest, never by the tag",
+  "7_streamed_off_host_no_persistent_tarball": {
+   "method": "docker save | python3 streaming hasher | aws s3 cp - s3://... — a pipe, never a file",
+   "pipeline_exit_codes": "0:0:0 (docker : hasher : uploader)",
+   "new_files_written_to_the_volume_by_this_operation": "none of any kind larger than 60 bytes; only /tmp/export.meta (75 bytes) holding the stream hash",
+   "sweep_result": "a >10MB file sweep over the boot window returned ONLY /var/log/journal/.../system.journal and /var/log/amazon/ssm/amazon-ssm-agent.log",
+   "sweep_significance": "this is the empirical confirmation of the owner's correction. Booting the host DID update ordinary OS logs. The claim 'modifies nothing' would have been false; the claim actually made — no MR-002 research or validation payload mutation, and no holdout access — holds and is checkable."
+  },
+  "8_state_reconfirmed_and_host_stopped": {
+   "holdout_access": "none, at any point",
+   "consumed_materialization": "not present on the host, unchanged from T2",
+   "host_final_state": "STOPPED"
+  }
+ },
+ "transport_custody": {
+  "exported_archive_sha256": "a60d8b43eb5ba23a2d732af5499326c8d4e9f8c4ee8d5feb4953d4ce24ae2e72",
+  "bytes": 432910336,
+  "hash_scope": "computed over the EXACT byte stream handed to the uploader, in-line, so the recorded hash cannot drift from what was stored",
+  "destination": {
+   "bucket": "workbench-backups-219024422756",
+   "key": "mr002/publish-staging/p1-runtime-preservation/mr002-research-v1.4-770553ae.tar",
+   "version_id": "dQF4I04o8BLhvV_lDc0d.SD5Rp7BE.Ks",
+   "server_side_encryption": "AES256",
+   "etag": "7a1c71377472aed50b2b15833ac37678-52 (multipart, 52 parts — NOT a content hash, recorded only as an S3 artifact)",
+   "last_modified": "2026-08-21T20:34:10Z"
+  },
+  "off_host_verification": {
+   "downloaded_by_version_id": true,
+   "downloaded_bytes": 432910336,
+   "downloaded_sha256": "a60d8b43eb5ba23a2d732af5499326c8d4e9f8c4ee8d5feb4953d4ce24ae2e72",
+   "match": true
+  },
+  "custody_status": "STAGED, NOT YET FINAL CUSTODY. This is a versioned, encrypted, off-host copy — materially better than a single EBS volume — but the durable immutable custody destination is still to be established, and per the owner ruling that step is performed from the reproduction environment, not from the evaluator host."
+ },
+ "artifact_fidelity_proof": {
+  "claim": "the exported archive preserves the bound runtime identity",
+  "evidence": {
+   "archive_layout": "OCI (oci-layout, index.json, manifest.json, blobs/)",
+   "manifest_config_pointer": "blobs/sha256/770553aeae6c3d47f1735f61a4e0df75515c105ddda0431dcc2a07b8bdbfe4b6",
+   "config_blob_present": true,
+   "config_blob_bytes": 7505,
+   "config_blob_sha256": "770553aeae6c3d47f1735f61a4e0df75515c105ddda0431dcc2a07b8bdbfe4b6",
+   "config_blob_self_verifies": "YES — the blob's content hash IS the bound config digest. This is the strongest available statement: the bound identity is not merely referenced by the archive, it is recomputable from the archive's own bytes.",
+   "layer_blobs_match_source_diff_ids": true
+  },
+  "conclusion": "the runtime identity is preserved in the archive and is independently checkable by anyone holding it, without the evaluator host."
+ },
+ "findings": [
+  {
+   "id": "P1-PRES-F1",
+   "severity": "requirement discovered — actionable, and only visible because the round trip was performed",
+   "status_label": "ARCHIVE_FAITHFUL_AND_CONFIG_IDENTITY_CRYPTOGRAPHICALLY_REPRODUCED; RECEIVING_DAEMON_DISPLAY_ID_IS_NOT_THE_GOVERNED_IDENTITY",
+   "title": "A receiving daemon’s displayed image id is not a sound identity check; the config-object hash is.",
+   "statement": "Loading the verified archive on Docker 29.5.3 with the containerd image store (Driver=overlayfs, io.containerd.snapshotter.v1) produced image ID sha256:180e4a3dc31da6f0... — NOT the bound sha256:770553aeae6c... The CONTENT is identical: all eight RootFS layer diff IDs match the source exactly, and the Created timestamp matches to the nanosecond (2026-07-13T23:39:13.458225455Z). The daemon assigns its own identifier under that store.",
+   "why_this_matters": "The owner required the load round trip precisely because a SHA-256 over the tar is transport custody and not the governed runtime identity. The round trip earned its keep — but for a different reason than first written: it showed that a receiving daemon's DISPLAYED id is not a sound identity check, which is itself worth knowing before any future environment relies on one.",
+   "WITHDRAWN_requirement": {
+    "what_was_written": "an earlier draft of this record concluded that the reproduction environment MUST run a classic (non-containerd) image store so that `docker load` restores the id as sha256:770553ae...",
+    "status": "WITHDRAWN before this record was first committed, on owner ruling 2026-08-21",
+    "why_it_was_wrong": "It treated the receiving daemon's displayed id as the governed identity. It is not. The Docker image specification defines image identity as the SHA-256 of the image CONFIGURATION JSON, and that object has already been independently hashed out of the archive to exactly sha256:770553ae... Moby additionally documents that under the containerd image store the IMAGE ID field may display a manifest/index digest rather than the config digest, and Docker describes the classic store as a compatibility option for older behaviour. So 180e4a3d... is a display artefact of the receiving store, not a different runtime.",
+    "why_the_withdrawal_matters_practically": "Provisioning a classic-store host to make a daemon PRINT a historical value would introduce an unnecessary variable into a numerical-reproduction environment in order to satisfy a cosmetic check. That is the opposite of what runtime pinning is for."
+   },
+   "revised_requirement_condition_1": "Condition 1 is satisfied by CRYPTOGRAPHIC CONTENT IDENTITY, not by a receiving daemon's displayed id. The governed check is: extract the config object from the archive, hash it, and require sha256:770553aeae6c... ; additionally require the eight layer DiffIDs and the creation metadata to match. All three hold. This check is store-independent, daemon-independent, and performable by anyone holding the archive.",
+   "residual_note_for_any_future_numerical_host": "If a numerical run is ever authorized, matching the evaluator host's daemon configuration is a defensible conservative choice on general reproducibility grounds — but it is NOT required for numerical determinism (the image store does not influence BLAS kernel selection or floating-point behaviour) and it must never be adopted merely to reproduce a displayed identifier.",
+   "two_identities_recorded_not_conflated": {
+    "bound_config_digest": "sha256:770553aeae6c3d47f1735f61a4e0df75515c105ddda0431dcc2a07b8bdbfe4b6",
+    "id_assigned_by_this_loader": "sha256:180e4a3dc31da6f020226ffdcd145fbf2412905b01c853a4d800d5095a53ef0e",
+    "rule": "these are not the same identifier and must never be written as if they were, in either direction"
+   }
+  },
+  {
+   "id": "P1-PRES-F2",
+   "severity": "verification hazard — corrects a sharper alarm the developer raised and then disproved",
+   "title": "The image ID is unstable across daemons; the tag mr002-research:v1.4 resolves differently on different machines.",
+   "statement": "The workstation already carried an image tagged mr002-research:v1.4 with ID sha256:aa930021c072... A first reading suggested a look-alike substitution. It is NOT one: the full eight-layer diff-ID set is IDENTICAL to the bound image and the Created timestamp matches exactly. It is the same content under a different daemon-assigned ID, the same effect as P1-PRES-F1.",
+   "corrected_characterisation": "This is a VERIFICATION hazard, not a substitution hazard in this instance. But the operational consequence still favours the owner's condition: resolving or verifying by tag OR by image ID on a containerd-store daemon can disagree with the binding while the content is correct — and could equally agree by accident while the content is wrong. Only the config blob's own content hash settles it.",
+   "practical_rule": "verify the config blob's sha256 out of the archive, which is store-independent, and additionally require the classic-store load to reproduce the bound ID before any governed numerical run."
+  },
+  {
+   "id": "P1-PRES-F3",
+   "severity": "refinement of a committed finding — additive, T2b not rewritten",
+   "title": "A second copy of the image already existed on the same volume; F4's substance is unchanged, its wording was imprecise.",
+   "statement": "T2b said the runtime 'existed as a SINGLE local Docker image on one stopped EBS volume.' There were in fact TWO copies, both on that same volume: the daemon's image store, and /opt/mr002/runtime_custody/mr002-research-v14.tar (142,534,656 bytes, sha256 95076c14b32bee01a54e2d49a9a42bea47ef9c73ffb5c0a998c7a10d174c346e, dated 2026-08-18), whose manifest.json names Config blobs/sha256/770553aeae6c... and RepoTags [mr002-research:v1.4].",
+   "why_the_finding_survives": "Two copies on ONE volume is one point of failure, not two. There was no registry copy, no off-host copy, and no custody record covering either. Loss of that volume would still have made exact runtime reproduction impossible. F4 stands; only the count was wrong.",
+   "note_on_the_two_archives": "The 08-18 archive (142,534,656 bytes) and today's export (432,910,336 bytes) have different sizes and different tar hashes while naming the same config digest — a direct illustration of why the tar hash is transport custody and the config blob is identity."
+  }
+ ],
+ "state_after_this_operation": {
+  "evaluator_host": "i-00c1034f7026db45e — STOPPED",
+  "latch": "8 / CLOSED, canonical 44f5549a..., verified before AND after",
+  "consumed_holdout_access": "none",
+  "mr002_payload_mutation": "none",
+  "os_level_side_effects_of_booting": "ordinary system journal and SSM agent log writes — disclosed, not claimed away",
+  "workstation_state": "the loaded image was REMOVED after verification; this workstation is not the custody destination and is not condition-4 compliant (it holds administrative AWS credentials)",
+  "A2": "FAILED",
+  "T2": "NOT COMPLETE",
+  "P1_disposition": "NOT SELECTED — INSUFFICIENT_DEVELOPMENT_EVIDENCE stands"
+ },
+ "not_authorized_by_this_record": [
+  "T5, T6, or any numerical run — the reproduction environment does not yet exist",
+  "treating the staged S3 object as final durable custody",
+  "P2A, P3, any freeze, registration, holdout opening, paper or production activation",
+  "Question B — why the 2026-08-21 run was bound to the v1 layer — remains OUT of P1 scope",
+  "any rebuild from deploy/research/mr002/Dockerfile, under any circumstance, as a fallback or otherwise"
+ ]
+}
