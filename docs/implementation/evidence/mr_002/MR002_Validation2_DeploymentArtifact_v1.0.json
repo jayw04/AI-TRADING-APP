@@ -1,0 +1,114 @@
+{
+ "archive_production": {
+  "archive_need_not_be_archived": "the tar is byte-reproducible from the source commit with the pinned invocation, proven by the double build. The commit plus this record is the durable artifact; the 8.7 MB tar is regenerable bulk and is not committed to Git (ADR 0050).",
+  "determinism": "two independent builds produced the identical archive SHA-256 and the identical candidate aggregate.",
+  "mechanism": "git -c core.autocrlf=false -c core.eol=lf archive --format=tar 740a1420ad55c2c2cb74c681fd49b1da2f3c11b2 apps/backend",
+  "\u26d4 both_flags_are_mandatory": "git archive is a CHECKOUT-faithful exporter, not a blob-faithful one: it applies CRLF on export to every file lacking an explicit eol=lf gitattribute. core.eol=lf ALONE is a SILENT NO-OP because core.autocrlf=true overrides it - last time it produced a byte-identical archive, i.e. a fix that looked applied. Both flags, always."
+ },
+ "authorized_next_procedure_NOT_YET_APPROVED": {
+  "disk_check_first": "confirm free space on the host before extracting; a redeploy has previously consumed several GB and starved a later capture.",
+  "order": "extract to candidate -> verify candidate ON THE HOST -> only then atomic same-filesystem rename",
+  "post_cutover_required": [
+   "pre-cutover candidate aggregate == post-cutover live aggregate, both from the shipped mr002_v2_tree_aggregate.py",
+   "25/25 closure identities against their registered content SHA-256",
+   "import resolution inside the exact run container",
+   "state-machine / static invariant suite",
+   "positive rehearsal FROM the deployed tree",
+   "latch still 8/CLOSED and withheld reads still 0"
+  ],
+  "staging": [
+   "phase3c_src (live)",
+   "phase3c_src_candidate (new)",
+   "phase3c_src_pre_amendmentC (rollback)"
+  ],
+  "then": "issue the corrected readiness record for the TENTH GATE."
+ },
+ "authorizes": "NOTHING. Host extraction and cutover require a separate owner ruling.",
+ "binds": {
+  "archive_bytes": 8724480,
+  "archive_sha256": "c3d3a7e026f65dcf611826f3d9746cee6ba46cd0eb66d8bfa32563bce80cc4df",
+  "candidate_aggregate_file_count": 277,
+  "candidate_aggregate_sha256": "6841756f8026932370531fde49de5dfccda1c2cee964174f1eec1901e3660ae9",
+  "closure_identities_verified": "25/25",
+  "destination": "/opt/mr002/phase3c_src",
+  "execution_closure": {
+   "identity_sha256": "3c32bda64dd1cd6efe306bcf7e69e56a78c53b3bd58076d7735ddbe2d516df3b",
+   "member_count": 25,
+   "unjustified_members": []
+  },
+  "execution_package": {
+   "identity_sha256": "e22c4d4f9e1007340d7c30385af0ee6a95c0c0be8a1a8cd8b4a4e8140c832d23",
+   "owner_disposition": "APPROVED; substantive package changes FROZEN",
+   "record": "MR002_Validation2_ExecutionPackage_v2.0"
+  },
+  "host": "i-00c1034f7026db45e",
+  "source_commit": "740a1420ad55c2c2cb74c681fd49b1da2f3c11b2"
+ },
+ "boundary": {
+  "deployment_extraction": "NOT YET AUTHORIZED",
+  "host_mutated": false,
+  "host_state": "i-00c1034f7026db45e stopped; live tree untouched",
+  "latch": "8 statements / CLOSED",
+  "opening_consumed": false,
+  "validation_2_opening": "NOT AUTHORIZED",
+  "validation_2_population": "UNCONSUMED",
+  "withheld_reads": 0
+ },
+ "candidate_verification": {
+  "closure_members_expected": 25,
+  "closure_members_matched": 25,
+  "crlf_control": {
+   "crlf_free": true,
+   "members_checked": 25,
+   "members_containing_crlf": {},
+   "why": "a byte mismatch could otherwise be re-diagnosed from hashes only, which is how the CRLF failure was initially mis-read. This asserts the actual property."
+  },
+  "extracted_entries": 1246,
+  "mismatched": [],
+  "missing_from_archive": [],
+  "performed": "LOCALLY, into a scratch candidate. The host was not touched.",
+  "verdict": "CANDIDATE_VERIFIED"
+ },
+ "date": "2026-08-20",
+ "operational_proof_from_the_extracted_candidate": {
+  "fold_gate_rehearsal": "ALL PASS from the candidate tree",
+  "import_resolution": "PASS - 11 governed modules imported from the extracted candidate; app.research.mr002.phase3c resolves to /work/apps/backend/app/research/mr002/phase3c/__init__.py. This also confirms the archive carries the parent package __init__ files, which are NOT closure members and would not have been caught by hashes.",
+  "negative_matrix": "10/10 fail closed from the candidate tree, reader_acquisition_attempted=False in every case",
+  "positive_closed_latch_rehearsal": "PASS from the candidate tree - 6 consuming / 4 reference / 0 unclassified, REHEARSAL_NO_VERDICT, integrity_admissible true",
+  "static_launcher_invariants": "20/20 PASS from the candidate tree",
+  "why": "byte identity proves what the archive SAYS. Running from it proves what it DOES. The whole cycle's lesson is that a file can be intact and its behaviour wrong."
+ },
+ "package_unchanged_proof": {
+  "files_added_since_the_approved_package": {
+   "apps/backend/scripts/mr002_v2_build_deployment_artifact.py": "local build + candidate verification; runs before any host mutation",
+   "apps/backend/scripts/mr002_v2_tree_aggregate.py": "the canonical aggregate, SHIPPED INSIDE THE ARCHIVE so candidate and post-cutover live are computed by identical code"
+  },
+  "method": "the closure was RE-DERIVED into a scratch file at the new HEAD and its MEMBERS compared against the sealed closure. The sealed artifact itself was NOT overwritten, because its canonical payload includes derived_at_commit and re-deriving it would change its identity without any member changing.",
+  "owner_constraint": "no new substantive code changes; if anything in the closure changes, this package is no longer the package being reviewed.",
+  "result": "25/25 members byte-identical; 0 added, 0 removed, 0 changed",
+  "why_these_are_not_substantive": "neither is imported by the launcher, neither can select a partition, key, VersionId, window, fold, authority, solver, threshold, disposition or custody status, and neither is a closure member by the closure's own rule. Verified, not asserted: the re-derived closure is unchanged."
+ },
+ "purpose": "bind ONE exact, byte-verified deployment artifact to the approved source closure before the host is touched.",
+ "record_identity_sha256": "aab2e7a56acf8dcc15e12e5345110c92e0ab43f04cbafe2e5380c359738e4b93",
+ "record_status": "SEALED",
+ "record_type": "MR002_Validation2_DeploymentArtifact",
+ "rollback": {
+  "historical_rollback_aggregate": "ff0308be99dd82087b03ef3b48006f4a7c4b87ca37bd951a8be42794c03f4bbc",
+  "preserved_as": "/opt/mr002/phase3c_src_pre_amendmentC (moved, never deleted)",
+  "\u26a0 NOT_COMPARABLE_TO_THIS_ARTIFACT": {
+   "consequence": "it is retained ONLY as a historical marker of the pre-deployment tree. It must NOT be compared against any aggregate from mr002_v2_tree_aggregate.py, and nobody should later 'reconcile' the two.",
+   "finding": "that value is NOT reproducible locally. Seven plausible formula variants over two candidate file sets, at the recorded checkpoint 34eeee00, all failed to reproduce it - because the host's live tree is not the Git content of that commit and the implementation that produced it is preserved nowhere in this repository.",
+   "required_before_cutover": "RE-DERIVE the rollback aggregate on the host by running the shipped mr002_v2_tree_aggregate.py against the LIVE tree, read-only, and record it. Only that value is comparable."
+  },
+  "\u26d4 if_that_path_already_exists": "STOP rather than overwrite it - it is the only copy of the pre-Amendment-C tree."
+ },
+ "version": "1.0",
+ "what_was_NOT_done": [
+  "the host was not started, contacted or modified",
+  "no file was extracted onto the host",
+  "the latch was not released",
+  "no reader was assumed and no STS call was made",
+  "no Validation-2 object was read at any version",
+  "no closure member was changed"
+ ]
+}
