@@ -1,0 +1,130 @@
+{
+ "record_type": "MR002_QB_LINEAGE_VERDICT",
+ "version": "1.0",
+ "date_utc": "2026-08-21",
+ "governing_protocol": "MR002_QB_LineageInvestigation_Protocol_v1.0 (62f0fbb)",
+ "question": "Why did the 2026-08-21 Validation-2 execution bind the v1 stage3_route._routed_solve_qp layer when the v2 certificate-driven implementation had landed on 2026-08-19?",
+
+ "disposition": "EXECUTION_PACKAGE_BINDING_GAP",
+ "disposition_set_was_frozen_before_evidence_was_inspected": true,
+ "confidence_basis": "every claim below names a commit SHA or an artifact identity, as the protocol requires. No claim rests on inference about intent.",
+
+ "answer_in_one_sentence": "The Validation-2 registration froze and ENFORCED the v2 method, the launcher it authorized had never imported v2 and was never rewired, and the one control the registration required specifically to catch a wrong-layer routing was never implemented in that launcher.",
+
+ "evidence": {
+  "1_the_registration_froze_v2_and_enforced_it": {
+   "record": "MR002_Validation2_ProspectiveRegistration_v1.0",
+   "identity_sha256": "93ee468801c92edd9dd1ba49944b381a6d9172c2e22f9bcc76a9dcbe8541af57",
+   "date": "2026-08-20",
+   "bound_sources.frozen_method": [
+    {"path": "apps/backend/app/research/mr002/n1/method.py", "enforced": true, "file_blob_sha256": "76e6afcca09e33014eee5f6c657355596445e2c0ad7350edb7cb6bd9fbdb6ff0"},
+    {"path": "apps/backend/app/research/mr002/n1/seam.py", "enforced": true, "file_blob_sha256": "503d11f50e99846e5afacbf31415c956db16090631509d99e8e4e63465081409"},
+    {"path": "apps/backend/app/research/mr002/n1/reference.py", "enforced": true, "file_blob_sha256": "474683a04f60d5ad"}
+   ],
+   "significance": "the frozen_method list contains EXACTLY these three files, all v2, all enforced. stage3_route.py and stage3_cascade.py are NOT in it. The governing authority for Validation-2 specified the v2 method."
+  },
+
+  "2_the_deployed_launcher_bound_v1": {
+   "launcher": "apps/backend/scripts/mr002_phase3c_validation_run.py",
+   "identified_as_the_launcher_by": "MR002_Validation2_LauncherAndManifestAmendment_v1.0, whose exact_diff is a patch against this exact path",
+   "deployed_version": {
+    "commit": "4e66bb904",
+    "date": "2026-08-20",
+    "content_sha256": "12b1a0c4899d79a54322664e...",
+    "match_to_execution_package": "EXACT — MR002_Validation2_ExecutionPackage_v2.0 binds the launcher at this sha256"
+   },
+   "what_that_version_does": {
+    "line_41": "from app.research.mr002 import stage3_route as route",
+    "line_422": "with route.routed(census, countersignature=route.EXECUTION_COUNTERSIGNATURE_ID):",
+    "line_427": "stage3[name] = route.census_summary(census)",
+    "imports_n1_seam": false,
+    "conclusion": "the deployed, hash-bound launcher routes Stage-3 through the v1 layer and never references the v2 seam."
+   }
+  },
+
+  "3_the_launcher_never_used_v2_at_any_point_in_its_history": {
+   "method": "every revision of the launcher was checked out and inspected for both seams",
+   "revisions": [
+    {"commit": "4e66bb904", "date": "2026-08-20", "v1_seam": true, "v2_seam": false, "note": "the deployed one"},
+    {"commit": "7939b363e", "date": "2026-08-20", "v1_seam": true, "v2_seam": false},
+    {"commit": "9e58ddfc9", "date": "2026-08-20", "v1_seam": true, "v2_seam": false},
+    {"commit": "fbac9e583", "date": "2026-08-20", "v1_seam": true, "v2_seam": false},
+    {"commit": "56dc2cc03", "date": "2026-08-19", "v1_seam": true, "v2_seam": false},
+    {"commit": "f019fa9cd", "date": "2026-08-18", "v1_seam": true, "v2_seam": false},
+    {"commit": "e3f20b39f", "date": "2026-08-18", "v1_seam": true, "v2_seam": false}
+   ],
+   "significance": "the launcher was amended FOUR times on 2026-08-20 — the day AFTER the v2 method landed at 770a109 on 2026-08-19 — and not one of those amendments touched the seam. There was never a version that used v2 and was later reverted; the v2 wiring never existed in this file."
+  },
+
+  "4_the_08_20_launcher_amendment_did_not_consider_the_seam": {
+   "record": "MR002_Validation2_LauncherAndManifestAmendment_v1.0",
+   "date": "2026-08-20",
+   "exact_diff_length_chars": 11377,
+   "mentions_stage3_route": false,
+   "mentions_route_routed": false,
+   "mentions_n1_seam_or_v2seam_or_routed_v2": false,
+   "changed_hunks": ["@@ -1,9 +1,15 @@", "@@ -12,8 +18,10 @@", "@@ -61,18 +69,46 @@", "@@ -135,7 +171,10 @@", "@@ -152,26 +191,48 @@", "@@ -185,7 +246,10 @@"],
+   "significance": "the amendment reworked the docstring, the authority strings, imports and main() up to roughly line 246. The seam call sits at line 422, outside every changed hunk. The file was actively edited the day before execution, and the layer binding was neither changed nor examined."
+  },
+
+  "5_the_control_designed_to_catch_exactly_this_was_never_implemented": {
+   "what_the_registration_required": [
+    "'Stage-3 census is non-empty and the v2 pair was actually routed'",
+    "'the frozen v2 pair was actually routed, evidenced by the census disposition vocabulary'",
+    "'A validation run with ZERO or UNEXPECTED Stage-3 invocation count MUST terminate as INVALID_TEST_HARNESS before any economic verdict is produced.'",
+    "'a guard that records a flag would not have stopped the N3 defect; it must abort'"
+   ],
+   "why_the_registration_required_it": "'the N3 build captured the solver handle BEFORE entering the routing context, silently un-routing every arm and producing a FALSE all-identical PASS. The only tell was an empty Stage-3 disposition census.' The guard exists BECAUSE a wrong-routing defect had already occurred once.",
+   "search_of_the_deployed_launcher": {
+    "terms": ["vocabulary", "actually_routed", "INVALID_TEST_HARNESS", "un-routed", "PRIMARY_CERTIFIED", "SECONDARY_CERTIFIED"],
+    "matches": 0
+   },
+   "significance": "the v1 and v2 layers emit DISJOINT disposition vocabularies — v1 emits PRIMARY_QUALIFIED / FALLBACK_QUALIFIED / UNRESOLVED_NUMERICAL_FAILURE / INVALID_RUN, v2 emits PRIMARY_CERTIFIED / SECONDARY_CERTIFIED / UNRESOLVED_INSTANCE / INVALID_RUN. A vocabulary check would therefore have discriminated the wrong layer on the FIRST Stage-3 invocation and aborted before any read. It was specified and not built."
+  },
+
+  "6_v2_had_completed_its_full_qualification_program": {
+   "N3_record": "MR002_N3_FinalVerdict_v1.0, identity 5a14028024a1f78ca60ebeb174b5ecd7b8a3e1f5027f8768ec93b6f2a8195ec4, date 2026-08-20",
+   "N3_question": "Does the N1/N2-qualified Stage-3 v2 method preserve the frozen MR-002 development economics end-to-end when substituted for Stage-3 v1?",
+   "N3_disposition": "N3_PASS — 'YES, by TIER-1 BYTE IDENTITY, on every config and every observation.'",
+   "significance": "v2 was not a candidate awaiting evaluation. It had passed N1 architecture qualification, N2 stress qualification and N3 end-to-end economic preservation, the last of these on the same day the launcher was amended four times without being rewired."
+  }
+ },
+
+ "the_compounding_detail": {
+  "statement": "The registration explicitly anticipated the exact event that ended Validation-2 and classified it as EXPECTED under the v2 method.",
+  "registration_text": "'a registered numerical termination (for example an iteration limit that the v2 method classifies as NO_CERTIFIED_CANDIDATE with a registered reason) is an EXPECTED outcome and does NOT by itself make the run non-conformant. That is precisely the fragility class N2 qualified away.'",
+  "what_actually_happened": "the v1 layer classified that same event as UNREGISTERED_EXCEPTION -> INTEGRITY_DEFECT -> INVALID_RUN, and the sealed terminal is an INTEGRITY FAILURE.",
+  "boundary_observed": "This is recorded as a conformance and provenance fact. It is NOT a claim that the run would have produced an economic verdict under v2 — see limits below."
+ },
+
+ "limits_recorded_not_resolved": [
+  {
+   "limit": "Whether a v2-routed run would have CONTINUED past that instance cannot be determined without a numerical run, which this protocol prohibits.",
+   "what_is_known_statically": "P1-F5 established from source that v2's resolve() yields UNRESOLVED_INSTANCE when neither generator certifies, that seam.routed_v2 raises Stage3StopV2 when accepted_z is None, and that this ends the run.",
+   "the_unresolved_tension": "the registration says a registered numerical termination does not BY ITSELF make a run non-conformant, while the v2 seam as written still raises on that instance. Whether those are consistent is a question about v2's runtime behaviour on that population — and that population is CONSUMED and prohibited. Recorded as a limit, deliberately not resolved."
+  },
+  {
+   "limit": "Why the rewiring never happened — oversight, deliberate conservatism pending an adoption ruling, or an unrecorded decision — is NOT DETERMINED.",
+   "why": "no record states a choice of layer either way. N3 'authorizes nothing', and no adoption ruling converting the N3 pass into a production/validation layer change was found. Absence of a record is not evidence of intent in either direction, and this record does not supply one."
+  }
+ ],
+
+ "what_this_does_NOT_change": {
+  "validation_2_terminal_disposition": "UNCHANGED. TerminalOutcome v1.0, 9c08bfc5cb18d683beeb347243fb657cc24d37d925ad06d5409b76979d5fa53b, INTEGRITY FAILURE / NOT EVALUATED, stands.",
+  "validation_2_status": "CONSUMED. There is no further opening, and nothing here authorizes a re-run, retry, substitution or repair.",
+  "P1": "CLOSED at INSUFFICIENT_DEVELOPMENT_EVIDENCE. Untouched.",
+  "economics": "still UNKNOWN. No economic statistic exists and none is implied here.",
+  "explicitly_not_claimed": "that Validation-2 should be set aside, that v2 would have produced a verdict, or that the consumed population could be revisited."
+ },
+
+ "why_this_is_material_anyway": "The registration is the prospective authority that defines what the validation IS. It froze the v2 method with enforced:true. The execution routed a different layer. That is a conformance gap between the registered method and the executed method on an already-consumed validation event, and it is a question for owner adjudication — not one this record resolves.",
+
+ "scope_compliance": {
+  "numerical_runs": 0,
+  "aws_calls": 0,
+  "consumed_holdout_access": "none",
+  "P1_reopened": false,
+  "repository_integration_work": "none — #422 untouched",
+  "evidence_sources": "git history and committed evidence records only, all local and offline"
+ }
+}
