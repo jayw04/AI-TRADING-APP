@@ -1,0 +1,86 @@
+{
+ "account_7_state": "FROZEN and untouched all day. 51-position reconciled book, strategy 9 IDLE v1.4.0, gross cap $100,000, no reload, no /start, no C40 epoch, no manual sale of residual names, ZERO orders. No live execution under v2 or v2.1.",
+ "authority": "Owner ruling 2026-08-21 (second ruling of the day): 'Concentration-triggered completeness applies only to stages whose semantics are joint-construction completeness sensitive; for v2.0 that means B_cross_asset only. It does not apply to A_exits or C_equity.' Plus: Stage C precedence is declared - all applicable conditions must remain satisfied, the first binding condition determines the halt reason, no rule is subordinate or disabled by another.",
+ "behaviour_after_the_correction": {
+  "one_order_stage_A_124_residual": "gate still REFUSES the order; residual RECORDED; $124 < $250; 1 failed order <= backstop 2; Stage A may COMPLETE with disclosed operational debt",
+  "stage_B": "UNAFFECTED - joint construction, still completeness-required at UUP 65.4%",
+  "stage_C_36_orders": "backstop 3 and count rule 3 coincide",
+  "stage_C_5_orders": "count rule (2) is stricter than the backstop (3) and BINDS, named as count_rule - neither rule disables the other",
+  "three_stage_A_failures": "HALT on the absolute backstop even at $150 total",
+  "two_stage_A_failures_over_250": "HALT on the economic budget - unchanged"
+ },
+ "body_sha256_self": "5932004da0f0f04990d04de03bc40b0353b3b22245b703e46945390105dd8fc7",
+ "body_sha256_self_method": "sha256 over json.dumps(body minus the body_sha256_self key, sort_keys=True, indent=1, ensure_ascii=True)",
+ "conformance_suites": {
+  "test_v13_ca_repoll_v5.py": "ffdad033500c827a26697b8e784e067751c97f8209b25a9bf902f85257e0c4ba",
+  "test_v13_continuation_policy_v2.py": "e3034f92be580d7fe9d0c3a6eeb7e180391f4f3b16fbd0000b6c8d965961b49d",
+  "test_v13_executor_v9.py": "4daf097b7d6c5900535dbc72811b7cc972b2d310c949dcf1723206521fde608a",
+  "test_v13_feed_explicit_v9.py": "1b6f806d55afc07741a305896a0a67afc2bac8cfcb39458f6c0d4359a56be40b",
+  "test_v13_live_fill_v9.py": "b737a7769cb1159b6352e19834795b925cb960f3720312206914092c9b1f8462",
+  "test_v13_regressions.py": "7095cd3f8230c9645c58139b301bcc771d69b065f397ae1b88fa0a8b122027d7"
+ },
+ "governing_stack_v21": {
+  "v13_continuation_policy.py": "0930f4da0821cc13d70a810a220575b3dbdd194eeda9f4b8e46342792a6def67",
+  "v13_execution_core_v3.py": "350ea02bc3de8cfd7377a7d99ee1055060b25bef6936d9058ca270ce1396d8e0",
+  "v13_frozen_execution_limits_v7.json": "85b2479d85807120c17e21d873ddc27aee7dd4dfbe3426c406a31f9a750fbde7",
+  "v13_residual_debt.py": "c4f6ad5eebf45db2c4a3dc301d2b59cad8e5ee26b3f754ae88ff7a6f230cf768",
+  "v13_transition_executor_v9.py": "bec10787f7ce43a1407b4c8c3aff86c4b550b3f8379df9f5e289dd6f8fdce81f",
+  "v13_transition_planner_v7.py": "fed9fc9d9f5a847e6448a4491adc743c300b686913fd8aa2b3981c30a41a4185"
+ },
+ "historical_validity": "UNAFFECTED. The 2026-08-20 halt still halts: Stage A residual $257.27 > the $250 budget, on the residual_budget clause, which v2.1 does not touch. Asserted in test section H.",
+ "how_it_was_found": "The v2.0 conformance suite itself. An assertion written against a one-order Stage A fixture failed, which surfaced the consequence before any live run rather than after one.",
+ "new_refusals_added_in_v21": [
+  "limits whose joint_construction set is not exactly ['stage_B_cross_asset'] - widening it re-creates the collapsed-stage pathology, so it refuses rather than being configurable",
+  "limits lacking precedence_rule, or any per-stage entry lacking joint_construction (the v2.0 shape)",
+  "a malformed continuation policy now raises PolicyError, which every caller turns into a refusal, instead of a bare KeyError escaping as an unhandled crash"
+ ],
+ "open_items_for_owner": [
+  "None blocking. R_PCT remains 0 until a calibration justifies a value."
+ ],
+ "planner_executor_round_trip": {
+  "artifact_status": "DRY_RUN_ONLY_PROTOCOL_V21_REHEARSAL",
+  "executor_re_derivation": "MATCHED; a mismatch is a refusal",
+  "live_invocation": "REFUSED on the artifact_status allowlist",
+  "manifest_sha256": "68f9970ebbacfeccd7e66d4de9343d4f7adc68983848e49b81a804db3cc98862",
+  "rehearsal_manifest": "DRY_RUN_ONLY__OTR-20260821T153929Z-S9.json",
+  "resolved": {
+   "A_exits": "5 orders, joint=False, completeness=False, tolerates 2, largest EBAY 22.4% (observability only)",
+   "B_cross_asset": "6 orders, joint=TRUE, completeness=TRUE, tolerates 0, largest UUP 65.4%",
+   "C_equity": "38 orders, joint=False, completeness=False, tolerates 3, budget/backstop 3/count 3 all disclosed"
+  }
+ },
+ "reconformance_2026_08_21_v21": {
+  "test_v13_ca_repoll_v5": "65 PASS, 0 FAIL",
+  "test_v13_continuation_policy_v2": "80 passed, 0 failed, 0 skipped",
+  "test_v13_executor_v9": "70 passed, 0 failed",
+  "test_v13_feed_explicit_v9": "15/15 PASS",
+  "test_v13_live_fill_v9": "34 PASS, 0 FAIL",
+  "test_v13_regressions": "ALL PASS"
+ },
+ "record": "TRANSITION_PROTOCOL_V21_STACK_SEAL",
+ "sealed_at_utc": "2026-08-21T15:42:55.120260+00:00",
+ "superseded_but_preserved_byte_identical": {
+  "RETIRED__v13_continuation_policy_v1.py": "f17af2873657081b7691774ceea7b66af8de2d55d549f566684984c38cdc91a8",
+  "v13_execution_core_v2.py": "2aa66c9561f0decacdfeacf586f1c125890063c7e61d32d57fee9a579a7c292c",
+  "v13_frozen_execution_limits_v5.json": "ed5873d5a000ff25e5d9db7b8d0574c0804604e6bddadec0388064123cdc4400",
+  "v13_frozen_execution_limits_v6.json": "f8ff4d941778984140a178713b9d49c6beda585917fe4393b5dce75fa3e22b52",
+  "v13_transition_executor_v7.py": "c0b35ff02c9e170a6dbac6ef471fe79bdfc29adbd0e0c0e3d81c7871923fa8f5",
+  "v13_transition_executor_v8.py": "76b8d1ac95484b9f89b05254e689312e5307cfc1a6a6f86e91cb37975dcf23fb",
+  "v13_transition_planner_v5.py": "4d0f6ca559b7aec7fa1683dbcee5c26f9de9aa2ff1e8229ceb51ac9e4b98bdab",
+  "v13_transition_planner_v6.py": "4ab31e3aa97b867dc27f808f6c00d45b6e9617a7a8f4cb359b0c7c5b0d99f189"
+ },
+ "supersedes_seal": "PROTOCOL_V2_STACK_SEAL_20260821.json (body-self 8fed03a3852ae1c5259822e97a54a957697bc8412cd89d43b8c16ca0ddcc257a)",
+ "the_one_semantic_change": "Concentration-triggered completeness is scoped to joint_construction stages. Under v2.0 it was declared for all three, so a Stage A collapsing to one or two residual exits became completeness-required and ZERO-TOLERANCE AGAIN - the exact stage-denominator pathology Protocol v2 was built to remove. A one-order Stage A halted on a $124.47 residual, half the $250 budget, purely because one order is mathematically 100% of its own stage.",
+ "unchanged": {
+  "v13_identity_latch.py": "0da221e8c902c9d7de2520d38c37fa7a0f6126fe2a28d9f0cfd517e9958f1ef5"
+ },
+ "unchanged_by_v21": [
+  "every order-level gate (300s trade age, 10s quote age, 25bps half-spread, 1.5% drift, 50bps collar, K=2/120s, 30s cross-asset horizon)",
+  "the counting unit (failed_logical_orders) and the dry-run parity rule",
+  "the HARD / EXECUTABILITY failure taxonomy",
+  "R_ABS = $250, R_PCT = 0, and the 50% concentration threshold itself",
+  "Stage B's outcome - UUP at 65.4% still makes it completeness-required",
+  "the residual-debt rule and the retirement of the 'every individual gate' override",
+  "the identity latch, the approval record and the risk engine"
+ ]
+}

@@ -1,0 +1,423 @@
+{
+  "artifact": "Strategy 9 v1.3 transition - FROZEN execution limits v8 (Transition Protocol v2.1: governance hardening - taxonomy governance, residual-debt lifecycle, activation invariants)",
+  "ratified_by": "Owner review of ADR 0054 v2.1, 2026-08-21. Owner ruling 2026-08-21 (second ruling): concentration-triggered completeness applies only to joint-construction stages. Owner rulings 2026-08-21 (five rulings + the units ruling), on the evidence of PROTOCOL_V2_POLICY_REPLAY_20260821.json and PROTOCOL_V2_THRESHOLD_SWEEP_20260821.json. P0-B2 owner Monday-gate flow 2026-08-17 (sealed P0C_PROSPECTIVE_AUTHORIZATION_20260816 + P0A_STEP1_OWNER_ADJUDICATION_20260817). owner ruling 2026-08-13 (cross-asset quote-age amendment). Limits v3 ratified by the owner ruling 2026-07-29, amendment-by-amendment.",
+  "supersedes": [
+    {
+      "file": "v13_frozen_execution_limits.json",
+      "sha256": "49fb07a48c3f83d42401bdb54495519a05c8c0e01a23491f044f912a1421089f",
+      "status": "sealed, unedited, superseded for execution"
+    },
+    {
+      "file": "v13_frozen_execution_limits_v2.json",
+      "sha256": "143f6048c289b6241c8b4292b2bbbb996791ec0821599837246a926234451d18",
+      "status": "never executed; held at the T3 gate; superseded"
+    },
+    {
+      "file": "v13_frozen_execution_limits_v3.json",
+      "sha256": "18cbc4363643a338c91a70e8be6ddce55208f8f5de7a7b958d2e0cc7a0ae7164",
+      "status": "sealed, unedited, superseded for execution by v4. v4 changes exactly one thing: the cross-asset transient re-poll horizon."
+    },
+    {
+      "file": "v13_frozen_execution_limits_v4.json",
+      "sha256": "4c3c0c9ed25b08fdee1f43208d3645c6105f87e8a84dbd85585cbeaa5062e2ba",
+      "status": "sealed, unedited, superseded for execution by v5. v5 changes exactly one thing: it adds the governed market_data_regime block (cross-asset quote plane IEX -> SIP; single-stock trade plane UNCHANGED at IEX). Every numeric gate value is byte-identical to v4."
+    },
+    {
+      "file": "v13_frozen_execution_limits_v5.json",
+      "sha256": "ed5873d5a000ff25e5d9db7b8d0574c0804604e6bddadec0388064123cdc4400",
+      "status": "sealed, unedited, superseded for execution by v6. v6 changes exactly one thing: it adds the continuation_policy block. Every numeric order-level gate value is byte-identical to v5."
+    },
+    {
+      "file": "v13_frozen_execution_limits_v6.json",
+      "sha256": "f8ff4d941778984140a178713b9d49c6beda585917fe4393b5dce75fa3e22b52",
+      "status": "sealed, unedited, superseded for execution by v7 before it ever governed an execution. v7 changes exactly one thing semantically: the concentration trigger is scoped to joint-construction stages. Every numeric order-level gate value remains byte-identical to v5."
+    },
+    {
+      "file": "v13_frozen_execution_limits_v7.json",
+      "sha256": "85b2479d85807120c17e21d873ddc27aee7dd4dfbe3426c406a31f9a750fbde7",
+      "status": "sealed, unedited, superseded for execution by v8 before it ever governed an execution. v8 adds governance declarations only: it changes NO threshold, NO per-stage policy and NO order-level gate."
+    }
+  ],
+  "ratification_language": "Option 2 is selected with a 300-second maximum reference age, a 120-second fill window, and no more than two gated attempts. Each attempt independently verifies quote freshness, spread, manifest-price drift, broker state, and residual-stage tolerance. Failure after the second attempt results in HALTED_REQUIRES_REVIEW; it does not trigger a market-order fallback or an automatic increase in tolerance.",
+  "market_data_regime": {
+    "execution_quote_feed": "sip",
+    "execution_trade_feed": "iex",
+    "declared_by": "P0-B2 (owner Monday flow, adjudicated 2026-08-17)",
+    "depends_on_account_entitlement": false,
+    "entitlement_basis": "P0A_STEP1_OWNER_ADJUDICATION_20260817.json (file sha 9331298bac9680a06a10e74fd2b306600ebbdf2920678b49bf5316928d6f83db): real-time SIP confirmed on ALPACA_PAPER_6 / PA3BGKRLH2AP by owner adjudication",
+    "scope_note": "QUOTE plane (cross-asset gates) moves to SIP; the single-stock TRADE reference stays IEX - that reference-semantics change was never scoped into P0-B2 and would need its own governed approval.",
+    "executor_contract": "the executor MUST read these values from THIS file and pass feed= explicitly on every latest-quote/latest-trade request; it MUST refuse any manifest whose embedded limits lack or contradict this block"
+  },
+  "quote_gates": {
+    "cross_asset_etf": {
+      "reference": "consolidated (SIP) top-of-book quote midpoint",
+      "max_quote_age_seconds": 10,
+      "max_half_spread_bps": 25,
+      "max_price_drift_from_manifest_reference_pct": 1.5,
+      "order_type": "market, day",
+      "reference_feed_changed_by": "amendment_v5 (P0-B2, 2026-08-17): quote feed IEX -> SIP. The reference DATUM is unchanged (top-of-book quote midpoint); only the venue scope widens to the consolidated tape. All numeric gate values unchanged from v4."
+    },
+    "single_stock": {
+      "reference": "latest IEX trade price",
+      "max_trade_age_seconds": 300,
+      "max_half_spread_bps": null,
+      "max_price_drift_from_manifest_reference_pct": 1.5,
+      "drift_reference": "THE REVIEWED MANIFEST PRICE \u2014 never the latest attempt's own reference. Every attempt re-verifies drift against the manifest price, so a chase can never walk away from the reviewed plan.",
+      "order_type": "marketable limit, day",
+      "marketable_limit_collar_bps": 50,
+      "collar_formula": "buy limit = round(ref * 1.0050, 2); sell limit = round(ref * 0.9950, 2)",
+      "fractional_note": "Alpaca supports fractional-quantity limit orders with TIF=DAY only"
+    }
+  },
+  "attempt_policy": {
+    "max_attempts": 2,
+    "fill_window_seconds_per_attempt": 120,
+    "no_market_order_fallback": "failure after the final attempt is HALTED_REQUIRES_REVIEW. There is NO automatic escalation to a market order under any circumstance.",
+    "no_automatic_tolerance_increase": "the residual tolerance is fixed; it is never raised automatically to make a run succeed.",
+    "terminality_precondition": "an attempt N+1 may not be submitted until attempt N is CONCLUSIVELY terminal at the BROKER (filled, cancel-confirmed, rejected or expired). A timeout alone is NOT sufficient to permit another submission. If terminality cannot be established the run halts.",
+    "retry_quantity_rule": "a re-attempt requests intended_qty minus cumulative broker-confirmed filled qty; it never re-requests already-filled quantity"
+  },
+  "transient_staleness_repoll": {
+    "applies_to": "quote-age and trade-age failures ONLY, and to a missing or one-sided quote",
+    "never_applies_to": "half-spread or drift failures",
+    "max_attempts": 5,
+    "seconds_between_attempts": 2,
+    "per_instrument_class": {
+      "single_stock": {
+        "mode": "attempt_count",
+        "max_attempts": 5,
+        "seconds_between_attempts": 2,
+        "max_total_seconds": null,
+        "note": "UNCHANGED from v3. Observations at t=0,2,4,6,8s; horizon ~8s."
+      },
+      "cross_asset_etf": {
+        "mode": "wall_clock_deadline",
+        "max_total_seconds": 30,
+        "seconds_between_attempts": 2,
+        "max_attempts": null,
+        "note": "v4 amendment. Poll every 2s until 30s wall-clock have elapsed since gate entry. EVERY observation must independently satisfy max_quote_age_seconds <= 10; an old quote is NEVER accepted because the horizon is longer."
+      }
+    },
+    "horizon_is_not_an_allowed_age": "The deadline bounds HOW LONG the executor WAITS for a qualifying quote. It never relaxes what qualifies. A 21-second-old quote fails at t=25s exactly as it fails at t=4s.",
+    "backward_compatibility": "When per_instrument_class is absent (limits v3 and earlier) BOTH classes fall back to the shared top-level max_attempts/seconds_between_attempts, so v3 manifests execute with byte-identical gate behaviour."
+  },
+  "order_policy": {
+    "type": "per instrument class \u2014 market/day for cross-asset ETFs, marketable limit/day for single stocks",
+    "max_individual_order_notional_usd": 25000,
+    "pacing_seconds": 1.0
+  },
+  "residual_policy": {
+    "unified_rule": "ONE residual-exposure ledger. Aborted, rejected, expired, cancelled and unfilled-portion-of-partial quantities ALL enter the same ledger. No category of unexecuted exposure sits outside the residual accounting.",
+    "residual_valuation": "residual notional = BROKER-CONFIRMED remaining quantity x current governed valuation at close-out \u2014 not the original expected notional",
+    "tolerance_usd_per_stage": 250.0,
+    "stage_outcome_rule": "cumulative stage residual within tolerance -> stage COMPLETE with the residual disclosed as operational debt; beyond tolerance -> HALTED_REQUIRES_REVIEW",
+    "partial_is_not_success": "preserved"
+  },
+  "attempt_states": [
+    "PLANNED",
+    "GATE_PASSED",
+    "SUBMITTED",
+    "PARTIALLY_FILLED",
+    "FILLED",
+    "CANCEL_REQUESTED",
+    "CANCEL_CONFIRMED",
+    "RETRY_ELIGIBLE",
+    "RETRY_SUBMITTED",
+    "EXHAUSTED",
+    "HALTED_REQUIRES_REVIEW"
+  ],
+  "stage_limits": {
+    "stage_A_exits": {
+      "turnover_cap": "none (risk-reducing; always allowed)",
+      "timeout_minutes": 45
+    },
+    "stage_B_cross_asset": {
+      "max_turnover_pct_equity": 45,
+      "timeout_minutes": 45
+    },
+    "stage_C_equity_entries": {
+      "max_turnover_pct_equity": 45,
+      "timeout_minutes": 60
+    },
+    "inter_stage": "broker re-reconciliation against ACTUAL fills within $1.00 per position before the next stage arms"
+  },
+  "stop_conditions_halt_requires_review": [
+    "any risk-engine refusal",
+    "any inter-stage reconciliation mismatch beyond tolerance",
+    "more than 3 gate aborts within one stage (after the bounded re-poll)",
+    "gates failing on more than 10% of a stage's TOTAL order count",
+    "stage timeout expiry",
+    "cumulative stage residual exceeding the residual tolerance",
+    "inability to establish broker terminality for any attempt",
+    "any broker or connectivity error leaving an order in an unknown state"
+  ],
+  "stage_status_model": [
+    "NOT_STARTED",
+    "IN_PROGRESS",
+    "COMPLETE",
+    "HALTED_REQUIRES_REVIEW"
+  ],
+  "rollback_doctrine": "a partial state after Stage A is strictly de-risked: HOLD and re-plan with a new manifest; never re-buy legacy names; a partially completed run is never represented as a successful rebalance",
+  "evidence_basis_and_limitations": {
+    "selection_evidence": [
+      "v13_reference_age_calibration.json \u2014 horizon price-move distributions, 10 sessions, 243k IEX minute bars",
+      "v13_residual_parameter_study.json \u2014 joint abort/unfill parameter grid (conservative model; superseded for parameter selection by the replay below)",
+      "v13_reattempt_simulation.json \u2014 path-dependent replay; K=2 at 300s/120s gives worst-stage residual ~$127 vs ~$246 at K=1 and ~$108 at K=3"
+    ],
+    "k2_rationale": "the second attempt reduces worst-stage residual from ~$246 to ~$127; a third improves it by only ~$19 while adding exposure time and state complexity",
+    "300s_rationale": "print sparsity, not reference-price decay, is the binding constraint on this feed; the 1.5% manifest-price drift gate bounds reference validity independently",
+    "stated_limitations_preserved": [
+      "minute bars approximate intra-minute touches",
+      "only one market regime is represented (10 sessions, 2026-07-16..2026-07-29)",
+      "no-print windows are conservatively treated as non-fills",
+      "Stage A remains the dominant residual-risk stage"
+    ],
+    "authorization_boundary": "the 10-session replay is sufficient to select CANARY parameters. It is NOT by itself sufficient for unrestricted transition authorization."
+  },
+  "amendment_v4": {
+    "ruling_date": "2026-08-13",
+    "frozen_semantic": "For Stage-B cross-asset orders only, transient quote-freshness polling may continue until a 30-second WALL-CLOCK DEADLINE. A quote is executable only when its INSTANTANEOUS AGE is <= 10 seconds and every existing spread, drift, notional, position, identity and risk gate also passes. The 30 seconds is a WAITING HORIZON, NEVER AN ALLOWED QUOTE AGE.",
+    "evidence": "2026-08-13 pre-manifest viability protocol, VIABILITY_VERDICT_20260813.json. UUP and KMLM produce good quotes less frequently, not bad quotes: half-spread median 1.78/1.74 bps and max 3.55/8.72 bps against a 25 bps cap, ZERO breaches in 240 observations; but inter-update gaps reached 18.51s (UUP) and 20.35s (KMLM) against a re-poll horizon of only ~8s. The worst-case DEAD ZONE is max_gap - 10s = 10.35s, so a 30s horizon carries roughly 3x margin.",
+    "unchanged_by_this_amendment": [
+      "max_quote_age_seconds = 10 (cross-asset)",
+      "max_half_spread_bps = 25 (cross-asset)",
+      "max_price_drift_from_manifest_reference_pct = 1.5 (both classes)",
+      "max_trade_age_seconds = 300 (single stock)",
+      "single-stock re-poll: 5 attempts x 2s, byte-identical behaviour",
+      "attempt_policy (K=2, 120s window), residual_policy, order_policy",
+      "stage_limits including the Stage-B 45-minute timeout",
+      "stop_conditions: >3 gate aborts per stage and >10% of a stage's order count",
+      "pricing semantics: cross-asset reference remains the IEX top-of-book quote MIDPOINT"
+    ],
+    "explicitly_not_changed": "Spread failures remain NON-RE-POLLABLE. The 2026-08-13 finding that GLD's IEX top-of-book bid intermittently collapses to a stub 391.00 (~134 bps half-spread, 39% of observations, on FRESH quotes) is a DIFFERENT failure mode that this amendment does not address and must not be read as addressing. Owner ruling 2026-08-13: the 25 bps gate protects against a corrupted reference mid and is not weakened here."
+  },
+  "amendment_v5": {
+    "ruling_date": "2026-08-17",
+    "frozen_semantic": "The governed market-data regime is DECLARED IN THIS FILE and embedded into every manifest (the planner embeds limits by content+sha), so the manifest records the regime it was reviewed under. Cross-asset quote gates read the CONSOLIDATED (SIP) top-of-book; the single-stock latest-trade reference remains IEX. No numeric threshold changes: quote age 10s, half-spread 25 bps, drift 1.5%, K=2/120s, single-stock 300s, 30s cross-asset wall-clock horizon, Stage-B abort rules and timeouts are all byte-identical to v4.",
+    "evidence": "2026-08-17 in-window dual-burst CA diagnostic (sip_ca_universe_diag_20260817T140135Z.json sha 3d18c0c475fdf88d68701bd2fe0821ad151788a71b4a25c5e6192bbfca3a3261, exit 0): V1 GLD SIP half-spread 0.50/0.37 bps median with ZERO >25bps observations in both bursts (IEX simultaneously 12/13 bps median, 35%/43% >25bps - the stub-bid is a single-venue artifact); V2 UUP/KMLM worst SIP dead zone 14.5s/11.0s, inside the 30s horizon in both bursts, SIP resets >= IEX. Entitlement: P0A_STEP1_OWNER_ADJUDICATION_20260817.json (file sha 9331298bac9680a06a10e74fd2b306600ebbdf2920678b49bf5316928d6f83db).",
+    "unchanged_by_this_amendment": [
+      "every numeric gate value in quote_gates, attempt_policy, transient_staleness_repoll, order_policy, residual_policy, stage_limits and stop_conditions",
+      "single-stock reference: latest IEX trade price, 300s max age",
+      "spread failures remain NON-RE-POLLABLE",
+      "the 30s cross-asset wall-clock horizon (P0-C recalibration is a SEPARATE step under the sealed prospective authorization; v5 deliberately does not touch it)"
+    ]
+  },
+  "continuation_policy": {
+    "version": "v2.1",
+    "authority": "Owner rulings 2026-08-21. Design proposal: docs/design/Transition_Protocol_v2_Residual_Risk_Design_Proposal_v0.1.md",
+    "the_defect_this_fixes": {
+      "D1_unit_mismatch": "Executor v7 check_stop_conditions() took its abort count from ResidualLedger.attempt_opportunities(), which counts ATTEMPT records, and compared it to 0.10 * stage_order_count, an ORDER count. With attempt_policy.max_attempts = 2 one failing order contributes 2, so '> 3 aborts' meant 'more than 1.5 failing orders' -- TWO failing orders halted any stage of any size. Measured on 2026-08-20: 2 failing orders (MS, PH) produced 4 abort records and halted a 36-order stage at 5.9% order-level failure. EBAY (seq 35) and FN (seq 36) were never attempted.",
+      "D1_dry_live_divergence": "Dry mode called core.gate() once per order and wrote nothing to the residual ledger, so a dry run logged 1 abort per failing order where live logged 2. Dry and live could therefore return DIFFERENT continuation decisions for IDENTICAL failing orders.",
+      "D2_denominator_collapse": "The >10%-of-stage rule is denominated on the current manifest's stage size. After a partial transition the re-plan shrinks the stage and the tolerance shrinks with it: A_exits went 36 -> 4 -> 5 orders, and at 5 orders the first failing order is 20% and stage-fatal.",
+      "D3_small_stage_arithmetic": "B_cross_asset is structurally 6 orders and 6 x 10% = 0.6 < 1, so it has always tolerated zero aborts by integer arithmetic rather than by policy."
+    },
+    "counting_unit": "failed_logical_orders",
+    "counting_unit_rule": "OWNER RULING 2026-08-21: continuation counts FAILED LOGICAL ORDERS, never attempt records. Retries are execution mechanics and must not multiply the economic failure count. One order x two failed attempts = ONE failed order.",
+    "dry_run_parity_rule": "A dry run MUST evaluate the same logical-order continuation semantics as live execution. Dry mode records an imputed order disposition per gate-failed order (residual valued at the manifest reference) into a dry ledger and runs the same check. A dry adjudication that would continue where live would halt, or vice versa, is a defect.",
+    "failure_taxonomy": {
+      "HARD": {
+        "codes": [
+          "risk_refusal",
+          "broker_http_error",
+          "identity_mismatch",
+          "terminality_unestablished",
+          "reconciliation_mismatch",
+          "unknown_order_state"
+        ],
+        "rule": "Immediate HALTED_REQUIRES_REVIEW regardless of economics. A hard failure never receives a residual budget and is never counted against a tolerance -- one is enough."
+      },
+      "EXECUTABILITY": {
+        "codes": [
+          "stale_reference",
+          "spread_failure",
+          "manifest_drift_failure",
+          "no_usable_print_or_quote",
+          "other_governed_gate"
+        ],
+        "rule": "The individual order is REFUSED and is never force-submitted. Whether the transition continues is decided by the per-stage continuation policy below, on the economic residual left behind."
+      },
+      "invariant": "No failure class ever causes an order to be submitted that a gate refused. The taxonomy governs CONTINUATION only.",
+      "governance": {
+        "rule": "Adding a code to EXECUTABILITY requires a governed change - a new limits version and an ADR-compatible amendment - never a silent edit. An EXECUTABILITY code is BUDGET-ELIGIBLE: it lets a transition continue on the economics of what it left behind. Widening the class one code at a time is how a fail-closed taxonomy quietly becomes fail-open.",
+        "enforcement": "The executor holds the taxonomy as code and REFUSES any limits file whose declared HARD/EXECUTABILITY code sets differ from it. The declaration and the behaviour therefore cannot drift: changing one without the other is a refusal, not a silent reclassification.",
+        "unknown_codes": "An abort code in neither set classifies as HARD. A failure nobody has adjudicated is never budget-eligible."
+      }
+    },
+    "residual_budget": {
+      "R_ABS_usd": 250.0,
+      "R_PCT_equity": 0.0,
+      "effective_budget_rule": "max(R_ABS_usd, R_PCT_equity * pre_run_equity)",
+      "R_PCT_ruling": "OWNER RULING 2026-08-21: R_PCT = 0 for Protocol v2.x unless changed by a later owner ruling AND a new limits version. Do not invent a percentage threshold without evidence. A later calibration may introduce one.",
+      "R_ABS_anchors": [
+        "the v5 frozen residual_policy.tolerance_usd_per_stage, ratified 2026-07-29",
+        "~2x the ~$127 modelled worst-stage residual at K=2 (v13_reattempt_simulation)",
+        "exactly 5.0% of account 7's $5,000 max_daily_loss risk limit"
+      ],
+      "not_fitted": "Both anchors predate the 2026-08-20 incident. The value is NOT read off the $257.27 or $757.28 residuals it now governs.",
+      "dual_condition_note": "The budget is never an allowance on its own. Continuation requires EVERY applicable condition for the stage: for A_exits that means residual exposure <= $250 AND failed logical orders <= 2. Neither overrides the other."
+    },
+    "concentration_trigger": {
+      "threshold": 0.5,
+      "measure": "largest single order est_notional / total stage est_notional",
+      "applies_only_to_joint_construction_stages": true,
+      "applies_to": [
+        "stage_B_cross_asset"
+      ],
+      "rule": "When a JOINT-CONSTRUCTION stage's largest single order is >= the threshold, that stage is declared completeness_required = true in the manifest: ANY failed logical order halts it. A partial joint construction is a DIFFERENT allocation, not a smaller one.",
+      "ruling_v2_0": "2026-08-21 (first ruling): approve 50%. Do NOT hard-code 'Stage B is always 6/6' - let the concentration test derive it. On 2026-08-21 UUP was 65.3% of Stage B.",
+      "ruling_v2_1": "2026-08-21 (second ruling): SCOPE IT. 'Concentration-triggered completeness applies only to stages whose semantics are joint-construction completeness sensitive; for v2.0 that means B_cross_asset only. It does not apply to A_exits or C_equity.' A_exits is a de-risking stage governed by a residual-risk budget; the joint-construction justification fits Stage B, not exits.",
+      "the_pathology_this_removes": "Under v2.0 the trigger was declared for all three stages, so a Stage A that collapsed to one or two residual exits became completeness-required and zero-tolerance again - the exact stage-denominator pathology Protocol v2 was built to fix. A one-order Stage A halted on a $124.47 residual, half the budget, merely because that order is mathematically 100% of its own stage.",
+      "intended_behaviour_after_the_correction": [
+        "one-order Stage A, $124 residual: the stale-reference gate still REFUSES the order; the residual is recorded; $124 < $250; failed logical orders 1 <= backstop 2; therefore Stage A may COMPLETE with disclosed operational debt",
+        "two failed Stage-A orders totalling > $250: HALT on the economic budget"
+      ],
+      "observability_note": "largest_order_share_of_stage is still computed and disclosed for EVERY stage. Only the completeness CONSEQUENCE is scoped."
+    },
+    "per_stage": {
+      "stage_A_exits": {
+        "mode": "residual_budget",
+        "joint_construction": false,
+        "backstop_failed_orders": 2,
+        "pct_of_stage_orders": null,
+        "floor_orders": null,
+        "rationale": "Exits are de-risking and independent of one another: a refused exit leaves exactly one measurable legacy position, it does not make the remaining exits a different plan. Governed economically by the budget plus the absolute backstop. NOT joint-construction, so concentration never makes this stage completeness-required (owner ruling 2026-08-21, second ruling)."
+      },
+      "stage_B_cross_asset": {
+        "mode": "residual_budget",
+        "joint_construction": true,
+        "backstop_failed_orders": 2,
+        "pct_of_stage_orders": null,
+        "floor_orders": null,
+        "rationale": "An interdependent sleeve: the legs are sized against each other, so a partial sleeve is a different allocation rather than a smaller one. This is the ONLY joint-construction stage in v2.1, and therefore the only stage the concentration trigger can make completeness-required. If the sleeve ever flattens below the trigger it falls back to the budget."
+      },
+      "stage_C_equity_entries": {
+        "mode": "residual_budget_and_count",
+        "joint_construction": false,
+        "backstop_failed_orders": 3,
+        "pct_of_stage_orders": 0.1,
+        "floor_orders": 2,
+        "rationale": "Many small, individually unimportant entries; no leg is sized against another, so it is not joint-construction. Backstop 3 rather than 2 keeps the 10% count rule meaningful: with 36 orders three economically small failures may continue and the fourth halts. Both thresholds apply independently and the stricter binds."
+      }
+    },
+    "evaluation_order": [
+      "1. HARD failure           -> halt (raised at the point of failure)",
+      "2. completeness_required  -> halt if failed_logical_orders > 0 (joint-construction stages only)",
+      "3. residual budget        -> halt if stage_residual_usd > effective budget",
+      "4. absolute backstop      -> halt if failed_logical_orders > backstop_failed_orders",
+      "5. count rule (mode residual_budget_and_count) -> halt if failed_logical_orders > max(floor_orders, floor(pct_of_stage_orders * stage_order_count))",
+      "6. stage timeout          -> unchanged from v5",
+      "All applicable conditions must remain satisfied. The first binding condition names the halt; no rule is subordinate to or disabled by another."
+    ],
+    "residual_debt_rule": {
+      "obligation": "RESIDUAL_CLEANUP_REQUIRED",
+      "rule": "OWNER RULING 2026-08-21: a PERMITTED residual creates a first-class operational-debt obligation. It is carried into subsequent planning and must never disappear because the symbol later re-enters the target universe.",
+      "required_fields": [
+        "strategy_id",
+        "account_id",
+        "originating_manifest_run_id",
+        "originating_manifest_sha256",
+        "symbol",
+        "residual_qty",
+        "governed_residual_valuation_usd",
+        "residual_valuation_price",
+        "abort_reason",
+        "failure_class",
+        "originating_stage",
+        "recorded_at_utc",
+        "target_disposition",
+        "status"
+      ],
+      "cleanup_rule": "Re-evaluate at the next eligible trading session and incorporate explicitly into the next governed rebalance/cleanup plan. It may remain outstanding only while it continues to satisfy the residual-risk budget.",
+      "must_not": [
+        "trigger an ungoverned manual trade",
+        "automatically block /start when the amended protocol explicitly permits that residual"
+      ],
+      "epoch_disclosure": "The C40 epoch-boundary record must disclose any residual operational debt present at activation.",
+      "lifecycle": {
+        "initial_status": "OPEN",
+        "terminal_statuses": [
+          "RESOLVED_FILLED",
+          "RESOLVED_TARGET_REENTERED_WITH_OWNER_ACCEPTANCE",
+          "SUPERSEDED_BY_NEW_GOVERNED_PLAN",
+          "ESCALATED"
+        ],
+        "rule": "An obligation leaves OPEN only into one of the terminal statuses above, and only by an appended event; the OPEN event is never rewritten.",
+        "target_reentry_rule": "OWNER RULING 2026-08-21: a residual symbol re-entering the target universe does NOT close its obligation. Closing it that way requires the explicit terminal status RESOLVED_TARGET_REENTERED_WITH_OWNER_ACCEPTANCE and a recorded owner acceptance. Silent closure is exactly the disappearance the debt ledger exists to prevent: the position stops being a residual we owe a decision on and starts looking like a position we chose.",
+        "enforcement": "v13_residual_debt.close() refuses any status outside the terminal set, and refuses RESOLVED_TARGET_REENTERED_WITH_OWNER_ACCEPTANCE without an owner-acceptance reference. The planner reports conflicts; it never closes."
+      }
+    },
+    "retired_owner_override": {
+      "override": "every individual gate must PASS",
+      "status": "RETIRED by owner ruling 2026-08-21",
+      "replacement": "Hard/global gates: every one must PASS. Order-level HARD failure: immediate halt. EXECUTABILITY failure: the individual order is refused and continuation is decided by this policy.",
+      "consequence": "A single ~$65 stale-reference failure (the 2026-08-20 ALAB case, which burned manifest 30a53127) no longer burns a manifest when the stage remains admissible under its approved continuation policy.",
+      "why": "It aligned owner authorization with the governed executor instead of layering an undocumented zero-tolerance rule above it."
+    },
+    "historical_validity": {
+      "claim": "Protocol v2 does NOT rewrite history. The 2026-08-20 live halt remains valid and still halts under v2.",
+      "evidence": "Stage A residual reached $257.27 against the pre-existing $250 budget, so the economic clause halts it on its own, independently of any count rule. Replayed as case C1 in PROTOCOL_V2_POLICY_REPLAY_20260821.json (sha 955ca9cdb82a912226ae07e59bb100145dbab9299601f3fe9ef733e7b497ad02)."
+    },
+    "precedence_rule": {
+      "ruling": "Owner 2026-08-21: 'Stage continuation requires ALL applicable continuation conditions to remain satisfied; the first binding condition determines the halt reason, but no rule is subordinate or disabled by another.'",
+      "consequence": "Where two conditions overlap, whichever is stricter binds. At a 36-order Stage C the backstop (3) and the count rule (max(2, floor(0.10 x 36)) = 3) coincide; on a smaller Stage C the count rule is stricter and binds first. Neither disables the other.",
+      "disclosure_requirement": "The manifest MUST disclose every applicable threshold per stage (effective_budget_usd, backstop_failed_orders and, where the mode carries it, count_rule_allowed_failed_orders) and the executor MUST report the actual binding clause."
+    },
+    "activation_invariants": {
+      "rule": "No live transition may begin unless ALL of the following hold. Each is fail-closed: an invariant that cannot be evaluated is treated as failed.",
+      "invariants": [
+        "the manifest's continuation_policy_resolved matches the policy re-derived from the sealed limits",
+        "the manifest's embedded limits are byte-identical in content to the sealed limits file on disk, and the sealed file is the authority the executor actually applies",
+        "dry-run and live evaluate the same logical-order continuation semantics",
+        "the residual-debt ledger is present-or-creatable, append-only and parseable",
+        "broker and platform ledger state reconcile, with no unexpected open orders and no drift from the manifest's pre_run_state",
+        "no earlier halted transition remains unresolved - every run whose stage status reached HALTED_REQUIRES_REVIEW has a sealed disposition record"
+      ],
+      "note": "These bridge design semantics to the activation gate. They are preconditions for BEGINNING a run, not additional stage-continuation rules."
+    }
+  },
+  "amendment_v6": {
+    "ruling_date": "2026-08-21",
+    "frozen_semantic": "Continuation of a staged transition after an EXECUTABILITY gate refusal is decided by the per-stage continuation_policy declared in THIS file and resolved into every manifest at plan time (so the owner approves the rule together with the orders it governs). Counting is by FAILED LOGICAL ORDERS. Hard/system failures halt immediately. No order-level gate changes.",
+    "unchanged_by_this_amendment": [
+      "every value in quote_gates (quote age 10s, half-spread 25 bps, drift 1.5%, single-stock 300s trade age, 50 bps marketable-limit collar)",
+      "attempt_policy (K=2, 120s window, no market-order fallback, terminality precondition, retry quantity rule)",
+      "transient_staleness_repoll including the 30s cross-asset wall-clock horizon",
+      "order_policy (max individual order notional $25,000, pacing 1.0s)",
+      "residual_policy (unified ledger, valuation rule, tolerance_usd_per_stage 250.0, partial_is_not_success)",
+      "stage_limits (turnover caps and the 45/45/60-minute timeouts) and the $1.00 inter-stage reconciliation tolerance",
+      "market_data_regime (SIP quote plane, IEX single-stock trade reference)",
+      "spread failures remain NON-RE-POLLABLE",
+      "the identity latch, the approval-record requirement and the risk engine"
+    ],
+    "explicitly_not_changed": "The 300-second stale-reference rule is NOT changed. Owner ruling 2026-08-21: 'I would not change the 300-second stale-reference rule. That gate is doing its job.' The five forbidden fixes of 2026-08-20 remain forbidden: changing the 10% denominator as a point fix, reordering stages, excluding names, extending the 300s threshold, and manually forcing the downstream buys.",
+    "stop_conditions_note": "The v5 stop_conditions_halt_requires_review list is retained verbatim for provenance, but the two count clauses ('more than 3 gate aborts within one stage' and 'gates failing on more than 10% of a stage's TOTAL order count') are SUPERSEDED for execution by continuation_policy. Executor v8 evaluates continuation_policy; it does not read those two strings."
+  },
+  "stop_conditions_superseded_by_continuation_policy": [
+    "more than 3 gate aborts within one stage (after the bounded re-poll)",
+    "gates failing on more than 10% of a stage's TOTAL order count"
+  ],
+  "amendment_v7": {
+    "ruling_date": "2026-08-21",
+    "frozen_semantic": "Concentration-triggered completeness applies ONLY to stages declared joint_construction = true. In v2.1 that is stage_B_cross_asset alone. A_exits and C_equity are governed by the residual budget, the absolute backstop and (for C) the count rule, with all applicable conditions evaluated and the first binding one naming the halt.",
+    "unchanged_by_this_amendment": [
+      "every value in quote_gates, attempt_policy, transient_staleness_repoll, order_policy, residual_policy, stage_limits and market_data_regime",
+      "the counting unit (failed_logical_orders) and the dry-run parity rule",
+      "the failure taxonomy (HARD vs EXECUTABILITY) and the hard-failure rule",
+      "R_ABS = $250, R_PCT = 0, and the 50% concentration threshold itself",
+      "the Stage-B outcome: UUP at 65.4% still makes Stage B completeness-required",
+      "the residual-debt rule and the retirement of the 'every individual gate' override"
+    ],
+    "explicitly_not_changed": "The 300-second stale-reference rule is NOT changed. A refused order is still never force-submitted. The five fixes forbidden on 2026-08-20 remain forbidden.",
+    "historical_validity_unaffected": "The 2026-08-20 halt still halts: Stage A residual $257.27 > the $250 budget, on the residual_budget clause, which this amendment does not touch."
+  },
+  "amendment_v8": {
+    "ruling_date": "2026-08-21",
+    "frozen_semantic": "Governance declarations only. v8 adds the failure-taxonomy governance rule, the residual-debt lifecycle with explicit terminal statuses, and the activation invariants. It changes no threshold, no per-stage policy, no counting unit, no concentration scope and no order-level gate.",
+    "unchanged_by_this_amendment": [
+      "every order-level gate value, byte-identical back to v5",
+      "counting_unit, dry_run_parity_rule, residual_budget (R_ABS $250, R_PCT 0)",
+      "concentration_trigger (50%, joint-construction stages only) and per_stage",
+      "precedence_rule, evaluation_order, retired_owner_override, historical_validity"
+    ]
+  }
+}

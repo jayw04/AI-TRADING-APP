@@ -1,0 +1,127 @@
+{
+ "authority": "Owner ruling 2026-08-21: commit the hardened v2.1 package before any future live execution, isolated from unrelated working-tree changes.",
+ "deployment_note": "Git is the system of record; the host is the deployment target. These files are COPIES of what is installed at the deployed_path shown. Changing a file here does not change the running stack, and changing the host without updating this index breaks custody. Re-verify with the sha256 values in the seal after any deployment.",
+ "established": "2026-08-21",
+ "files": [
+  {
+   "deployed_mode": "0444",
+   "deployed_path": "/opt/workbench/data/ops/acct7/v13_continuation_policy.py",
+   "repo_path": "ops/acct7/v13/v13_continuation_policy.py",
+   "role": "governing",
+   "sha256": "0930f4da0821cc13d70a810a220575b3dbdd194eeda9f4b8e46342792a6def67"
+  },
+  {
+   "deployed_mode": "0444",
+   "deployed_path": "/opt/workbench/data/ops/acct7/v13_execution_core_v3.py",
+   "repo_path": "ops/acct7/v13/v13_execution_core_v3.py",
+   "role": "governing",
+   "sha256": "350ea02bc3de8cfd7377a7d99ee1055060b25bef6936d9058ca270ce1396d8e0"
+  },
+  {
+   "deployed_mode": "0444",
+   "deployed_path": "/opt/workbench/data/ops/acct7/ws1_evidence/v13/v13_frozen_execution_limits_v8.json",
+   "repo_path": "ops/acct7/v13/v13_frozen_execution_limits_v8.json",
+   "role": "governing",
+   "sha256": "3f59ad7143418a926c8110d59c1519c99508b7fc9878c298b1eedb7339306948"
+  },
+  {
+   "deployed_mode": "0444",
+   "deployed_path": "/opt/workbench/data/ops/acct7/v13_residual_debt.py",
+   "repo_path": "ops/acct7/v13/v13_residual_debt.py",
+   "role": "governing",
+   "sha256": "ef5a502e422e517bb4e4e9a12e390aebfea1d09e4550f64f9f47ccb2f78bc5f3"
+  },
+  {
+   "deployed_mode": "0444",
+   "deployed_path": "/opt/workbench/data/ops/acct7/v13_transition_executor_v10.py",
+   "repo_path": "ops/acct7/v13/v13_transition_executor_v10.py",
+   "role": "governing",
+   "sha256": "6ffb24ddf5efd9a8302e4d33168d3a1f8f93d2add126ab67c9bb45c44e81a7b2"
+  },
+  {
+   "deployed_mode": "0444",
+   "deployed_path": "/opt/workbench/data/ops/acct7/v13_transition_planner_v8.py",
+   "repo_path": "ops/acct7/v13/v13_transition_planner_v8.py",
+   "role": "governing",
+   "sha256": "e27df18816b40b7693f24fecfc2ce2be9eb1c09503d62efc93895a6bf3f5a87d"
+  },
+  {
+   "deployed_mode": "0444",
+   "deployed_path": "/opt/workbench/data/ops/acct7/test_v13_ca_repoll_v5.py",
+   "repo_path": "ops/acct7/v13/tests/test_v13_ca_repoll_v5.py",
+   "role": "conformance suite",
+   "sha256": "ffdad033500c827a26697b8e784e067751c97f8209b25a9bf902f85257e0c4ba"
+  },
+  {
+   "deployed_mode": "0444",
+   "deployed_path": "/opt/workbench/data/ops/acct7/test_v13_continuation_policy_v3.py",
+   "repo_path": "ops/acct7/v13/tests/test_v13_continuation_policy_v3.py",
+   "role": "conformance suite",
+   "sha256": "a95ba628b22dfd02c5799327f5b1d5405ad2b45184343b94f30ad1e966e21496"
+  },
+  {
+   "deployed_mode": "0444",
+   "deployed_path": "/opt/workbench/data/ops/acct7/test_v13_executor_v10.py",
+   "repo_path": "ops/acct7/v13/tests/test_v13_executor_v10.py",
+   "role": "conformance suite",
+   "sha256": "74c43bf2f79ef1bbaec7bf81b34a97b96c4978f9e8913d5a867a50cfecf31e69"
+  },
+  {
+   "deployed_mode": "0444",
+   "deployed_path": "/opt/workbench/data/ops/acct7/test_v13_feed_explicit_v10.py",
+   "repo_path": "ops/acct7/v13/tests/test_v13_feed_explicit_v10.py",
+   "role": "conformance suite",
+   "sha256": "2e9243c777cfb7d166872861a3e0fd3dc1d58d91f372969564e633b3ef6765e4"
+  },
+  {
+   "deployed_mode": "0444",
+   "deployed_path": "/opt/workbench/data/ops/acct7/test_v13_live_fill_v10.py",
+   "repo_path": "ops/acct7/v13/tests/test_v13_live_fill_v10.py",
+   "role": "conformance suite",
+   "sha256": "a58da88a196d206655a6426dc9a65c3ea8b497ecf0bfdc36f564dac7a10dde6a"
+  },
+  {
+   "deployed_mode": "0444",
+   "deployed_path": "/opt/workbench/data/ops/acct7/test_v13_regressions.py",
+   "repo_path": "ops/acct7/v13/tests/test_v13_regressions.py",
+   "role": "conformance suite",
+   "sha256": "7095cd3f8230c9645c58139b301bcc771d69b065f397ae1b88fa0a8b122027d7"
+  },
+  {
+   "deployed_mode": "0444",
+   "deployed_path": "/opt/workbench/data/ops/acct7/ws1_evidence/v13/gate_20260821/PROTOCOL_V21_HARDENED_STACK_SEAL_20260821.json",
+   "repo_path": "ops/acct7/v13/seals/PROTOCOL_V21_HARDENED_STACK_SEAL_20260821.json",
+   "role": "seal",
+   "sha256": "5d1986f79080301b7544da88edea0daf4419ae4b41938a2758e247b5b405c637"
+  },
+  {
+   "deployed_mode": "0444",
+   "deployed_path": "/opt/workbench/data/ops/acct7/ws1_evidence/v13/gate_20260821/PROTOCOL_V21_STACK_SEAL_20260821.json",
+   "repo_path": "ops/acct7/v13/seals/PROTOCOL_V21_STACK_SEAL_20260821.json",
+   "role": "seal",
+   "sha256": "8006fd5b56ae3f9e741c446ffb2045b41a1bdaa52a6f016122ad3eabdf04648d"
+  },
+  {
+   "deployed_mode": "0444",
+   "deployed_path": "/opt/workbench/data/ops/acct7/ws1_evidence/v13/gate_20260821/PROTOCOL_V2_STACK_SEAL_20260821.json",
+   "repo_path": "ops/acct7/v13/seals/PROTOCOL_V2_STACK_SEAL_20260821.json",
+   "role": "seal",
+   "sha256": "320e325912933abf1b6bce92fe0aa64a3c5f4dc2f00d6c662d4930e2d351a7c4"
+  }
+ ],
+ "governed_by": "docs/adr/0054-transition-residual-risk-continuation-policy.md",
+ "not_in_git": {
+  "PROTOCOL_V2_POLICY_REPLAY_20260821.json": "955ca9cdb82a912226ae07e59bb100145dbab9299601f3fe9ef733e7b497ad02",
+  "PROTOCOL_V2_THRESHOLD_SWEEP_20260821.json": "0f9a224cc9aa8dd871662fccc777f55cc95bb9392910daafad15462243a18e20",
+  "reason": "Generated evidence, 52 KB and 82 KB. ADR 0050 routes generated evidence to S3 rather than Git. They live at /opt/workbench/data/v13_transition/ and are referenced by sha256 from ADR 0054 \u00a711. Superseded manifests, dispositions and residual ledgers stay on the host for the same reason."
+ },
+ "protocol_version": "v2.1 hardened",
+ "record": "V13_TRANSITION_STACK_CUSTODY_INDEX",
+ "schema_version": 1,
+ "superseded_seals_preserved_verbatim": [
+  "seals/PROTOCOL_V2_STACK_SEAL_20260821.json",
+  "seals/PROTOCOL_V21_STACK_SEAL_20260821.json"
+ ],
+ "verification": "Every sha256 below was checked against seals/PROTOCOL_V21_HARDENED_STACK_SEAL_20260821.json before the commit: 12 of 12 governing + conformance files matched byte-for-byte, 0 mismatched, 0 missing.",
+ "why_this_exists": "Until this commit the Strategy-9 / account-7 transition stack existed ONLY on the ec2-paper host. Governing execution code for a live paper trading account had no version control, no diff history and no second copy. This index establishes Git custody and pins each file to the identity that was tested and sealed."
+}

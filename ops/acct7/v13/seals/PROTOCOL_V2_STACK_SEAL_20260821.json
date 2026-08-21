@@ -1,0 +1,68 @@
+{
+ "account_7_state": "FROZEN and untouched. 51-position reconciled book, strategy 9 IDLE v1.4.0, gross cap $100,000, no reload, no /start, no C40 epoch, no manual sale of residual names, no execution manifest, 0 orders today.",
+ "authority": "Owner rulings 2026-08-21: NO-GO on 0a0079d4 under Protocol v1; Candidate C approved; R_PCT=0; CONCENTRATION=50%; residual debt is first-class; the 'every individual gate must PASS' override retired; make it an ADR; and check_stop_conditions must count FAILED LOGICAL ORDERS, not attempt records.",
+ "authorized_scope": "ADR -> limits v6 -> planner manifest-policy embedding -> executor unit correction and taxonomy -> residual-cleanup record -> regression tests/replay -> full five-suite reconformance -> seal new stack identities. NO live execution today.",
+ "body_sha256_self": "8fed03a3852ae1c5259822e97a54a957697bc8412cd89d43b8c16ca0ddcc257a",
+ "body_sha256_self_method": "sha256 over json.dumps(body minus the body_sha256_self key, sort_keys=True, indent=1, ensure_ascii=True)",
+ "conformance_suites": {
+  "test_v13_ca_repoll_v5.py": "ffdad033500c827a26697b8e784e067751c97f8209b25a9bf902f85257e0c4ba",
+  "test_v13_continuation_policy_v1.py": "1c1f9d7552dcbc69dfdf489b94f60c005761feb36c249d18d0cb1d480c31cb75",
+  "test_v13_executor_v8.py": "6647b7c843815f9576b77a0afe3e50595480ec1d4fc581e4c38ef612199488aa",
+  "test_v13_feed_explicit_v8.py": "893e346fb5d332e70d33a9b469b7954d5da31c4f71eca9b4edd4bba3d4b2f920",
+  "test_v13_live_fill_v8.py": "65be4e8e674f37993d7a38642e73ce2eb83eb2fe52d985c0ed7f1fc0b49adf43",
+  "test_v13_regressions.py": "7095cd3f8230c9645c58139b301bcc771d69b065f397ae1b88fa0a8b122027d7"
+ },
+ "defects_found_and_fixed_during_implementation": [
+  "The first limits v6 build was written from Windows with CRLF, so its byte sha (3da08547) differed from its text sha (f8ff4d94) and the live_fill suite fail-closed on the limits binding. Rebuilt LF-only; content re-asserted identical. This is the known governance-hash-from-a-Windows-worktree trap and it fired exactly as expected.",
+  "The v8 conformance suite asserted that Stage A tolerates 2 failed orders using a fixture whose Stage A holds ONE order. One order is 100% of its stage, so the concentration trigger fires. The assertion was wrong, not the code - corrected, and the limit case is now its own test (section M).",
+  "v13_residual_debt bound its ledger path as a default argument, so a conformance run could not redirect it and would have written operational debt into the governed ledger. Now resolved at call time; verified the ledger file is still absent."
+ ],
+ "historical_validity_regression": "test_v13_continuation_policy_v1 section H asserts that the 2026-08-20 live halt STILL HALTS under v2: residual $257.27 > the pre-existing $250 budget, on the residual_budget clause alone and independent of any count. Protocol v2 does not rewrite history.",
+ "installed_stack_v2": {
+  "v13_continuation_policy.py": "f17af2873657081b7691774ceea7b66af8de2d55d549f566684984c38cdc91a8",
+  "v13_execution_core_v3.py": "350ea02bc3de8cfd7377a7d99ee1055060b25bef6936d9058ca270ce1396d8e0",
+  "v13_frozen_execution_limits_v6.json": "f8ff4d941778984140a178713b9d49c6beda585917fe4393b5dce75fa3e22b52",
+  "v13_residual_debt.py": "c4f6ad5eebf45db2c4a3dc301d2b59cad8e5ee26b3f754ae88ff7a6f230cf768",
+  "v13_transition_executor_v8.py": "76b8d1ac95484b9f89b05254e689312e5307cfc1a6a6f86e91cb37975dcf23fb",
+  "v13_transition_planner_v6.py": "4ab31e3aa97b867dc27f808f6c00d45b6e9617a7a8f4cb359b0c7c5b0d99f189"
+ },
+ "next_session": "fresh readiness -> reconciliation -> a manifest generated natively under the frozen v2 policy -> owner hash approval -> dry run (now adjudicated with the same logical-order semantics as live) -> live -> 16-step.",
+ "open_items_for_owner": [
+  "CONCENTRATION ON A_exits. The 50% trigger is declared for all three stages, so a Stage A that collapses to one or two residual exits becomes completeness-required and zero-tolerance again - the pathology v2 exists to remove. A one-order Stage A halts on a $124.47 residual, half the budget. Exits are not a joint construction, so the concentration rationale may not belong on A_exits. Implemented as ruled, not quietly exempted. Recorded as test section M.",
+  "N_BACKSTOP vs the Stage C count rule. At backstop 3 and 36 orders the count rule also allows 3, so they agree; at a smaller Stage C the backstop binds first. Ruled at 3 and consistent, but the interaction is emergent rather than declared.",
+  "R_PCT remains 0 until a calibration justifies a value."
+ ],
+ "order_level_gates_unchanged": "limits v6 is byte-identical to v5 across quote_gates, attempt_policy, transient_staleness_repoll, order_policy, residual_policy, stage_limits, market_data_regime, attempt_states, rollback_doctrine, stop_conditions_halt_requires_review, evidence_basis_and_limitations, amendment_v4, amendment_v5 and ratification_language. Asserted by the builder and re-asserted by executor v8 at load. The 300s stale-reference rule is NOT changed.",
+ "planner_executor_round_trip": {
+  "artifact_status": "DRY_RUN_ONLY_PROTOCOL_V2_REHEARSAL",
+  "executor_re_derivation": "MATCHED the planner-resolved block; a mismatch is a refusal",
+  "live_invocation": "REFUSED on the artifact_status allowlist - structurally non-executable",
+  "manifest_sha256": "b6a42855c0fede8f4bb24aa45ab71025b7e16be29a32237031b085c3ee3fe753",
+  "rehearsal_manifest": "DRY_RUN_ONLY__OTR-20260821T152251Z-S9.json",
+  "resolved_policy": {
+   "A_exits": "5 orders, largest EBAY 22.4%, completeness=False, tolerates 2",
+   "B_cross_asset": "6 orders, largest UUP 65.4%, completeness=TRUE, tolerates 0",
+   "C_equity": "38 orders, largest TSM 6.6%, completeness=False, tolerates 3"
+  }
+ },
+ "reconformance_2026_08_21": {
+  "test_v13_ca_repoll_v5": "65 PASS, 0 FAIL",
+  "test_v13_continuation_policy_v1": "67 passed, 0 failed, 0 skipped",
+  "test_v13_executor_v8": "65 passed, 0 failed",
+  "test_v13_feed_explicit_v8": "15/15 PASS",
+  "test_v13_live_fill_v8": "34 PASS, 0 FAIL",
+  "test_v13_regressions": "ALL PASS",
+  "total": "246 assertions green across six suites"
+ },
+ "record": "TRANSITION_PROTOCOL_V2_STACK_SEAL",
+ "sealed_at_utc": "2026-08-21T15:25:54.210805+00:00",
+ "superseded_but_preserved_byte_identical": {
+  "v13_execution_core_v2.py": "2aa66c9561f0decacdfeacf586f1c125890063c7e61d32d57fee9a579a7c292c",
+  "v13_frozen_execution_limits_v5.json": "ed5873d5a000ff25e5d9db7b8d0574c0804604e6bddadec0388064123cdc4400",
+  "v13_transition_executor_v7.py": "c0b35ff02c9e170a6dbac6ef471fe79bdfc29adbd0e0c0e3d81c7871923fa8f5",
+  "v13_transition_planner_v5.py": "4d0f6ca559b7aec7fa1683dbcee5c26f9de9aa2ff1e8229ceb51ac9e4b98bdab"
+ },
+ "unchanged": {
+  "v13_identity_latch.py": "0da221e8c902c9d7de2520d38c37fa7a0f6126fe2a28d9f0cfd517e9958f1ef5"
+ }
+}

@@ -1,0 +1,91 @@
+{
+ "account_7_state": "FROZEN and untouched all day. 51-position reconciled book, strategy 9 IDLE v1.4.0, gross cap $100,000, ZERO orders. No live execution under v2, v2.1 or v2.1-hardened.",
+ "authority": "Owner review of ADR 0054 v2.1, 2026-08-21: seven items. Five are documentation and land in the ADR; two would have left the ADR asserting a rule the code did not enforce, and one is a schema change, so they are implemented and tested here. NO POLICY VALUE CHANGED.",
+ "body_sha256_self": "a032df2274319d351eeeae3bd8c41ec2285f8a5b4c21304ca0e611802c433ddc",
+ "body_sha256_self_method": "sha256 over json.dumps(body minus the body_sha256_self key, sort_keys=True, indent=1, ensure_ascii=True)",
+ "conformance_suites": {
+  "test_v13_ca_repoll_v5.py": "ffdad033500c827a26697b8e784e067751c97f8209b25a9bf902f85257e0c4ba",
+  "test_v13_continuation_policy_v3.py": "a95ba628b22dfd02c5799327f5b1d5405ad2b45184343b94f30ad1e966e21496",
+  "test_v13_executor_v10.py": "74c43bf2f79ef1bbaec7bf81b34a97b96c4978f9e8913d5a867a50cfecf31e69",
+  "test_v13_feed_explicit_v10.py": "2e9243c777cfb7d166872861a3e0fd3dc1d58d91f372969564e633b3ef6765e4",
+  "test_v13_live_fill_v10.py": "a58da88a196d206655a6426dc9a65c3ea8b497ecf0bfdc36f564dac7a10dde6a",
+  "test_v13_regressions.py": "7095cd3f8230c9645c58139b301bcc771d69b065f397ae1b88fa0a8b122027d7"
+ },
+ "defects_found_by_the_suites_during_this_pass": [
+  "The v2.1 port left duplicate widen/precedence tests asserting the PRE-hardening refusal message; the hardened content binding fired first and they failed. Removed - the sealed-file versions in section 4/10 cover both properties more strongly.",
+  "The section-K close() call relied on a default status. close() now REQUIRES an explicit terminal disposition, which is exactly the class of obsolete call it exists to catch."
+ ],
+ "documentation_items": [
+  "R_PCT stated as 0 for Protocol v2.x unless changed by a later owner ruling AND a new limits version - not as a v2.0-only decision",
+  "A_exits: continuation requires residual <= $250 AND failed logical orders <= 2; the table must not be read as '2 failures are allowed'",
+  "joint_construction = true alone does NOT imply completeness; the concentration trigger must also be met"
+ ],
+ "enforcement_items": [
+  "TAXONOMY GOVERNANCE: the limits declare the HARD/EXECUTABILITY code sets and the executor refuses any limits file whose declaration differs from the sets it applies. An EXECUTABILITY code is budget-eligible, so widening the class is a governed limits change, never a Python-set edit.",
+  "MANIFEST<->LIMITS IDENTITY: v9 compared the embedded limits SHA to the sealed file and then applied the manifest's EMBEDDED CONTENT. The SHA is over file bytes and the content is parsed JSON, so matching one never implied the other. v10 requires the embedded content to be identical to the sealed file and applies the DISK copy; the receipt records the limits identity applied.",
+  "RESIDUAL-DEBT LIFECYCLE: OPEN -> RESOLVED_FILLED | RESOLVED_TARGET_REENTERED_WITH_OWNER_ACCEPTANCE | SUPERSEDED_BY_NEW_GOVERNED_PLAN | ESCALATED. close() has no default status and refuses target re-entry without a recorded owner-acceptance reference. Target re-entry NEVER silently closes an obligation.",
+  "ACTIVATION INVARIANTS: preflight requires a healthy residual-debt ledger and no earlier unresolved halted transition. Fail-closed - an invariant that cannot be EVALUATED counts as failed, so a corrupt ledger is a problem rather than an empty one."
+ ],
+ "governing_stack": {
+  "v13_continuation_policy.py": "0930f4da0821cc13d70a810a220575b3dbdd194eeda9f4b8e46342792a6def67",
+  "v13_execution_core_v3.py": "350ea02bc3de8cfd7377a7d99ee1055060b25bef6936d9058ca270ce1396d8e0",
+  "v13_frozen_execution_limits_v8.json": "3f59ad7143418a926c8110d59c1519c99508b7fc9878c298b1eedb7339306948",
+  "v13_residual_debt.py": "ef5a502e422e517bb4e4e9a12e390aebfea1d09e4550f64f9f47ccb2f78bc5f3",
+  "v13_transition_executor_v10.py": "6ffb24ddf5efd9a8302e4d33168d3a1f8f93d2add126ab67c9bb45c44e81a7b2",
+  "v13_transition_planner_v8.py": "e27df18816b40b7693f24fecfc2ce2be9eb1c09503d62efc93895a6bf3f5a87d"
+ },
+ "historical_validity": "UNAFFECTED. The 2026-08-20 halt still halts: Stage A residual $257.27 > the $250 budget, on the residual_budget clause.",
+ "note_on_the_ledger_file": "The activation-invariant check is present-or-CREATABLE, so evaluating it created an empty residual_debt.jsonl (0 bytes, 0 obligations, healthy). That is the intended behaviour: the run must not begin unable to write an obligation.",
+ "open_items_for_owner": [
+  "None blocking. R_PCT remains 0 until a calibration justifies a value."
+ ],
+ "planner_executor_round_trip": {
+  "activation_invariants": "PASS - ledger healthy (0 open), no unresolved halted transitions",
+  "live_invocation": "REFUSED on the artifact_status allowlist",
+  "manifest_sha256": "e8d898a6a7fb44dc8fa6bef42d0a03e207993e7761891648e4dcff3e637673ef",
+  "rehearsal_manifest": "DRY_RUN_ONLY__OTR-20260821T171905Z-S9.json",
+  "resolved": {
+   "A_exits": "5 orders, joint=False, completeness=False, tolerates 2",
+   "B_cross_asset": "6 orders, joint=TRUE, completeness=TRUE, tolerates 0 (UUP 65.4%)",
+   "C_equity": "38 orders, joint=False, tolerates 3; budget/backstop/count all disclosed"
+  }
+ },
+ "reconformance": {
+  "test_v13_ca_repoll_v5": "65 PASS, 0 FAIL",
+  "test_v13_continuation_policy_v3": "89 passed, 0 failed, 0 skipped",
+  "test_v13_executor_v10": "78 passed, 0 failed",
+  "test_v13_feed_explicit_v10": "15/15 PASS",
+  "test_v13_live_fill_v10": "34 PASS, 0 FAIL",
+  "test_v13_regressions": "ALL PASS"
+ },
+ "record": "TRANSITION_PROTOCOL_V21_HARDENED_STACK_SEAL",
+ "sealed_at_utc": "2026-08-21T17:22:07.302033+00:00",
+ "superseded_but_preserved_byte_identical": {
+  "RETIRED__v13_continuation_policy_v1.py": "f17af2873657081b7691774ceea7b66af8de2d55d549f566684984c38cdc91a8",
+  "RETIRED__v13_residual_debt_v1.py": "c4f6ad5eebf45db2c4a3dc301d2b59cad8e5ee26b3f754ae88ff7a6f230cf768",
+  "v13_execution_core_v2.py": "2aa66c9561f0decacdfeacf586f1c125890063c7e61d32d57fee9a579a7c292c",
+  "v13_frozen_execution_limits_v5.json": "ed5873d5a000ff25e5d9db7b8d0574c0804604e6bddadec0388064123cdc4400",
+  "v13_frozen_execution_limits_v6.json": "f8ff4d941778984140a178713b9d49c6beda585917fe4393b5dce75fa3e22b52",
+  "v13_frozen_execution_limits_v7.json": "85b2479d85807120c17e21d873ddc27aee7dd4dfbe3426c406a31f9a750fbde7",
+  "v13_transition_executor_v7.py": "c0b35ff02c9e170a6dbac6ef471fe79bdfc29adbd0e0c0e3d81c7871923fa8f5",
+  "v13_transition_executor_v8.py": "76b8d1ac95484b9f89b05254e689312e5307cfc1a6a6f86e91cb37975dcf23fb",
+  "v13_transition_executor_v9.py": "bec10787f7ce43a1407b4c8c3aff86c4b550b3f8379df9f5e289dd6f8fdce81f",
+  "v13_transition_planner_v5.py": "4d0f6ca559b7aec7fa1683dbcee5c26f9de9aa2ff1e8229ceb51ac9e4b98bdab",
+  "v13_transition_planner_v6.py": "4ab31e3aa97b867dc27f808f6c00d45b6e9617a7a8f4cb359b0c7c5b0d99f189",
+  "v13_transition_planner_v7.py": "fed9fc9d9f5a847e6448a4491adc743c300b686913fd8aa2b3981c30a41a4185"
+ },
+ "supersedes_seals": [
+  "PROTOCOL_V2_STACK_SEAL_20260821.json (body-self 8fed03a3852ae1c5259822e97a54a957697bc8412cd89d43b8c16ca0ddcc257a)",
+  "PROTOCOL_V21_STACK_SEAL_20260821.json (body-self 5932004da0f0f04990d04de03bc40b0353b3b22245b703e46945390105dd8fc7)"
+ ],
+ "unchanged": {
+  "v13_identity_latch.py": "0da221e8c902c9d7de2520d38c37fa7a0f6126fe2a28d9f0cfd517e9958f1ef5"
+ },
+ "unchanged_by_this_pass": [
+  "every order-level gate value, byte-identical back to v5",
+  "counting_unit, dry_run_parity_rule, R_ABS $250, R_PCT 0",
+  "the 50% concentration threshold and its joint-construction scope",
+  "per_stage modes, backstops and the Stage C count rule",
+  "precedence_rule, evaluation_order, retired_owner_override, historical_validity"
+ ]
+}

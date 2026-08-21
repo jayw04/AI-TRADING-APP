@@ -13,3 +13,13 @@ docs/review/momentum_daily/drift_audit/** -text
 # end-of-line translation changes their bytes and therefore their identity, which the
 # runtime refuses. Never let git rewrite them.
 manifests/layer2/*.json -text
+
+# ADR 0054 - v13 transition stack custody (2026-08-21).
+# These files are pinned by sha256 in ops/acct7/v13/CUSTODY.json and in the sealed stack
+# records, and those hashes are the ones deployed to ec2-paper. Any end-of-line conversion
+# on checkout would produce bytes whose sha256 no longer matches the seal, which is exactly
+# the failure this repository has hit before with governance hashes taken from a Windows
+# worktree. Store and check out these bytes verbatim.
+# -text (not -diff): the BYTES must survive checkout, but the diff must stay readable -
+# a governance commit whose files render as "Binary files differ" cannot be reviewed.
+ops/acct7/v13/** -text
