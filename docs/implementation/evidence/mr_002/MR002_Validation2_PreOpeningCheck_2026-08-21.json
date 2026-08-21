@@ -1,0 +1,241 @@
+{
+ "ALL_PRE_OPENING_CHECKS_PASS": true,
+ "FLAGS": {
+  "aws_chain_MATCH": true,
+  "bundle": true,
+  "closure": true,
+  "constants_MATCH": true,
+  "folds_MATCH": true,
+  "governed_modules": true,
+  "launcher": true,
+  "live_aggregate": true,
+  "numerical_provenance_MATCH": true,
+  "oos_interlock_MATCH": true,
+  "pyarrow": true,
+  "registry": true,
+  "stage3_routing_MATCH": true,
+  "thread_env_MATCH": true
+ },
+ "aws_chain": {
+  "boto3": {
+   "from_mount": true,
+   "ok": true,
+   "version": "1.43.70"
+  },
+  "botocore": {
+   "from_mount": true,
+   "ok": true,
+   "version": "1.43.70"
+  },
+  "dateutil": {
+   "from_mount": true,
+   "ok": true,
+   "version": "2.9.0.post0"
+  },
+  "six": {
+   "from_mount": true,
+   "ok": true,
+   "version": "1.17.0"
+  }
+ },
+ "aws_chain_MATCH": true,
+ "bundle": {
+  "MATCH": true,
+  "files": 2954,
+  "identity": "26e230493f218aba332b0888f2751def9f143ee136f68a86bdb91aaa03110dc1"
+ },
+ "closure": {
+  "MATCH": true,
+  "crlf_members": [],
+  "identity_MATCH": true,
+  "identity_claimed": "3c32bda64dd1cd6efe306bcf7e69e56a78c53b3bd58076d7735ddbe2d516df3b",
+  "identity_recomputed": "3c32bda64dd1cd6efe306bcf7e69e56a78c53b3bd58076d7735ddbe2d516df3b",
+  "members_ok": "25/25",
+  "mismatches": []
+ },
+ "constants": {
+  "ELIGIBLE_SESSIONS": 775,
+  "OUT_OF_BOUNDS_AFTER": "2026-07-10",
+  "SCORING_ELIGIBLE_FIRST": "2023-05-30",
+  "SCORING_ELIGIBLE_LAST": "2026-07-01",
+  "VALIDATION_WINDOW_END": "2026-07-10",
+  "VALIDATION_WINDOW_SESSIONS": 850,
+  "VALIDATION_WINDOW_START": "2023-02-17"
+ },
+ "constants_MATCH": true,
+ "folds": [
+  [
+   1,
+   "2023-05-30",
+   "2024-01-09",
+   155
+  ],
+  [
+   2,
+   "2024-01-10",
+   "2024-08-21",
+   155
+  ],
+  [
+   3,
+   "2024-08-22",
+   "2025-04-04",
+   155
+  ],
+  [
+   4,
+   "2025-04-07",
+   "2025-11-14",
+   155
+  ],
+  [
+   5,
+   "2025-11-17",
+   "2026-07-01",
+   155
+  ]
+ ],
+ "folds_MATCH": true,
+ "governed_modules": {
+  "MATCH": true,
+  "failures": [],
+  "resolved": "11/11"
+ },
+ "launcher": {
+  "MATCH": true,
+  "sha256": "12b1a0c4899d79a54322664ec82b2c9193b32212891eb59e61caf15f4ad9ce3a"
+ },
+ "live_aggregate": {
+  "MATCH": true,
+  "files": 277,
+  "value": "6841756f8026932370531fde49de5dfccda1c2cee964174f1eec1901e3660ae9"
+ },
+ "numerical_provenance": {
+  "duckdb": {
+   "source": "IMAGE",
+   "version": "1.1.3"
+  },
+  "numpy": {
+   "source": "IMAGE",
+   "version": "2.2.6"
+  },
+  "piqp": {
+   "source": "IMAGE",
+   "version": "0.6.3"
+  },
+  "pyarrow": {
+   "source": "DEPS-MOUNT",
+   "version": "20.0.0"
+  },
+  "quadprog": {
+   "source": "IMAGE",
+   "version": "-"
+  },
+  "scipy": {
+   "source": "IMAGE",
+   "version": "1.18.0"
+  }
+ },
+ "numerical_provenance_MATCH": true,
+ "oos_interlock": {
+  "detail": "OOS_BOUNDARY_VIOLATION: session 2026-07-11 is beyond the Validation-2 window end 2026-07-10; sessions past it are unallocated or sealed new OOS",
+  "fired": true,
+  "probe": "2026-07-11"
+ },
+ "oos_interlock_MATCH": true,
+ "pyarrow": {
+  "MATCH": true,
+  "files": 758,
+  "relpath_root": "/opt/mr002/deps",
+  "tree_identity": "54d0e4dbdb96c53c85178fb38fb355b2ec59910aa1bde96ee03a7ed6b4b3aad7"
+ },
+ "pythonpath": "/work/apps/backend:/opt/mr002/deps",
+ "registry": {
+  "MATCH": true,
+  "partition_identity": "3b3910d00395d90189b94fd0f9901811b1813905f17219010b336c567cfa1296",
+  "reference_objects": [
+   {
+    "key": "reference/crosswalk.parquet",
+    "sha256": "c75fe1b1362c4a6243358a1b6d68c6c5896f0823a7efe234ed0db5244dce3b16",
+    "version_id": "ux3JpvSp7lSneFcMHhxRZ_Tp6_gx60eK"
+   },
+   {
+    "key": "reference/sic_mapping.parquet",
+    "sha256": "292c36a82896169f5420932af4351a822452f3a909df69b8306e3e48d2d62035",
+    "version_id": "_wAa1EJ0wECpUcd4DH7KhrYsYl765kWL"
+   },
+   {
+    "key": "reference/predecessor_overrides.parquet",
+    "sha256": "1395263b28a24c1a68af8acaf474b4c285fa313009482004b4c1b6855d8fc2ac",
+    "version_id": "Srj0T5D.VqjtTULkrLwynvhPeWf422I7"
+   },
+   {
+    "key": "reference/security_sector_overrides.parquet",
+    "sha256": "0790f1c5fd1ce360633c4d48cade8b591169452143c6d392109c95c5d997b5bd",
+    "version_id": "MuimDnyOSLtRX6BaG2Ll525ox9Hoz6ns"
+   }
+  ],
+  "role": "VALIDATION2_PRODUCTION",
+  "sealed_objects": [
+   {
+    "bytes": 57069,
+    "key": "oos/actions.parquet",
+    "sha256": "a08c0ed6ba6c6609e67c501a938e0245277e11c82f3d7242e7e2683790acb100",
+    "version_id": "F6m6am6cBahBd95p41C1.aAVmYd8GuNG"
+   },
+   {
+    "bytes": 177252,
+    "key": "oos/anchors.parquet",
+    "sha256": "5095149d39d26c7af19de3814a7178e93bf3cc3ab87f92512991a81e64013dc9",
+    "version_id": "RsJZG3TkDXvNPERJhZVanJ.Vqg8_dulw"
+   },
+   {
+    "bytes": 67010,
+    "key": "oos/etf_prices.parquet",
+    "sha256": "f53f448312f94820d76aad80f378a53ea2b9104654cbb7c69bb82363b2a5da15",
+    "version_id": "Z3OsUeuucMYIl2v9JDoVNDx1nw.0avDj"
+   },
+   {
+    "bytes": 16173068,
+    "key": "oos/prices.parquet",
+    "sha256": "0f45ddc58170bd1131b9820576080eae861dff65b716bc3f03d08fb284f29e9a",
+    "version_id": "1ope9PR._oR303.EbZNGPVlIJRy.SZbA"
+   },
+   {
+    "bytes": 138814,
+    "key": "oos/sic_observations.parquet",
+    "sha256": "176a84bc155b5ec8c24444e091b19a78b97c0d31c0da606f22eca44ace7e12cf",
+    "version_id": "DPhtWW3Pca3TKtSa1LOnGKA.yrZ98EIt"
+   },
+   {
+    "bytes": 111278,
+    "key": "oos/universe.parquet",
+    "sha256": "4c1a2b2e876f7ffdd1f651e5c99079d5fe045e74003af556c3c8b3273d746e0d",
+    "version_id": "0gaqJ9TuECc3U_zar99sqls2UHRDnkkY"
+   }
+  ],
+  "sha256": "bbd330b7a41e338353ebd061707b5f633937e0cc82cdd97b794e72021657ae2e"
+ },
+ "stage3_routing": {
+  "CLOSED_ENUM": [
+   "QUALIFIED",
+   "NUMERICAL_STATUS_NONQUALIFICATION",
+   "CERTIFICATE_NONQUALIFICATION",
+   "INTEGRITY_DEFECT"
+  ],
+  "DEFAULT_FOR_UNRECOGNIZED": "INTEGRITY_DEFECT",
+  "FALLBACK_SOLVER_ID": "PIQP_P2",
+  "PRIMARY_SOLVER_ID": "QUADPROG_SQRT",
+  "countersignature_id": "MR002_Stage3ExecutionCountersignature_v1.0",
+  "quadprog_raw_mentions_in_cascade": 0
+ },
+ "stage3_routing_MATCH": true,
+ "thread_env": {
+  "MKL_NUM_THREADS": "1",
+  "NUMEXPR_NUM_THREADS": "1",
+  "OMP_NUM_THREADS": "1",
+  "OPENBLAS_CORETYPE": "HASWELL",
+  "OPENBLAS_NUM_THREADS": "1"
+ },
+ "thread_env_MATCH": true
+}
