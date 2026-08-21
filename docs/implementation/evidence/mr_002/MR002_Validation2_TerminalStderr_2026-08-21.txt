@@ -1,0 +1,13 @@
+Traceback (most recent call last):
+  File "/work/apps/backend/scripts/mr002_phase3c_validation_run.py", line 475, in <module>
+    _rc = main()
+  File "/work/apps/backend/scripts/mr002_phase3c_validation_run.py", line 423, in main
+    va = run_config_validation(days, CONFIGS[name], assert_oos_boundary=True)
+  File "/work/apps/backend/app/research/mr002/phase3c/replay.py", line 220, in run_config_validation
+    res = build_joint(holdings, cands)            # InvalidRun propagates -> STOPS
+  File "/work/apps/backend/app/research/mr002/joint_portfolio.py", line 732, in build_joint
+    z3, i3 = _solve_qp(H_diag, targets, A3, b3, A_eq, b_eq, upper)
+             ~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/work/apps/backend/app/research/mr002/stage3_route.py", line 90, in _routed_solve_qp
+    raise Stage3Stop(outcome)
+app.research.mr002.stage3_route.Stage3Stop: INVALID_RUN: fallback integrity defect: UNREGISTERED_EXCEPTION:RuntimeError:status Status.PIQP_MAX_ITER_REACHED

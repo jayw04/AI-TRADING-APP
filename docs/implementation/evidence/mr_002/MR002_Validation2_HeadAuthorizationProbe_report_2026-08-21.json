@@ -1,0 +1,108 @@
+{
+ "authorized_objects": 6,
+ "body_bytes_transferred": 0,
+ "bucket": "workbench-mr002-sealed-219024422756",
+ "consumption": "NONE. Validation-2 remains UNCONSUMED; no content was requested.",
+ "content_reads": 0,
+ "credential_readiness": {
+  "attempt_log": [
+   {
+    "at": 1787322378.6630948,
+    "attempt": 1,
+    "outcome": "SUCCESS",
+    "since_release": 19.872094869613647
+   }
+  ],
+  "attempts": 1,
+  "deadline_seconds": 900.0,
+  "denied_before_success": 0,
+  "elapsed_since_release_seconds": 19.925,
+  "latch_release_epoch": 1787322358.791,
+  "measured_reference_propagation_seconds": 286.1,
+  "note": "Failed attempts here are propagation probes, not validation retries. The opening is consumed by the first sealed validation read.",
+  "phase": "pre_sealed_read_credential_readiness",
+  "retryable_class_only": "AccessDenied",
+  "role_arn": "arn:aws:iam::219024422756:role/mr002-validation-reader",
+  "sealed_reads_during_readiness": 0,
+  "session_name": "mr002-v2-head-authorization-probe"
+ },
+ "declared_objects": 6,
+ "gate": "gate 11, live half",
+ "journal_chain_head": "28583c41ff03a429ec463202aaeecf170c4112303b31f2426a489953a410be2b",
+ "journal_rows": 14,
+ "objects": [
+  {
+   "authorized": true,
+   "content_length": 57069,
+   "key": "oos/actions.parquet",
+   "metadata_agrees": true,
+   "registered_bytes": 57069,
+   "sha256_registered": "a08c0ed6ba6c6609e67c501a938e0245277e11c82f3d7242e7e2683790acb100",
+   "sha256_verified": false,
+   "version_id": "F6m6am6cBahBd95p41C1.aAVmYd8GuNG",
+   "version_id_echoed": "F6m6am6cBahBd95p41C1.aAVmYd8GuNG"
+  },
+  {
+   "authorized": true,
+   "content_length": 177252,
+   "key": "oos/anchors.parquet",
+   "metadata_agrees": true,
+   "registered_bytes": 177252,
+   "sha256_registered": "5095149d39d26c7af19de3814a7178e93bf3cc3ab87f92512991a81e64013dc9",
+   "sha256_verified": false,
+   "version_id": "RsJZG3TkDXvNPERJhZVanJ.Vqg8_dulw",
+   "version_id_echoed": "RsJZG3TkDXvNPERJhZVanJ.Vqg8_dulw"
+  },
+  {
+   "authorized": true,
+   "content_length": 67010,
+   "key": "oos/etf_prices.parquet",
+   "metadata_agrees": true,
+   "registered_bytes": 67010,
+   "sha256_registered": "f53f448312f94820d76aad80f378a53ea2b9104654cbb7c69bb82363b2a5da15",
+   "sha256_verified": false,
+   "version_id": "Z3OsUeuucMYIl2v9JDoVNDx1nw.0avDj",
+   "version_id_echoed": "Z3OsUeuucMYIl2v9JDoVNDx1nw.0avDj"
+  },
+  {
+   "authorized": true,
+   "content_length": 16173068,
+   "key": "oos/prices.parquet",
+   "metadata_agrees": true,
+   "registered_bytes": 16173068,
+   "sha256_registered": "0f45ddc58170bd1131b9820576080eae861dff65b716bc3f03d08fb284f29e9a",
+   "sha256_verified": false,
+   "version_id": "1ope9PR._oR303.EbZNGPVlIJRy.SZbA",
+   "version_id_echoed": "1ope9PR._oR303.EbZNGPVlIJRy.SZbA"
+  },
+  {
+   "authorized": true,
+   "content_length": 138814,
+   "key": "oos/sic_observations.parquet",
+   "metadata_agrees": true,
+   "registered_bytes": 138814,
+   "sha256_registered": "176a84bc155b5ec8c24444e091b19a78b97c0d31c0da606f22eca44ace7e12cf",
+   "sha256_verified": false,
+   "version_id": "DPhtWW3Pca3TKtSa1LOnGKA.yrZ98EIt",
+   "version_id_echoed": "DPhtWW3Pca3TKtSa1LOnGKA.yrZ98EIt"
+  },
+  {
+   "authorized": true,
+   "content_length": 111278,
+   "key": "oos/universe.parquet",
+   "metadata_agrees": true,
+   "registered_bytes": 111278,
+   "sha256_registered": "4c1a2b2e876f7ffdd1f651e5c99079d5fe045e74003af556c3c8b3273d746e0d",
+   "sha256_verified": false,
+   "version_id": "0gaqJ9TuECc3U_zar99sqls2UHRDnkkY",
+   "version_id_echoed": "0gaqJ9TuECc3U_zar99sqls2UHRDnkkY"
+  }
+ ],
+ "read_verified_rows": 0,
+ "reader_caller_identity": "arn:aws:sts::219024422756:assumed-role/mr002-validation-reader/mr002-v2-head-authorization-probe",
+ "record_type": "MR002_Validation2_HeadAuthorizationProbe",
+ "sha256_commitments_verified": false,
+ "sha256_note": "the six content commitments CANNOT be verified by a metadata-only probe and were not. They are verified by the governed read, inside the indivisible sequence, after this gate passes.",
+ "verdict": "AUTHORIZED \u2014 the content-read sequence may begin",
+ "version": "1.0"
+}
