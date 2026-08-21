@@ -24,7 +24,11 @@ import subprocess
 import sys
 import tarfile
 
-REPO = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+# repo root = up FOUR levels from apps/backend/scripts/<this file>. Three levels lands in
+# apps/, where `git archive HEAD apps/backend` resolves the pathspec relative to cwd and
+# fails with exit 128 looking for apps/apps/backend.
+REPO = os.path.dirname(os.path.dirname(os.path.dirname(
+    os.path.dirname(os.path.abspath(__file__)))))
 CLOSURE = ("apps/backend/app/research/mr002/phase3c/manifests/"
            "validation2_execution_closure.json")
 AGG_SCRIPT = "apps/backend/scripts/mr002_v2_tree_aggregate.py"
