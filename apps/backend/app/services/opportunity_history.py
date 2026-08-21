@@ -199,11 +199,16 @@ def _as_date(value: object) -> date | None:
         return value.date()
     if isinstance(value, date):
         return value
-    if hasattr(value, "date"):
+    date_fn = getattr(value, "date", None)
+    if callable(date_fn):
         try:
-            return value.date()  # type: ignore[no-any-return]
+            parsed = date_fn()
         except Exception:
-            pass
+            parsed = None
+        if isinstance(parsed, datetime):
+            return parsed.date()
+        if isinstance(parsed, date):
+            return parsed
     try:
         return date.fromisoformat(str(value)[:10])
     except ValueError:
