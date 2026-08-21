@@ -1,0 +1,605 @@
+{
+ "data_scope": "DEVELOPMENT ONLY \u2014 reanalysis of the 2026-08-19 Gate-N1 census rows. No corpus, dataset, sealed reader, validation store or OOS opened.",
+ "findings": [
+  {
+   "id": "P1-F1",
+   "statement": "Gate N1 passed PIQP_P2 on C2 (100% certified resolution) over 3895 instances. In production shape the fallback is invoked only where the primary produced no certified candidate, which happened 5 times. All 5 certified, so the observed fallback failure rate is 0 \u2014 but the exact one-sided 95% upper bound from that sample is 0.45072. C2 as measured could not distinguish a fallback that never fails from one that fails on roughly half of its invocations.",
+   "status": "MEASURED from development evidence",
+   "title": "The fallback path's development qualification rests on five invocations."
+  },
+  {
+   "id": "P1-F2",
+   "statement": "The joint event 'primary produces no certified candidate AND the fallback terminates without one' occurs 0 times on the development corpus. The development corpus therefore contains no instance of the class that ended Validation-2, and no development result can attest that the frozen pair resolves it.",
+   "status": "MEASURED from development evidence",
+   "title": "The Validation-2 failure mode has zero development observations."
+  },
+  {
+   "id": "P1-F3",
+   "statement": "Independently of whether it was invoked, PIQP_P2 terminated without a candidate on 49 of 3895 development instances (rate 0.01258), every one of them with the registered reason ITERATION_LIMIT_REACHED. This behaviour was measured on 2026-08-19 and is visible in the sealed N1 census; it did not affect C2 because those instances were resolved by the primary.",
+   "status": "MEASURED from development evidence",
+   "title": "The fallback generator's termination rate on the corpus is not small."
+  },
+  {
+   "id": "P1-F4",
+   "statement": "PIQP_P2 has no entry in the v1 NUMERICAL_ALLOWLIST, so any raise from it misses the exact (solver, class, message) lookup and is classified INTEGRITY_DEFECT -> INVALID_RUN. The terminal disposition UNRESOLVED_NUMERICAL_FAILURE is therefore reachable from the fallback only when it RETURNS a point the certifier rejects, never when it terminates. This is a structural property of the frozen cascade, not a property of any instance.",
+   "status": "DERIVED from source; independent of the census rows",
+   "title": "Under the v1 taxonomy every fallback termination is an integrity defect."
+  },
+  {
+   "id": "P1-F5",
+   "statement": "Under the v2 method the same fallback termination is NO_CERTIFIED_CANDIDATE / ITERATION_LIMIT_REACHED, giving disposition UNRESOLVED_INSTANCE, which raises Stage3StopV2 and ends the run. The two layers differ in what the stop MEANS -- an impugned evaluation system versus an unresolved instance -- not in whether the run completes. Neither yields an economic verdict. Any claim that adopting v2 would have produced a Validation-2 result is unsupported.",
+   "status": "DERIVED from source",
+   "title": "A stop is a stop under both taxonomies."
+  },
+  {
+   "id": "P1-F6",
+   "statement": "PIQP_P2's termination rate is roughly 28x higher on mid-sized instances than on the smallest ones. It is NOT monotone in n: it rises steeply to a peak at n in [20,29] and then declines while staying well above the small-n level. Populated buckets: n 00-09 -> 0.001724 (3/1740), n 10-19 -> 0.006834 (9/1317), n 20-29 -> 0.048017 (23/479), n 30-39 -> 0.042254 (12/284), n 40-49 -> 0.032258 (2/62). The development corpus is dominated by small instances, so the corpus-wide rate understates the exposure of any population with a larger size mix. This is a structural property of the frozen generator measured on development; it implies nothing about, and must not be used to infer anything about, the size distribution of any consumed or future holdout population.",
+   "status": "MEASURED from development evidence",
+   "title": "Fallback termination is strongly size-dependent on development."
+  }
+ ],
+ "generator": "apps/backend/scripts/mr002_p1_dev_status_census.py",
+ "governing_protocol": "MR002_P1_NumericalInvestigation_Protocol_v1.0",
+ "inputs": [
+  {
+   "bytes": 5873741,
+   "path": ".mr002out/n1/n1_census_rows.json",
+   "sha256_lf": "5aa9681b42353d756d9cd973030ad0d906228501754a7b6163323780542a32b0",
+   "sha256_worktree": "5aa9681b42353d756d9cd973030ad0d906228501754a7b6163323780542a32b0"
+  },
+  {
+   "bytes": 2881,
+   "path": ".mr002out/n1/n1_census_c1c2.json",
+   "sha256_lf": "a69b6bc03bda34328617fa26296f446117208dce5a2d8841cd3842be084d994e",
+   "sha256_worktree": "a69b6bc03bda34328617fa26296f446117208dce5a2d8841cd3842be084d994e"
+  }
+ ],
+ "not_establishable_from_this_tranche": [
+  "Exception messages, iteration counts, residuals, conditioning numbers and timings \u2014 NOT RECORDED by the Aug-19 census. Recovering them requires re-running the corpus in the pinned research image (track T2).",
+  "Whether the Validation-2 instance is solvable at all at the frozen tolerances \u2014 requires Reference Solver R (track T5/T6) and, by protocol \u00a73.2, may never be tested against the consumed population.",
+  "Why the v1 layer rather than the v2 method was the bound Stage-3 path in the Validation-2 execution package. This is an execution-package question, not a numerical one, and is a named open P1 item.",
+  "Any P1 disposition. Protocol \u00a75.1 admissibility condition A-2 (reproduced numerical environment) is UNMET in this environment."
+ ],
+ "per_candidate": {
+  "CLARABEL": {
+   "A_certified": 3890,
+   "A_nonqualified": 5,
+   "A_nonqualified_instances": [
+    {
+     "B_outcome": "CERTIFIED",
+     "B_reason": null,
+     "disposition": "SECONDARY_CERTIFIED",
+     "exception_class": "ValueError",
+     "i": 800,
+     "n": 19,
+     "owning_module": "quadprog",
+     "reason": "LIBRARY_RAISED"
+    },
+    {
+     "B_outcome": "CERTIFIED",
+     "B_reason": null,
+     "disposition": "SECONDARY_CERTIFIED",
+     "exception_class": "ValueError",
+     "i": 1328,
+     "n": 20,
+     "owning_module": "quadprog",
+     "reason": "LIBRARY_RAISED"
+    },
+    {
+     "B_outcome": "CERTIFIED",
+     "B_reason": null,
+     "disposition": "SECONDARY_CERTIFIED",
+     "exception_class": "ValueError",
+     "i": 2140,
+     "n": 14,
+     "owning_module": "quadprog",
+     "reason": "LIBRARY_RAISED"
+    },
+    {
+     "B_outcome": "CERTIFIED",
+     "B_reason": null,
+     "disposition": "SECONDARY_CERTIFIED",
+     "exception_class": "ValueError",
+     "i": 2296,
+     "n": 25,
+     "owning_module": "quadprog",
+     "reason": "LIBRARY_RAISED"
+    },
+    {
+     "B_outcome": "NO_CERTIFIED_CANDIDATE",
+     "B_reason": "CERTIFICATE_PREDICATE_FALSE",
+     "disposition": "UNRESOLVED_INSTANCE",
+     "exception_class": "ValueError",
+     "i": 2765,
+     "n": 11,
+     "owning_module": "quadprog",
+     "reason": "LIBRARY_RAISED"
+    }
+   ],
+   "A_profile": "QUADPROG_SQRT",
+   "B_unconditional": {
+    "note": "the Aug-19 census ran B on EVERY instance (run_both), so these counts describe B's behaviour on the corpus, not the fallback path's exercised evidence",
+    "outcome_counts": {
+     "CERTIFIED": 3866,
+     "NO_CERTIFIED_CANDIDATE": 29
+    },
+    "reason_counts": {
+     "CERTIFICATE_PREDICATE_FALSE": 24,
+     "LIBRARY_RAISED": 5
+    },
+    "termination_rate": 0.001284,
+    "terminations": 5
+   },
+   "candidate": "CLARABEL",
+   "fallback_path_evidence": {
+    "exact_one_sided_95pct_upper_bound_on_failure_rate": null,
+    "failures": 1,
+    "invocation_rate": 0.001284,
+    "invocations": 5,
+    "note": "PRODUCTION SHAPE \u2014 the fallback is invoked only where A produced no certified candidate. This is the entire development evidence for the fallback path.",
+    "observed_failure_rate": 0.2,
+    "terminations_iteration_limit": 0,
+    "upper_bound_method": "Clopper-Pearson, 0 failures in n trials: 1 - 0.05**(1/n)"
+   },
+   "instances": 3895,
+   "size_stratification": {
+    "A_nonqualified_n_band": [
+     11,
+     25
+    ],
+    "A_nonqualified_n_values": [
+     11,
+     14,
+     19,
+     20,
+     25
+    ],
+    "by_n_bucket": {
+     "00-09": {
+      "A_nonqualified": 0,
+      "B_certificate_false": 0,
+      "B_termination_rate": 0.0,
+      "B_terminations": 0,
+      "instances": 1740
+     },
+     "10-19": {
+      "A_nonqualified": 3,
+      "B_certificate_false": 4,
+      "B_termination_rate": 0.000759,
+      "B_terminations": 1,
+      "instances": 1317
+     },
+     "20-29": {
+      "A_nonqualified": 2,
+      "B_certificate_false": 9,
+      "B_termination_rate": 0.006263,
+      "B_terminations": 3,
+      "instances": 479
+     },
+     "30-39": {
+      "A_nonqualified": 0,
+      "B_certificate_false": 11,
+      "B_termination_rate": 0.003521,
+      "B_terminations": 1,
+      "instances": 284
+     },
+     "40-49": {
+      "A_nonqualified": 0,
+      "B_certificate_false": 0,
+      "B_termination_rate": 0.0,
+      "B_terminations": 0,
+      "instances": 62
+     },
+     "50-59": {
+      "A_nonqualified": 0,
+      "B_certificate_false": 0,
+      "B_termination_rate": 0.0,
+      "B_terminations": 0,
+      "instances": 8
+     },
+     "60-69": {
+      "A_nonqualified": 0,
+      "B_certificate_false": 0,
+      "B_termination_rate": 0.0,
+      "B_terminations": 0,
+      "instances": 4
+     },
+     "70-79": {
+      "A_nonqualified": 0,
+      "B_certificate_false": 0,
+      "B_termination_rate": 0.0,
+      "B_terminations": 0,
+      "instances": 1
+     }
+    },
+    "corpus_n_max": 70,
+    "corpus_n_min": 2,
+    "in_band_B_termination_rate": 0.002179,
+    "in_band_B_terminations": 3,
+    "in_band_instances": 1377,
+    "stratifier": "problem size n (the only structural field the Aug-19 rows record)"
+   },
+   "v1_counterfactual": {
+    "A_enum_counts": {
+     "INDETERMINATE": 5,
+     "QUALIFIED": 3890
+    },
+    "B_enum_counts": {
+     "CERTIFICATE_NONQUALIFICATION": 24,
+     "INTEGRITY_DEFECT": 5,
+     "QUALIFIED": 3866
+    },
+    "indeterminacy": "A raises are INDETERMINATE because v1 matches on the exact complete message and the Aug-19 census did not record messages. B raises are determinate: PIQP_P2 has no allowlist entry at all.",
+    "note": "how the v1 cascade taxonomy would classify these same recorded outcomes",
+    "production_shape_dispositions": {
+     "INDETERMINATE_A(then_B=CERTIFICATE_NONQUALIFICATION)": 1,
+     "INDETERMINATE_A(then_B=QUALIFIED)": 4,
+     "PRIMARY_QUALIFIED": 3890
+    }
+   }
+  },
+  "PIQP_P1": {
+   "A_certified": 3890,
+   "A_nonqualified": 5,
+   "A_nonqualified_instances": [
+    {
+     "B_outcome": "CERTIFIED",
+     "B_reason": null,
+     "disposition": "SECONDARY_CERTIFIED",
+     "exception_class": "ValueError",
+     "i": 800,
+     "n": 19,
+     "owning_module": "quadprog",
+     "reason": "LIBRARY_RAISED"
+    },
+    {
+     "B_outcome": "CERTIFIED",
+     "B_reason": null,
+     "disposition": "SECONDARY_CERTIFIED",
+     "exception_class": "ValueError",
+     "i": 1328,
+     "n": 20,
+     "owning_module": "quadprog",
+     "reason": "LIBRARY_RAISED"
+    },
+    {
+     "B_outcome": "CERTIFIED",
+     "B_reason": null,
+     "disposition": "SECONDARY_CERTIFIED",
+     "exception_class": "ValueError",
+     "i": 2140,
+     "n": 14,
+     "owning_module": "quadprog",
+     "reason": "LIBRARY_RAISED"
+    },
+    {
+     "B_outcome": "CERTIFIED",
+     "B_reason": null,
+     "disposition": "SECONDARY_CERTIFIED",
+     "exception_class": "ValueError",
+     "i": 2296,
+     "n": 25,
+     "owning_module": "quadprog",
+     "reason": "LIBRARY_RAISED"
+    },
+    {
+     "B_outcome": "CERTIFIED",
+     "B_reason": null,
+     "disposition": "SECONDARY_CERTIFIED",
+     "exception_class": "ValueError",
+     "i": 2765,
+     "n": 11,
+     "owning_module": "quadprog",
+     "reason": "LIBRARY_RAISED"
+    }
+   ],
+   "A_profile": "QUADPROG_SQRT",
+   "B_unconditional": {
+    "note": "the Aug-19 census ran B on EVERY instance (run_both), so these counts describe B's behaviour on the corpus, not the fallback path's exercised evidence",
+    "outcome_counts": {
+     "CERTIFIED": 3836,
+     "NO_CERTIFIED_CANDIDATE": 59
+    },
+    "reason_counts": {
+     "CERTIFICATE_PREDICATE_FALSE": 2,
+     "ITERATION_LIMIT_REACHED": 57
+    },
+    "termination_rate": 0.014634,
+    "terminations": 57
+   },
+   "candidate": "PIQP_P1",
+   "fallback_path_evidence": {
+    "exact_one_sided_95pct_upper_bound_on_failure_rate": 0.45072,
+    "failures": 0,
+    "invocation_rate": 0.001284,
+    "invocations": 5,
+    "note": "PRODUCTION SHAPE \u2014 the fallback is invoked only where A produced no certified candidate. This is the entire development evidence for the fallback path.",
+    "observed_failure_rate": 0.0,
+    "terminations_iteration_limit": 0,
+    "upper_bound_method": "Clopper-Pearson, 0 failures in n trials: 1 - 0.05**(1/n)"
+   },
+   "instances": 3895,
+   "size_stratification": {
+    "A_nonqualified_n_band": [
+     11,
+     25
+    ],
+    "A_nonqualified_n_values": [
+     11,
+     14,
+     19,
+     20,
+     25
+    ],
+    "by_n_bucket": {
+     "00-09": {
+      "A_nonqualified": 0,
+      "B_certificate_false": 0,
+      "B_termination_rate": 0.001149,
+      "B_terminations": 2,
+      "instances": 1740
+     },
+     "10-19": {
+      "A_nonqualified": 3,
+      "B_certificate_false": 0,
+      "B_termination_rate": 0.006074,
+      "B_terminations": 8,
+      "instances": 1317
+     },
+     "20-29": {
+      "A_nonqualified": 2,
+      "B_certificate_false": 2,
+      "B_termination_rate": 0.050104,
+      "B_terminations": 24,
+      "instances": 479
+     },
+     "30-39": {
+      "A_nonqualified": 0,
+      "B_certificate_false": 0,
+      "B_termination_rate": 0.077465,
+      "B_terminations": 22,
+      "instances": 284
+     },
+     "40-49": {
+      "A_nonqualified": 0,
+      "B_certificate_false": 0,
+      "B_termination_rate": 0.016129,
+      "B_terminations": 1,
+      "instances": 62
+     },
+     "50-59": {
+      "A_nonqualified": 0,
+      "B_certificate_false": 0,
+      "B_termination_rate": 0.0,
+      "B_terminations": 0,
+      "instances": 8
+     },
+     "60-69": {
+      "A_nonqualified": 0,
+      "B_certificate_false": 0,
+      "B_termination_rate": 0.0,
+      "B_terminations": 0,
+      "instances": 4
+     },
+     "70-79": {
+      "A_nonqualified": 0,
+      "B_certificate_false": 0,
+      "B_termination_rate": 0.0,
+      "B_terminations": 0,
+      "instances": 1
+     }
+    },
+    "corpus_n_max": 70,
+    "corpus_n_min": 2,
+    "in_band_B_termination_rate": 0.017429,
+    "in_band_B_terminations": 24,
+    "in_band_instances": 1377,
+    "stratifier": "problem size n (the only structural field the Aug-19 rows record)"
+   },
+   "v1_counterfactual": {
+    "A_enum_counts": {
+     "INDETERMINATE": 5,
+     "QUALIFIED": 3890
+    },
+    "B_enum_counts": {
+     "CERTIFICATE_NONQUALIFICATION": 2,
+     "INTEGRITY_DEFECT": 57,
+     "QUALIFIED": 3836
+    },
+    "indeterminacy": "A raises are INDETERMINATE because v1 matches on the exact complete message and the Aug-19 census did not record messages. B raises are determinate: PIQP_P2 has no allowlist entry at all.",
+    "note": "how the v1 cascade taxonomy would classify these same recorded outcomes",
+    "production_shape_dispositions": {
+     "INDETERMINATE_A(then_B=QUALIFIED)": 5,
+     "PRIMARY_QUALIFIED": 3890
+    }
+   }
+  },
+  "PIQP_P2": {
+   "A_certified": 3890,
+   "A_nonqualified": 5,
+   "A_nonqualified_instances": [
+    {
+     "B_outcome": "CERTIFIED",
+     "B_reason": null,
+     "disposition": "SECONDARY_CERTIFIED",
+     "exception_class": "ValueError",
+     "i": 800,
+     "n": 19,
+     "owning_module": "quadprog",
+     "reason": "LIBRARY_RAISED"
+    },
+    {
+     "B_outcome": "CERTIFIED",
+     "B_reason": null,
+     "disposition": "SECONDARY_CERTIFIED",
+     "exception_class": "ValueError",
+     "i": 1328,
+     "n": 20,
+     "owning_module": "quadprog",
+     "reason": "LIBRARY_RAISED"
+    },
+    {
+     "B_outcome": "CERTIFIED",
+     "B_reason": null,
+     "disposition": "SECONDARY_CERTIFIED",
+     "exception_class": "ValueError",
+     "i": 2140,
+     "n": 14,
+     "owning_module": "quadprog",
+     "reason": "LIBRARY_RAISED"
+    },
+    {
+     "B_outcome": "CERTIFIED",
+     "B_reason": null,
+     "disposition": "SECONDARY_CERTIFIED",
+     "exception_class": "ValueError",
+     "i": 2296,
+     "n": 25,
+     "owning_module": "quadprog",
+     "reason": "LIBRARY_RAISED"
+    },
+    {
+     "B_outcome": "CERTIFIED",
+     "B_reason": null,
+     "disposition": "SECONDARY_CERTIFIED",
+     "exception_class": "ValueError",
+     "i": 2765,
+     "n": 11,
+     "owning_module": "quadprog",
+     "reason": "LIBRARY_RAISED"
+    }
+   ],
+   "A_profile": "QUADPROG_SQRT",
+   "B_unconditional": {
+    "note": "the Aug-19 census ran B on EVERY instance (run_both), so these counts describe B's behaviour on the corpus, not the fallback path's exercised evidence",
+    "outcome_counts": {
+     "CERTIFIED": 3844,
+     "NO_CERTIFIED_CANDIDATE": 51
+    },
+    "reason_counts": {
+     "CERTIFICATE_PREDICATE_FALSE": 2,
+     "ITERATION_LIMIT_REACHED": 49
+    },
+    "termination_rate": 0.01258,
+    "terminations": 49
+   },
+   "candidate": "PIQP_P2",
+   "fallback_path_evidence": {
+    "exact_one_sided_95pct_upper_bound_on_failure_rate": 0.45072,
+    "failures": 0,
+    "invocation_rate": 0.001284,
+    "invocations": 5,
+    "note": "PRODUCTION SHAPE \u2014 the fallback is invoked only where A produced no certified candidate. This is the entire development evidence for the fallback path.",
+    "observed_failure_rate": 0.0,
+    "terminations_iteration_limit": 0,
+    "upper_bound_method": "Clopper-Pearson, 0 failures in n trials: 1 - 0.05**(1/n)"
+   },
+   "instances": 3895,
+   "size_stratification": {
+    "A_nonqualified_n_band": [
+     11,
+     25
+    ],
+    "A_nonqualified_n_values": [
+     11,
+     14,
+     19,
+     20,
+     25
+    ],
+    "by_n_bucket": {
+     "00-09": {
+      "A_nonqualified": 0,
+      "B_certificate_false": 0,
+      "B_termination_rate": 0.001724,
+      "B_terminations": 3,
+      "instances": 1740
+     },
+     "10-19": {
+      "A_nonqualified": 3,
+      "B_certificate_false": 0,
+      "B_termination_rate": 0.006834,
+      "B_terminations": 9,
+      "instances": 1317
+     },
+     "20-29": {
+      "A_nonqualified": 2,
+      "B_certificate_false": 2,
+      "B_termination_rate": 0.048017,
+      "B_terminations": 23,
+      "instances": 479
+     },
+     "30-39": {
+      "A_nonqualified": 0,
+      "B_certificate_false": 0,
+      "B_termination_rate": 0.042254,
+      "B_terminations": 12,
+      "instances": 284
+     },
+     "40-49": {
+      "A_nonqualified": 0,
+      "B_certificate_false": 0,
+      "B_termination_rate": 0.032258,
+      "B_terminations": 2,
+      "instances": 62
+     },
+     "50-59": {
+      "A_nonqualified": 0,
+      "B_certificate_false": 0,
+      "B_termination_rate": 0.0,
+      "B_terminations": 0,
+      "instances": 8
+     },
+     "60-69": {
+      "A_nonqualified": 0,
+      "B_certificate_false": 0,
+      "B_termination_rate": 0.0,
+      "B_terminations": 0,
+      "instances": 4
+     },
+     "70-79": {
+      "A_nonqualified": 0,
+      "B_certificate_false": 0,
+      "B_termination_rate": 0.0,
+      "B_terminations": 0,
+      "instances": 1
+     }
+    },
+    "corpus_n_max": 70,
+    "corpus_n_min": 2,
+    "in_band_B_termination_rate": 0.018155,
+    "in_band_B_terminations": 25,
+    "in_band_instances": 1377,
+    "stratifier": "problem size n (the only structural field the Aug-19 rows record)"
+   },
+   "v1_counterfactual": {
+    "A_enum_counts": {
+     "INDETERMINATE": 5,
+     "QUALIFIED": 3890
+    },
+    "B_enum_counts": {
+     "CERTIFICATE_NONQUALIFICATION": 2,
+     "INTEGRITY_DEFECT": 49,
+     "QUALIFIED": 3844
+    },
+    "indeterminacy": "A raises are INDETERMINATE because v1 matches on the exact complete message and the Aug-19 census did not record messages. B raises are determinate: PIQP_P2 has no allowlist entry at all.",
+    "note": "how the v1 cascade taxonomy would classify these same recorded outcomes",
+    "production_shape_dispositions": {
+     "INDETERMINATE_A(then_B=QUALIFIED)": 5,
+     "PRIMARY_QUALIFIED": 3890
+    }
+   }
+  }
+ },
+ "phase": "P1",
+ "record_sha256_of_body_without_this_field": "0b9824365bc23e5ecdb12b18bda3c6a8ac03bd803e03ea9f0ed85edca30d3325",
+ "record_type": "MR002_P1_DEVELOPMENT_STATUS_CENSUS",
+ "registered_corpus_hash": "1d2319301a7b52dfe369819bc8029f7b6d64ad820d828f041eba15a91348390b",
+ "source_commit": "c715262b7ae955dcc2db4ae2976648c5d7a1fdb3",
+ "tracks": [
+  "T3",
+  "T4"
+ ],
+ "tranche": "REANALYSIS \u2014 no solver executed",
+ "version": "1.0"
+}

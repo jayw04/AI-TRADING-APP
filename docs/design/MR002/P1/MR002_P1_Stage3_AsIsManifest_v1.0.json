@@ -1,0 +1,2316 @@
+{
+ "data_scope": "DEVELOPMENT_SOURCE_ONLY \u2014 no solver imported, no corpus, dataset, sealed reader, validation store or OOS opened",
+ "files": {
+  "apps/backend/app/research/mr002/certificate.py": {
+   "callables": [
+    {
+     "docstring_first_line": "INVALID_RUN / CERTIFICATE_LAGRANGIAN_IDENTITY_VIOLATION.",
+     "kind": "ClassDef",
+     "lineno": 83,
+     "name": "CertificateDefect",
+     "sha256_unparsed": "44cfd4aab36d9d45691bc5a3c2289004a19cdcaf5bd41d0aed4207dd8b60064a"
+    },
+    {
+     "docstring_first_line": "",
+     "kind": "ClassDef",
+     "lineno": 91,
+     "name": "SignedGapCertificate",
+     "sha256_unparsed": "425a3a79f1fed9011af188662609683b4fbb783d459b883a150b63ba351ee441"
+    },
+    {
+     "docstring_first_line": "One IEEE-754 double, through its exact binary rational.",
+     "kind": "FunctionDef",
+     "lineno": 111,
+     "name": "exact_iv",
+     "sha256_unparsed": "c5c9e6740930e6b92984c87e79b8b6e7ab1cefb03393842dcde13ead34b09a45"
+    },
+    {
+     "docstring_first_line": "A general exact rational, as an outward-rounded ENCLOSURE.",
+     "kind": "FunctionDef",
+     "lineno": 125,
+     "name": "rational_iv",
+     "sha256_unparsed": "c62bd3dbc5388b89beeea62e596cc03e41c5548464eaa56a77226a1efcd3e68d"
+    },
+    {
+     "docstring_first_line": "A frozen double as an exact rational. The only sanctioned entry point.",
+     "kind": "FunctionDef",
+     "lineno": 134,
+     "name": "to_fraction",
+     "sha256_unparsed": "56afba20ef65f4474afbdf165183458ac977249ed1a41b36cba93f5cb8039b70"
+    },
+    {
+     "docstring_first_line": "",
+     "kind": "FunctionDef",
+     "lineno": 140,
+     "name": "_vec",
+     "sha256_unparsed": "0c84e4e3c33d4ed73c697b913fac5defebd714dd93a5b05416cf0057cec3cd41"
+    },
+    {
+     "docstring_first_line": "The interval's width, rounded UP.",
+     "kind": "FunctionDef",
+     "lineno": 144,
+     "name": "_width",
+     "sha256_unparsed": "359bf2dba7c58967f72da9ea6e6acbf0641a26909fad731693608e39f6c204af"
+    },
+    {
+     "docstring_first_line": "An interval's upper endpoint as a double, CORRECTLY ROUNDED toward +infinity.",
+     "kind": "FunctionDef",
+     "lineno": 155,
+     "name": "f_up",
+     "sha256_unparsed": "20bb003bd885fd73bf18bf7d34aef9081776d02369f01577cad27ea684b14f37"
+    },
+    {
+     "docstring_first_line": "An interval's lower endpoint as a double, CORRECTLY ROUNDED toward -infinity.",
+     "kind": "FunctionDef",
+     "lineno": 165,
+     "name": "f_dn",
+     "sha256_unparsed": "7a22d0a42922da8f84f679bcae10703211492a31aa544f3b65cf03fb88377630"
+    },
+    {
+     "docstring_first_line": "THE canonical (C, b). Re-exported so nothing downstream rebuilds it.",
+     "kind": "FunctionDef",
+     "lineno": 173,
+     "name": "canonical_matrices",
+     "sha256_unparsed": "cb08852a19130a7b5a4497eaa1324d64ec63695ae91c685cdcff92de9ade2231"
+    },
+    {
+     "docstring_first_line": "The certificate must use the registered economic objective derived from t, never a",
+     "kind": "FunctionDef",
+     "lineno": 178,
+     "name": "verify_canonical_hessian",
+     "sha256_unparsed": "b608e9e06cb7dd83752c694924bfbce0c71995576a4330152e7e5b37aae2c853"
+    },
+    {
+     "docstring_first_line": "Largest magnitude by which an inequality/bound multiplier is negative. The ordinary",
+     "kind": "FunctionDef",
+     "lineno": 190,
+     "name": "dual_sign_violation",
+     "sha256_unparsed": "d8bd51cd3158a92bff564bd3c4714bdd6e143c7ab3a79ca155869e970f7c5c73"
+    },
+    {
+     "docstring_first_line": "Make the multipliers EXACTLY dual-feasible: equalities free, the rest clipped at zero.",
+     "kind": "FunctionDef",
+     "lineno": 198,
+     "name": "project_dual",
+     "sha256_unparsed": "6e6e22747016dd749de7c5af6491f2b55026245ff820a19d92d7f125181ff7b6"
+    },
+    {
+     "docstring_first_line": "(f, d, S_lag, energy) as outward-rounded intervals. THE folded-convention implementation.",
+     "kind": "FunctionDef",
+     "lineno": 216,
+     "name": "gap_intervals",
+     "sha256_unparsed": "f4df9177bc49e79c04255b8fd88f4f7fbcaff3f895b3880a8a030bb8213cef2d"
+    },
+    {
+     "docstring_first_line": "The two-sided certified SIGNED Lagrangian gap, from interval endpoints at >= 100 digits.",
+     "kind": "FunctionDef",
+     "lineno": 283,
+     "name": "certify",
+     "sha256_unparsed": "0173c81764435dff3c85c50aeed24e0796aac6630760d55c7c5e1faffad0b5bb"
+    },
+    {
+     "docstring_first_line": "The registered disposition string for a signed-gap outcome.",
+     "kind": "FunctionDef",
+     "lineno": 335,
+     "name": "classify",
+     "sha256_unparsed": "ac9f1c246da926b269b61dfcb29c5421e386ab51728fe37611035edb0c177a19"
+    }
+   ],
+   "git_tracked": true,
+   "identity": {
+    "bytes": 15145,
+    "crlf": true,
+    "git_blob": "c3375b017cc70895f402d5f546e0631c61728143",
+    "sha256_lf": "c679eb39bcabd90089dfaa2f3f149996e5cfcf4fc1582e58513c91b0703e31ec",
+    "sha256_worktree": "1ba6aef49d0483fbccd6571dc2d51a5d785079d9ae2d4766b0d0b292c5b55e69"
+   },
+   "module_docstring_first_line": "MR-002 Stage-3 \u2014 the CANONICAL signed-gap certificate module (owner rulings \u00a72, \u00a73).",
+   "raise_sites": [
+    {
+     "exception": "CertificateDefect",
+     "first_arg": "f'exact conversion of {x!r} rounded \u2014 width {v.delta}'",
+     "function": "exact_iv",
+     "lineno": 121
+    },
+    {
+     "exception": "CertificateDefect",
+     "first_arg": "'Hessian was not produced by the frozen canonical 2/t construction \u2014 the certificate would be evaluated against a different problem than the registered one'",
+     "function": "verify_canonical_hessian",
+     "lineno": 184
+    },
+    {
+     "exception": "CertificateDefect",
+     "first_arg": "'non-finite interval in the certificate'",
+     "function": "certify",
+     "lineno": 293
+    },
+    {
+     "exception": "CertificateDefect",
+     "first_arg": "f'CERTIFICATE_LAGRANGIAN_IDENTITY_VIOLATION: Gamma - (S_lag + energy) encloses [{diff.a}, {diff.b}], which excludes zero. The identity is exact, so this is a sign, conversion or formula defect. INVALID_RUN.'",
+     "function": "certify",
+     "lineno": 304
+    }
+   ],
+   "role": "acceptance_authority"
+  },
+  "apps/backend/app/research/mr002/exact_repair.py": {
+   "callables": [
+    {
+     "docstring_first_line": "",
+     "kind": "ClassDef",
+     "lineno": 103,
+     "name": "ExactRepair",
+     "sha256_unparsed": "29958b52f25669436c3b7710c9ce8260486bd8c66b76d78673a7c2e1fff184d0"
+    },
+    {
+     "docstring_first_line": "A structurally empty row: every coefficient EXACTLY zero. It is validated exactly and",
+     "kind": "FunctionDef",
+     "lineno": 129,
+     "name": "empty_rows_of",
+     "sha256_unparsed": "ce08bbf5d44bf071a7d21da8e720194e8995bd7aa553ad8bf1beadff326a1b55"
+    },
+    {
+     "docstring_first_line": "Model-defined identities for variables and rows. Incoming positions are NOT identities.",
+     "kind": "FunctionDef",
+     "lineno": 149,
+     "name": "canonical_order",
+     "sha256_unparsed": "92a2bea8fc916abfd20a3fad10a8dcd811d9f5109252eaaa75256370bd7a734f"
+    },
+    {
+     "docstring_first_line": "(M, h, c, n, m) as EXACT rationals, in canonical order. Nothing here is approximate.",
+     "kind": "FunctionDef",
+     "lineno": 199,
+     "name": "build_standard_form",
+     "sha256_unparsed": "bc6dfc3f027d65f61e883e0f9bab3b4f9626b8a3c33ae9507cefabf772c7e6ef"
+    },
+    {
+     "docstring_first_line": "The canonical LP's identity. Two presentations of the same model MUST hash identically \u2014",
+     "kind": "FunctionDef",
+     "lineno": 259,
+     "name": "lp_content_hash",
+     "sha256_unparsed": "24bffb99f3533c0306562933f23f65a8bfd9b55426c9b883046f7289e7c3a110"
+    },
+    {
+     "docstring_first_line": "The exactly certified minimum-L-infinity repair. Raises on any failure.",
+     "kind": "FunctionDef",
+     "lineno": 279,
+     "name": "exact_repair",
+     "sha256_unparsed": "ba119506a18551a1566cf4b804fc4b7739bcf472f81ccd0b31b1f282e8b23c3c"
+    },
+    {
+     "docstring_first_line": "Exact repair -> nonnegative repaired gap -> agreement radius.",
+     "kind": "FunctionDef",
+     "lineno": 327,
+     "name": "certify_repair",
+     "sha256_unparsed": "0934f089c37c4009b83437a05dc9d0c8056e325a0e34a1fe3abbdb88f9b9d12c"
+    },
+    {
+     "docstring_first_line": "||z1 - z2|| <= R1 + R2 + 1e-10, the left side ALSO at an outward-rounded upper endpoint.",
+     "kind": "FunctionDef",
+     "lineno": 395,
+     "name": "agreement",
+     "sha256_unparsed": "137bf3127402c8a69613e374c4fcf14ca8c02200b98c4a31712ac02d555f098c"
+    },
+    {
+     "docstring_first_line": "|f(z1) - f(z2)| <= U1 + U2 + 1e-12, from complete interval enclosures.",
+     "kind": "FunctionDef",
+     "lineno": 404,
+     "name": "objective_agreement",
+     "sha256_unparsed": "9cf8f1709fc934b598b6a6930b051cac45ae8b1fd881f57a09327f45ce87d46d"
+    },
+    {
+     "docstring_first_line": "The frozen repair/basis-oracle record.",
+     "kind": "FunctionDef",
+     "lineno": 413,
+     "name": "manifest",
+     "sha256_unparsed": "5e9ba4f4893b231799af5063d228f50d2b4bedaed3916f676fafa2b9d0dfe19b"
+    }
+   ],
+   "git_tracked": true,
+   "identity": {
+    "bytes": 22214,
+    "crlf": true,
+    "git_blob": "d82bb05725e351c9ceec4b32994dd6d379b74173",
+    "sha256_lf": "ab2224437e7a6e59815c673b000fd93294ba7764357025f6affd98f69d791b1c",
+    "sha256_worktree": "7325abe5ef4fa113f895025bff841619245ee3b472f89547c69cbe2b0f9d9c64"
+   },
+   "module_docstring_first_line": "MR-002 Stage-3 \u2014 EXACT MINIMUM-L-INFINITY REPAIR CERTIFICATE.",
+   "raise_sites": [
+    {
+     "exception": "CertificateDefect",
+     "first_arg": "f'INVALID ORIGINAL MODEL: inequality row {r} is structurally empty with b = {float(rhs)!r} < 0. `0 <= b` is false; the model is unsatisfiable.'",
+     "function": "empty_rows_of",
+     "lineno": 141
+    },
+    {
+     "exception": "SimplexUnavailable",
+     "first_arg": "f'EXACT_REPAIR_ORIGINAL_EQUALITY_FAILED row {e}'",
+     "function": "exact_repair",
+     "lineno": 308
+    },
+    {
+     "exception": "SimplexUnavailable",
+     "first_arg": "f'EXACT_REPAIR_ORIGINAL_INEQUALITY_FAILED row {r}'",
+     "function": "exact_repair",
+     "lineno": 312
+    },
+    {
+     "exception": "SimplexUnavailable",
+     "first_arg": "f'EXACT_REPAIR_ORIGINAL_BOUND_FAILED coord {i}'",
+     "function": "exact_repair",
+     "lineno": 315
+    },
+    {
+     "exception": "SimplexUnavailable",
+     "first_arg": "f'EXACT_REPAIR_RHO_ENVELOPE_FAILED coord {i}'",
+     "function": "exact_repair",
+     "lineno": 317
+    },
+    {
+     "exception": "CertificateDefect",
+     "first_arg": "f'repaired gap {ghat_u:.6e} is negative at an EXACTLY feasible point. Weak duality forbids this \u2014 a certificate or interval-direction defect. INVALID_RUN.'",
+     "function": "certify_repair",
+     "lineno": 346
+    },
+    {
+     "exception": "CertificateDefect",
+     "first_arg": "f'the repaired-gap enclosure [{float(ghat_iv.a):.3e}, {float(ghat_iv.b):.3e}] straddles zero, so sqrt has no real value on it. This is unreachable while f(zhat) is enclosed exactly and dual_lower is a float \u2014 if it fired, that premise changed. INVALID_RUN.'",
+     "function": "certify_repair",
+     "lineno": 369
+    },
+    {
+     "exception": "CertificateDefect",
+     "first_arg": "'delta^2 > n*rho^2 \u2014 the L-inf/L-2 relation is violated'",
+     "function": "certify_repair",
+     "lineno": 376
+    }
+   ],
+   "role": "repair_paths"
+  },
+  "apps/backend/app/research/mr002/exact_simplex.py": {
+   "callables": [
+    {
+     "docstring_first_line": "The basis CONTENT, positionally. Position is carried by the algorithm (it indexes x_B and the",
+     "kind": "FunctionDef",
+     "lineno": 68,
+     "name": "basis_hash",
+     "sha256_unparsed": "cb786ee870c7a7c4d40f140ff6c84f3cd79a3df8dda1d442cb24ce03781cc329"
+    },
+    {
+     "docstring_first_line": "",
+     "kind": "FunctionDef",
+     "lineno": 78,
+     "name": "_fr",
+     "sha256_unparsed": "ff69ba5b99815fa11dfd57dacabb18493a07c95c5cdd94a6145feb72dc7ccad6"
+    },
+    {
+     "docstring_first_line": "",
+     "kind": "FunctionDef",
+     "lineno": 82,
+     "name": "_frs",
+     "sha256_unparsed": "e91dadbe9025a63558440f87c759df8729b8faacff5573748b93818d75cbc0ad"
+    },
+    {
+     "docstring_first_line": "REPAIR_CERTIFICATE_UNAVAILABLE from the exact solver.",
+     "kind": "ClassDef",
+     "lineno": 86,
+     "name": "SimplexUnavailable",
+     "sha256_unparsed": "d26f92c45e68fb31059a0a14851a08f54f5d2dd5669cdb320c23a478e888f642"
+    },
+    {
+     "docstring_first_line": "",
+     "kind": "ClassDef",
+     "lineno": 96,
+     "name": "SimplexResult",
+     "sha256_unparsed": "e3ef3ceec51acce49c14053d3844919593376afed8d9968c3980fcd65d8d49b2"
+    },
+    {
+     "docstring_first_line": "Fraction-free elimination of the AUGMENTED [A | I], yielding (U, T) with  T @ A = U  exactly,",
+     "kind": "FunctionDef",
+     "lineno": 163,
+     "name": "_bareiss_factor",
+     "sha256_unparsed": "20482b5abbad46d43c798e17217e213d76d97d9cc840eff58bdd459f0a3aa09d"
+    },
+    {
+     "docstring_first_line": "The single exact decomposition of one simplex basis B, reused for all three of its solves.",
+     "kind": "ClassDef",
+     "lineno": 207,
+     "name": "BasisDecomposition",
+     "sha256_unparsed": "a2a1551eb6729839d9270d3137dc7c53ec5956dc37058fc091158875b6746b9c"
+    },
+    {
+     "docstring_first_line": "The ONE decomposition of basis B. It is built from B alone \u2014 it holds no right-hand side,",
+     "kind": "FunctionDef",
+     "lineno": 344,
+     "name": "decompose",
+     "sha256_unparsed": "89990a5a63ab90a00fa5133fb5e74f666acccdd40122e3c2b7c83274e24c1ebb"
+    },
+    {
+     "docstring_first_line": "",
+     "kind": "FunctionDef",
+     "lineno": 410,
+     "name": "_bits",
+     "sha256_unparsed": "1d69e7017519b68554a31b04193e610c22993530ae83406900a74925e4274ec3"
+    },
+    {
+     "docstring_first_line": "",
+     "kind": "FunctionDef",
+     "lineno": 419,
+     "name": "_check_limits",
+     "sha256_unparsed": "e4fe6152faa26b4d9f699bcf22df96b5d405bc02c1f8d87298a2cb033507cd68"
+    },
+    {
+     "docstring_first_line": "",
+     "kind": "FunctionDef",
+     "lineno": 429,
+     "name": "_new_stats",
+     "sha256_unparsed": "386c3afe0437daad83ecf578c275d27f2c460ffdd4d9c9897e5d855471206459"
+    },
+    {
+     "docstring_first_line": "Exact revised simplex from a feasible `basis`. Returns (basis, x, y, pivots).",
+     "kind": "FunctionDef",
+     "lineno": 437,
+     "name": "_iterate",
+     "sha256_unparsed": "b52ae020ae18c5595519cb832c4648e470ccf6ecd6559a01add291c4f925bb36"
+    },
+    {
+     "docstring_first_line": "Exact Phase-I / Phase-II simplex on  min c'x  s.t.  Mx = h,  x >= 0.",
+     "kind": "FunctionDef",
+     "lineno": 511,
+     "name": "solve_lp",
+     "sha256_unparsed": "9519ddf93b772e6faa4d4a8f90625d6fc109cf6a699c052e52651085bb673346"
+    },
+    {
+     "docstring_first_line": "The frozen operational stop limits. NOT mathematical tolerances.",
+     "kind": "FunctionDef",
+     "lineno": 669,
+     "name": "ceilings",
+     "sha256_unparsed": "279f914454f7ead8ba983efa2622831318d629d88507a94db9d45dc688216b0e"
+    }
+   ],
+   "git_tracked": true,
+   "identity": {
+    "bytes": 31496,
+    "crlf": false,
+    "git_blob": "22cf80929a5b4ae4abe533a7477608e80612fe81",
+    "sha256_lf": "1403ed8dc0a5228efd6ec3aaec19dcbe5443440dfe91355117d673f7c83fcdef",
+    "sha256_worktree": "1403ed8dc0a5228efd6ec3aaec19dcbe5443440dfe91355117d673f7c83fcdef"
+   },
+   "module_docstring_first_line": "MR-002 \u2014 CANONICAL EXACT RATIONAL SIMPLEX (Phase I + Phase II).",
+   "raise_sites": [
+    {
+     "exception": "SimplexUnavailable",
+     "first_arg": "'EXACT_SIMPLEX_SINGULAR: exactly singular core'",
+     "function": "_bareiss_factor",
+     "lineno": 186
+    },
+    {
+     "exception": "SimplexUnavailable",
+     "first_arg": "'EXACT_SIMPLEX_SINGULAR: fraction-free division left a remainder \u2014 the Bareiss integrality invariant is broken'",
+     "function": "_bareiss_factor",
+     "lineno": 197
+    },
+    {
+     "exception": "SimplexUnavailable",
+     "first_arg": "'EXACT_SIMPLEX_SINGULAR: reconstruction incomplete'",
+     "function": "solve",
+     "lineno": 252
+    },
+    {
+     "exception": "SimplexUnavailable",
+     "first_arg": "f'EXACT_SIMPLEX_SINGULAR: basis column {pos} has a nonzero at row {r}, which the singleton elimination order requires to be zero \u2014 the block-triangular structure the decomposition rests on does not hold'",
+     "function": "solve_transpose",
+     "lineno": 274
+    },
+    {
+     "exception": "SimplexUnavailable",
+     "first_arg": "'EXACT_SIMPLEX_SINGULAR: dual reconstruction incomplete'",
+     "function": "solve_transpose",
+     "lineno": 304
+    },
+    {
+     "exception": "SimplexUnavailable",
+     "first_arg": "f'EXACT_SIMPLEX_SINGULAR: unreduced equation {r} not satisfied exactly'",
+     "function": "_verify",
+     "lineno": 321
+    },
+    {
+     "exception": "SimplexUnavailable",
+     "first_arg": "f'EXACT_SIMPLEX_SINGULAR: unreduced transposed equation {i} not satisfied exactly'",
+     "function": "_verify_transpose",
+     "lineno": 336
+    },
+    {
+     "exception": "SimplexUnavailable",
+     "first_arg": "'EXACT_SIMPLEX_SINGULAR: integerising the core failed'",
+     "function": "decompose",
+     "lineno": 385
+    },
+    {
+     "exception": "SimplexUnavailable",
+     "first_arg": "f'EXACT_SIMPLEX_RESOURCE_LIMIT: exceeded {MAX_SECONDS_PER_REPAIR}s'",
+     "function": "_check_limits",
+     "lineno": 421
+    },
+    {
+     "exception": "SimplexUnavailable",
+     "first_arg": "f\"EXACT_SIMPLEX_RESOURCE_LIMIT: integer growth {stats['max_num_bits']}/{stats['max_den_bits']} bits\"",
+     "function": "_check_limits",
+     "lineno": 424
+    },
+    {
+     "exception": "SimplexUnavailable",
+     "first_arg": "f'EXACT_SIMPLEX_SINGULAR: phase {phase} basis is not primal feasible'",
+     "function": "_iterate",
+     "lineno": 453
+    },
+    {
+     "exception": "SimplexUnavailable",
+     "first_arg": "f'EXACT_SIMPLEX_UNBOUNDED: phase {phase}'",
+     "function": "_iterate",
+     "lineno": 486
+    },
+    {
+     "exception": "SimplexUnavailable",
+     "first_arg": "f'EXACT_SIMPLEX_RESOURCE_LIMIT: phase {phase} exceeded {max_pivots} pivots'",
+     "function": "_iterate",
+     "lineno": 507
+    },
+    {
+     "exception": "SimplexUnavailable",
+     "first_arg": "f'EXACT_PHASE_I_POSITIVE: exact Phase-I optimum is {float(phase1_obj):.3e} != 0, so the canonical repair LP is EXACTLY INFEASIBLE. This is a mathematical result, not a numerical failure \u2014 stop for adjudication.'",
+     "function": "solve_lp",
+     "lineno": 549
+    },
+    {
+     "exception": "SimplexUnavailable",
+     "first_arg": "'ARTIFICIAL_BASIS_CLEANUP_FAILED'",
+     "function": "solve_lp",
+     "lineno": 579
+    },
+    {
+     "exception": "SimplexUnavailable",
+     "first_arg": "'ARTIFICIAL_BASIS_CLEANUP_FAILED: artificial survived into II'",
+     "function": "solve_lp",
+     "lineno": 587
+    },
+    {
+     "exception": "SimplexUnavailable",
+     "first_arg": "f'EXACT_SIMPLEX_SINGULAR: Mx = h fails exactly at row {r}'",
+     "function": "solve_lp",
+     "lineno": 619
+    },
+    {
+     "exception": "SimplexUnavailable",
+     "first_arg": "'EXACT_SIMPLEX_SINGULAR: negative standard-form variable'",
+     "function": "solve_lp",
+     "lineno": 621
+    },
+    {
+     "exception": "SimplexUnavailable",
+     "first_arg": "f'EXACT_SIMPLEX_SINGULAR: reduced cost of column {j} is negative at termination'",
+     "function": "solve_lp",
+     "lineno": 632
+    },
+    {
+     "exception": "SimplexUnavailable",
+     "first_arg": "'EXACT_SIMPLEX_SINGULAR: exact objectives disagree'",
+     "function": "solve_lp",
+     "lineno": 638
+    }
+   ],
+   "role": "repair_paths"
+  },
+  "apps/backend/app/research/mr002/joint_portfolio.py": {
+   "callables": [
+    {
+     "docstring_first_line": "FATAL. Stops the run. A solver failure is NEVER converted into a no-trade day.",
+     "kind": "ClassDef",
+     "lineno": 100,
+     "name": "InvalidRun",
+     "sha256_unparsed": "5e68df1f07e7d3d4b486f5fa743392dfa67343603c52021a72e956d785f035c1"
+    },
+    {
+     "docstring_first_line": "The cascade trigger is a version-pinned exact-message match, so a silent version",
+     "kind": "FunctionDef",
+     "lineno": 125,
+     "name": "_assert_registered_solver",
+     "sha256_unparsed": "11a9cd5bd335b35f9c1f430ff809c1542a75f169b6a0a7018bc1ca938132c08c"
+    },
+    {
+     "docstring_first_line": "An existing position at the execution open, AFTER hard exits are processed.",
+     "kind": "ClassDef",
+     "lineno": 176,
+     "name": "Holding",
+     "sha256_unparsed": "fddcef0978dc0b7dc1bf5ac25e952727a34f8cab0cd7791f735e6ea91adc5932"
+    },
+    {
+     "docstring_first_line": "",
+     "kind": "ClassDef",
+     "lineno": 189,
+     "name": "NewCandidate",
+     "sha256_unparsed": "95bbc0504b0f085d0f8d0582823e928344d4f2cb027f0c462cac6b48a0fa85d0"
+    },
+    {
+     "docstring_first_line": "",
+     "kind": "ClassDef",
+     "lineno": 198,
+     "name": "Fixed",
+     "sha256_unparsed": "4111017190be23891728d9bdbad2c43d3ee342e39bd7f98526c7df0d4d543b2b"
+    },
+    {
+     "docstring_first_line": "",
+     "kind": "ClassDef",
+     "lineno": 208,
+     "name": "JointResult",
+     "sha256_unparsed": "51cb4edff8a56d6bac5de0af867564badfc1d5ff98cae257b95854d50503f95a"
+    },
+    {
+     "docstring_first_line": "",
+     "kind": "FunctionDef",
+     "lineno": 215,
+     "name": "_f64_hex",
+     "sha256_unparsed": "7448bd6ffbee8d14a39ccf7be52555fd8078943fc44dd5eda4f874370bd8d877"
+    },
+    {
+     "docstring_first_line": "Return (A_ub, b_ub, A_eq, b_eq, upper_bounds, row_labels).",
+     "kind": "FunctionDef",
+     "lineno": 222,
+     "name": "_build",
+     "sha256_unparsed": "52ac349cc8e9368eac381dabb255ebd4475c1818b2e02d24f8049745e669c706"
+    },
+    {
+     "docstring_first_line": "",
+     "kind": "FunctionDef",
+     "lineno": 308,
+     "name": "_primal_residual",
+     "sha256_unparsed": "17928f60bd7202850ea5c1442258f4ee4e5c87371095749eb00314b6e19ed964"
+    },
+    {
+     "docstring_first_line": "Frozen LP solve. ANY warning is FATAL. Returns (z, info); z is None iff infeasible.",
+     "kind": "FunctionDef",
+     "lineno": 326,
+     "name": "_solve_lp",
+     "sha256_unparsed": "d5cb6aad503cf6fef30e2fd72a3df80189cbfaa95b48deab20981262da7295ae"
+    },
+    {
+     "docstring_first_line": "quadprog form: C' z >= b, first meq rows equalities.",
+     "kind": "FunctionDef",
+     "lineno": 368,
+     "name": "_qp_matrices",
+     "sha256_unparsed": "40bae012cf4db095fe72ac0ed12298f17f7a1e5862ad83dc29ee04ca02ae66a9"
+    },
+    {
+     "docstring_first_line": "Every solve executes under the frozen fatal-warning policy.",
+     "kind": "FunctionDef",
+     "lineno": 379,
+     "name": "_qp_call",
+     "sha256_unparsed": "a82146ed87df008f7d2064f9edf7dfd7282e03847b4232a9e0907bb4dea598ef"
+    },
+    {
+     "docstring_first_line": "ALL residuals, in ORIGINAL z coordinates. Registered as the ONLY basis for",
+     "kind": "FunctionDef",
+     "lineno": 386,
+     "name": "_acceptance",
+     "sha256_unparsed": "60645a1f05e792c257ca12efae3a0d89c60cd6b1877ec144628cc19e2219798c"
+    },
+    {
+     "docstring_first_line": "",
+     "kind": "FunctionDef",
+     "lineno": 406,
+     "name": "_enforce",
+     "sha256_unparsed": "469f41c235b4c989a43e8d20b81473d82a334526f173e403c920788c2cdc1448"
+    },
+    {
+     "docstring_first_line": "Stage 3 \u2014 the COUNTERSIGNED raw -> feasibility-probe -> scaled-rescue cascade.",
+     "kind": "FunctionDef",
+     "lineno": 419,
+     "name": "_solve_qp",
+     "sha256_unparsed": "47b3c4f3b986b9c3d452fa3dd6b6706dcfa621b6b23f0f69a9ea9eed45a7ded9"
+    },
+    {
+     "docstring_first_line": "Joint three-stage lexicographic construction. `holdings` must already have hard",
+     "kind": "FunctionDef",
+     "lineno": 570,
+     "name": "build_joint",
+     "sha256_unparsed": "f3fedbce95686b195ce9384882e412f72a74ae38e47942d189c4bee561254624"
+    },
+    {
+     "docstring_first_line": "Sector topology and binding-constraint report (permitted structural inspection).",
+     "kind": "FunctionDef",
+     "lineno": 812,
+     "name": "_topology",
+     "sha256_unparsed": "03a554d244d11a0923ce6ca50ee5a339cd0d585b23b906c33739dc8441f22b03"
+    },
+    {
+     "docstring_first_line": "Canonical IEEE-754 hex serialization in permanent-identifier order.",
+     "kind": "FunctionDef",
+     "lineno": 866,
+     "name": "_determinism_hash",
+     "sha256_unparsed": "b07f26d3e1debde0352c6fe048063fa842c00cb42be29d9b11172e232f2b326d"
+    }
+   ],
+   "git_tracked": true,
+   "identity": {
+    "bytes": 38415,
+    "crlf": true,
+    "git_blob": "71eb60520a0c5117f0ee4f00ceb9108b47e56b55",
+    "sha256_lf": "4efd57393e2d99e0733f70ceba5e24d9629fb3d4aa8a18837efc36eb157bac43",
+    "sha256_worktree": "7e9b55c33746faa48b4c6520a54ffb72232ffdec8b02aba1507efb1d8027ba5b"
+   },
+   "module_docstring_first_line": "MR-002 v1.1 \u2014 joint retention-and-entry portfolio construction.",
+   "raise_sites": [
+    {
+     "exception": "InvalidRun",
+     "first_arg": "'quadprog distribution metadata not found'",
+     "function": "_assert_registered_solver",
+     "lineno": 139
+    },
+    {
+     "exception": "InvalidRun",
+     "first_arg": "f'quadprog version {got!r} != registered {REGISTERED_QUADPROG_VERSION!r}'",
+     "function": "_assert_registered_solver",
+     "lineno": 141
+    },
+    {
+     "exception": "InvalidRun",
+     "first_arg": "f'frozen-runtime manifest {_PIP_REPORT} not readable ({exc}); MR-002 v1.1 must run inside the frozen mr002-research image'",
+     "function": "_assert_registered_solver",
+     "lineno": 151
+    },
+    {
+     "exception": "InvalidRun",
+     "first_arg": "f'installed quadprog artifact sha256 {sha!r} != registered {REGISTERED_QUADPROG_SHA256!r}'",
+     "function": "_assert_registered_solver",
+     "lineno": 162
+    },
+    {
+     "exception": "InvalidRun",
+     "first_arg": "'quadprog not found in the frozen-runtime manifest'",
+     "function": "_assert_registered_solver",
+     "lineno": 169
+    },
+    {
+     "exception": "InvalidRun",
+     "first_arg": "f'{label}: solver warning is fatal: {w!r}'",
+     "function": "_solve_lp",
+     "lineno": 351
+    },
+    {
+     "exception": "InvalidRun",
+     "first_arg": "f'{label}: LP status {res.status} ({res.message})'",
+     "function": "_solve_lp",
+     "lineno": 357
+    },
+    {
+     "exception": "InvalidRun",
+     "first_arg": "f'{label}: primal residual {pr:.3e} > {PRIMAL_RESIDUAL_MAX:.0e}'",
+     "function": "_solve_lp",
+     "lineno": 362
+    },
+    {
+     "exception": "InvalidRun",
+     "first_arg": "f'{where}: {name} {checks[name]:.3e} > {lim:.0e}'",
+     "function": "_enforce",
+     "lineno": 416
+    },
+    {
+     "exception": "InvalidRun",
+     "first_arg": "f'hessian_condition_number kappa(H)={kappa:.3e} > {HESSIAN_CONDITION_MAX:.0e}'",
+     "function": "_solve_qp",
+     "lineno": 452
+    },
+    {
+     "exception": "InvalidRun",
+     "first_arg": "f'stage3: fatal raw exception (not the registered rescue trigger): {type(exc).__name__}: {exc}'",
+     "function": "_solve_qp",
+     "lineno": 482
+    },
+    {
+     "exception": "InvalidRun",
+     "first_arg": "f'stage3: solver warning is fatal, never a rescue trigger: {w!r}'",
+     "function": "_solve_qp",
+     "lineno": 486
+    },
+    {
+     "exception": "InvalidRun",
+     "first_arg": "'stage3(rescue): non-finite target -> T not invertible'",
+     "function": "_solve_qp",
+     "lineno": 491
+    },
+    {
+     "exception": "InvalidRun",
+     "first_arg": "'stage3(rescue): target <= eps_include -> T not invertible'",
+     "function": "_solve_qp",
+     "lineno": 493
+    },
+    {
+     "exception": "InvalidRun",
+     "first_arg": "'stage3(rescue): t_i is not BITWISE IDENTICAL to the registered upper bound -- the transformation 0<=z<=t <=> 0<=u<=1 is invalid'",
+     "function": "_solve_qp",
+     "lineno": 495
+    },
+    {
+     "exception": "InvalidRun",
+     "first_arg": "f'stage3(probe): solver warning is fatal: {w!r}'",
+     "function": "_solve_qp",
+     "lineno": 506
+    },
+    {
+     "exception": "InvalidRun",
+     "first_arg": "f'stage3(probe): not optimal (status {probe.status}) -> INVALID_RUN'",
+     "function": "_solve_qp",
+     "lineno": 508
+    },
+    {
+     "exception": "InvalidRun",
+     "first_arg": "f'stage3(probe): primal feasibility {probe_pr:.3e} > {PRIMAL_RESIDUAL_MAX:.0e} -> INVALID_RUN'",
+     "function": "_solve_qp",
+     "lineno": 512
+    },
+    {
+     "exception": "InvalidRun",
+     "first_arg": "f'stage3(rescue): solver warning is fatal: {w!r}'",
+     "function": "_solve_qp",
+     "lineno": 528
+    },
+    {
+     "exception": "InvalidRun",
+     "first_arg": "f'stage3(rescue): quadprog failed: {exc}'",
+     "function": "_solve_qp",
+     "lineno": 530
+    },
+    {
+     "exception": "InvalidRun",
+     "first_arg": "'no pyramiding / no same-open re-entry: a held symbol appeared as a new-order variable'",
+     "function": "build_joint",
+     "lineno": 583
+    },
+    {
+     "exception": "InvalidRun",
+     "first_arg": "f'new candidate {c.permaticker} weight {c.w} exceeds the 1.5% entry cap'",
+     "function": "build_joint",
+     "lineno": 587
+    },
+    {
+     "exception": "InvalidRun",
+     "first_arg": "f'{where}: LP infeasible with NO fixed exposure -- y=0,x=0 must be feasible, so this is a malformed model or a numerical defect'",
+     "function": "_eci_or_fatal",
+     "lineno": 684
+    },
+    {
+     "exception": "InvalidRun",
+     "first_arg": "'stage2: LP infeasible although the stage-1 optimum is feasible'",
+     "function": "build_joint",
+     "lineno": 722
+    },
+    {
+     "exception": "InvalidRun",
+     "first_arg": "f'retention band violated: R={R!r} vs R*={R_star!r}'",
+     "function": "build_joint",
+     "lineno": 750
+    },
+    {
+     "exception": "InvalidRun",
+     "first_arg": "f'deployment band violated: Q={Q!r} vs Q*={Q_star!r}'",
+     "function": "build_joint",
+     "lineno": 753
+    },
+    {
+     "exception": "InvalidRun",
+     "first_arg": "f'existing position {h.permaticker} increased: {z3[i]} > {h.c}'",
+     "function": "build_joint",
+     "lineno": 758
+    },
+    {
+     "exception": "InvalidRun",
+     "first_arg": "f'new candidate {c.permaticker} exceeded its registered weight: {z3[n_y + i]} > {c.w}'",
+     "function": "build_joint",
+     "lineno": 761
+    },
+    {
+     "exception": "InvalidRun",
+     "first_arg": "f'post-target constraint breach on {worst}: {max_violation:.3e} > {PRIMAL_RESIDUAL_MAX:.0e}'",
+     "function": "build_joint",
+     "lineno": 782
+    }
+   ],
+   "role": "problem_construction"
+  },
+  "apps/backend/app/research/mr002/n1/method.py": {
+   "callables": [
+    {
+     "docstring_first_line": "One generator's normalized outcome on one instance.",
+     "kind": "ClassDef",
+     "lineno": 110,
+     "name": "GenOutcome",
+     "sha256_unparsed": "f779ae4b7aac7373accec4996089fcc38f680aae6fc07634c6954fac1cbf9d6b"
+    },
+    {
+     "docstring_first_line": "Traceback frames, shallowest first. The last entry is the deepest Python frame.",
+     "kind": "FunctionDef",
+     "lineno": 134,
+     "name": "_frames",
+     "sha256_unparsed": "67e37b78c457d0e843d56a95ef0af238403d8c18266d0aa76ad03658c15532bc"
+    },
+    {
+     "docstring_first_line": "",
+     "kind": "FunctionDef",
+     "lineno": 144,
+     "name": "_domain",
+     "sha256_unparsed": "2a1669d2f4ecc5dcd5d470653141b3a8d875530be252e3aae599ee1c0dfedffa"
+    },
+    {
+     "docstring_first_line": "Sealed \u00a72.5.2 EXACTLY as written: first frame (deepest outward) in a registered domain.",
+     "kind": "FunctionDef",
+     "lineno": 155,
+     "name": "_literal_domain",
+     "sha256_unparsed": "eba16acc6e48652a3f71a794a575d4ba340ebb8ed71b5371944947958dcc2b22"
+    },
+    {
+     "docstring_first_line": "Map a piqp status OBJECT to a registered reason. Structured data, never the message.",
+     "kind": "FunctionDef",
+     "lineno": 167,
+     "name": "_piqp_reason",
+     "sha256_unparsed": "e2b580829d32dccf5f8978e22e38e8fdb021632121b20c1d30a2c5db8afe0a89"
+    },
+    {
+     "docstring_first_line": "Map a clarabel SolverStatus OBJECT to a registered reason. Structured data, never the message.",
+     "kind": "FunctionDef",
+     "lineno": 181,
+     "name": "_clarabel_reason",
+     "sha256_unparsed": "c995589e732e7520f79598cf4ab486e32257dfd2bd7f991183b3df1491051964"
+    },
+    {
+     "docstring_first_line": "Read the solver's terminal status as DATA out of the boundary frame's locals.",
+     "kind": "FunctionDef",
+     "lineno": 199,
+     "name": "_structured_reason",
+     "sha256_unparsed": "0248abeac700fcef50b7a7ed1db5ccd7e64bab8d41bceac452ce1219af3aa8a8"
+    },
+    {
+     "docstring_first_line": "(outcome, reason, provenance, owning_module) for an exception escaping a generator.",
+     "kind": "FunctionDef",
+     "lineno": 217,
+     "name": "classify_exception",
+     "sha256_unparsed": "177ceeee084b16a151f6c2080ffe413eb1dd03c569f51324b82f6a2c8c7ffd8f"
+    },
+    {
+     "docstring_first_line": "Run one generator and map its behaviour to exactly one closed-enum outcome.",
+     "kind": "FunctionDef",
+     "lineno": 246,
+     "name": "normalize",
+     "sha256_unparsed": "3b0226064ebe60b606f71ebc397d9d1164bb5f5b6c7f4d24451ea22b5158c93a"
+    },
+    {
+     "docstring_first_line": "",
+     "kind": "ClassDef",
+     "lineno": 323,
+     "name": "Resolution",
+     "sha256_unparsed": "609f45873f39d3fd20888ca341a80940911d1d0de54afd58bb0e41df218f026f"
+    },
+    {
+     "docstring_first_line": "Resolve one instance through the certificate-driven two-generator method.",
+     "kind": "FunctionDef",
+     "lineno": 332,
+     "name": "resolve",
+     "sha256_unparsed": "579878309f9e5cd09c3ead6dc7d9c9d0999830eb30aa1127163a1b823f752257"
+    }
+   ],
+   "git_tracked": true,
+   "identity": {
+    "bytes": 18542,
+    "crlf": false,
+    "git_blob": "397bd9c40d95632379aab85c84bf07b04cb0ccc1",
+    "sha256_lf": "76e6afcca09e33014eee5f6c657355596445e2c0ad7350edb7cb6bd9fbdb6ff0",
+    "sha256_worktree": "76e6afcca09e33014eee5f6c657355596445e2c0ad7350edb7cb6bd9fbdb6ff0"
+   },
+   "module_docstring_first_line": "MR-002 Gate N1 \u2014 the certificate-driven two-generator Stage-3 method (v2).",
+   "raise_sites": [],
+   "role": "disposition_layer_v2"
+  },
+  "apps/backend/app/research/mr002/n1/reference.py": {
+   "callables": [
+    {
+     "docstring_first_line": "R was invoked outside the development/stress domain.",
+     "kind": "ClassDef",
+     "lineno": 46,
+     "name": "ReferenceDomainViolation",
+     "sha256_unparsed": "89a28cde4da93f15dffc5702c7c9bd6aa5dce6e8234512e79f9416c3fdcaec31"
+    },
+    {
+     "docstring_first_line": "R may never touch a validation instance. Enforced in code, not by convention (\u00a76).",
+     "kind": "FunctionDef",
+     "lineno": 50,
+     "name": "_assert_development_domain",
+     "sha256_unparsed": "c274c927bc09262deadfc4784e82383026c60216e33dc818a4c5aae324609782"
+    },
+    {
+     "docstring_first_line": "EXACT binary rational of an IEEE-754 double. Never `str()`, never a decimal approximation.",
+     "kind": "FunctionDef",
+     "lineno": 64,
+     "name": "to_fraction",
+     "sha256_unparsed": "f993367e7b612c5380b5ac3b69d8149181a496acb1fc7bb15e5d1468c8b2263f"
+    },
+    {
+     "docstring_first_line": "",
+     "kind": "FunctionDef",
+     "lineno": 70,
+     "name": "_bits",
+     "sha256_unparsed": "0134771119e4cfdcc03bacd9e3fdee767a95f3d90e785f7a56109c9b182469c6"
+    },
+    {
+     "docstring_first_line": "",
+     "kind": "ClassDef",
+     "lineno": 75,
+     "name": "ReferenceResult",
+     "sha256_unparsed": "6f45e3dea313f9217ba8b569ba067b535d5382b969a744b54cb6120633053cff"
+    },
+    {
+     "docstring_first_line": "Exact Gaussian elimination with partial pivoting on rationals. None if singular.",
+     "kind": "FunctionDef",
+     "lineno": 93,
+     "name": "_solve_exact",
+     "sha256_unparsed": "03ae455247ce35ad161a6be62d5b6b58372c81262ae88b53bf411b21b917ecf0"
+    },
+    {
+     "docstring_first_line": "Indices of a maximal linearly independent subset of `rows`, exactly, preferring early rows.",
+     "kind": "FunctionDef",
+     "lineno": 119,
+     "name": "_independent_subset",
+     "sha256_unparsed": "c2e46c68b81ff06e38be2f77bd57497b72fc26cc60854d49f739f0bdf5d9f292"
+    },
+    {
+     "docstring_first_line": "Exact minimiser of the registered instance, or R_UNAVAILABLE under a frozen ceiling.",
+     "kind": "FunctionDef",
+     "lineno": 155,
+     "name": "solve_reference",
+     "sha256_unparsed": "d0599eb4b5540fd7c37f0f41e27af3fd2fbc173caa6dfcb2ab6a5538767bbc94"
+    },
+    {
+     "docstring_first_line": "Exact squared distance ||z - z*||^2 between a double vector and the exact minimiser.",
+     "kind": "FunctionDef",
+     "lineno": 281,
+     "name": "exact_distance",
+     "sha256_unparsed": "1007821d01e7b4b9ab30f9fa10919b684a902efb33ca35c0789087b5fcdce7ac"
+    }
+   ],
+   "git_tracked": true,
+   "identity": {
+    "bytes": 13517,
+    "crlf": false,
+    "git_blob": "b96859f4c9f1791659a0343a2eb822250aec7771",
+    "sha256_lf": "474683a04f60d5adb5f94056af5abe5be93c322f61f50a86da9c876db1c4cee1",
+    "sha256_worktree": "474683a04f60d5adb5f94056af5abe5be93c322f61f50a86da9c876db1c4cee1"
+   },
+   "module_docstring_first_line": "MR-002 Gate N1 \u2014 Reference Solver R: exact-rational active-set QP.",
+   "raise_sites": [
+    {
+     "exception": "ReferenceDomainViolation",
+     "first_arg": "f'Reference Solver R invoked with {var} set. R is development/stress only and is never consulted on a validation instance.'",
+     "function": "_assert_development_domain",
+     "lineno": 58
+    },
+    {
+     "exception": "OverflowError",
+     "first_arg": "'rational bit ceiling exceeded'",
+     "function": "_solve_exact",
+     "lineno": 115
+    }
+   ],
+   "role": "disposition_layer_v2"
+  },
+  "apps/backend/app/research/mr002/n1/seam.py": {
+   "callables": [
+    {
+     "docstring_first_line": "A terminal v2 disposition. Per the frozen stop rule this ends the run; it is never converted",
+     "kind": "ClassDef",
+     "lineno": 32,
+     "name": "Stage3StopV2",
+     "sha256_unparsed": "7b3ab1c1ccdb7bd0c5c7d9d67974a6429e61b273e2c13fa61b824fb147a27605"
+    },
+    {
+     "docstring_first_line": "Route Stage-3 through the v2 certificate-driven method for the duration of the block.",
+     "kind": "FunctionDef",
+     "lineno": 43,
+     "name": "routed_v2",
+     "sha256_unparsed": "d49dda82fb3a0bcb1db94f838e05d7cc1d05ce9ec724c1883c34f83a20a6291f"
+    },
+    {
+     "docstring_first_line": "Reconcile every Stage-3 invocation to a registered v2 disposition.",
+     "kind": "FunctionDef",
+     "lineno": 104,
+     "name": "census_summary",
+     "sha256_unparsed": "f3a3efb607e4eb3c1b6af1b1110ddb7229f70034b39ac7810ec4ef319e460881"
+    }
+   ],
+   "git_tracked": true,
+   "identity": {
+    "bytes": 5474,
+    "crlf": false,
+    "git_blob": "23baaeb7572fcae651d406e76d6b0e2e3ef04ac6",
+    "sha256_lf": "503d11f50e99846e5afacbf31415c956db16090631509d99e8e4e63465081409",
+    "sha256_worktree": "503d11f50e99846e5afacbf31415c956db16090631509d99e8e4e63465081409"
+   },
+   "module_docstring_first_line": "MR-002 Gate N1 \u2014 the v2 Stage-3 seam, for the governed development replay.",
+   "raise_sites": [
+    {
+     "exception": "jp.InvalidRun",
+     "first_arg": "f'hessian_condition_number kappa(H)={kappa:.3e} > {jp.HESSIAN_CONDITION_MAX:.0e}'",
+     "function": "_routed",
+     "lineno": 57
+    },
+    {
+     "exception": "Stage3StopV2",
+     "first_arg": "res",
+     "function": "_routed",
+     "lineno": 81
+    }
+   ],
+   "role": "disposition_layer_v2"
+  },
+  "apps/backend/app/research/mr002/portfolio.py": {
+   "callables": [
+    {
+     "docstring_first_line": "",
+     "kind": "ClassDef",
+     "lineno": 56,
+     "name": "Position",
+     "sha256_unparsed": "8f7c94f489807d76d6bcbbe2e17d7071cd7d2a24235cbc3757a88d3c3a177d82"
+    },
+    {
+     "docstring_first_line": "",
+     "kind": "ClassDef",
+     "lineno": 72,
+     "name": "Candidate",
+     "sha256_unparsed": "0c9746e4d2c69bc4984a7d3592d54520d4612e65e16c43e3e45be9a3f659d180"
+    },
+    {
+     "docstring_first_line": "",
+     "kind": "ClassDef",
+     "lineno": 85,
+     "name": "Order",
+     "sha256_unparsed": "a14d0b79f51ee5e9aaebca34ea0b5f6cd1befee74b9780eae358b2246881e8d0"
+    },
+    {
+     "docstring_first_line": "",
+     "kind": "ClassDef",
+     "lineno": 98,
+     "name": "ConstructionResult",
+     "sha256_unparsed": "32bad7ad792a1944adf68f63fae19e8747d5ecc01426430362a71fcb2774b804"
+    },
+    {
+     "docstring_first_line": "",
+     "kind": "FunctionDef",
+     "lineno": 104,
+     "name": "_exposure",
+     "sha256_unparsed": "610a58cffa9509a656fabfa441680995557a42aaa124536dd04c4369a67301ff"
+    },
+    {
+     "docstring_first_line": "The frozen deterministic construction (exits are applied by the caller first).",
+     "kind": "FunctionDef",
+     "lineno": 112,
+     "name": "build_orders",
+     "sha256_unparsed": "aac0f64ccfd1595d7cd9d49a61bd40ac2942270b82e6f98c3c8aab17f6780330"
+    },
+    {
+     "docstring_first_line": "Entry-neutral drift band (frozen \u00a75): no rebalance while |net| <= 5% of gross.",
+     "kind": "FunctionDef",
+     "lineno": 301,
+     "name": "drift_reductions",
+     "sha256_unparsed": "e89c16faa16e9eacbc04b585da9ce8956657e74cf934900ac2891831d8780760"
+    }
+   ],
+   "git_tracked": true,
+   "identity": {
+    "bytes": 14540,
+    "crlf": true,
+    "git_blob": "41f2b5acf9fda1d0585efad54fe99e5cd5b87e05",
+    "sha256_lf": "c324a7d7ec467ed576237335703a8c43a18f92e5f68d6c275dee9b4f978caaba",
+    "sha256_worktree": "31bbd14ae31720480ada9303d71a1f70e164ac2bf37724f7d06f56d6f114e34c"
+   },
+   "module_docstring_first_line": "MR-002 deterministic portfolio construction \u2014 FROZEN v1.0 \u00a75 (immutable).",
+   "raise_sites": [],
+   "role": "problem_construction"
+  },
+  "apps/backend/app/research/mr002/repair.py": {
+   "callables": [
+    {
+     "docstring_first_line": "REPAIR_CERTIFICATE_UNAVAILABLE.",
+     "kind": "ClassDef",
+     "lineno": 120,
+     "name": "RepairUnavailable",
+     "sha256_unparsed": "2040447adfd2be21c9f770803b31d97f0ebca841ccd7cbcb0edbc52a318bfefa"
+    },
+    {
+     "docstring_first_line": "",
+     "kind": "ClassDef",
+     "lineno": 133,
+     "name": "RepairCertificate",
+     "sha256_unparsed": "17e2089939bba5f4477bf2be8da9688b77424adb6459b5eef50256d058e7746e"
+    },
+    {
+     "docstring_first_line": "meq == 1, asserted rather than assumed.",
+     "kind": "FunctionDef",
+     "lineno": 150,
+     "name": "assert_structure",
+     "sha256_unparsed": "2370e5913a66c47ccce6d824b47dd4e5b3624f2a8f21e9c7b639019526cdadf6"
+    },
+    {
+     "docstring_first_line": "\u00a74 \u2014 a structurally empty row: every coefficient EXACTLY zero.",
+     "kind": "FunctionDef",
+     "lineno": 164,
+     "name": "empty_rows_of",
+     "sha256_unparsed": "52ed474829f56a1c58875d0d18679f78ab065ee1bee8504b744f3a34692a42c1"
+    },
+    {
+     "docstring_first_line": "\u00a75 \u2014 u_i > 2*eta for every variable, or the tightened box is empty.",
+     "kind": "FunctionDef",
+     "lineno": 186,
+     "name": "assert_tightened_box_nonempty",
+     "sha256_unparsed": "e2d4259ba5d309504720fd222991339b6230ef641a04d833566579d574a22ec3"
+    },
+    {
+     "docstring_first_line": "A variable's identity in terms of the MODEL, never its current column index.",
+     "kind": "FunctionDef",
+     "lineno": 204,
+     "name": "canonical_key",
+     "sha256_unparsed": "0fca0c109b93d8d33cc4bd9064c58edb163fa92fb46812baa80354189b2ad516"
+    },
+    {
+     "docstring_first_line": "The tightened proposal in CLARABEL form: min 1/2 w'Pw + q'w  s.t.  A w + s = b, s in K.",
+     "kind": "FunctionDef",
+     "lineno": 223,
+     "name": "build_tightened_problem",
+     "sha256_unparsed": "e8528a5e45d087ed231cf8abae4a53b7d7777347f7f161ed81a655de10434bab"
+    },
+    {
+     "docstring_first_line": "The frozen C1 settings, with every value READ BACK and verified.",
+     "kind": "FunctionDef",
+     "lineno": 259,
+     "name": "_settings",
+     "sha256_unparsed": "843991ddf3e9078f35d78bf10eeed5cd19f83465ae50ab30d2f41157680bab27"
+    },
+    {
+     "docstring_first_line": "A setting that does not read back is a setting that was not applied.",
+     "kind": "FunctionDef",
+     "lineno": 300,
+     "name": "_verify_readback",
+     "sha256_unparsed": "efe56e468e97306830c3f451da72481733aa63a44fa0b498b9c95644dbd58a5a"
+    },
+    {
+     "docstring_first_line": "The permutation that puts the proposal problem into a MODEL-DEFINED order.",
+     "kind": "FunctionDef",
+     "lineno": 313,
+     "name": "canonical_order",
+     "sha256_unparsed": "72521ca659f445772e1eedd4e4bec6b4fa0c7fd840b0111c4d15203d49c77b1f"
+    },
+    {
+     "docstring_first_line": "The ONE frozen deterministic proposal path: Clarabel, status `Solved`, primal only.",
+     "kind": "FunctionDef",
+     "lineno": 353,
+     "name": "propose_r2",
+     "sha256_unparsed": "63f52a97cfb275fac99577ff7d20a350c553bf88a1fc65c05730d283196b29b9"
+    },
+    {
+     "docstring_first_line": "Clip exactly, enumerate every absorber, verify against the ORIGINAL constraints, select the",
+     "kind": "FunctionDef",
+     "lineno": 422,
+     "name": "exact_repair_from_proposal",
+     "sha256_unparsed": "796196743f73654993bc07f896075bd600130da30dedd12101db917b294b8669"
+    },
+    {
+     "docstring_first_line": "Production entry point: R2 tightened proposal, then the exact certificate.",
+     "kind": "FunctionDef",
+     "lineno": 480,
+     "name": "repair",
+     "sha256_unparsed": "bba62f7cf021c3aae9a205aeedb4180bd90bae979aa0d27829b2faf96e442966"
+    },
+    {
+     "docstring_first_line": "Exact feasibility -> nonnegative repaired gap -> agreement radius.",
+     "kind": "FunctionDef",
+     "lineno": 492,
+     "name": "certify_repair",
+     "sha256_unparsed": "d432cc3f5ef51f7f5adf38784732e01c2b0ccdd4f6c9b105494b0889dc96999c"
+    },
+    {
+     "docstring_first_line": "||z1 - z2|| <= R1 + R2 + 1e-10, with the left side ALSO taken at an upper endpoint.",
+     "kind": "FunctionDef",
+     "lineno": 531,
+     "name": "agreement",
+     "sha256_unparsed": "e71d46135e064fca18de7bd9caed55466a5ce16840f2c87d3618a89d80ffb181"
+    },
+    {
+     "docstring_first_line": "|f(z1) - f(z2)| <= U1 + U2 + 1e-12, from complete interval enclosures.",
+     "kind": "FunctionDef",
+     "lineno": 540,
+     "name": "objective_agreement",
+     "sha256_unparsed": "9a5dccc0995aad32fb03c8b60da4824b7f29c2df2833a9e3adcce4ab371820bb"
+    },
+    {
+     "docstring_first_line": "\u00a74 \u2014 eta, the Clarabel settings and the proposal-path identity, for the evidence record.",
+     "kind": "FunctionDef",
+     "lineno": 549,
+     "name": "manifest",
+     "sha256_unparsed": "3aac12a47bb1d8830486a40ad67e1527f2a98c374a4217e3d656e36d7c0adb90"
+    }
+   ],
+   "git_tracked": true,
+   "identity": {
+    "bytes": 30288,
+    "crlf": true,
+    "git_blob": "1c322269b160b5d3b3332bbe0e873cc30df2ba89",
+    "sha256_lf": "ddb62ffc026024e0de7063b1b0416b64a20af6d26ea29541681567bdd92a9a71",
+    "sha256_worktree": "2133b7450c0fd1fb150eace8ecdb2bfd23c50fd303bfe6a604667887c6c35f27"
+   },
+   "module_docstring_first_line": "MR-002 Stage-3 \u2014 EXACT-RATIONAL FEASIBLE-REPAIR CERTIFICATE, proposal profile R2.",
+   "raise_sites": [
+    {
+     "exception": "CertificateDefect",
+     "first_arg": "f'exact-rational repair is authorized for meq == 1 only; this model has {A_eq.shape[0]} equality rows. It must NOT silently generalize \u2014 stop.'",
+     "function": "assert_structure",
+     "lineno": 154
+    },
+    {
+     "exception": "CertificateDefect",
+     "first_arg": "'equality row is not finite'",
+     "function": "assert_structure",
+     "lineno": 159
+    },
+    {
+     "exception": "CertificateDefect",
+     "first_arg": "'equality row has no nonzero coefficient \u2014 no absorber exists'",
+     "function": "assert_structure",
+     "lineno": 161
+    },
+    {
+     "exception": "CertificateDefect",
+     "first_arg": "f'INVALID ORIGINAL MODEL: inequality row {r} is structurally empty with b = {float(rhs)!r} < 0, i.e. 0 <= b is false. Unsatisfiable as written.'",
+     "function": "empty_rows_of",
+     "lineno": 178
+    },
+    {
+     "exception": "RepairUnavailable",
+     "first_arg": "f'TIGHTENED_BOX_EMPTY: {len(bad)} variable(s) have u_i <= 2*eta (first: index {bad[0][0]}, u = {bad[0][1]}). eta is frozen; the box cannot be opened by shrinking it.'",
+     "function": "assert_tightened_box_nonempty",
+     "lineno": 194
+    },
+    {
+     "exception": "CertificateDefect",
+     "first_arg": "f'Clarabel rejected setting {k}={v!r} ({type(e).__name__}). The tolerance is derived from eta and may not be silently substituted. STOP.'",
+     "function": "_settings",
+     "lineno": 293
+    },
+    {
+     "exception": "RepairUnavailable",
+     "first_arg": "f'TIGHTENED_PROPOSAL_NOT_OBTAINED: settings read-back mismatch on {k}: set {v!r}, read {got!r}'",
+     "function": "_verify_readback",
+     "lineno": 307
+    },
+    {
+     "exception": "RepairUnavailable",
+     "first_arg": "f'TIGHTENED_PROPOSAL_NOT_OBTAINED: {type(e).__name__}: {str(e)[:90]}'",
+     "function": "propose_r2",
+     "lineno": 400
+    },
+    {
+     "exception": "RepairUnavailable",
+     "first_arg": "f\"TIGHTENED_PROPOSAL_NOT_OBTAINED: Clarabel status {status!r} (only 'Solved' is accepted; reduced-accuracy results are not)\"",
+     "function": "propose_r2",
+     "lineno": 406
+    },
+    {
+     "exception": "RepairUnavailable",
+     "first_arg": "'TIGHTENED_PROPOSAL_NOT_OBTAINED: non-finite or misshaped primal'",
+     "function": "propose_r2",
+     "lineno": 412
+    },
+    {
+     "exception": "RepairUnavailable",
+     "first_arg": "f'NO_EXACT_ABSORBER_CANDIDATE: all {len(candidates)} absorbers failed exact verification against the original constraints. This says nothing about the solver, the feasible set, or economic feasibility.'",
+     "function": "exact_repair_from_proposal",
+     "lineno": 468
+    },
+    {
+     "exception": "CertificateDefect",
+     "first_arg": "'non-finite repaired gap'",
+     "function": "certify_repair",
+     "lineno": 510
+    },
+    {
+     "exception": "CertificateDefect",
+     "first_arg": "f'repaired gap {ghat_u:.6e} is negative at an EXACTLY feasible point. Weak duality forbids this \u2014 a certificate or interval-direction defect. INVALID_RUN.'",
+     "function": "certify_repair",
+     "lineno": 512
+    }
+   ],
+   "role": "repair_paths"
+  },
+  "apps/backend/app/research/mr002/stage3_cascade.py": {
+   "callables": [
+    {
+     "docstring_first_line": "A production integrity precondition (e.g. solver identity) that must fail loudly.",
+     "kind": "ClassDef",
+     "lineno": 74,
+     "name": "Stage3IntegrityError",
+     "sha256_unparsed": "53aa32937247956c7482e78fe0a9bf475ff9bf5843dc83dd6b546164220d78c0"
+    },
+    {
+     "docstring_first_line": "Exact, solver-scoped lookup. `type(exc)` is the class OBJECT, so subclasses and same-named",
+     "kind": "FunctionDef",
+     "lineno": 122,
+     "name": "match_registered_numerical",
+     "sha256_unparsed": "0d01a020d365d81956669a8fab14efee293fb07850a83a8d6f4c2b16bacbeb21"
+    },
+    {
+     "docstring_first_line": "The normalized outcome of ONE solver on the registered problem.",
+     "kind": "ClassDef",
+     "lineno": 134,
+     "name": "Attempt",
+     "sha256_unparsed": "280a332db4fe056d75fa00f9672b956f1b38824fc82fcaaca72589e83b6d4da7"
+    },
+    {
+     "docstring_first_line": "The terminal \u00a77 disposition of the cascade on one registered problem.",
+     "kind": "ClassDef",
+     "lineno": 158,
+     "name": "Outcome",
+     "sha256_unparsed": "9ede1b176092ba27aa747a034adda19f017249659dd1a69489479b7903c81a6f"
+    },
+    {
+     "docstring_first_line": "Internal marker so a certifier fault is always classified INTEGRITY_DEFECT (\u00a77-C).",
+     "kind": "ClassDef",
+     "lineno": 201,
+     "name": "_CertifierException",
+     "sha256_unparsed": "a32b9e261760a1da6c4e966a1b86c5c7e8261ba6e37dfc441887a4184eeb540a"
+    },
+    {
+     "docstring_first_line": "Return a defect string if the registered problem is itself malformed, else None.",
+     "kind": "FunctionDef",
+     "lineno": 241,
+     "name": "validate_model_inputs",
+     "sha256_unparsed": "44633c0d79490a0c561e5c41aee5130f8f21c81d53ca0f2ab26a83a51308034e"
+    },
+    {
+     "docstring_first_line": "(n, lam_len) for the canonical `_qp_matrices` layout: lam has meq + m_ub + 2n entries.",
+     "kind": "FunctionDef",
+     "lineno": 283,
+     "name": "_expected_lengths",
+     "sha256_unparsed": "0c179d20684ce82b33b4408cc3cd4f804b534799df82c642d5bd8a5ef32d3e5e"
+    },
+    {
+     "docstring_first_line": "A read-only float64 copy (findings 13, 21): downstream cannot mutate accepted evidence.",
+     "kind": "FunctionDef",
+     "lineno": 292,
+     "name": "_frozen_copy",
+     "sha256_unparsed": "bcd0a8f6a3cf2e114c995948a659d6d3f279a7c6236238a4e0ad11bb8ca822b5"
+    },
+    {
+     "docstring_first_line": "Normalize a validated rec into ONE canonical, copied, read-only tuple used for validation,",
+     "kind": "FunctionDef",
+     "lineno": 301,
+     "name": "canonicalize",
+     "sha256_unparsed": "85f0a6ee45c90537618f33a6ae866d0c8f8f30fc9453bd413857b843cdd56358"
+    },
+    {
+     "docstring_first_line": "Run one solver and map its raw behavior to exactly one closed-enum category.",
+     "kind": "FunctionDef",
+     "lineno": 312,
+     "name": "normalize",
+     "sha256_unparsed": "0f1964618fc6a3d80f2cb1c7a18534ade71a3a6c27c884dc5039b81d1e8a79a7"
+    },
+    {
+     "docstring_first_line": "Return a defect string if the certifier's return violates the registered (ok, bad, cert)",
+     "kind": "FunctionDef",
+     "lineno": 384,
+     "name": "_validate_certifier_result",
+     "sha256_unparsed": "6a64b81038a237e453370e2f2793f7fdeb75f7f1c2efd16cafec4d880199563a"
+    },
+    {
+     "docstring_first_line": "Resolve one registered problem through `QUADPROG_SQRT -> PIQP_P2 (once)`.",
+     "kind": "FunctionDef",
+     "lineno": 409,
+     "name": "resolve",
+     "sha256_unparsed": "6023d455eddf2e78e98213557dbd7a203d08a2b3825de0d5337d25067248eca0"
+    },
+    {
+     "docstring_first_line": "Immutable snapshot of an ACCEPTED certificate, taken at normalization time (cycle-4 finding",
+     "kind": "ClassDef",
+     "lineno": 483,
+     "name": "CertSnapshot",
+     "sha256_unparsed": "71527e5462870b2ed33178ab6d8b82b9d65a3044085624a64c0a90feeed3c026"
+    },
+    {
+     "docstring_first_line": "Freeze a certificate's registered fields; None if any registered field is missing.",
+     "kind": "FunctionDef",
+     "lineno": 503,
+     "name": "_snapshot_certificate",
+     "sha256_unparsed": "fb57bc72c7fe703832de2163c7c231988e320b7f51aad1a804c5802481c6d931"
+    },
+    {
+     "docstring_first_line": "Structural consistency gate for a resolved Outcome (cycle-3 finding 7). Returns a defect",
+     "kind": "FunctionDef",
+     "lineno": 511,
+     "name": "validate_outcome",
+     "sha256_unparsed": "de273933e3efe9fa7cb1607c0346822429fd88aba2ee5b9a912c5a7d05c43d54"
+    },
+    {
+     "docstring_first_line": "A qualified acceptance must carry a full, finite, correctly-sized primal + dual + a complete",
+     "kind": "FunctionDef",
+     "lineno": 581,
+     "name": "_accepted_evidence_defect",
+     "sha256_unparsed": "267fad4203ac28e6227ef5736b9821efb9d55c7aa376c0c8f5bb16f116f55b5d"
+    },
+    {
+     "docstring_first_line": "Each float64 as float.hex() \u2014 lossless textual binary64 (preserves \u00b10.0, subnormals, and",
+     "kind": "FunctionDef",
+     "lineno": 629,
+     "name": "_exact_hex_list",
+     "sha256_unparsed": "150b5c091fc98f2e4d6144221e745cf4f865fc3f6618e259eb4cd0277f4f984a"
+    },
+    {
+     "docstring_first_line": "Stable content hash of the canonical registered problem (shape + exact float64 bytes).",
+     "kind": "FunctionDef",
+     "lineno": 639,
+     "name": "rec_content_hash",
+     "sha256_unparsed": "b4364dce663c4e86f22dc00dfb51d8018c48da5c9333006f6459dc68ebde18af"
+    },
+    {
+     "docstring_first_line": "Complete, independently re-certifiable per-row numerical evidence (cycle-3 finding 8).",
+     "kind": "FunctionDef",
+     "lineno": 650,
+     "name": "numerical_evidence",
+     "sha256_unparsed": "b2dcf304a7b95edf9c3a9a29e78c301154a50c190a1f8c7342d4853caaf08c39"
+    },
+    {
+     "docstring_first_line": "Serialize the registered certificate's COMPLETE field set. A missing registered field is an",
+     "kind": "FunctionDef",
+     "lineno": 689,
+     "name": "_certificate_fields",
+     "sha256_unparsed": "5eacb33c37097613439efee919014fbe22b74ac8bd696b49947431dd334a21e2"
+    },
+    {
+     "docstring_first_line": "A binding registry that can be SEALED once (finding 22; hardened per cycle-3 finding 19):",
+     "kind": "ClassDef",
+     "lineno": 702,
+     "name": "_SealableRegistry",
+     "sha256_unparsed": "a206de10bb0447ff00131bd493c26ac621be81927f51b33a0a22ae53d5e8dc5d"
+    },
+    {
+     "docstring_first_line": "Bind the frozen primary/fallback/certifier ONCE, optionally verify their source fingerprints",
+     "kind": "FunctionDef",
+     "lineno": 756,
+     "name": "seal_implementations",
+     "sha256_unparsed": "177821f348472aa67393099d067fdd7491c2c43fa7552aed4bf17a19286830e6"
+    },
+    {
+     "docstring_first_line": "Bind primary/fallback/certifier into _REAL with solver-identity checks (idempotent).",
+     "kind": "FunctionDef",
+     "lineno": 792,
+     "name": "_bind_defaults",
+     "sha256_unparsed": "84dcfe6fd7a0829fd57323ffa22d8a127b6dc24ed9ab4128167de5b407a6ca27"
+    },
+    {
+     "docstring_first_line": "The frozen QUADPROG_SQRT (z, lam) path used by the immutable characterization corpus.",
+     "kind": "FunctionDef",
+     "lineno": 809,
+     "name": "_default_primary",
+     "sha256_unparsed": "789ee614296cdf1b1ebb45f9b37cee27b7bc6b98b64b4bfe31e56f802aa7b746"
+    },
+    {
+     "docstring_first_line": "The frozen PIQP_P2 (z, lam) path (mr002_piqp BASE, preconditioner_scale_cost=true).",
+     "kind": "FunctionDef",
+     "lineno": 816,
+     "name": "_default_fallback",
+     "sha256_unparsed": "28e882340d3c891cb3fd5a5b4e40b6b20f1956471feedc2a5f332025d9ebaac6"
+    },
+    {
+     "docstring_first_line": "The single registered certifier: registered KKT LIMITS + two-sided signed Lagrangian gap.",
+     "kind": "FunctionDef",
+     "lineno": 823,
+     "name": "_default_certifier",
+     "sha256_unparsed": "cee938f011a3bfda56a79c7875d2a51b718523e13adb2590205a975e88ec7d2b"
+    },
+    {
+     "docstring_first_line": "Production cascade for one registered problem, bound to the frozen numerical implementations.",
+     "kind": "FunctionDef",
+     "lineno": 842,
+     "name": "resolve_instance",
+     "sha256_unparsed": "4f0cc6d9eba2c0788e2269ebf521500f817cc5d6bab9200732de8635ac688506"
+    }
+   ],
+   "git_tracked": true,
+   "identity": {
+    "bytes": 45030,
+    "crlf": false,
+    "git_blob": "e59f4bc4692bcf4ec3f0af44979ecd640e2106c8",
+    "sha256_lf": "1021cc287051a61a088c4a715604922f03ee4dfcff41a334681dab12cb3265ef",
+    "sha256_worktree": "1021cc287051a61a088c4a715604922f03ee4dfcff41a334681dab12cb3265ef"
+   },
+   "module_docstring_first_line": "MR-002 Stage-3 \u2014 finalized cascade `QUADPROG_SQRT -> PIQP_P2 (once)`.",
+   "raise_sites": [
+    {
+     "exception": "Stage3IntegrityError",
+     "first_arg": "'EVIDENCE_NON_FINITE_VALUE'",
+     "function": "_exact_hex_list",
+     "lineno": 635
+    },
+    {
+     "exception": "Stage3IntegrityError",
+     "first_arg": "f'certificate missing registered fields: {missing}'",
+     "function": "_certificate_fields",
+     "lineno": 694
+    },
+    {
+     "exception": "Stage3IntegrityError",
+     "first_arg": "f'attempt to {op} the sealed implementation registry'",
+     "function": "_guard",
+     "lineno": 717
+    },
+    {
+     "exception": "Stage3IntegrityError",
+     "first_arg": "f'fingerprint pin set not closed: missing={sorted(REQUIRED_FINGERPRINT_KEYS - set(expected_fingerprints))} extra={sorted(set(expected_fingerprints) - REQUIRED_FINGERPRINT_KEYS)}'",
+     "function": "seal_implementations",
+     "lineno": 781
+    },
+    {
+     "exception": "Stage3IntegrityError",
+     "first_arg": "f'callable fingerprint drift: {list(drift)}'",
+     "function": "seal_implementations",
+     "lineno": 787
+    },
+    {
+     "exception": "Stage3IntegrityError",
+     "first_arg": "f'solver identity drift: PRIMARY={PRIMARY!r} FALLBACK={FALLBACK!r}'",
+     "function": "_bind_defaults",
+     "lineno": 797
+    },
+    {
+     "exception": "_CertifierException",
+     "first_arg": "str(exc)",
+     "function": "_default_certifier",
+     "lineno": 834
+    },
+    {
+     "exception": "_CertifierException",
+     "first_arg": "f'certifier returned {type(cert).__name__}, not SignedGapCertificate'",
+     "function": "_default_certifier",
+     "lineno": 838
+    }
+   ],
+   "role": "disposition_layer_v1"
+  },
+  "apps/backend/app/research/mr002/stage3_route.py": {
+   "callables": [
+    {
+     "docstring_first_line": "A terminal stop disposition from the successor cascade.",
+     "kind": "ClassDef",
+     "lineno": 42,
+     "name": "Stage3Stop",
+     "sha256_unparsed": "8f9f8543275c6ac76733649b166164cafaa461f00088dfadce66f176e40f6fbd"
+    },
+    {
+     "docstring_first_line": "Route Stage-3 through the successor cascade for the duration of the block.",
+     "kind": "FunctionDef",
+     "lineno": 56,
+     "name": "routed",
+     "sha256_unparsed": "fba6abff32f31629779e26d2cf5741bdd87aea2b817e319af6b86375a259f872"
+    },
+    {
+     "docstring_first_line": "Reconcile every Stage-3 invocation to a registered disposition.",
+     "kind": "FunctionDef",
+     "lineno": 119,
+     "name": "census_summary",
+     "sha256_unparsed": "a72bc82c10c6ac080d7328029b0020e9c2cd70e2ee9b958199e9c235c95b8d8b"
+    }
+   ],
+   "git_tracked": true,
+   "identity": {
+    "bytes": 6077,
+    "crlf": false,
+    "git_blob": "14002df1af2a6d68066ff9116a35328eea0107a6",
+    "sha256_lf": "42335ad9d67ccea60020731550c4d04887d744cd6d56d40506269994960554a2",
+    "sha256_worktree": "42335ad9d67ccea60020731550c4d04887d744cd6d56d40506269994960554a2"
+   },
+   "module_docstring_first_line": "Route `joint_portfolio` Stage-3 through the countersigned successor cascade.",
+   "raise_sites": [
+    {
+     "exception": "RuntimeError",
+     "first_arg": "f'Stage-3 routing requires the execution countersignature {EXECUTION_COUNTERSIGNATURE_ID!r}; got {countersignature!r}. The design countersignature alone does not authorize execution.'",
+     "function": "routed",
+     "lineno": 62
+    },
+    {
+     "exception": "jp.InvalidRun",
+     "first_arg": "f'hessian_condition_number kappa(H)={kappa:.3e} > {jp.HESSIAN_CONDITION_MAX:.0e}'",
+     "function": "_routed_solve_qp",
+     "lineno": 77
+    },
+    {
+     "exception": "Stage3Stop",
+     "first_arg": "outcome",
+     "function": "_routed_solve_qp",
+     "lineno": 90
+    },
+    {
+     "exception": "Stage3Stop",
+     "first_arg": "outcome",
+     "function": "_routed_solve_qp",
+     "lineno": 94
+    }
+   ],
+   "role": "disposition_layer_v1"
+  },
+  "apps/backend/scripts/mr002_characterize_native_qp.py": {
+   "callables": [
+    {
+     "docstring_first_line": "",
+     "kind": "FunctionDef",
+     "lineno": 50,
+     "name": "_hash_instance",
+     "sha256_unparsed": "0886a6a8054025ca378bb55864c6cfec576e276c2f5b2a166f6ac13069fffc49"
+    },
+    {
+     "docstring_first_line": "External original-coordinate primal-dual gap.",
+     "kind": "FunctionDef",
+     "lineno": 59,
+     "name": "external_gap",
+     "sha256_unparsed": "ef628ce515dc9e0939fed15c6c349d4c4fba4fd2a5eedf7fa2a315ed05507f1c"
+    },
+    {
+     "docstring_first_line": "",
+     "kind": "FunctionDef",
+     "lineno": 83,
+     "name": "solve_highs",
+     "sha256_unparsed": "4bbcb20919f4bbce45acc80528368fb6c6aa0c7bbf78843ef0de785d613a0a61"
+    },
+    {
+     "docstring_first_line": "",
+     "kind": "FunctionDef",
+     "lineno": 157,
+     "name": "solve_clarabel",
+     "sha256_unparsed": "5a82bd0e4855919eca42d772263f3012a2f836db785da4d562604fb88e5219e7"
+    },
+    {
+     "docstring_first_line": "",
+     "kind": "FunctionDef",
+     "lineno": 205,
+     "name": "evaluate",
+     "sha256_unparsed": "6ad5d582b7bc0942fdd7e0589db2a02fbcbd78f8cd7d4889d1b82babd16881ff"
+    },
+    {
+     "docstring_first_line": "",
+     "kind": "FunctionDef",
+     "lineno": 227,
+     "name": "main",
+     "sha256_unparsed": "267db1cb294b47d1771f7e99c156094fc46d75f32b67dae9f74e1f6e7a71b34f"
+    }
+   ],
+   "git_tracked": true,
+   "identity": {
+    "bytes": 14419,
+    "crlf": true,
+    "git_blob": "d88b49e192603fc824c42bf6f8f12514e470f911",
+    "sha256_lf": "bba6fbb4901f21361d2c1c1b84c624d0299921536883cfad93244182c9cc6244",
+    "sha256_worktree": "42ac49275cc1fb4b8831ede5e94521ddc6aa4876a42737288e6ef42a0121dfcb"
+   },
+   "module_docstring_first_line": "MR-002 v1.1 \u2014 NATIVE HiGHS-QP and CLARABEL CHARACTERIZATION (immutable 3,895 corpus).",
+   "raise_sites": [
+    {
+     "exception": "RuntimeError",
+     "first_arg": "f'option {k} rejected: {st}'",
+     "function": "solve_highs",
+     "lineno": 98
+    },
+    {
+     "exception": "RuntimeError",
+     "first_arg": "'passModel failed'",
+     "function": "solve_highs",
+     "lineno": 127
+    },
+    {
+     "exception": "RuntimeError",
+     "first_arg": "'run status not kOk'",
+     "function": "solve_highs",
+     "lineno": 129
+    },
+    {
+     "exception": "RuntimeError",
+     "first_arg": "f'model status {ms}'",
+     "function": "solve_highs",
+     "lineno": 132
+    },
+    {
+     "exception": "RuntimeError",
+     "first_arg": "f'status {sol.status}'",
+     "function": "solve_clarabel",
+     "lineno": 195
+    },
+    {
+     "exception": "RuntimeError",
+     "first_arg": "'non-finite primal or dual'",
+     "function": "evaluate",
+     "lineno": 215
+    },
+    {
+     "exception": "SystemExit",
+     "first_arg": "main()",
+     "function": "<module>",
+     "lineno": 341
+    }
+   ],
+   "role": "generators"
+  },
+  "apps/backend/scripts/mr002_coverage_signed_gap.py": {
+   "callables": [
+    {
+     "docstring_first_line": "THE canonical predicate. KKT gates and the signed-gap gate are SEPARATE hard conditions:",
+     "kind": "FunctionDef",
+     "lineno": 104,
+     "name": "canonical_qualify",
+     "sha256_unparsed": "4a37bc17d6a52edf4e47bebdc2b87ce924e85282a9617e32cc77d7e97443bfe6"
+    },
+    {
+     "docstring_first_line": "",
+     "kind": "FunctionDef",
+     "lineno": 121,
+     "name": "_lam_of",
+     "sha256_unparsed": "67bba8c9b935a1874069a096c7e4482d44efb28dfc3dcdf725d2534f69cbb95c"
+    },
+    {
+     "docstring_first_line": "The quadprog wrappers return (z, checks); recover lam via the same registered construction.",
+     "kind": "FunctionDef",
+     "lineno": 132,
+     "name": "_quadprog_variant",
+     "sha256_unparsed": "d5e3a1c49ef93f890239b78422a7002b6ac2980f7d8d5fca4b71bb1b2c9f4826"
+    },
+    {
+     "docstring_first_line": "Fixture identity is the CONTENT HASH of the canonical problem, never the corpus index \u2014 the",
+     "kind": "FunctionDef",
+     "lineno": 182,
+     "name": "fixture_hash",
+     "sha256_unparsed": "c96b66cc9aeb77c1aa3ea6d2c127bbdab55667ed716abb3fbdaa0a20a178c860"
+    },
+    {
+     "docstring_first_line": "",
+     "kind": "FunctionDef",
+     "lineno": 198,
+     "name": "_src_hash",
+     "sha256_unparsed": "43a83279e1d78fa38ea3f72ad91b5a112b23c379e0ea55b346812e9ae9137dff"
+    },
+    {
+     "docstring_first_line": "",
+     "kind": "FunctionDef",
+     "lineno": 205,
+     "name": "capture",
+     "sha256_unparsed": "2293e11e2c34132c392237531f8ce4950facc6b33a2661c8a590c4eb3417225a"
+    },
+    {
+     "docstring_first_line": "",
+     "kind": "FunctionDef",
+     "lineno": 236,
+     "name": "try_solve",
+     "sha256_unparsed": "3644dcb9cfed7b6cab86525cd67320003474be461c8613701f941c5a5a7c5382"
+    },
+    {
+     "docstring_first_line": "",
+     "kind": "FunctionDef",
+     "lineno": 247,
+     "name": "main",
+     "sha256_unparsed": "bf651acc9b6c8a63066684073f62123d4a49d82a64380837c00af4a7dbd718f8"
+    }
+   ],
+   "git_tracked": true,
+   "identity": {
+    "bytes": 27131,
+    "crlf": true,
+    "git_blob": "a6e21991c769c1b4902d8d1d952b7bd901d2811a",
+    "sha256_lf": "f9e440c6188582037a7813dc8ffc6f828132d72131ff2d54d6a35056f9e5f741",
+    "sha256_worktree": "919f496c0a1f5a5d38feb4cb7d16a1b1cd2ce3216e2b83668966ddcc96874d00"
+   },
+   "module_docstring_first_line": "MR-002 v1.1 \u2014 COMPLEMENTARY COVERAGE under the TWO-SIDED SIGNED LAGRANGIAN GAP (ruling \u00a717).",
+   "raise_sites": [
+    {
+     "exception": "RuntimeError",
+     "first_arg": "'non-finite primal or dual'",
+     "function": "run",
+     "lineno": 127
+    },
+    {
+     "exception": "jp.InvalidRun",
+     "first_arg": "'capture: infeasible'",
+     "function": "capture",
+     "lineno": 227
+    },
+    {
+     "exception": null,
+     "first_arg": null,
+     "function": "try_solve",
+     "lineno": 242
+    },
+    {
+     "exception": "SystemExit",
+     "first_arg": "main()",
+     "function": "<module>",
+     "lineno": 549
+    }
+   ],
+   "role": "acceptance_authority"
+  },
+  "apps/backend/scripts/mr002_piqp.py": {
+   "callables": [
+    {
+     "docstring_first_line": "FRESH solver object per instance. No update, reuse or warm start.",
+     "kind": "FunctionDef",
+     "lineno": 72,
+     "name": "make_solver",
+     "sha256_unparsed": "6990db919f8a0dac2f52a09c9655b878916fafd56c3bd15ac9ee4bbe0ee66ef5"
+    },
+    {
+     "docstring_first_line": "",
+     "kind": "FunctionDef",
+     "lineno": 81,
+     "name": "solve_piqp",
+     "sha256_unparsed": "e55c7ede80015d966888dd442b1b15e635d529114fdc7cc58a2bbb31850cac33"
+    },
+    {
+     "docstring_first_line": "",
+     "kind": "FunctionDef",
+     "lineno": 100,
+     "name": "external_gap",
+     "sha256_unparsed": "6270ef43702e122533fa271580d8270a0fa2622a3e30fe25467c9801bb73b528"
+    },
+    {
+     "docstring_first_line": "",
+     "kind": "FunctionDef",
+     "lineno": 110,
+     "name": "evaluate",
+     "sha256_unparsed": "416fc0a37b7af8572206b7cbccb662b039d90b58ad2f316128355207f11baff2"
+    },
+    {
+     "docstring_first_line": "Prove ALL SIX dual-vector mappings on hand-solvable fixtures.",
+     "kind": "FunctionDef",
+     "lineno": 135,
+     "name": "verify_signs",
+     "sha256_unparsed": "1ca828db4867988988a2bdea8e335a1a53a05e39539ec9d7e43cc3258a8e7bb0"
+    },
+    {
+     "docstring_first_line": "Discriminating STRONGLY-SCALED Hessian: t spans 1e-8 .. 1.5e-2 (2/t spans 1e2..2e8),",
+     "kind": "FunctionDef",
+     "lineno": 194,
+     "name": "preconditioning_microproblem",
+     "sha256_unparsed": "aa77a529af0c600529952e3569fe9f7e37b7623414f77aef5b17dad3291f63c2"
+    },
+    {
+     "docstring_first_line": "",
+     "kind": "FunctionDef",
+     "lineno": 241,
+     "name": "discovery",
+     "sha256_unparsed": "8f699eb95bd7b1b8b97b6aa8bd47a72c23ded992c5f6a1a8eaa68c1610d6b5df"
+    },
+    {
+     "docstring_first_line": "",
+     "kind": "FunctionDef",
+     "lineno": 326,
+     "name": "discovery_main",
+     "sha256_unparsed": "5dd3b9059d365b7a5375ab32d66a76abe51091fe86543e3eb8f9e7c968f80172"
+    },
+    {
+     "docstring_first_line": "",
+     "kind": "FunctionDef",
+     "lineno": 342,
+     "name": "_hash_instance",
+     "sha256_unparsed": "0886a6a8054025ca378bb55864c6cfec576e276c2f5b2a166f6ac13069fffc49"
+    },
+    {
+     "docstring_first_line": "",
+     "kind": "FunctionDef",
+     "lineno": 351,
+     "name": "run_corpus",
+     "sha256_unparsed": "a80d46948cce4304e5d3045967e5d322325cf789c55f0cbea89caa611284769b"
+    },
+    {
+     "docstring_first_line": "",
+     "kind": "FunctionDef",
+     "lineno": 388,
+     "name": "corpus_main",
+     "sha256_unparsed": "bd47472a71a99c3da13c71c1f3a9ff0bf024d65e4e48a3217e2cf5cac99b0011"
+    }
+   ],
+   "git_tracked": true,
+   "identity": {
+    "bytes": 20457,
+    "crlf": true,
+    "git_blob": "cda8b9622fb0c75b7015d677332a7e800dcc3a81",
+    "sha256_lf": "06f730895fdf160ba0d15a57d49effee7ffdd2f32f19bb4fb94f40ae15cabfc8",
+    "sha256_worktree": "6e3274a38f9f8c200c32df0e4e49dde1d0e2f6daeadd77562c46fc9ea9d0041e"
+   },
+   "module_docstring_first_line": "MR-002 v1.1 \u2014 PIQP capability discovery (P1/P2) and immutable-corpus characterization.",
+   "raise_sites": [
+    {
+     "exception": "RuntimeError",
+     "first_arg": "f'status {st}'",
+     "function": "solve_piqp",
+     "lineno": 90
+    },
+    {
+     "exception": "RuntimeError",
+     "first_arg": "'non-finite primal or dual'",
+     "function": "evaluate",
+     "lineno": 120
+    },
+    {
+     "exception": "SystemExit",
+     "first_arg": "0 if M['verdict'] == 'VALID' else 1",
+     "function": "discovery_main",
+     "lineno": 336
+    },
+    {
+     "exception": "SystemExit",
+     "first_arg": "discovery_main() if mode == 'discovery' else corpus_main()",
+     "function": "<module>",
+     "lineno": 442
+    }
+   ],
+   "role": "generators"
+  },
+  "apps/backend/scripts/mr002_solver_intersection.py": {
+   "callables": [
+    {
+     "docstring_first_line": "",
+     "kind": "FunctionDef",
+     "lineno": 69,
+     "name": "_hash_instance",
+     "sha256_unparsed": "0886a6a8054025ca378bb55864c6cfec576e276c2f5b2a166f6ac13069fffc49"
+    },
+    {
+     "docstring_first_line": "",
+     "kind": "FunctionDef",
+     "lineno": 78,
+     "name": "failures",
+     "sha256_unparsed": "34541604755e6afb372e41a2840613cd41d2182a124b08d83015d463898dea22"
+    },
+    {
+     "docstring_first_line": "",
+     "kind": "FunctionDef",
+     "lineno": 85,
+     "name": "_qp",
+     "sha256_unparsed": "79018af1de315dcc892c7fd65557afd9d3bca858a694d87df4e75a9494ecb12c"
+    },
+    {
+     "docstring_first_line": "",
+     "kind": "FunctionDef",
+     "lineno": 91,
+     "name": "solve_raw",
+     "sha256_unparsed": "f204a72da935aa1dbe692d27c62128b560e395ce904cc4b3b5762cf542a3c7df"
+    },
+    {
+     "docstring_first_line": "sqrt-equilibrated: H is EXACTLY 2I by construction.",
+     "kind": "FunctionDef",
+     "lineno": 103,
+     "name": "solve_sqrt",
+     "sha256_unparsed": "448266f6e775d86cb2544af1e96e72f4095ab6a43423096d746e4c474b5a776f"
+    },
+    {
+     "docstring_first_line": "",
+     "kind": "FunctionDef",
+     "lineno": 128,
+     "name": "solve_tscaled",
+     "sha256_unparsed": "aa8fddb368e018bfbeafb2f9b715fe192859b78eef47dd1fdfac368a493dde25"
+    },
+    {
+     "docstring_first_line": "Validated Clarabel; returns (z, checks) in the registered acceptance form.",
+     "kind": "FunctionDef",
+     "lineno": 163,
+     "name": "solve_clarabel",
+     "sha256_unparsed": "500d841862dc28217e9c40d99cb8bc3be2aef4a6f066bfefac862e23fc354790"
+    },
+    {
+     "docstring_first_line": "Validated HiGHS (qpasm); same registered acceptance form.",
+     "kind": "FunctionDef",
+     "lineno": 178,
+     "name": "solve_highs",
+     "sha256_unparsed": "d553d0d0bb51aaec78ef170f392e70f47d0cd3ba5bedba909b4cbb563830fe71"
+    },
+    {
+     "docstring_first_line": "",
+     "kind": "FunctionDef",
+     "lineno": 202,
+     "name": "_piqp",
+     "sha256_unparsed": "0d56a0cf9d6eeb337329077985b76ab4954783382f94ac00de7abe95e62acd19"
+    },
+    {
+     "docstring_first_line": "",
+     "kind": "FunctionDef",
+     "lineno": 232,
+     "name": "capture_solver",
+     "sha256_unparsed": "69e6679ce48dc9db6d977143340bdcef6109195017f754b0bf3d7634e03d6f70"
+    },
+    {
+     "docstring_first_line": "",
+     "kind": "FunctionDef",
+     "lineno": 266,
+     "name": "main",
+     "sha256_unparsed": "35676631c9b8cf2c3a130b44fffac74f3f4582ceba24859593398b76155c0850"
+    }
+   ],
+   "git_tracked": true,
+   "identity": {
+    "bytes": 16458,
+    "crlf": false,
+    "git_blob": "a5e6104234a0bd224d05a31bc9c2161f39512035",
+    "sha256_lf": "ee1aacf37c1a81ecfe566b5262b9db67b9e86a04715f97ed12e76073b4767437",
+    "sha256_worktree": "ee1aacf37c1a81ecfe566b5262b9db67b9e86a04715f97ed12e76073b4767437"
+   },
+   "module_docstring_first_line": "MR-002 v1.1 Stage-3 \u2014 CROSS-FAMILY SOLVER INTERSECTION.",
+   "raise_sites": [
+    {
+     "exception": "RuntimeError",
+     "first_arg": "'non-finite primal or dual'",
+     "function": "solve_clarabel",
+     "lineno": 174
+    },
+    {
+     "exception": "RuntimeError",
+     "first_arg": "'non-finite primal or dual'",
+     "function": "solve_highs",
+     "lineno": 190
+    },
+    {
+     "exception": "RuntimeError",
+     "first_arg": "'non-finite primal or dual'",
+     "function": "solve",
+     "lineno": 213
+    },
+    {
+     "exception": "jp.InvalidRun",
+     "first_arg": "'capture: no formulation solved and the region is infeasible'",
+     "function": "capture_solver",
+     "lineno": 255
+    },
+    {
+     "exception": "SystemExit",
+     "first_arg": "main()",
+     "function": "<module>",
+     "lineno": 385
+    }
+   ],
+   "role": "generators"
+  }
+ },
+ "frozen_constants": {
+  "apps/backend/app/research/mr002/certificate.py": {
+   "MAX_INTERVAL_WIDTH": {
+    "kind": "literal",
+    "value": 1e-30
+   },
+   "SIGNED_GAP_MAX": {
+    "kind": "literal",
+    "value": 1e-10
+   }
+  },
+  "apps/backend/app/research/mr002/joint_portfolio.py": {
+   "HESSIAN_CONDITION_MAX": {
+    "kind": "literal",
+    "value": 10000000000.0
+   },
+   "LP_OPTIONS": {
+    "kind": "literal",
+    "value": {
+     "disp": false,
+     "dual_feasibility_tolerance": 1e-10,
+     "maxiter": 100000,
+     "presolve": true,
+     "primal_feasibility_tolerance": 1e-10,
+     "simplex_dual_edge_weight_strategy": "devex",
+     "time_limit": 60.0
+    }
+   }
+  },
+  "apps/backend/app/research/mr002/n1/method.py": {
+   "GENERATOR_OUTCOMES": {
+    "kind": "expression",
+    "source": "(CERTIFIED, NO_CERTIFIED_CANDIDATE, SYSTEM_INTEGRITY_DEFECT)"
+   },
+   "LIBRARY_BOUNDARIES": {
+    "kind": "expression",
+    "source": "frozenset({('scripts.mr002_coverage_signed_gap', 'run'), ('scripts.mr002_piqp', 'solve_piqp'), ('scripts.mr002_characterize_native_qp', 'solve_clarabel'), ('scripts.mr002_characterize_native_qp', 'solve_highs')})"
+   },
+   "OUR_ROOTS": {
+    "kind": "literal",
+    "value": [
+     "app.research.mr002",
+     "scripts.mr002_",
+     "app.research"
+    ]
+   },
+   "REGISTERED_TERMINATION_REASONS": {
+    "kind": "expression",
+    "source": "frozenset({ITERATION_LIMIT_REACHED, CONSTRAINTS_REPORTED_INCONSISTENT, NUMERICAL_BREAKDOWN, NON_FINITE_CANDIDATE, CERTIFICATE_PREDICATE_FALSE, LIBRARY_RAISED})"
+   },
+   "RESOLVED_DISPOSITIONS": {
+    "kind": "expression",
+    "source": "frozenset({PRIMARY_CERTIFIED, SECONDARY_CERTIFIED})"
+   },
+   "SOLVER_LIBRARY_ROOTS": {
+    "kind": "literal",
+    "value": [
+     "piqp",
+     "clarabel",
+     "quadprog",
+     "highspy"
+    ]
+   }
+  },
+  "apps/backend/app/research/mr002/stage3_cascade.py": {
+   "CLOSED_ENUM": {
+    "kind": "expression",
+    "source": "(QUALIFIED, NUMERICAL_STATUS_NONQUALIFICATION, CERTIFICATE_NONQUALIFICATION, INTEGRITY_DEFECT)"
+   },
+   "DEFAULT_FOR_UNRECOGNIZED": {
+    "kind": "expression",
+    "source": "INTEGRITY_DEFECT"
+   },
+   "FALLBACK_SOLVER_ID": {
+    "kind": "literal",
+    "value": "PIQP_P2"
+   },
+   "NUMERICAL_ALLOWLIST": {
+    "kind": "expression",
+    "source": "{(PRIMARY_SOLVER_ID, builtins.ValueError, 'constraints are inconsistent, no solution'): 'QUADPROG_CONSTRAINTS_INCONSISTENT'}"
+   },
+   "PRIMARY_SOLVER_ID": {
+    "kind": "literal",
+    "value": "QUADPROG_SQRT"
+   },
+   "REQUIRED_CERT_FIELDS": {
+    "kind": "literal",
+    "value": [
+     "gamma_lower",
+     "gamma_upper",
+     "primal_lower",
+     "primal_upper",
+     "dual_lower",
+     "dual_upper",
+     "lagrangian_slack",
+     "stationarity_energy",
+     "primal_interval_width",
+     "dual_interval_width",
+     "max_multiplier_clip",
+     "n_multipliers_clipped",
+     "qualifies"
+    ]
+   }
+  },
+  "apps/backend/scripts/mr002_coverage_signed_gap.py": {
+   "FALLBACK": {
+    "kind": "not_found"
+   },
+   "PRIMARY": {
+    "kind": "not_found"
+   }
+  },
+  "apps/backend/scripts/mr002_piqp.py": {
+   "BASE": {
+    "kind": "expression",
+    "source": "{'eps_abs': 1e-10, 'eps_rel': 1e-11, 'check_duality_gap': True, 'eps_duality_gap_abs': 1e-11, 'eps_duality_gap_rel': 1e-11, 'max_iter': 1000, 'preconditioner_reuse_on_update': False, 'iterative_refinement_always_enabled': True, 'iterative_refinement_eps_abs': 1e-13, 'iterative_refinement_eps_rel': 1e-13, 'iterative_refinement_max_iter': 20, 'kkt_solver': piqp.sparse_ldlt, 'verbose': False, 'compute_timings': False}"
+   },
+   "GAP_MAX": {
+    "kind": "literal",
+    "value": 1e-10
+   },
+   "INF": {
+    "kind": "literal",
+    "value": 1e+30
+   },
+   "LIMITS": {
+    "kind": "literal",
+    "value": {
+     "complementarity_residual": 1e-08,
+     "dual_residual": 1e-09,
+     "kkt_residual": 1e-08,
+     "primal_residual": 1e-09,
+     "stationarity_residual": 1e-08
+    }
+   },
+   "PROFILES": {
+    "kind": "literal",
+    "value": {
+     "P1": false,
+     "P2": true
+    }
+   }
+  },
+  "apps/backend/scripts/mr002_solver_intersection.py": {
+   "LIMITS": {
+    "kind": "literal",
+    "value": {
+     "complementarity_residual": 1e-08,
+     "dual_residual": 1e-09,
+     "kkt_residual": 1e-08,
+     "primal_residual": 1e-09,
+     "stationarity_residual": 1e-08
+    }
+   },
+   "REGISTERED_CORPUS_HASH": {
+    "kind": "literal",
+    "value": "1d2319301a7b52dfe369819bc8029f7b6d64ad820d828f041eba15a91348390b"
+   }
+  }
+ },
+ "generator": "apps/backend/scripts/mr002_p1_asis_manifest.py",
+ "governing_prior_sha256": "3e1e491533a2aeb1a370610dc9854f5ea5a592d71fdff95dd0ec88e8e1536ee2",
+ "governing_protocol": "MR002_P1_NumericalInvestigation_Protocol_v1.0",
+ "identity_convention": {
+  "compare_across_environments_using": "sha256_lf",
+  "sha256_worktree": "diagnostic only \u2014 CRLF worktrees do not match an LF deployment"
+ },
+ "missing_files": [],
+ "phase": "P1",
+ "python": "3.13.15",
+ "record_sha256_of_body_without_this_field": "f5517316e88b61962e5e4ac3b546de2c57716549477e460cedc43579a4d6fbbe",
+ "record_type": "MR002_P1_STAGE3_ASIS_MANIFEST",
+ "source": {
+  "branch": "research/mr002-preregistration",
+  "commit": "c715262b7ae955dcc2db4ae2976648c5d7a1fdb3",
+  "worktree_dirty": true
+ },
+ "taxonomy_comparison": {
+  "consequential_difference": "Both layers STOP the run. The difference is what the stop MEANS and therefore what may be concluded: v1 INVALID_RUN asserts an integrity defect in the evaluation system; v2 UNRESOLVED_INSTANCE asserts the frozen pair could not resolve the instance. Neither produces an economic verdict.",
+  "event_under_comparison": {
+   "generator": "PIQP_P2",
+   "instance_status": "piqp.PIQP_MAX_ITER_REACHED",
+   "raise_form": "RuntimeError(f'status {st}')  for any st != piqp.PIQP_SOLVED",
+   "raise_site": "scripts.mr002_piqp.solve_piqp"
+  },
+  "not_a_repair_claim": "This comparison does NOT assert that adopting v2 would have produced a Validation-2 economic verdict. Under v2 the same event yields UNRESOLVED_INSTANCE, which raises Stage3StopV2 and ends the run. Establishing what the frozen pair can and cannot resolve is P1 track T3/T6 work, not a corollary of the taxonomy comparison.",
+  "record_type": "MR002_P1_DISPOSITION_TAXONOMY_COMPARISON",
+  "v1_stage3_cascade": {
+   "classifier": "app.research.mr002.stage3_cascade.normalize",
+   "code": "UNREGISTERED_EXCEPTION:RuntimeError:status Status.PIQP_MAX_ITER_REACHED",
+   "enum": "INTEGRITY_DEFECT",
+   "match_rule": "exact (solver_id, exception class OBJECT, complete message) lookup in NUMERICAL_ALLOWLIST; identity match, no substring/regex/subclass",
+   "meaning": "an integrity/provenance defect \u2014 the evaluation system is impugned",
+   "registered_numerical_statuses_for_PIQP_P2": 0,
+   "stop": true,
+   "terminal_disposition": "INVALID_RUN"
+  },
+  "v2_n1_method": {
+   "classifier": "app.research.mr002.n1.method.classify_exception",
+   "match_rule": "structural provenance of the deepest Python frame; registered LIBRARY_BOUNDARIES; reason read from the status OBJECT, never the message",
+   "meaning": "a legitimate generator termination \u2014 no candidate was produced",
+   "outcome": "NO_CERTIFIED_CANDIDATE",
+   "reason": "ITERATION_LIMIT_REACHED",
+   "stop": true,
+   "terminal_disposition_when_A_also_uncertified": "UNRESOLVED_INSTANCE"
+  },
+  "version": "1.0",
+  "which_layer_ran_in_validation_2": {
+   "answer": "v1",
+   "evidence": "the sealed terminal names the frame `stage3_route._routed_solve_qp`; the v2 seam's frame is `n1.seam._routed`. `UNREGISTERED_EXCEPTION` is emitted only by stage3_cascade.normalize.",
+   "sealed_record": "TerminalOutcome v1.0 9c08bfc5cb18d683beeb347243fb657cc24d37d925ad06d5409b76979d5fa53b, commit 7a6b6f7",
+   "status": "OBSERVATION \u2014 the reason the v1 layer was the bound path in the Validation-2 execution package is NOT DETERMINED by this manifest and is a named P1 question."
+  }
+ },
+ "track": "T1",
+ "version": "1.0"
+}
