@@ -9,6 +9,15 @@ scope at read time.
 It reads **frozen partitions only** (manifest present) and verifies every file
 against the manifest before parsing, so a silently mutated corpus fails closed
 rather than producing quietly-wrong features.
+
+Since the discovery ledger landed, the same guarantee holds for the *record* of
+the read: the reader cannot be constructed without an initialised
+:class:`~app.research.disc_mdq.ledger.DiscoveryLedger`, and a ledger cannot be
+initialised without a verified :class:`~app.research.disc_mdq.policy.ArtifactAttestation`.
+That is plan v0.13 section 4.10.7 items 10-12 — the first exploratory read is
+impossible unless ledger initialisation succeeds, the holdout artifact and the
+universe pin both verify before a partition is opened, and failure is
+fail-closed rather than a warning.
 """
 
 from __future__ import annotations
@@ -24,6 +33,7 @@ from typing import Any
 import structlog
 
 from app.research.capture.store import CaptureStore, PartitionRef
+from app.research.disc_mdq.ledger import DiscoveryLedger
 from app.research.disc_mdq.policy import AuthorizedScope, UnauthorizedReadError
 from app.research.disc_mdq.spec import READER_VERSION
 
@@ -40,6 +50,14 @@ class PartitionNotFrozenError(MdqReaderError):
 
 class PartitionIntegrityError(MdqReaderError):
     """The partition does not match its manifest."""
+
+
+class UnledgeredReadError(MdqReaderError):
+    """A read was attempted without a ledger that covers this exact scope.
+
+    Raised at construction, never at read time, so the failure lands before any
+    corpus path is touched.
+    """
 
 
 @dataclass(frozen=True)
@@ -127,6 +145,10 @@ class ReadResult:
     scope_fingerprint: str
     rows_scanned: int
     rows_withheld: int
+    #: Discovery-ledger citation for the read that produced these rows. A
+    #: condition record names it, which is how "this feature was computed from
+    #: that governed partition" stays checkable after the fact.
+    ledger_entry_ref: str = ""
 
     def as_provenance_dict(self) -> dict[str, object]:
         return {
@@ -138,6 +160,7 @@ class ReadResult:
             "rows_withheld": self.rows_withheld,
             "observations": len(self.observations),
             "partition": self.provenance.as_dict(),
+            "ledger_entry_ref": self.ledger_entry_ref,
         }
 
 
@@ -169,6 +192,7 @@ class MdqFeatureReader:
         self,
         store: CaptureStore,
         scope: AuthorizedScope,
+        ledger: DiscoveryLedger,
         *,
         verify_integrity: bool = True,
     ) -> None:
@@ -177,13 +201,45 @@ class MdqFeatureReader:
                 "MdqFeatureReader requires an AuthorizedScope from "
                 "MdqExplorationPolicy.authorize(); it has no unrestricted mode"
             )
+        if not isinstance(ledger, DiscoveryLedger):
+            raise TypeError(
+                "MdqFeatureReader requires an initialised DiscoveryLedger from "
+                "DiscoveryLedger.open(); exploration that is not recorded is not "
+                "sanctioned exploration (plan v0.13 section 4.10.7 item 10)"
+            )
+
+        # Item 11, enforced rather than assumed. The ledger's attestation is the
+        # verified reading of the two governed artifacts; the scope carries the
+        # identity of the quarantine it will actually enforce. If those two
+        # disagree, the reader is about to embargo a different set of names from
+        # the one the artifacts describe, and that is exactly the failure the
+        # holdout exists to prevent.
+        attested = ledger.attestation
+        if scope.holdout_symbols_sha256 != attested.holdout_symbols_sha256:
+            raise UnledgeredReadError(
+                "the scope quarantines a different symbol set from the verified "
+                f"holdout artifact: scope {scope.holdout_symbols_sha256}, artifact "
+                f"{attested.holdout_symbols_sha256}"
+            )
+        if scope.universe_sha256 is not None and scope.universe_sha256 != attested.universe_sha256:
+            raise UnledgeredReadError(
+                "the scope was authorized against a different universe file from the "
+                f"verified one: scope {scope.universe_sha256}, artifact "
+                f"{attested.universe_sha256}"
+            )
+
         self._store = store
         self._scope = scope
+        self._ledger = ledger
         self._verify_integrity = verify_integrity
 
     @property
     def scope(self) -> AuthorizedScope:
         return self._scope
+
+    @property
+    def ledger(self) -> DiscoveryLedger:
+        return self._ledger
 
     # --- integrity ----------------------------------------------------------
 
@@ -249,6 +305,17 @@ class MdqFeatureReader:
         path = self._store.partition_dir(ref) / "quotes" / "samples.jsonl"
         if not path.exists():
             raise MdqReaderError(f"no quote file in partition {feed}/{session_date}")
+
+        # Recorded here — after the corpus identity is known and verified, and
+        # BEFORE a single row becomes an observation. There is deliberately no
+        # ordering in which bytes have been examined and the ledger does not yet
+        # say so.
+        ledger_entry = self._ledger.record_partition_read(
+            feed=feed,
+            session_date=session_date,
+            scope=self._scope,
+            partition=provenance.as_dict(),
+        )
 
         observations: list[QuoteObservation] = []
         scanned = 0
@@ -322,6 +389,7 @@ class MdqFeatureReader:
             scope_fingerprint=self._scope.fingerprint(),
             rows_scanned=scanned,
             rows_withheld=withheld,
+            ledger_entry_ref=ledger_entry.entry_ref,
         )
         logger.info(
             "mdq_quotes_read",
@@ -333,6 +401,7 @@ class MdqFeatureReader:
             rows_withheld=withheld,
             manifest_sha256=provenance.manifest_sha256,
             integrity_verified=provenance.integrity_verified,
+            ledger_entry_ref=ledger_entry.entry_ref,
         )
         return result
 

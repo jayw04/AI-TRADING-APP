@@ -13,15 +13,18 @@ from pathlib import Path
 import pytest
 
 from app.research.capture.store import CaptureStore, PartitionRef
+from app.research.disc_mdq.ledger import CodeIdentity, DiscoveryLedger, LedgerEvent
 from app.research.disc_mdq.policy import (
     MdqExplorationPolicy,
     ReviewWindow,
     UnauthorizedReadError,
+    verify_governed_artifacts,
 )
 from app.research.disc_mdq.reader import (
     MdqFeatureReader,
     PartitionIntegrityError,
     PartitionNotFrozenError,
+    UnledgeredReadError,
 )
 from app.research.disc_mdq.spec import READER_VERSION, ReadPurpose
 
@@ -58,6 +61,35 @@ def quote_row(symbol: str, minute: int, *, bid: float = 100.0, ask: float = 100.
     }
 
 
+def governed_config(name: str) -> Path:
+    here = Path(__file__).resolve()
+    for parent in here.parents:
+        candidate = parent / "config" / name
+        if candidate.exists():
+            return candidate
+    raise AssertionError(f"could not locate config/{name} from {here}")
+
+
+@pytest.fixture
+def ledger(tmp_path: Path) -> DiscoveryLedger:
+    """An initialised discovery ledger over the REAL governed artifacts.
+
+    Every reader in this module now takes one, because the reader cannot be
+    constructed without it (plan v0.13 section 4.10.7 item 10). Building it from
+    the on-disk artifacts rather than a stub means item 11 — the holdout
+    artifact and the universe pin both verify before a partition is opened — is
+    exercised on every single read test, not only in the wiring test.
+    """
+    return DiscoveryLedger.open(
+        tmp_path / "ledger" / "discovery.jsonl",
+        attestation=verify_governed_artifacts(
+            universe_symbols_path=governed_config("mdq_phase_a_universe_symbols.json"),
+            holdout_path=governed_config("mdq_phase_a_holdout.json"),
+        ),
+        code_identity=CodeIdentity.current("pytest"),
+    )
+
+
 @pytest.fixture
 def frozen_partition(tmp_path: Path) -> CaptureStore:
     """A frozen partition containing BOTH allowed and holdout symbols."""
@@ -88,11 +120,12 @@ def make_scope(symbols: list[str], dates: list[date]):
 
 def test_holdout_symbols_in_the_partition_are_never_returned(
     frozen_partition: CaptureStore,
+    ledger: DiscoveryLedger,
 ) -> None:
     """The partition physically contains TSLA/XOM/AMZN rows. The reader must
     not surface them even though the caller asked for them."""
     scope = make_scope(["AAPL", "NVDA", "TSLA", "XOM", "AMZN"], [SESSION])
-    reader = MdqFeatureReader(frozen_partition, scope)
+    reader = MdqFeatureReader(frozen_partition, scope, ledger)
 
     result = reader.read_quotes(FEED, SESSION)
 
@@ -107,30 +140,36 @@ def test_holdout_symbols_in_the_partition_are_never_returned(
     assert result.rows_scanned == 17
 
 
-def test_a_holdout_date_is_refused_before_the_partition_is_opened(tmp_path: Path) -> None:
+def test_a_holdout_date_is_refused_before_the_partition_is_opened(
+    tmp_path: Path, ledger: DiscoveryLedger
+) -> None:
     """No file is touched: the store points at a directory that does not even
     exist, and the call still raises the authorization error."""
     store = CaptureStore(tmp_path / "does-not-exist")
     scope = make_scope(["AAPL"], [HOLDOUT_SESSION])
     assert scope.is_empty
 
-    reader = MdqFeatureReader(store, scope)
+    reader = MdqFeatureReader(store, scope, ledger)
     with pytest.raises(UnauthorizedReadError, match="authorizes no symbol"):
         reader.read_quotes(FEED, HOLDOUT_SESSION)
 
 
-def test_reading_a_date_outside_the_scope_is_refused(frozen_partition: CaptureStore) -> None:
+def test_reading_a_date_outside_the_scope_is_refused(
+    frozen_partition: CaptureStore, ledger: DiscoveryLedger
+) -> None:
     scope = make_scope(["AAPL"], [SESSION])
-    reader = MdqFeatureReader(frozen_partition, scope)
+    reader = MdqFeatureReader(frozen_partition, scope, ledger)
     with pytest.raises(UnauthorizedReadError):
         reader.read_quotes(FEED, date(2026, 8, 21))
 
 
-def test_reader_cannot_be_constructed_without_a_scope(frozen_partition: CaptureStore) -> None:
+def test_reader_cannot_be_constructed_without_a_scope(
+    frozen_partition: CaptureStore, ledger: DiscoveryLedger
+) -> None:
     with pytest.raises(TypeError, match="AuthorizedScope"):
-        MdqFeatureReader(frozen_partition, None)  # type: ignore[arg-type]
+        MdqFeatureReader(frozen_partition, None, ledger)  # type: ignore[arg-type]
     with pytest.raises(TypeError, match="AuthorizedScope"):
-        MdqFeatureReader(frozen_partition, {("TSLA", SESSION)})  # type: ignore[arg-type]
+        MdqFeatureReader(frozen_partition, {("TSLA", SESSION)}, ledger)  # type: ignore[arg-type]
 
 
 def test_scope_is_not_widenable_at_read_time(frozen_partition: CaptureStore) -> None:
@@ -146,24 +185,26 @@ def test_scope_is_not_widenable_at_read_time(frozen_partition: CaptureStore) -> 
 # --- frozen-only + integrity ------------------------------------------------
 
 
-def test_unfrozen_partition_is_refused(tmp_path: Path) -> None:
+def test_unfrozen_partition_is_refused(tmp_path: Path, ledger: DiscoveryLedger) -> None:
     store = CaptureStore(tmp_path / "capture")
     ref = PartitionRef(feed=FEED, session=SESSION)
     store.append_jsonl(ref, "quotes", [quote_row("AAPL", 0)])
     # deliberately not frozen
 
-    reader = MdqFeatureReader(store, make_scope(["AAPL"], [SESSION]))
+    reader = MdqFeatureReader(store, make_scope(["AAPL"], [SESSION]), ledger)
     with pytest.raises(PartitionNotFrozenError, match="frozen partitions only"):
         reader.read_quotes(FEED, SESSION)
 
 
-def test_a_mutated_partition_fails_closed(frozen_partition: CaptureStore) -> None:
+def test_a_mutated_partition_fails_closed(
+    frozen_partition: CaptureStore, ledger: DiscoveryLedger
+) -> None:
     ref = PartitionRef(feed=FEED, session=SESSION)
     path = frozen_partition.partition_dir(ref) / "quotes" / "samples.jsonl"
     with path.open("a", encoding="utf-8") as f:
         f.write(json.dumps(quote_row("AAPL", 9)) + "\n")
 
-    reader = MdqFeatureReader(frozen_partition, make_scope(["AAPL"], [SESSION]))
+    reader = MdqFeatureReader(frozen_partition, make_scope(["AAPL"], [SESSION]), ledger)
     with pytest.raises(PartitionIntegrityError, match="failed verification"):
         reader.read_quotes(FEED, SESSION)
 
@@ -171,9 +212,11 @@ def test_a_mutated_partition_fails_closed(frozen_partition: CaptureStore) -> Non
 # --- provenance -------------------------------------------------------------
 
 
-def test_read_result_carries_full_provenance(frozen_partition: CaptureStore) -> None:
+def test_read_result_carries_full_provenance(
+    frozen_partition: CaptureStore, ledger: DiscoveryLedger
+) -> None:
     scope = make_scope(["AAPL", "NVDA"], [SESSION])
-    result = MdqFeatureReader(frozen_partition, scope).read_quotes(FEED, SESSION)
+    result = MdqFeatureReader(frozen_partition, scope, ledger).read_quotes(FEED, SESSION)
 
     prov = result.as_provenance_dict()
     assert prov["reader_version"] == READER_VERSION
@@ -197,10 +240,11 @@ def test_read_result_carries_full_provenance(frozen_partition: CaptureStore) -> 
 
 def test_spread_and_freshness_follow_the_frozen_definitions(
     frozen_partition: CaptureStore,
+    ledger: DiscoveryLedger,
 ) -> None:
-    result = MdqFeatureReader(frozen_partition, make_scope(["AAPL"], [SESSION])).read_quotes(
-        FEED, SESSION
-    )
+    result = MdqFeatureReader(
+        frozen_partition, make_scope(["AAPL"], [SESSION]), ledger
+    ).read_quotes(FEED, SESSION)
     obs = result.observations[0]
     assert obs.mid == pytest.approx(100.05)
     assert obs.spread_bps == pytest.approx(10_000 * 0.1 / 100.05)
@@ -209,7 +253,7 @@ def test_spread_and_freshness_follow_the_frozen_definitions(
     assert obs.quote_age_s == pytest.approx(-0.5)
 
 
-def test_crossed_or_zero_quotes_yield_no_midpoint(tmp_path: Path) -> None:
+def test_crossed_or_zero_quotes_yield_no_midpoint(tmp_path: Path, ledger: DiscoveryLedger) -> None:
     store = CaptureStore(tmp_path / "capture")
     ref = PartitionRef(feed=FEED, session=SESSION)
     store.append_jsonl(
@@ -222,7 +266,7 @@ def test_crossed_or_zero_quotes_yield_no_midpoint(tmp_path: Path) -> None:
     )
     store.freeze(ref, provenance=PROVENANCE)
 
-    result = MdqFeatureReader(store, make_scope(["AAPL", "NVDA"], [SESSION])).read_quotes(
+    result = MdqFeatureReader(store, make_scope(["AAPL", "NVDA"], [SESSION]), ledger).read_quotes(
         FEED, SESSION
     )
     assert len(result.observations) == 2
@@ -231,7 +275,7 @@ def test_crossed_or_zero_quotes_yield_no_midpoint(tmp_path: Path) -> None:
         assert obs.spread_bps is None
 
 
-def test_torn_final_line_is_tolerated(tmp_path: Path) -> None:
+def test_torn_final_line_is_tolerated(tmp_path: Path, ledger: DiscoveryLedger) -> None:
     """store.append_jsonl documents that a torn tail is possible."""
     store = CaptureStore(tmp_path / "capture")
     ref = PartitionRef(feed=FEED, session=SESSION)
@@ -241,23 +285,18 @@ def test_torn_final_line_is_tolerated(tmp_path: Path) -> None:
         f.write('{"cycle_ts": "2026-08-20T13:2')
     store.freeze(ref, provenance=PROVENANCE)
 
-    result = MdqFeatureReader(store, make_scope(["AAPL"], [SESSION])).read_quotes(FEED, SESSION)
+    result = MdqFeatureReader(store, make_scope(["AAPL"], [SESSION]), ledger).read_quotes(
+        FEED, SESSION
+    )
     assert len(result.observations) == 1
 
 
 # --- end-to-end binding to the REAL governed holdout artifact ----------------
 
 
-def governed_config(name: str) -> Path:
-    here = Path(__file__).resolve()
-    for parent in here.parents:
-        candidate = parent / "config" / name
-        if candidate.exists():
-            return candidate
-    raise AssertionError(f"could not locate config/{name} from {here}")
-
-
-def test_reader_is_wired_to_the_REAL_governed_holdout_artifact(tmp_path: Path) -> None:
+def test_reader_is_wired_to_the_REAL_governed_holdout_artifact(
+    tmp_path: Path, ledger: DiscoveryLedger
+) -> None:
     """Prove the reader excludes the *governed* holdout list, not fixture literals.
 
     Every other exclusion test builds the policy from literals that happen to
@@ -286,7 +325,7 @@ def test_reader_is_wired_to_the_REAL_governed_holdout_artifact(tmp_path: Path) -
     store.freeze(ref, provenance={**PROVENANCE, "universe": sorted(policy.universe)})
 
     scope = policy.authorize(governed_holdout + allowed, [SESSION], ReadPurpose.EXPLORATION)
-    result = MdqFeatureReader(store, scope).read_quotes(FEED, SESSION)
+    result = MdqFeatureReader(store, scope, ledger).read_quotes(FEED, SESSION)
 
     returned = {o.symbol for o in result.observations}
     assert returned == set(allowed)
@@ -296,3 +335,109 @@ def test_reader_is_wired_to_the_REAL_governed_holdout_artifact(tmp_path: Path) -
     # All ten governed holdout rows were present in the partition and withheld.
     assert result.rows_scanned == 12
     assert result.rows_withheld == 10
+
+
+# --- the ledger binds at construction (plan v0.13 4.10.7 items 10-12) -------
+
+
+def test_reader_cannot_be_constructed_without_a_ledger(
+    frozen_partition: CaptureStore,
+) -> None:
+    """Item 10, expressed the only way that survives review: in the signature.
+
+    There is no default, no ``ledger=None`` fallback and no "record it later"
+    mode, so a read that is not covered by an initialised ledger is a TypeError
+    at construction rather than a discipline failure at analysis time.
+    """
+    scope = make_scope(["AAPL"], [SESSION])
+    with pytest.raises(TypeError, match="required positional argument: 'ledger'"):
+        MdqFeatureReader(frozen_partition, scope)  # type: ignore[call-arg]
+    with pytest.raises(TypeError, match="DiscoveryLedger"):
+        MdqFeatureReader(frozen_partition, scope, None)  # type: ignore[arg-type]
+    with pytest.raises(TypeError, match="DiscoveryLedger"):
+        MdqFeatureReader(frozen_partition, scope, object())  # type: ignore[arg-type]
+
+
+def test_a_scope_quarantining_the_wrong_names_is_refused(
+    frozen_partition: CaptureStore,
+    ledger: DiscoveryLedger,
+) -> None:
+    """Item 11 with teeth.
+
+    The ledger's attestation is the verified reading of the governed artifacts.
+    This scope is authorized by a policy that quarantines only nine of the ten
+    governed names — the shape of a hand-edited config or a stale copy — and the
+    reader refuses it, because it would otherwise embargo a different set from
+    the one the artifacts describe.
+    """
+    short_holdout = HOLDOUT[:-1]
+    policy = MdqExplorationPolicy(
+        universe_symbols=UNIVERSE,
+        holdout_symbols=short_holdout,
+        window=ReviewWindow.governed(),
+    )
+    scope = policy.authorize(["AAPL", HOLDOUT[-1]], [SESSION], ReadPurpose.EXPLORATION)
+    assert scope.contains(HOLDOUT[-1], SESSION), "the dropped name would have been readable"
+
+    with pytest.raises(UnledgeredReadError, match="different symbol set"):
+        MdqFeatureReader(frozen_partition, scope, ledger)
+
+
+def test_a_scope_from_a_different_universe_file_is_refused(
+    frozen_partition: CaptureStore,
+    ledger: DiscoveryLedger,
+) -> None:
+    policy = MdqExplorationPolicy(
+        universe_symbols=UNIVERSE,
+        holdout_symbols=HOLDOUT,
+        window=ReviewWindow.governed(),
+        universe_sha256="f" * 64,
+    )
+    scope = policy.authorize(["AAPL"], [SESSION], ReadPurpose.EXPLORATION)
+    with pytest.raises(UnledgeredReadError, match="different universe file"):
+        MdqFeatureReader(frozen_partition, scope, ledger)
+
+
+def test_the_read_is_recorded_in_the_ledger_before_it_returns(
+    frozen_partition: CaptureStore,
+    ledger: DiscoveryLedger,
+) -> None:
+    scope = make_scope(["AAPL", "NVDA", "TSLA"], [SESSION])
+    before = ledger.count
+
+    result = MdqFeatureReader(frozen_partition, scope, ledger).read_quotes(FEED, SESSION)
+
+    records = ledger.verify()
+    assert ledger.count == before + 1
+    entry = records[-1]
+    assert entry.event is LedgerEvent.PARTITION_READ
+    assert entry.entry_ref == result.ledger_entry_ref
+
+    payload = entry.payload
+    assert payload["feed"] == FEED
+    assert payload["session_date"] == SESSION.isoformat()
+    assert payload["authorized_symbols"] == ["AAPL", "NVDA"]
+    # Corpus identity is the manifest the reader actually verified.
+    assert payload["partitions"][0]["manifest_sha256"] == result.provenance.manifest_sha256
+    # And the denial that kept TSLA out is on the record, by name.
+    detail = payload["scope"]["denials"]["detail"]
+    assert f"TSLA|{SESSION.isoformat()}|denied_holdout_symbol" in detail
+
+
+def test_a_refused_read_writes_nothing_to_the_ledger(
+    tmp_path: Path,
+    ledger: DiscoveryLedger,
+) -> None:
+    """The ledger records reads, not attempts that never opened a partition.
+
+    A holdout date is refused before any file is touched, so there is nothing to
+    record — and recording it would misstate the corpus as having been examined.
+    """
+    store = CaptureStore(tmp_path / "does-not-exist")
+    reader = MdqFeatureReader(store, make_scope(["AAPL"], [HOLDOUT_SESSION]), ledger)
+    before = ledger.count
+
+    with pytest.raises(UnauthorizedReadError):
+        reader.read_quotes(FEED, HOLDOUT_SESSION)
+
+    assert ledger.count == before

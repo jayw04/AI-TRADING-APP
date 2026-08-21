@@ -15,9 +15,12 @@ Governing constraints this module encodes (all pre-existing, none invented here)
   10 symbol holdout and the final-12-day period holdout are quarantined from
   ALL exploratory / value-extraction access. A graduating hypothesis is
   evaluated on the holdout **once**, through a separate explicit act.
-* **Discovery ledger** (§4.10.2) — every condition examined is recorded, dated,
-  with its disposition; a later pre-registration must cite its ledger entry and
-  the number of conditions examined in that family.
+* **Discovery ledger** (§4.10.2, acceptance gate §4.10.7) — every condition
+  examined is recorded, dated, with its disposition; a later pre-registration
+  must cite its ledger entry and the number of conditions examined in that
+  family. Implemented in ``ledger.py``, and **binding at the read**: the reader
+  cannot be constructed without an initialised ledger, so there is no path that
+  reads first and records later.
 * **Research plane** (ADR 0051) — this package imports no order-path module and
   holds no broker capability.
 
@@ -36,6 +39,17 @@ from enum import StrEnum
 PROGRAM_ID = "DISC-MDQ-001"
 POLICY_VERSION = "mdq-exploration-policy/0.1.0"
 READER_VERSION = "mdq-feature-reader/0.1.0"
+LEDGER_VERSION = "mdq-discovery-ledger/0.1.0"
+
+# Bumped only when the on-disk record shape changes. Every record carries it,
+# and a build that meets a schema it does not recognise REFUSES the whole ledger
+# rather than interpreting the records it happens to understand. A partial
+# reading of a discovery ledger would under-count the conditions examined, which
+# is the one number the ledger exists to make un-forgettable.
+LEDGER_RECORD_SCHEMA = 1
+
+# The prev_hash of the first record in a ledger file.
+LEDGER_GENESIS_HASH = "0" * 64
 
 # The DISC-001 screen this overlays. Phase A must not change it.
 ENRICHES_SCREEN_ID = "DISC-001-WATCHLIST"
