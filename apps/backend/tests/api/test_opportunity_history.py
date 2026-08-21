@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import AsyncIterator
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 
 import pytest
 import pytest_asyncio
@@ -12,8 +12,20 @@ from sqlalchemy.ext.asyncio import async_sessionmaker
 
 from app.db.models.opportunity_occurrence import OpportunityOccurrence
 from app.db.models.user import User
-from app.research.disc001.spec import PRICE_SOURCE_SEP, SCREEN_ID, SCREEN_VERSION
-from app.services.opportunity_history import PriceQuote
+from app.research.disc001.spec import PRICE_SOURCE_GAP, PRICE_SOURCE_SEP, SCREEN_ID, SCREEN_VERSION
+
+
+def _nvda_series() -> dict[str, tuple[tuple[date, float], ...]]:
+    return {
+        "NVDA": (
+            (date(2026, 8, 14), 100.0),
+            (date(2026, 8, 17), 104.0),
+            (date(2026, 8, 18), 106.0),
+            (date(2026, 8, 19), 120.5),
+            (date(2026, 8, 20), 130.0),
+            (date(2026, 8, 21), 128.0),
+        )
+    }
 
 
 async def _seed(factory: async_sessionmaker) -> None:
@@ -57,6 +69,25 @@ async def _seed(factory: async_sessionmaker) -> None:
                 created_at=datetime(2026, 8, 20, tzinfo=UTC),
             )
         )
+        session.add(
+            OpportunityOccurrence(
+                symbol="XYZ",
+                candidate_date="2026-08-19",
+                family="GAP",
+                horizon="hours–1d",
+                status_at_proposal="Backtest Pending",
+                proposal_price=12.0,
+                proposal_price_source=PRICE_SOURCE_GAP,
+                adjustment_basis=PRICE_SOURCE_GAP,
+                screen_id=SCREEN_ID,
+                screen_version=SCREEN_VERSION,
+                snapshot_sha256="c" * 64,
+                snapshot_generated_at="2026-08-20T20:20:00+00:00",
+                reason_json='{"chips":[{"key":"gap","value":"+8.1%"}],"why":"gap"}',
+                features_json=None,
+                created_at=datetime(2026, 8, 20, tzinfo=UTC),
+            )
+        )
         await session.commit()
 
 
@@ -94,31 +125,36 @@ async def client_and_factory() -> AsyncIterator[tuple[AsyncClient, async_session
 async def test_summary_uses_last_occurrence(client_and_factory, monkeypatch) -> None:
     client, _ = client_and_factory
     monkeypatch.setattr(
-        "app.api.v1.opportunities.latest_closes",
-        lambda symbols: {
-            "NVDA": PriceQuote(price=130.0, as_of="2026-08-20", source=PRICE_SOURCE_SEP)
-        },
+        "app.api.v1.opportunities.history_price_series",
+        lambda symbols, start, end=None: _nvda_series(),
     )
     resp = await client.get("/api/v1/opportunities/history")
     assert resp.status_code == 200
     body = resp.json()
     assert body["view"] == "summary"
-    assert body["count"] == 1
-    item = body["items"][0]
-    assert item["symbol"] == "NVDA"
+    by_family = {item["family"]: item for item in body["items"] if item["symbol"] == "NVDA"}
+    item = by_family["OVERSOLD"]
     assert item["candidate_date"] == "2026-08-19"
     assert item["proposal_price"] == 120.5
     assert item["first_seen"] == "2026-08-14"
     assert item["last_seen"] == "2026-08-19"
     assert item["occurrence_count"] == 2
-    assert item["current_price"] == 130.0
-    assert item["change_pct"] == pytest.approx(130.0 / 120.5 - 1.0)
+    assert item["current_price"] == 128.0
+    assert item["change_pct"] == pytest.approx(128.0 / 120.5 - 1.0)
     assert item["screen_version"] == "v0.3.0"
+    by_cp = {c["checkpoint"]: c for c in item["checkpoints"]}
+    assert by_cp["D1"]["price"] == 130.0
+    assert by_cp["D1"]["return_pct"] == pytest.approx(130.0 / 120.5 - 1.0)
+    assert by_cp["D5"]["price"] is None
+    assert item["horizon"] == "1–10d"
 
 
 async def test_timeline_keeps_every_row(client_and_factory, monkeypatch) -> None:
     client, _ = client_and_factory
-    monkeypatch.setattr("app.api.v1.opportunities.latest_closes", lambda symbols: {})
+    monkeypatch.setattr(
+        "app.api.v1.opportunities.history_price_series",
+        lambda symbols, start, end=None: {},
+    )
     resp = await client.get("/api/v1/opportunities/history", params={"symbol": "NVDA"})
     assert resp.status_code == 200
     body = resp.json()
@@ -127,3 +163,30 @@ async def test_timeline_keeps_every_row(client_and_factory, monkeypatch) -> None
     assert body["items"][0]["proposal_price"] == 100.0
     assert body["items"][1]["proposal_price"] == 120.5
     assert body["items"][0]["current_price"] is None
+
+
+async def test_gap_current_price_is_shown_without_mixed_basis_return(
+    client_and_factory, monkeypatch
+) -> None:
+    client, _ = client_and_factory
+
+    def series(symbols, start, end=None):
+        out = _nvda_series()
+        out["XYZ"] = (
+            (date(2026, 8, 19), 11.5),
+            (date(2026, 8, 20), 13.0),
+        )
+        return out
+
+    monkeypatch.setattr("app.api.v1.opportunities.history_price_series", series)
+    resp = await client.get("/api/v1/opportunities/history")
+    assert resp.status_code == 200
+    gap = next(item for item in resp.json()["items"] if item["family"] == "GAP")
+    assert gap["horizon"] == "hours–1d"
+    assert gap["current_price"] == 13.0
+    assert gap["change_pct"] is None
+    by_cp = {c["checkpoint"]: c for c in gap["checkpoints"]}
+    assert by_cp["D1"]["price"] == 13.0
+    assert by_cp["D1"]["return_pct"] is None
+    assert by_cp["D1"]["adjustment_basis"] == PRICE_SOURCE_SEP
+    assert by_cp["PROPOSAL"]["adjustment_basis"] == PRICE_SOURCE_GAP

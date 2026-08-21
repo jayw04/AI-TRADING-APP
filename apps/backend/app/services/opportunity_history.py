@@ -5,8 +5,9 @@ violating ADR 0051 (research plane must not import ``app.db.models``). Mapping
 from CandidateSnapshot cards is pure and lives in ``app.research.disc001.history``.
 
 Same-as_of re-ingest is idempotent: first write wins. Proposal facts and
-first-write provenance are never overwritten. Current price is read-time
-enrichment from the Sharadar factor store, never stored on the occurrence row.
+first-write provenance are never overwritten. Current price and D1/D5/D10/D20
+checkpoints are read-time enrichment from the Sharadar factor store, never
+stored on the occurrence row. Returns are withheld when adjustment bases differ.
 """
 
 from __future__ import annotations
@@ -47,6 +48,7 @@ class PriceQuote:
     price: float
     as_of: str
     source: str
+    adjustment_basis: str = PRICE_SOURCE_SEP
 
 
 def _canonical_reason(reason: dict[str, Any]) -> str:
@@ -190,10 +192,36 @@ def ingest_snapshot_dir(
     return IngestResult(inserted=inserted, skipped=skipped, conflicts=conflicts)
 
 
-def latest_closes(symbols: Sequence[str]) -> dict[str, PriceQuote]:
-    """Read-time SEP close. Missing store or ticker → omitted, never written back."""
+def _as_date(value: object) -> date | None:
+    if value is None:
+        return None
+    if isinstance(value, datetime):
+        return value.date()
+    if isinstance(value, date):
+        return value
+    if hasattr(value, "date"):
+        try:
+            return value.date()  # type: ignore[no-any-return]
+        except Exception:
+            pass
+    try:
+        return date.fromisoformat(str(value)[:10])
+    except ValueError:
+        return None
+
+
+def history_price_series(
+    symbols: Sequence[str],
+    *,
+    start: date,
+    end: date | None = None,
+) -> dict[str, tuple[tuple[date, float], ...]]:
+    """Read-time split-adjusted SEP closes. Missing store → empty, never written back."""
     tickers = sorted({str(s).strip().upper() for s in symbols if str(s).strip()})
     if not tickers:
+        return {}
+    until = end or date.today()
+    if until < start:
         return {}
     try:
         from app.factor_data.config import resolve_store_path
@@ -204,37 +232,49 @@ def latest_closes(symbols: Sequence[str]) -> dict[str, PriceQuote]:
             return {}
         store = FactorDataStore(read_only=True)
     except Exception:
-        logger.info("disc001_history_current_price_store_unavailable")
+        logger.info("disc001_history_price_store_unavailable")
         return {}
     try:
-        end = date.today()
-        start = end - timedelta(days=_CURRENT_PRICE_LOOKBACK_DAYS)
-        frame = store.get_prices_many(tickers, start, end, adjusted=True)
+        frame = store.get_prices_many(tickers, start, until, adjusted=True)
     except Exception:
-        logger.info("disc001_history_current_price_lookup_failed")
+        logger.info("disc001_history_price_lookup_failed")
         return {}
     finally:
         store.close()
     if frame is None or getattr(frame, "empty", True):
         return {}
-    out: dict[str, PriceQuote] = {}
+    out: dict[str, list[tuple[date, float]]] = {}
     grouped = frame.groupby("ticker")
     for ticker, sub in grouped:
         ordered = sub.sort_values("date")
-        last = ordered.iloc[-1]
-        close = last.get("close")
-        if close is None:
-            continue
-        try:
-            price = float(close)
-        except (TypeError, ValueError):
-            continue
-        raw_date = last.get("date")
-        if hasattr(raw_date, "date"):
-            raw_date = raw_date.date()
-        out[str(ticker).upper()] = PriceQuote(
+        rows: list[tuple[date, float]] = []
+        for _, row in ordered.iterrows():
+            when = _as_date(row.get("date"))
+            close = row.get("close")
+            if when is None or close is None:
+                continue
+            try:
+                price = float(close)
+            except (TypeError, ValueError):
+                continue
+            rows.append((when, price))
+        if rows:
+            out[str(ticker).upper()] = rows
+    return {key: tuple(value) for key, value in out.items()}
+
+
+def latest_closes(symbols: Sequence[str]) -> dict[str, PriceQuote]:
+    """Read-time SEP close. Missing store or ticker → omitted, never written back."""
+    end = date.today()
+    start = end - timedelta(days=_CURRENT_PRICE_LOOKBACK_DAYS)
+    series = history_price_series(symbols, start=start, end=end)
+    out: dict[str, PriceQuote] = {}
+    for ticker, rows in series.items():
+        when, price = rows[-1]
+        out[ticker] = PriceQuote(
             price=price,
-            as_of=str(raw_date),
+            as_of=when.isoformat(),
             source=PRICE_SOURCE_SEP,
+            adjustment_basis=PRICE_SOURCE_SEP,
         )
     return out
