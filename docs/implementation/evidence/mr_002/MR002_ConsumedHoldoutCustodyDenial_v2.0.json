@@ -1,0 +1,80 @@
+{
+ "actions_unchanged": true,
+ "allow_statements": 0,
+ "authority": "owner ruling 2026-08-21 \u2014 extend the deny-only resource policy to the Validation-1 custody prefix, AUTHORIZED / REQUIRED",
+ "condition_unchanged": true,
+ "date": "2026-08-21",
+ "diff": [
+  {
+   "element": "top-level Id",
+   "unchanged": true,
+   "value": "WorkbenchBackupsConsumedHoldoutCustody"
+  },
+  {
+   "element": "top-level Version",
+   "unchanged": true,
+   "value": "2012-10-17"
+  },
+  {
+   "element": "Sid",
+   "new": "DenyTheEvaluatorAndResearchPlanesEveryConsumedHoldoutMaterialization",
+   "old": "DenyTheEvaluatorAndResearchPlanesTheConsumedValidation2Materialization",
+   "why": "the v1.0 Sid named Validation-2 specifically. A statement whose name asserts a narrower scope than it enforces is the FutureOOSReader defect."
+  },
+  {
+   "element": "Resource",
+   "new": [
+    "arn:aws:s3:::workbench-backups-219024422756/mr002/consumed-validation1-custody/*",
+    "arn:aws:s3:::workbench-backups-219024422756/mr002/consumed-validation2-custody/*"
+   ],
+   "old": "arn:aws:s3:::workbench-backups-219024422756/mr002/consumed-validation2-custody/*",
+   "why": "the V1 custody prefix is added so a new V1 object is covered from the moment it exists"
+  },
+  {
+   "element": "DenyTheEvaluatorAndResearchPlanesEveryConsumedHoldoutMaterialization.Effect",
+   "unchanged": true
+  },
+  {
+   "element": "DenyTheEvaluatorAndResearchPlanesEveryConsumedHoldoutMaterialization.Principal",
+   "unchanged": true
+  },
+  {
+   "element": "DenyTheEvaluatorAndResearchPlanesEveryConsumedHoldoutMaterialization.Action",
+   "unchanged": true
+  },
+  {
+   "element": "DenyTheEvaluatorAndResearchPlanesEveryConsumedHoldoutMaterialization.Condition",
+   "unchanged": true
+  },
+  {
+   "count": 0,
+   "element": "allow statements",
+   "invariant": "the policy must remain deny-only"
+  }
+ ],
+ "identity_before": "d44230f45ed3d94af5bacfdd9f35529c0999186aa0661e7fb59dc3014aed0176",
+ "invariant": "consumed holdout custody \u2014 irrespective of validation generation \u2014 is inaccessible to the evaluator, reader, publisher, paper and forward-validation planes.",
+ "prefix_naming_decision": {
+  "chosen": "mr002/consumed-validation1-custody/",
+  "rejected": "mr002/consumed-holdout-custody/validation1/",
+  "why": "the V2 object's location is now evidentiary identity and cannot move. A second naming scheme for a class of exactly two members would leave the two generations under different conventions \u2014 the same split that has produced six role-transfer defects here. Symmetry with the immovable member beats tidiness only half the class can adopt."
+ },
+ "principals_unchanged": true,
+ "record_type": "MR002_ConsumedHoldoutCustodyDenial",
+ "retained_by_design": {
+  "MR002CustodyMonitorRole": "custody monitoring",
+  "WorkbenchFleetAuditRole": "audit",
+  "user/admin": "the custody verification principal"
+ },
+ "sealed_before_application": true,
+ "sealed_identity_after": "4944eb59bc01cc56c1395349cc37843c9f69e43c7c2728efcc5a2e1e9a15f134",
+ "sid_renamed": {
+  "from": "DenyTheEvaluatorAndResearchPlanesTheConsumedValidation2Materialization",
+  "to": "DenyTheEvaluatorAndResearchPlanesEveryConsumedHoldoutMaterialization",
+  "why": "the v1.0 Sid named Validation-2 specifically. Adding the V1 prefix while keeping that name would leave a statement whose name asserts a narrower scope than it enforces \u2014 the FutureOOSReader defect, which this program has already paid for twice."
+ },
+ "statement_count_after": 1,
+ "statement_count_before": 1,
+ "supersedes": "MR002_ConsumedValidation2_CustodyDenial_v1.0 / d44230f45ed3d94af5bacfdd9f35529c0999186aa0661e7fb59dc3014aed0176",
+ "version": "2.0"
+}

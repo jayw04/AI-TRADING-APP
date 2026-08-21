@@ -85,3 +85,5 @@ scripts/mr002_custody/validation2_resource_policy_amendment.py text eol=lf
 # custody copies of live AWS policy documents: byte custody, not just canonical-JSON equality
 scripts/mr002_custody/aws/*.json text eol=lf
 scripts/mr002_custody/consumed_validation2_custody_denial.py text eol=lf
+scripts/mr002_custody/consumed_holdout_custody_denial_v2.py text eol=lf
+apps/backend/scripts/mr002_host_decommissioning_sweep.py text eol=lf

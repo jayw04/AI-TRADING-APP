@@ -3,7 +3,7 @@
   "Id": "WorkbenchBackupsConsumedHoldoutCustody",
   "Statement": [
     {
-      "Sid": "DenyTheEvaluatorAndResearchPlanesTheConsumedValidation2Materialization",
+      "Sid": "DenyTheEvaluatorAndResearchPlanesEveryConsumedHoldoutMaterialization",
       "Effect": "Deny",
       "Principal": "*",
       "Action": [
@@ -12,7 +12,10 @@
         "s3:GetObjectAttributes",
         "s3:GetObjectVersionAttributes"
       ],
-      "Resource": "arn:aws:s3:::workbench-backups-219024422756/mr002/consumed-validation2-custody/*",
+      "Resource": [
+        "arn:aws:s3:::workbench-backups-219024422756/mr002/consumed-validation1-custody/*",
+        "arn:aws:s3:::workbench-backups-219024422756/mr002/consumed-validation2-custody/*"
+      ],
       "Condition": {
         "StringEquals": {
           "aws:PrincipalArn": [

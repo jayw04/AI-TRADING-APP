@@ -1,0 +1,139 @@
+{
+ "access_control": {
+  "allow_statements": 0,
+  "deployed_equals_sealed": true,
+  "identity_before": "d44230f45ed3d94af5bacfdd9f35529c0999186aa0661e7fb59dc3014aed0176",
+  "invariant": "consumed holdout custody \u2014 irrespective of validation generation \u2014 is inaccessible to the evaluator, reader, publisher, paper and forward-validation planes.",
+  "principals_actions_condition_unchanged": true,
+  "record": "MR002_ConsumedHoldoutCustodyDenial_v2.0",
+  "retained_by_design": {
+   "MR002CustodyMonitorRole": "custody monitoring",
+   "WorkbenchFleetAuditRole": "audit",
+   "user/admin": "custody verification"
+  },
+  "scope_regression_check": "unrelated prefixes are unaffected \u2014 the cycle-2 publish-staging evidence objects remain listable and readable to the custody principal.",
+  "sealed_before_application": true,
+  "sealed_identity_after": "4944eb59bc01cc56c1395349cc37843c9f69e43c7c2728efcc5a2e1e9a15f134",
+  "sid_renamed": {
+   "from": "DenyTheEvaluatorAndResearchPlanesTheConsumedValidation2Materialization",
+   "to": "DenyTheEvaluatorAndResearchPlanesEveryConsumedHoldoutMaterialization",
+   "why": "adding the V1 prefix to a statement whose Sid named Validation-2 would leave a statement asserting a narrower scope than it enforces. That is the FutureOOSReader defect, which this program has already paid for twice. The name now states the invariant."
+  },
+  "statement_count": 1
+ },
+ "artifact": {
+  "bytes": 14430208,
+  "identified_how": "NOT by its filename. Its mtime coincides with the CloudTrail validation/* reads at 2026-08-19T12:54:46-47Z by session mr002-p3c-validation-v1 \u2014 the six successful Validation-1 content reads of that run. Identification is by access-log correlation.",
+  "materialized_utc": "2026-08-19T12:54:47Z",
+  "never_opened": "handled as a byte artifact only; hashed and copied, never opened or queried, with no open file handle at hashing time",
+  "sha256": "c4cabab228e7824144036afde09f5c949d9dea6144eb0b24d41e1fcad0856c82",
+  "source_host": "i-00c1034f7026db45e",
+  "source_path": "/opt/mr002/work/validation.duckdb"
+ },
+ "authority": "owner ruling 2026-08-21 \u2014 V1 byte-only custody archival AUTHORIZED; delete the EBS copy after verified custody AUTHORIZED / REQUIRED; destruction without custody NOT APPROVED",
+ "authorizes": "NOTHING. Both archived databases are EVIDENCE ONLY. Querying either for research or diagnosis is prohibited, and no opening, rerun or replay is authorized by this record.",
+ "boundary": {
+  "database_opened_or_queried": false,
+  "host": "stopped",
+  "latch": "8 / CLOSED, canonical 44f5549a..., unchanged throughout and re-verified after",
+  "validation_1": "CONSUMED \u2014 archived, EBS copy removed",
+  "validation_2": "CONSUMED \u2014 archived, EBS copy removed"
+ },
+ "classification": "CONSUMED_VALIDATION1_MATERIALIZATION \u2014 EVIDENCE ONLY \u2014 NOT AN AUTHORIZED RESEARCH CORPUS",
+ "date": "2026-08-21",
+ "decommissioning_sweep": {
+  "after": {
+   "consumed_holdout_on_ebs": 0,
+   "needs_ruling": 0,
+   "summary": {
+    "FAILED_PRE_READ_EVIDENCE": 1,
+    "FIXTURE_OR_REHEARSAL": 15,
+    "PACKAGING": 15,
+    "SOURCE_TREE": 12
+   },
+   "total_artifacts": 43
+  },
+  "before": {
+   "consumed_holdout_on_ebs": 1,
+   "needs_ruling": 0,
+   "total_artifacts": 44
+  },
+  "closure": "the class is closed on this host: no consumed-holdout material remains solely on EBS, and nothing is unclassified.",
+  "implemented_as": "a classifier, not prose \u2014 the same principle as gate 11. It walks the host, hashes every candidate as bytes, and classifies by evidence-linked identity first and path rules second.",
+  "refuses_to_guess": "UNKNOWN is a real verdict. Anything the classifier cannot place is reported as NEEDS_RULING rather than folded into a benign bucket \u2014 a classifier that cannot say 'I do not know' will silently misclassify the one file that matters.",
+  "result_sha256": "75d82934d0d563c3ddbbe233fa97fc25965a0f5401bfd9ab5525fa35d4495784",
+  "scope_note": "the sweep covered /opt/mr002, /root, /home, /var/tmp, /tmp, /mnt and /data, and .duckdb/.parquet/.db/.sqlite/.arrow/.feather. It is a host sweep, not a claim about any other machine.",
+  "standing_rule": "before terminating an MR-002 host, enumerate all local DuckDB / parquet / materialization artifacts and classify each as development, fixture, failed-pre-read evidence, or consumed-holdout evidence. No consumed-holdout material may remain solely on EBS."
+ },
+ "immutability_finding": {
+  "asymmetry_worth_recording": "the Validation-1 cycle protected its materialization with chattr +i; the Validation-2 cycle did NOT \u2014 the V2 database deleted without resistance. Not actionable now, since V2 is consumed and archived, but the next method version should apply the protection consistently rather than by accident of which cycle happened to set it.",
+  "handled": "the attribute was cleared with `chattr -i` as a recorded governance act, the hash was RE-COMPUTED in the resulting mutable window and required to equal the archived custody bytes before deletion proceeded, and the script was written to restore `chattr +i` and abort had the hash differed.",
+  "observed": "the first deletion attempt failed with EPERM. The file carried the ext/xfs IMMUTABLE attribute (lsattr `----i----------------`), set during the 2026-08-19 run to protect the materialized holdout.",
+  "why_the_re_hash_earns_its_place": "clearing immutability makes the file mutable for a window. The re-hash between clearing and deleting is the only thing that proves the bytes deleted are the bytes archived."
+ },
+ "peer_record": "MR002_ConsumedValidation2_MaterializationCustodyTransfer_v1.0 / 62dc0985...",
+ "prefix_naming_decision": {
+  "chosen": "mr002/consumed-validation1-custody/",
+  "date_component_convention": "the date is the MATERIALIZATION date, not the transfer date. For V2 those coincided (2026-08-21); for V1 they do not, so the convention is stated here rather than left to be inferred from a single example.",
+  "rejected": "mr002/consumed-holdout-custody/validation1/",
+  "why": "the V2 object's location is now evidentiary identity and cannot move. A second naming scheme for a class of exactly two members would leave the generations under different conventions \u2014 the same split that has produced six role-transfer defects in this program. Symmetry with the immovable member beats tidiness that only half the class can adopt."
+ },
+ "record_identity_sha256": "bc8ff2e496a4fe0743cb82a7548723037310f6160c1fd9792ef39855b8e650ed",
+ "record_type": "MR002_ConsumedValidation1_MaterializationCustodyTransfer",
+ "retained_deliberately": {
+  "/opt/mr002/stage/v2open/run/validation2.duckdb": {
+   "bytes": 12288,
+   "classification": "FAILED_PRE_READ_EVIDENCE",
+   "sha256": "0dbc2c9e3be28c0770c3ab64461659bbfd177e17f22cfcf96925f216f2d6487d",
+   "why": "zero tables, zero Validation-2 content, and it is the artifact behind the PreReadFailure record's claim. Owner-ruled RETAIN. It does not create the consumed-corpus reuse risk."
+  },
+  "rehearsal databases": "FIXTURE_OR_REHEARSAL \u2014 built with --reader fixture --window development, structurally incapable of reaching sealed data"
+ },
+ "transfer": {
+  "order": "the resource-side denial was EXTENDED FIRST, so the V1 custody object was covered from the moment it existed. There was never a window in which it sat in custody unprotected.",
+  "step_1_hash_on_host": {
+   "bytes": 14430208,
+   "sha256": "c4cabab228e7824144036afde09f5c949d9dea6144eb0b24d41e1fcad0856c82"
+  },
+  "step_2_write_via_the_hosts_only_sanctioned_path": {
+   "independent_agreement": "S3 computed the digest itself at write time and it equals the host's \u2014 two independent computations, not one repeated",
+   "path": "s3://workbench-backups-219024422756/mr002/publish-staging/validation1/2026-08-19/validation.duckdb",
+   "s3_computed_checksum_sha256_hex": "c4cabab228e7824144036afde09f5c949d9dea6144eb0b24d41e1fcad0856c82",
+   "transient_exposure_disclosed": "the staging prefix is host-writable and is NOT covered by the custody denial. The bytes sat there only between the write and the promotion, and the staging version was then deleted. This window is structural: the host's IAM policy permits PutObject to that prefix and nowhere else, and widening it would mean editing the latch document. It is disclosed rather than hidden.",
+   "version_id": "1C9kpExFv5u_qX.Yj0ZAmjdfjO6Yes.w"
+  },
+  "step_3_promote_to_dedicated_custody": {
+   "checksum_sha256_hex": "c4cabab228e7824144036afde09f5c949d9dea6144eb0b24d41e1fcad0856c82",
+   "method": "server-side copy pinned to the staging VersionId; the bytes never transited a workstation inbound",
+   "path": "s3://workbench-backups-219024422756/mr002/consumed-validation1-custody/2026-08-19/validation1_materialization.duckdb",
+   "version_id": "6nQlnlYUimZC3WkLOBi6YI56Xv4Gs4IP"
+  },
+  "step_4_read_back_by_the_custody_principal": {
+   "byte_for_byte_equality": true,
+   "bytes_read": 14430208,
+   "local_copy": "deleted immediately after hashing; never opened by DuckDB",
+   "principal": "arn:aws:iam::219024422756:user/admin",
+   "principal_is_not": "the evaluator host role, the governed reader, any publisher role, or a research-plane role",
+   "sha256_recomputed": "c4cabab228e7824144036afde09f5c949d9dea6144eb0b24d41e1fcad0856c82"
+  },
+  "step_5_behavioural_denial_proof": {
+   "bytes_written_locally": 0,
+   "get_object_at_the_pinned_version": "AccessDenied on s3:GetObjectVersion",
+   "head_object": "403 Forbidden",
+   "principal": "arn:aws:sts::219024422756:assumed-role/mr002-phase3c-run-host/i-00c1034f7026db45e",
+   "v2_regression_check": "the V2 custody object remains 403 to the host as well \u2014 the extension did not weaken the existing protection"
+  },
+  "step_6_staging_copy_removed": {
+   "deleted_version_id": "1C9kpExFv5u_qX.Yj0ZAmjdfjO6Yes.w",
+   "verified_absent": "no versions, no delete markers"
+  },
+  "step_7_host_copy_deleted": {
+   "immutable_attribute_cleared_first": true,
+   "order": "deletion only after custody was independently verified, never before",
+   "path_absent_after": "/opt/mr002/work/validation.duckdb",
+   "sha256_reconfirmed_in_the_mutable_window": "c4cabab228e7824144036afde09f5c949d9dea6144eb0b24d41e1fcad0856c82",
+   "verified": true
+  }
+ },
+ "version": "1.0"
+}

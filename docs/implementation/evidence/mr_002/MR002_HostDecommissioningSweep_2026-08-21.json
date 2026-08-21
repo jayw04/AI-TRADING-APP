@@ -1,0 +1,366 @@
+{
+ "artifacts": [
+  {
+   "bytes": 17080,
+   "classification": "FIXTURE_OR_REHEARSAL",
+   "mtime_utc": "2026-08-21T00:22:20Z",
+   "path": "/opt/mr002/stage/fx/mr002_rehearsal_fixtures/oos/actions.parquet",
+   "sha256": "eede59c09a41126180d69f96884830a7dfbe44b8105cf3eec3f3fe5b4271ee75",
+   "why": "built under the rehearsal path from fixture/development inputs; the rehearsal runs with --reader fixture --window development and cannot reach sealed data"
+  },
+  {
+   "bytes": 38403,
+   "classification": "FIXTURE_OR_REHEARSAL",
+   "mtime_utc": "2026-08-21T00:22:20Z",
+   "path": "/opt/mr002/stage/fx/mr002_rehearsal_fixtures/oos/anchors.parquet",
+   "sha256": "79b369d1025a26daeadd96f8c916fa52e0afcd93727a3485604850687c590b8e",
+   "why": "built under the rehearsal path from fixture/development inputs; the rehearsal runs with --reader fixture --window development and cannot reach sealed data"
+  },
+  {
+   "bytes": 9360,
+   "classification": "FIXTURE_OR_REHEARSAL",
+   "mtime_utc": "2026-08-21T00:22:20Z",
+   "path": "/opt/mr002/stage/fx/mr002_rehearsal_fixtures/oos/etf_prices.parquet",
+   "sha256": "6fd7df76b58c242dd29e21516d2fae67a771adba8308e53eabe272b9078a95ae",
+   "why": "built under the rehearsal path from fixture/development inputs; the rehearsal runs with --reader fixture --window development and cannot reach sealed data"
+  },
+  {
+   "bytes": 2688112,
+   "classification": "FIXTURE_OR_REHEARSAL",
+   "mtime_utc": "2026-08-21T00:22:21Z",
+   "path": "/opt/mr002/stage/fx/mr002_rehearsal_fixtures/oos/prices.parquet",
+   "sha256": "16d1a4f9f25bf0472933655825409d4ddab52d3726c1668177aceccce5a9cfdf",
+   "why": "built under the rehearsal path from fixture/development inputs; the rehearsal runs with --reader fixture --window development and cannot reach sealed data"
+  },
+  {
+   "bytes": 454183,
+   "classification": "FIXTURE_OR_REHEARSAL",
+   "mtime_utc": "2026-08-21T00:22:21Z",
+   "path": "/opt/mr002/stage/fx/mr002_rehearsal_fixtures/oos/sic_observations.parquet",
+   "sha256": "ccfacb20daa076ac81ac1563a3e7bca1d9e0892f6bbb4f07e0f557c56a37d9c8",
+   "why": "built under the rehearsal path from fixture/development inputs; the rehearsal runs with --reader fixture --window development and cannot reach sealed data"
+  },
+  {
+   "bytes": 328484,
+   "classification": "FIXTURE_OR_REHEARSAL",
+   "mtime_utc": "2026-08-21T00:22:21Z",
+   "path": "/opt/mr002/stage/fx/mr002_rehearsal_fixtures/oos/universe.parquet",
+   "sha256": "5d0daa3398468376b5eaadd86fb7e1d9aa11e139128c6f1ed1141963f7afc41f",
+   "why": "built under the rehearsal path from fixture/development inputs; the rehearsal runs with --reader fixture --window development and cannot reach sealed data"
+  },
+  {
+   "bytes": 11657,
+   "classification": "FIXTURE_OR_REHEARSAL",
+   "mtime_utc": "2026-08-21T00:22:21Z",
+   "path": "/opt/mr002/stage/fx/mr002_rehearsal_fixtures/reference/crosswalk.parquet",
+   "sha256": "c411b0c64fd77fbd4165000b099da39101d346c4a0099995e0a15da891198750",
+   "why": "built under the rehearsal path from fixture/development inputs; the rehearsal runs with --reader fixture --window development and cannot reach sealed data"
+  },
+  {
+   "bytes": 1210,
+   "classification": "FIXTURE_OR_REHEARSAL",
+   "mtime_utc": "2026-08-21T00:22:21Z",
+   "path": "/opt/mr002/stage/fx/mr002_rehearsal_fixtures/reference/predecessor_overrides.parquet",
+   "sha256": "39fac932aaa05fee4cc66620b13bcfa2c1a79629f5fedf4f1c120f16f8d78587",
+   "why": "built under the rehearsal path from fixture/development inputs; the rehearsal runs with --reader fixture --window development and cannot reach sealed data"
+  },
+  {
+   "bytes": 1110,
+   "classification": "FIXTURE_OR_REHEARSAL",
+   "mtime_utc": "2026-08-21T00:22:21Z",
+   "path": "/opt/mr002/stage/fx/mr002_rehearsal_fixtures/reference/security_sector_overrides.parquet",
+   "sha256": "b8882d199e16cbf545566bceb1e926285c532bd592524bcff0e5589e3ec0b0d9",
+   "why": "built under the rehearsal path from fixture/development inputs; the rehearsal runs with --reader fixture --window development and cannot reach sealed data"
+  },
+  {
+   "bytes": 2116,
+   "classification": "FIXTURE_OR_REHEARSAL",
+   "mtime_utc": "2026-08-21T00:22:21Z",
+   "path": "/opt/mr002/stage/fx/mr002_rehearsal_fixtures/reference/sic_mapping.parquet",
+   "sha256": "b6b9ee2b769d666265cfaea51a7416c4ec62bee20f700160cd74d4168bc95ad8",
+   "why": "built under the rehearsal path from fixture/development inputs; the rehearsal runs with --reader fixture --window development and cannot reach sealed data"
+  },
+  {
+   "bytes": 8925184,
+   "classification": "FIXTURE_OR_REHEARSAL",
+   "mtime_utc": "2026-08-21T00:23:46Z",
+   "path": "/opt/mr002/stage/rehout/m.duckdb",
+   "sha256": "fd4e8ff61bf3fd413c42e448d67f7846e53e0bd7ecaa0c3efdf46472489f8b52",
+   "why": "built under the rehearsal path from fixture/development inputs; the rehearsal runs with --reader fixture --window development and cannot reach sealed data"
+  },
+  {
+   "bytes": 8925184,
+   "classification": "FIXTURE_OR_REHEARSAL",
+   "mtime_utc": "2026-08-21T00:39:52Z",
+   "path": "/opt/mr002/stage/reh_N/m.duckdb",
+   "sha256": "c54754e4cf2099e338a9e4d5d5e211590a251cfcdb986dd1e3537337adff759a",
+   "why": "built under the rehearsal path from fixture/development inputs; the rehearsal runs with --reader fixture --window development and cannot reach sealed data"
+  },
+  {
+   "bytes": 9187328,
+   "classification": "FIXTURE_OR_REHEARSAL",
+   "mtime_utc": "2026-08-21T00:40:22Z",
+   "path": "/opt/mr002/stage/reh_D/m.duckdb",
+   "sha256": "60af58a576b2cc52addc9d81fe26dda57af1ef7932e0576be6d55c6df1228e7a",
+   "why": "built under the rehearsal path from fixture/development inputs; the rehearsal runs with --reader fixture --window development and cannot reach sealed data"
+  },
+  {
+   "bytes": 8925184,
+   "classification": "FIXTURE_OR_REHEARSAL",
+   "mtime_utc": "2026-08-21T00:40:53Z",
+   "path": "/opt/mr002/stage/reh_V/m.duckdb",
+   "sha256": "c859bc41f540bac80b87cd7890fe2f7225752ef3ec776464f754d8b01dc32234",
+   "why": "built under the rehearsal path from fixture/development inputs; the rehearsal runs with --reader fixture --window development and cannot reach sealed data"
+  },
+  {
+   "bytes": 9711616,
+   "classification": "FIXTURE_OR_REHEARSAL",
+   "mtime_utc": "2026-08-21T00:53:21Z",
+   "path": "/opt/mr002/stage/reh_FINAL/m.duckdb",
+   "sha256": "d5e6f5617bbd8ddff6901b6806b1b8efb5d8ce4916f0c5efaeba72011e5beb10",
+   "why": "built under the rehearsal path from fixture/development inputs; the rehearsal runs with --reader fixture --window development and cannot reach sealed data"
+  },
+  {
+   "bytes": 12288,
+   "classification": "FAILED_PRE_READ_EVIDENCE",
+   "mtime_utc": "2026-08-21T12:07:54Z",
+   "path": "/opt/mr002/stage/v2open/run/validation2.duckdb",
+   "sha256": "0dbc2c9e3be28c0770c3ab64461659bbfd177e17f22cfcf96925f216f2d6487d",
+   "why": "the 12,288-byte database from the 2026-08-21T12:07:54Z pre-read failure. Zero tables, zero Validation-2 bytes; it is the artifact behind the PreReadFailure record's claim. RETAIN."
+  },
+  {
+   "bytes": 594,
+   "classification": "PACKAGING",
+   "mtime_utc": "2026-08-12T22:38:04Z",
+   "path": "/opt/mr002/deps/pyarrow/tests/data/feather/v0.17.0.version.2-compression.lz4.feather",
+   "sha256": "ab371cec1a3839605762ccb229d0c9c1d4d1b2d32a075673d0688662d9dd0671",
+   "why": "dependency bundle or wheel content, not a materialization"
+  },
+  {
+   "bytes": 3948,
+   "classification": "PACKAGING",
+   "mtime_utc": "2026-08-12T22:38:04Z",
+   "path": "/opt/mr002/deps/pyarrow/tests/data/parquet/v0.7.1.all-named-index.parquet",
+   "sha256": "60f1945edc3e4ec38f6e234389e647a1b369de8afb9c7840c491a39880c0caa1",
+   "why": "dependency bundle or wheel content, not a materialization"
+  },
+  {
+   "bytes": 2012,
+   "classification": "PACKAGING",
+   "mtime_utc": "2026-08-12T22:38:04Z",
+   "path": "/opt/mr002/deps/pyarrow/tests/data/parquet/v0.7.1.column-metadata-handling.parquet",
+   "sha256": "eec79b660a5f75c3f7ed092c4f71610cbeaf380f6047a1816aae3834256d398c",
+   "why": "dependency bundle or wheel content, not a materialization"
+  },
+  {
+   "bytes": 4372,
+   "classification": "PACKAGING",
+   "mtime_utc": "2026-08-12T22:38:04Z",
+   "path": "/opt/mr002/deps/pyarrow/tests/data/parquet/v0.7.1.parquet",
+   "sha256": "be6773848ce905b99192adc68f0c3b2aabab7d214db50b92a52203790566ab2b",
+   "why": "dependency bundle or wheel content, not a materialization"
+  },
+  {
+   "bytes": 4008,
+   "classification": "PACKAGING",
+   "mtime_utc": "2026-08-12T22:38:04Z",
+   "path": "/opt/mr002/deps/pyarrow/tests/data/parquet/v0.7.1.some-named-index.parquet",
+   "sha256": "5468128ea8a1091b5d07195471f3f9b3705247b69440aba45be6c68092dffc76",
+   "why": "dependency bundle or wheel content, not a materialization"
+  },
+  {
+   "bytes": 594,
+   "classification": "PACKAGING",
+   "mtime_utc": "2026-08-17T23:35:11Z",
+   "path": "/opt/mr002/deps_v11_clean/pyarrow/tests/data/feather/v0.17.0.version.2-compression.lz4.feather",
+   "sha256": "ab371cec1a3839605762ccb229d0c9c1d4d1b2d32a075673d0688662d9dd0671",
+   "why": "dependency bundle or wheel content, not a materialization"
+  },
+  {
+   "bytes": 3948,
+   "classification": "PACKAGING",
+   "mtime_utc": "2026-08-17T23:35:11Z",
+   "path": "/opt/mr002/deps_v11_clean/pyarrow/tests/data/parquet/v0.7.1.all-named-index.parquet",
+   "sha256": "60f1945edc3e4ec38f6e234389e647a1b369de8afb9c7840c491a39880c0caa1",
+   "why": "dependency bundle or wheel content, not a materialization"
+  },
+  {
+   "bytes": 2012,
+   "classification": "PACKAGING",
+   "mtime_utc": "2026-08-17T23:35:11Z",
+   "path": "/opt/mr002/deps_v11_clean/pyarrow/tests/data/parquet/v0.7.1.column-metadata-handling.parquet",
+   "sha256": "eec79b660a5f75c3f7ed092c4f71610cbeaf380f6047a1816aae3834256d398c",
+   "why": "dependency bundle or wheel content, not a materialization"
+  },
+  {
+   "bytes": 4372,
+   "classification": "PACKAGING",
+   "mtime_utc": "2026-08-17T23:35:11Z",
+   "path": "/opt/mr002/deps_v11_clean/pyarrow/tests/data/parquet/v0.7.1.parquet",
+   "sha256": "be6773848ce905b99192adc68f0c3b2aabab7d214db50b92a52203790566ab2b",
+   "why": "dependency bundle or wheel content, not a materialization"
+  },
+  {
+   "bytes": 4008,
+   "classification": "PACKAGING",
+   "mtime_utc": "2026-08-17T23:35:11Z",
+   "path": "/opt/mr002/deps_v11_clean/pyarrow/tests/data/parquet/v0.7.1.some-named-index.parquet",
+   "sha256": "5468128ea8a1091b5d07195471f3f9b3705247b69440aba45be6c68092dffc76",
+   "why": "dependency bundle or wheel content, not a materialization"
+  },
+  {
+   "bytes": 3948,
+   "classification": "PACKAGING",
+   "mtime_utc": "2026-08-17T23:35:11Z",
+   "path": "/opt/mr002/deps_v12/pyarrow/tests/data/parquet/v0.7.1.all-named-index.parquet",
+   "sha256": "60f1945edc3e4ec38f6e234389e647a1b369de8afb9c7840c491a39880c0caa1",
+   "why": "dependency bundle or wheel content, not a materialization"
+  },
+  {
+   "bytes": 2012,
+   "classification": "PACKAGING",
+   "mtime_utc": "2026-08-17T23:35:11Z",
+   "path": "/opt/mr002/deps_v12/pyarrow/tests/data/parquet/v0.7.1.column-metadata-handling.parquet",
+   "sha256": "eec79b660a5f75c3f7ed092c4f71610cbeaf380f6047a1816aae3834256d398c",
+   "why": "dependency bundle or wheel content, not a materialization"
+  },
+  {
+   "bytes": 4372,
+   "classification": "PACKAGING",
+   "mtime_utc": "2026-08-17T23:35:11Z",
+   "path": "/opt/mr002/deps_v12/pyarrow/tests/data/parquet/v0.7.1.parquet",
+   "sha256": "be6773848ce905b99192adc68f0c3b2aabab7d214db50b92a52203790566ab2b",
+   "why": "dependency bundle or wheel content, not a materialization"
+  },
+  {
+   "bytes": 4008,
+   "classification": "PACKAGING",
+   "mtime_utc": "2026-08-17T23:35:11Z",
+   "path": "/opt/mr002/deps_v12/pyarrow/tests/data/parquet/v0.7.1.some-named-index.parquet",
+   "sha256": "5468128ea8a1091b5d07195471f3f9b3705247b69440aba45be6c68092dffc76",
+   "why": "dependency bundle or wheel content, not a materialization"
+  },
+  {
+   "bytes": 594,
+   "classification": "PACKAGING",
+   "mtime_utc": "2026-08-17T23:35:11Z",
+   "path": "/opt/mr002/deps_v12/pyarrow/tests/data/feather/v0.17.0.version.2-compression.lz4.feather",
+   "sha256": "ab371cec1a3839605762ccb229d0c9c1d4d1b2d32a075673d0688662d9dd0671",
+   "why": "dependency bundle or wheel content, not a materialization"
+  },
+  {
+   "bytes": 31410,
+   "classification": "SOURCE_TREE",
+   "mtime_utc": "2026-08-19T02:47:08Z",
+   "path": "/opt/mr002/phase3c_src_pre_amendmentC/apps/backend/tests/fixtures/spy_daily.parquet",
+   "sha256": "dcf8414da42c95ab241e084cbc8c9d9829fa99bdfb23401b240dd14207da1768",
+   "why": "deployed source tree content"
+  },
+  {
+   "bytes": 14284,
+   "classification": "SOURCE_TREE",
+   "mtime_utc": "2026-08-19T02:47:08Z",
+   "path": "/opt/mr002/phase3c_src_pre_amendmentC/apps/backend/tests/fixtures/bars/AAPL_2025-11-03_1Min.parquet",
+   "sha256": "a54481083323bab2b4f6bab1e768ade17431f87147da90ceb33f46468ba7a7c4",
+   "why": "deployed source tree content"
+  },
+  {
+   "bytes": 14534,
+   "classification": "SOURCE_TREE",
+   "mtime_utc": "2026-08-19T02:47:08Z",
+   "path": "/opt/mr002/phase3c_src_pre_amendmentC/apps/backend/tests/fixtures/bars/AAPL_2025-11-04_1Min.parquet",
+   "sha256": "730cea5f6b57a1cbb56a0045d9a9fb22c67b1ac1293cc9552df135d5ecaebd7b",
+   "why": "deployed source tree content"
+  },
+  {
+   "bytes": 14517,
+   "classification": "SOURCE_TREE",
+   "mtime_utc": "2026-08-19T02:47:08Z",
+   "path": "/opt/mr002/phase3c_src_pre_amendmentC/apps/backend/tests/fixtures/bars/AAPL_2025-11-05_1Min.parquet",
+   "sha256": "bbc0580993dadeb92163cda2572630190b6864cea996008e2bf25e8c63ea46c1",
+   "why": "deployed source tree content"
+  },
+  {
+   "bytes": 31410,
+   "classification": "SOURCE_TREE",
+   "mtime_utc": "2026-08-20T20:53:29Z",
+   "path": "/opt/mr002/phase3c_src_pre_validation2_launcher_amendment/apps/backend/tests/fixtures/spy_daily.parquet",
+   "sha256": "dcf8414da42c95ab241e084cbc8c9d9829fa99bdfb23401b240dd14207da1768",
+   "why": "deployed source tree content"
+  },
+  {
+   "bytes": 14284,
+   "classification": "SOURCE_TREE",
+   "mtime_utc": "2026-08-20T20:53:29Z",
+   "path": "/opt/mr002/phase3c_src_pre_validation2_launcher_amendment/apps/backend/tests/fixtures/bars/AAPL_2025-11-03_1Min.parquet",
+   "sha256": "a54481083323bab2b4f6bab1e768ade17431f87147da90ceb33f46468ba7a7c4",
+   "why": "deployed source tree content"
+  },
+  {
+   "bytes": 14534,
+   "classification": "SOURCE_TREE",
+   "mtime_utc": "2026-08-20T20:53:29Z",
+   "path": "/opt/mr002/phase3c_src_pre_validation2_launcher_amendment/apps/backend/tests/fixtures/bars/AAPL_2025-11-04_1Min.parquet",
+   "sha256": "730cea5f6b57a1cbb56a0045d9a9fb22c67b1ac1293cc9552df135d5ecaebd7b",
+   "why": "deployed source tree content"
+  },
+  {
+   "bytes": 14517,
+   "classification": "SOURCE_TREE",
+   "mtime_utc": "2026-08-20T20:53:29Z",
+   "path": "/opt/mr002/phase3c_src_pre_validation2_launcher_amendment/apps/backend/tests/fixtures/bars/AAPL_2025-11-05_1Min.parquet",
+   "sha256": "bbc0580993dadeb92163cda2572630190b6864cea996008e2bf25e8c63ea46c1",
+   "why": "deployed source tree content"
+  },
+  {
+   "bytes": 31410,
+   "classification": "SOURCE_TREE",
+   "mtime_utc": "2026-08-21T00:00:28Z",
+   "path": "/opt/mr002/phase3c_src/apps/backend/tests/fixtures/spy_daily.parquet",
+   "sha256": "dcf8414da42c95ab241e084cbc8c9d9829fa99bdfb23401b240dd14207da1768",
+   "why": "deployed source tree content"
+  },
+  {
+   "bytes": 14284,
+   "classification": "SOURCE_TREE",
+   "mtime_utc": "2026-08-21T00:00:28Z",
+   "path": "/opt/mr002/phase3c_src/apps/backend/tests/fixtures/bars/AAPL_2025-11-03_1Min.parquet",
+   "sha256": "a54481083323bab2b4f6bab1e768ade17431f87147da90ceb33f46468ba7a7c4",
+   "why": "deployed source tree content"
+  },
+  {
+   "bytes": 14534,
+   "classification": "SOURCE_TREE",
+   "mtime_utc": "2026-08-21T00:00:28Z",
+   "path": "/opt/mr002/phase3c_src/apps/backend/tests/fixtures/bars/AAPL_2025-11-04_1Min.parquet",
+   "sha256": "730cea5f6b57a1cbb56a0045d9a9fb22c67b1ac1293cc9552df135d5ecaebd7b",
+   "why": "deployed source tree content"
+  },
+  {
+   "bytes": 14517,
+   "classification": "SOURCE_TREE",
+   "mtime_utc": "2026-08-21T00:00:28Z",
+   "path": "/opt/mr002/phase3c_src/apps/backend/tests/fixtures/bars/AAPL_2025-11-05_1Min.parquet",
+   "sha256": "bbc0580993dadeb92163cda2572630190b6864cea996008e2bf25e8c63ea46c1",
+   "why": "deployed source tree content"
+  }
+ ],
+ "consumed_holdout_on_ebs": [],
+ "needs_ruling": [],
+ "roots": [
+  "/opt/mr002",
+  "/root",
+  "/home",
+  "/var/tmp",
+  "/tmp",
+  "/mnt",
+  "/data"
+ ],
+ "rule": "no consumed-holdout material may remain solely on EBS; NEEDS_RULING must be empty before host disposal",
+ "summary": {
+  "FAILED_PRE_READ_EVIDENCE": 1,
+  "FIXTURE_OR_REHEARSAL": 15,
+  "PACKAGING": 15,
+  "SOURCE_TREE": 12
+ }
+}

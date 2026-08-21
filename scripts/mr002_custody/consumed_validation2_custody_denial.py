@@ -54,7 +54,7 @@ RETAINED_BY_DESIGN = {
 }
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
-TRACKED = os.path.join(_HERE, "aws", "backups-consumed-validation2-custody-policy.json")
+TRACKED = os.path.join(_HERE, "aws", "backups-consumed-holdout-custody-policy.json")
 
 
 def canonical(doc) -> str:
