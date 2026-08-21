@@ -1,0 +1,220 @@
+{
+ "F4_disposition": {
+  "rule": "Remediation must never be written back into 'no defect existed.' The defect was real, it was found during P1, and the record of it stands at 7c77f73 and da0d29b.",
+  "status": "REMEDIATED \u2014 not retroactively erased",
+  "the_historical_finding_remains_true": "At the time it was discovered, the bound numerical runtime behind BOTH consumed holdout executions lacked durable, independently protected custody and depended on a single EBS failure domain. Loss of that volume would have made exact runtime reproduction impossible, permanently.",
+  "what_remediation_consisted_of": [
+   "export of the exact runtime, preserved not rebuilt (da0d29b)",
+   "cryptographic re-identification of the config object off-host, sha256 770553aeae6c... (da0d29b)",
+   "placement in the evidence store under a dedicated non-holdout prefix, version-pinned, with both identities re-verified from the custody copy (cffa999)",
+   "extension of the permanent-deletion Deny to that prefix, sealed-then-applied-then-verified, and proven behaviourally (this record)"
+  ]
+ },
+ "authorization": "owner ruling 2026-08-21 \u2014 authorize the one-ARN amendment, but ONLY through the existing Amendment-R procedure, never as an ad-hoc IAM edit.",
+ "authorized_semantic_change": {
+  "add": "add arn:aws:s3:::workbench-mr002-sealed-219024422756/runtime-custody/* to DenyPermanentDeletionOfSealedObjectVersions.Resource \u2014 nothing else",
+  "nothing_else_may_change": [
+   "policy Id MR002SealedStorePolicy preserved",
+   "every existing Sid preserved",
+   "validation/ and oos/ ARNs preserved",
+   "no Allow added",
+   "no resource removed",
+   "no principal change",
+   "no condition change",
+   "not reconstructed from a reduced template",
+   "the WHOLE resulting policy canonicalised and hashed, not merely the added statement"
+  ]
+ },
+ "behavioural_proof": {
+  "conclusive_probe": {
+   "key": "runtime-custody/_control-probe/deletion-deny-proof.txt",
+   "method": "created a throwaway object under the protected prefix, captured its REAL VersionId, and attempted to delete that version",
+   "result": "AccessDenied \u2014 'User: arn:aws:iam::219024422756:user/admin is not authorized to perform: s3:DeleteObjectVersion ... with an explicit deny in a resource-based policy'",
+   "significance": "the Deny bites for the ADMINISTRATIVE principal, which is the principal that could otherwise remove the artifact. This is the control actually being claimed.",
+   "version_id": "hWZs3nEVPqI2RH_M1cMN_E6Ia7rMugHq"
+  },
+  "deliberate_orphan": {
+   "object": "runtime-custody/_control-probe/deletion-deny-proof.txt",
+   "status": "PERMANENTLY UNDELETABLE BY DESIGN \u2014 its undeletability is the evidence. It is a few dozen bytes and is not to be 'cleaned up'; removing it would require weakening the control it demonstrates."
+  },
+  "first_two_probes_were_INCONCLUSIVE_and_are_recorded_as_such": "attempts to delete a synthetic version id returned InvalidArgument on the protected prefix, on an unprotected prefix, AND on the long-protected validation/ prefix. S3 format-validates a version id BEFORE authorization, so that probe cannot discriminate and proves nothing. It is recorded rather than discarded, because a probe that returns the same answer everywhere is a probe that would have 'passed' against a policy that did nothing.",
+  "mutation_control": {
+   "conclusion": "the Deny is prefix-scoped and effective: denied under runtime-custody/*, permitted under an unprotected prefix.",
+   "key": "probe-control/discrimination.txt",
+   "method": "identical object and identical delete under an UNPROTECTED prefix in the SAME bucket",
+   "result": "DELETED SUCCESSFULLY",
+   "why": "a deny proof is worthless if the test would deny everything. The control proves the test discriminates."
+  },
+  "why": "policy text is not behaviour. The program's own lesson, recorded in the Validation-2 custody record: 'proven from the evaluator host itself, not inferred from policy text. This is the check whose absence cost a latch cycle this morning.'"
+ },
+ "closes": "P1-CUST-F1",
+ "date_utc": "2026-08-21",
+ "execution_gate": {
+  "10_latch_unchanged": {
+   "after": {
+    "identity": "44f5549a97042d2829a3027e764105b0ab272774ec3bb343d224bfba999fab48",
+    "statements": 8
+   },
+   "before": {
+    "identity": "44f5549a97042d2829a3027e764105b0ab272774ec3bb343d224bfba999fab48",
+    "statements": 8
+   },
+   "state": "8 / CLOSED throughout"
+  },
+  "11_bucket_deny_statements_intact": {
+   "count": 4,
+   "sids": [
+    "DenyInsecureTransport",
+    "DenyValidation2ReadsToEveryPrincipalButGovernedValidationReader",
+    "DenyValidationReadsToEveryPrincipalButTheValidationReader",
+    "DenyPermanentDeletionOfSealedObjectVersions"
+   ]
+  },
+  "12_validation_oos_access_state_unchanged": {
+   "method": "the read-Deny scopes (resources + conditions) were snapshotted before sealing and compared field-for-field after application",
+   "scopes_before": {
+    "DenyValidation2ReadsToEveryPrincipalButGovernedValidationReader": {
+     "condition": {
+      "StringNotEquals": {
+       "aws:PrincipalArn": "arn:aws:iam::219024422756:role/mr002-validation-reader"
+      }
+     },
+     "resources": [
+      "arn:aws:s3:::workbench-mr002-sealed-219024422756/oos/*"
+     ]
+    },
+    "DenyValidationReadsToEveryPrincipalButTheValidationReader": {
+     "condition": {
+      "StringNotEquals": {
+       "aws:PrincipalArn": "arn:aws:iam::219024422756:role/mr002-validation-reader"
+      }
+     },
+     "resources": [
+      "arn:aws:s3:::workbench-mr002-sealed-219024422756/validation/*"
+     ]
+    }
+   },
+   "verified": true
+  },
+  "1_live_captured_and_confirmed": {
+   "expected": "7bb73e62066e52303c5d48ed0cd740cb16b4f2825110dde92d9cc4d6dfc164a5",
+   "live_identity_before": "7bb73e62066e52303c5d48ed0cd740cb16b4f2825110dde92d9cc4d6dfc164a5",
+   "match": true,
+   "note": "equal to the Amendment R sealed value recorded at ab78bb5, so the policy was unchanged since that amendment"
+  },
+  "2_derived_by_modifying_the_live_object": "the amended document is a deep copy of the LIVE policy with one ARN appended. It is never reconstructed from a template, so any element the live policy carries \u2014 including elements this code does not model \u2014 survives by construction.",
+  "3_structural_diff_exactly_one_delta": {
+   "count": 1,
+   "deltas": [
+    "STATEMENT DenyPermanentDeletionOfSealedObjectVersions.Resource: added=['arn:aws:s3:::workbench-mr002-sealed-219024422756/runtime-custody/*'] removed=[]"
+   ],
+   "diff_covers": "EVERY top-level element unconditionally, plus every statement by Sid. This is deliberate: the 2026-08-21 self-defect was a diff that reported Id only when the old document had none, which would have hidden the replacement of an existing Id.",
+   "refusal_rule": "the script exits non-zero unless the delta set is exactly the one authorized change. It does not correct a surprise interactively."
+  },
+  "4_policy_id_survives": "MR002SealedStorePolicy",
+  "5_sealed_before_application": {
+   "proposed_identity": "6c7a4e97aef230b82bf1e16ee95aed1a374f47d7739c52c3bd37303d4141580a",
+   "seal_location": ".mr002out/p1/runtime_custody_amendment_seal.json (untracked working artifact; the sealed document is reproduced in full below so this record is self-contained)",
+   "sealed_before_application": true
+  },
+  "6_applied": "put-bucket-policy, after re-fetching live, re-deriving, and requiring the re-derived identity to equal the sealed identity",
+  "7_read_back_from_aws": true,
+  "8_canonicalised_identically_and_compared": {
+   "canonicalizer": "json.dumps(doc, sort_keys=True, separators=(',',':')) \u2014 the same function as mr002_v2_resource_policy_gate.canonical",
+   "deployed_equals_sealed": true,
+   "deployed_identity": "6c7a4e97aef230b82bf1e16ee95aed1a374f47d7739c52c3bd37303d4141580a"
+  },
+  "9_new_arn_covered_by_the_permanent_deletion_deny": true,
+  "procedure": "apps/backend/scripts/mr002_p1_runtime_custody_amendment.py \u2014 three phases, each refusing on a failed precondition. Preserved in the repository so the amendment is reproducible and reviewable rather than described in prose."
+ },
+ "governing_protocol": "MR002_P1_NumericalInvestigation_Protocol_v1.0",
+ "not_authorized_by_this_record": [
+  "P2A, P3, any freeze, registration, holdout opening, paper or production activation",
+  "T5, T6, any numerical run, or provisioning a reproduction host",
+  "any further policy change of any kind",
+  "Question B \u2014 the v1/v2 execution-lineage investigation \u2014 which remains on its post-numerical scope"
+ ],
+ "phase": "P1",
+ "predecessor": "MR002_P1_RuntimeCustodyTransfer_v1.0 (cffa999)",
+ "record_sha256_of_body_without_this_field": "82936e57afd2769470e0e5b3f7d4e0ab1632e61ace2a9f5ccef8b002f34380ea",
+ "record_type": "MR002_P1_RUNTIME_CUSTODY_AMENDMENT",
+ "research_disposition_UNCHANGED": {
+  "A2": "FAILED",
+  "F1": "unresolved / unreproducible \u2014 BOUND_AGGREGATE_ALGORITHM_NOT_REPRODUCIBLE; NO_OBSERVED_NUMERICAL_COMPONENT_DRIFT",
+  "P1": "INSUFFICIENT_DEVELOPMENT_EVIDENCE",
+  "T2": "NOT COMPLETE",
+  "T5_T6": "BLOCKED / NOT EXECUTED",
+  "note": "Nothing in this custody work touches the numerical question. A remediated custody defect does not move a research disposition, and this record does not claim it does."
+ },
+ "sealed_document_as_applied": {
+  "Id": "MR002SealedStorePolicy",
+  "Statement": [
+   {
+    "Action": "s3:*",
+    "Condition": {
+     "Bool": {
+      "aws:SecureTransport": "false"
+     }
+    },
+    "Effect": "Deny",
+    "Principal": "*",
+    "Resource": [
+     "arn:aws:s3:::workbench-mr002-sealed-219024422756",
+     "arn:aws:s3:::workbench-mr002-sealed-219024422756/*"
+    ],
+    "Sid": "DenyInsecureTransport"
+   },
+   {
+    "Action": [
+     "s3:GetObject",
+     "s3:GetObjectVersion",
+     "s3:GetObjectAttributes",
+     "s3:GetObjectVersionAttributes"
+    ],
+    "Condition": {
+     "StringNotEquals": {
+      "aws:PrincipalArn": "arn:aws:iam::219024422756:role/mr002-validation-reader"
+     }
+    },
+    "Effect": "Deny",
+    "Principal": "*",
+    "Resource": "arn:aws:s3:::workbench-mr002-sealed-219024422756/oos/*",
+    "Sid": "DenyValidation2ReadsToEveryPrincipalButGovernedValidationReader"
+   },
+   {
+    "Action": [
+     "s3:GetObject",
+     "s3:GetObjectVersion",
+     "s3:GetObjectAttributes",
+     "s3:GetObjectVersionAttributes"
+    ],
+    "Condition": {
+     "StringNotEquals": {
+      "aws:PrincipalArn": "arn:aws:iam::219024422756:role/mr002-validation-reader"
+     }
+    },
+    "Effect": "Deny",
+    "Principal": "*",
+    "Resource": "arn:aws:s3:::workbench-mr002-sealed-219024422756/validation/*",
+    "Sid": "DenyValidationReadsToEveryPrincipalButTheValidationReader"
+   },
+   {
+    "Action": [
+     "s3:DeleteObjectVersion",
+     "s3:PutBucketVersioning"
+    ],
+    "Effect": "Deny",
+    "Principal": "*",
+    "Resource": [
+     "arn:aws:s3:::workbench-mr002-sealed-219024422756",
+     "arn:aws:s3:::workbench-mr002-sealed-219024422756/validation/*",
+     "arn:aws:s3:::workbench-mr002-sealed-219024422756/oos/*",
+     "arn:aws:s3:::workbench-mr002-sealed-219024422756/runtime-custody/*"
+    ],
+    "Sid": "DenyPermanentDeletionOfSealedObjectVersions"
+   }
+  ],
+  "Version": "2012-10-17"
+ },
+ "version": "1.0"
+}
