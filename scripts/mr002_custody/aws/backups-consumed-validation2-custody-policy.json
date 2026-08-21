@@ -1,0 +1,32 @@
+{
+  "Version": "2012-10-17",
+  "Id": "WorkbenchBackupsConsumedHoldoutCustody",
+  "Statement": [
+    {
+      "Sid": "DenyTheEvaluatorAndResearchPlanesTheConsumedValidation2Materialization",
+      "Effect": "Deny",
+      "Principal": "*",
+      "Action": [
+        "s3:GetObject",
+        "s3:GetObjectVersion",
+        "s3:GetObjectAttributes",
+        "s3:GetObjectVersionAttributes"
+      ],
+      "Resource": "arn:aws:s3:::workbench-backups-219024422756/mr002/consumed-validation2-custody/*",
+      "Condition": {
+        "StringEquals": {
+          "aws:PrincipalArn": [
+            "arn:aws:iam::219024422756:role/mr002-phase3c-run-host",
+            "arn:aws:iam::219024422756:role/mr002-validation-reader",
+            "arn:aws:iam::219024422756:role/mr002-evaluator-publisher",
+            "arn:aws:iam::219024422756:role/mr002-validation2-evidence-publisher",
+            "arn:aws:iam::219024422756:role/mr002-validation2-publish-host-role",
+            "arn:aws:iam::219024422756:role/workbench-paper-InstanceRole-4P2Tvq7FaG1E",
+            "arn:aws:iam::219024422756:role/workbench-forward-validation-session",
+            "arn:aws:iam::219024422756:role/workbench-forward-validation-witness"
+          ]
+        }
+      }
+    }
+  ]
+}

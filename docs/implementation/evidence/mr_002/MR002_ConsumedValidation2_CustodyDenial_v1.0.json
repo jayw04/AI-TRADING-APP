@@ -1,0 +1,30 @@
+{
+ "allow_statements": 0,
+ "authority": "owner ruling 2026-08-21 \u2014 archive to inaccessible evidence custody",
+ "bucket": "workbench-backups-219024422756",
+ "date": "2026-08-21",
+ "denied_principals": [
+  "arn:aws:iam::219024422756:role/mr002-phase3c-run-host",
+  "arn:aws:iam::219024422756:role/mr002-validation-reader",
+  "arn:aws:iam::219024422756:role/mr002-evaluator-publisher",
+  "arn:aws:iam::219024422756:role/mr002-validation2-evidence-publisher",
+  "arn:aws:iam::219024422756:role/mr002-validation2-publish-host-role",
+  "arn:aws:iam::219024422756:role/workbench-paper-InstanceRole-4P2Tvq7FaG1E",
+  "arn:aws:iam::219024422756:role/workbench-forward-validation-session",
+  "arn:aws:iam::219024422756:role/workbench-forward-validation-witness"
+ ],
+ "grants_nothing": "the policy contains only Deny. It grants no access and removes none from any other prefix: absent an explicit Deny, evaluation falls through to identity policies exactly as before.",
+ "honest_scope": "custody, audit and administrative principals RETAIN access by design. An unconditional Deny would block the evidence verification this archive exists to support. This is a scoped control, not a claim that nobody can read the object.",
+ "policy_existed_before": false,
+ "prefix": "mr002/consumed-validation2-custody/",
+ "record_type": "MR002_ConsumedValidation2_CustodyDenial",
+ "retained_by_design": {
+  "arn:aws:iam::219024422756:role/MR002CustodyMonitorRole": "custody monitoring",
+  "arn:aws:iam::219024422756:role/WorkbenchFleetAuditRole": "audit",
+  "arn:aws:iam::219024422756:user/admin": "the custody verification principal"
+ },
+ "sealed_before_application": true,
+ "sealed_identity": "d44230f45ed3d94af5bacfdd9f35529c0999186aa0661e7fb59dc3014aed0176",
+ "version": "1.0",
+ "why_resource_side": "the evaluator host role grants no read on this bucket, so today it has no route by OMISSION. Omission is not a control \u2014 it holds only until someone attaches a policy. The 2026-08-21 pre-read failure was the mirror image: a complete and correct identity-side amendment defeated by the resource side nobody had re-pointed."
+}
