@@ -33,6 +33,56 @@ function occurrence(
     current_price_as_of: "2026-08-20",
     current_price_source: "sharadar.sep",
     change_pct: 130 / 120.5 - 1,
+    checkpoints: [
+      {
+        checkpoint: "PROPOSAL",
+        price: 120.5,
+        price_as_of: "2026-08-19",
+        price_source: "sharadar.sep",
+        adjustment_basis: "sharadar.sep",
+        return_pct: 0,
+      },
+      {
+        checkpoint: "D1",
+        price: 130,
+        price_as_of: "2026-08-20",
+        price_source: "sharadar.sep",
+        adjustment_basis: "sharadar.sep",
+        return_pct: 130 / 120.5 - 1,
+      },
+      {
+        checkpoint: "D5",
+        price: null,
+        price_as_of: null,
+        price_source: null,
+        adjustment_basis: null,
+        return_pct: null,
+      },
+      {
+        checkpoint: "D10",
+        price: null,
+        price_as_of: null,
+        price_source: null,
+        adjustment_basis: null,
+        return_pct: null,
+      },
+      {
+        checkpoint: "D20",
+        price: null,
+        price_as_of: null,
+        price_source: null,
+        adjustment_basis: null,
+        return_pct: null,
+      },
+      {
+        checkpoint: "CURRENT",
+        price: 130,
+        price_as_of: "2026-08-20",
+        price_source: "sharadar.sep",
+        adjustment_basis: "sharadar.sep",
+        return_pct: 130 / 120.5 - 1,
+      },
+    ],
     ...over,
   };
 }
@@ -63,6 +113,8 @@ describe("OpportunityHistoryPage", () => {
     expect(screen.getByText("OVERSOLD")).toBeTruthy();
     expect(screen.getByText("$120.50")).toBeTruthy();
     expect(screen.getByText("$130.00")).toBeTruthy();
+    expect(screen.getByText("1–10d")).toBeTruthy();
+    expect(screen.getByText("D1 D5 D10 D20")).toBeTruthy();
   });
 
   it("loads a symbol timeline when a row is clicked", async () => {
@@ -88,7 +140,7 @@ describe("OpportunityHistoryPage", () => {
     fireEvent.click(await screen.findByRole("button", { name: "NVDA" }));
     await waitFor(() => {
       expect(screen.getByText("NVDA timeline")).toBeTruthy();
-      expect(screen.getByText("2026-08-14")).toBeTruthy();
+      expect(screen.getAllByText("2026-08-14").length).toBeGreaterThan(0);
     });
   });
 

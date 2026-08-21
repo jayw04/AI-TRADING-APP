@@ -234,8 +234,19 @@ class OpportunitiesResponse(BaseModel):
     as_of: datetime
 
 
+class OppHistoryCheckpoint(BaseModel):
+    """Read-time factual print. return_pct is None if pending or bases differ."""
+
+    checkpoint: str
+    price: float | None = None
+    price_as_of: str | None = None
+    price_source: str | None = None
+    adjustment_basis: str | None = None
+    return_pct: float | None = None
+
+
 class OppHistoryOccurrence(BaseModel):
-    """One durable family-row occurrence. Current price is read-time only."""
+    """One durable family-row occurrence. Current price and checkpoints are read-time only."""
 
     symbol: str
     family: str
@@ -257,6 +268,7 @@ class OppHistoryOccurrence(BaseModel):
     current_price_as_of: str | None = None
     current_price_source: str | None = None
     change_pct: float | None = None
+    checkpoints: list[OppHistoryCheckpoint] = Field(default_factory=list)
 
 
 class OppHistoryResponse(BaseModel):

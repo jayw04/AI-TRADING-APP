@@ -8,7 +8,7 @@ projections with joined names where the page needs them.
 
 from __future__ import annotations
 
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
 from zoneinfo import ZoneInfo
 
 from fastapi import APIRouter, Depends, Query
@@ -20,6 +20,7 @@ from app.api.v1.schemas.opportunities import (
     OppDiscoveryMatchesWidget,
     OppDiscoveryMatchItem,
     OppFillItem,
+    OppHistoryCheckpoint,
     OppHistoryOccurrence,
     OppHistoryResponse,
     OppLiveSignalsWidget,
@@ -59,7 +60,9 @@ from app.db.models.signal import Signal
 from app.db.models.strategy import Strategy as StrategyRow
 from app.db.models.symbol import Symbol
 from app.db.session import get_session
-from app.services.opportunity_history import PriceQuote, latest_closes, parse_reason_json
+from app.research.disc001.checkpoints import build_checkpoints, parse_iso_date
+from app.research.disc001.spec import PRICE_SOURCE_SEP
+from app.services.opportunity_history import history_price_series, parse_reason_json
 from app.services.premarket_gappers import read_latest_gappers
 from app.utils.time import EASTERN
 
@@ -142,7 +145,7 @@ async def get_opportunity_history(
     family: str | None = Query(default=None),
     limit: int = Query(default=200, ge=1, le=500),
 ) -> OppHistoryResponse:
-    """Durable CandidateSnapshot occurrences. Current price is read-time only."""
+    """Durable CandidateSnapshot occurrences. Prices and checkpoints are read-time only."""
     _ = current_user
     now = datetime.now(UTC)
     stmt = select(OpportunityOccurrence)
@@ -162,8 +165,11 @@ async def get_opportunity_history(
     else:
         items = _history_summaries(rows, limit=limit)
         view = "summary"
-    quotes = latest_closes([item.symbol for item in items])
-    enriched = [_enrich_history_item(item, quotes) for item in items]
+    series: dict[str, tuple[tuple[date, float], ...]] = {}
+    if items:
+        start = min(parse_iso_date(item.candidate_date) for item in items)
+        series = history_price_series([item.symbol for item in items], start=start)
+    enriched = [_enrich_history_item(item, series.get(item.symbol, ())) for item in items]
     return OppHistoryResponse(view=view, count=len(enriched), items=enriched, as_of=now)
 
 
@@ -232,20 +238,36 @@ def _occurrence_item(
 
 def _enrich_history_item(
     item: OppHistoryOccurrence,
-    quotes: dict[str, PriceQuote],
+    sessions: tuple[tuple[date, float], ...],
 ) -> OppHistoryOccurrence:
-    quote = quotes.get(item.symbol)
-    if quote is None:
-        return item
-    change = None
-    if item.proposal_price:
-        change = (quote.price / item.proposal_price) - 1.0
+    facts = build_checkpoints(
+        proposal_price=item.proposal_price,
+        proposal_basis=item.adjustment_basis,
+        proposal_source=item.proposal_price_source,
+        candidate_date=parse_iso_date(item.candidate_date),
+        sessions=sessions,
+        later_source=PRICE_SOURCE_SEP,
+        later_basis=PRICE_SOURCE_SEP,
+    )
+    current = next((fact for fact in facts if fact.checkpoint == "CURRENT"), None)
+    checkpoints = [
+        OppHistoryCheckpoint(
+            checkpoint=fact.checkpoint,
+            price=fact.price,
+            price_as_of=fact.price_as_of,
+            price_source=fact.price_source,
+            adjustment_basis=fact.adjustment_basis,
+            return_pct=fact.return_pct,
+        )
+        for fact in facts
+    ]
     return item.model_copy(
         update={
-            "current_price": quote.price,
-            "current_price_as_of": quote.as_of,
-            "current_price_source": quote.source,
-            "change_pct": change,
+            "current_price": current.price if current is not None else None,
+            "current_price_as_of": current.price_as_of if current is not None else None,
+            "current_price_source": current.price_source if current is not None else None,
+            "change_pct": current.return_pct if current is not None else None,
+            "checkpoints": checkpoints,
         }
     )
 

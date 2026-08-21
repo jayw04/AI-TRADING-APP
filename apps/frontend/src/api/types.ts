@@ -558,6 +558,15 @@ export interface OpportunitiesResponse {
   as_of: string;
 }
 
+export interface OppHistoryCheckpoint {
+  checkpoint: string;
+  price: number | null;
+  price_as_of: string | null;
+  price_source: string | null;
+  adjustment_basis: string | null;
+  return_pct: number | null;
+}
+
 export interface OppHistoryOccurrence {
   symbol: string;
   family: string;
@@ -579,6 +588,7 @@ export interface OppHistoryOccurrence {
   current_price_as_of: string | null;
   current_price_source: string | null;
   change_pct: number | null;
+  checkpoints: OppHistoryCheckpoint[];
 }
 
 export interface OppHistoryResponse {
