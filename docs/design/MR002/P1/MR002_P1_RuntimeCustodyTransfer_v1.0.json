@@ -1,0 +1,116 @@
+{
+ "record_type": "MR002_P1_RUNTIME_CUSTODY_TRANSFER",
+ "version": "1.0",
+ "phase": "P1",
+ "date_utc": "2026-08-21",
+ "governing_protocol": "MR002_P1_NumericalInvestigation_Protocol_v1.0",
+ "predecessor": "MR002_P1_RuntimePreservation_v1.0 (da0d29b)",
+ "authorization": "owner ruling 2026-08-21 — move the exported archive from staged to durable immutable custody through the administrative custody path. This is preservation of an already-identified artifact, not numerical execution, and therefore does not require the reproduction host.",
+
+ "verdict": {
+  "custody_placement": "DONE — the artifact now lives in the program's evidence store under a dedicated, non-holdout prefix, version-pinned, and both identities re-verified from the custody copy itself",
+  "immutability": "PARTIAL — see finding P1-CUST-F1. The sealed bucket's deletion Deny is prefix-scoped and does NOT cover this prefix. Closing that gap requires a bucket-policy amendment, which is NOT applied here.",
+  "F4_status": "REDUCED, NOT CLOSED. The single-failure-domain risk is gone. F4 closes when the deletion Deny covers this prefix.",
+  "A2_status": "FAILED — unchanged. Nothing in this record touches F1, T2 or the disposition."
+ },
+
+ "custody_object": {
+  "bucket": "workbench-mr002-sealed-219024422756",
+  "key": "runtime-custody/mr002-research-v1.4/config-770553aeae6c/image.oci.tar",
+  "version_id": "0Tzg7evlmneyv31cmCzWqb4ezoRoylrd",
+  "bytes": 432910336,
+  "server_side_encryption": "AES256",
+  "etag": "e6ce444795b7406aa1a22fd9ff918ea2 — an S3 packaging artifact, NOT a content hash",
+  "copied_from": {
+   "bucket": "workbench-backups-219024422756",
+   "key": "mr002/publish-staging/p1-runtime-preservation/mr002-research-v1.4-770553ae.tar",
+   "version_id": "dQF4I04o8BLhvV_lDc0d.SD5Rp7BE.Ks",
+   "retained": "YES — the staging copy is deliberately left in place. It is a second copy in a different bucket, and deleting it would reduce durability to make a record look tidy."
+  },
+  "object_metadata_stamped": {
+   "mr002-artifact": "stage3-numerical-runtime",
+   "image-config-digest": "sha256-770553aeae6c3d47f1735f61a4e0df75515c105ddda0431dcc2a07b8bdbfe4b6",
+   "archive-sha256": "a60d8b43eb5ba23a2d732af5499326c8d4e9f8c4ee8d5feb4953d4ce24ae2e72",
+   "preservation-not-rebuild": "true",
+   "source-host": "i-00c1034f7026db45e",
+   "exported-utc": "2026-08-21T20:34:10Z"
+  }
+ },
+
+ "why_this_prefix_and_not_another": {
+  "chosen": "runtime-custody/ inside the MR-002 sealed evidence bucket",
+  "reasoning": [
+   "the sealed bucket is the program's evidence store, versioned, with DenyInsecureTransport in force and s3:PutBucketVersioning denied at the bucket level so versioning cannot be switched off",
+   "the evaluator host role is denied s3:* on this bucket by DenyAllAccessToTheSealedStore, so placing the runtime here grants that host no new access to it",
+   "a DEDICATED non-holdout prefix is the correct categorisation signal: a numerical runtime is not holdout material and must not inherit the holdout read-Denies, which would block the custody and audit verification this artifact exists to support"
+  ],
+  "explicitly_rejected": {
+   "validation/ or oos/ prefixes": "would miscategorise a runtime artifact as holdout material and would make it unreadable to the custody principals who need to verify it",
+   "a registry push to ECR": "would have been the tidy answer to 'not under registry custody', but a push routes the artifact through a daemon, and this workstation's containerd store demonstrably re-presents image identity. Pushing the ALREADY-VERIFIED archive as bytes keeps the chain daemon-free and self-authenticating. A registry copy remains a reasonable ADDITIONAL control later, and if taken it must record its new manifest digest SEPARATELY and never as equal to any prior registry identity."
+  }
+ },
+
+ "identity_verification_from_the_custody_copy": {
+  "method": "downloaded by pinned VersionId from the custody location and recomputed independently — not inherited from the staging verification",
+  "transport_identity": {
+   "what_it_is": "the S3 object's byte identity — transport custody only",
+   "archive_sha256": "a60d8b43eb5ba23a2d732af5499326c8d4e9f8c4ee8d5feb4953d4ce24ae2e72",
+   "bytes": 432910336,
+   "match": true
+  },
+  "docker_config_identity": {
+   "what_it_is": "the GOVERNED runtime identity — the Docker image specification defines image identity as the SHA-256 of the image configuration JSON",
+   "config_object_path_in_archive": "blobs/sha256/770553aeae6c3d47f1735f61a4e0df75515c105ddda0431dcc2a07b8bdbfe4b6",
+   "config_object_bytes": 7505,
+   "recomputed_sha256": "770553aeae6c3d47f1735f61a4e0df75515c105ddda0431dcc2a07b8bdbfe4b6",
+   "match_to_readiness_v5_binding": true,
+   "manifest_config_pointer": "blobs/sha256/770553aeae6c3d47f1735f61a4e0df75515c105ddda0431dcc2a07b8bdbfe4b6",
+   "layer_count": 8
+  },
+  "kept_separate_deliberately": "VersionId / retention identity and Docker config identity are DIFFERENT identifiers answering different questions — 'which stored object' versus 'which runtime'. They are recorded in separate fields and must never be written as if one implied the other."
+ },
+
+ "findings": [
+  {
+   "id": "P1-CUST-F1",
+   "severity": "open control gap — NOT closed by this record",
+   "status_label": "CUSTODY_PLACED; DELETION_DENY_DOES_NOT_YET_COVER_THIS_PREFIX",
+   "title": "The sealed bucket's deletion Deny is prefix-scoped and does not protect runtime-custody/.",
+   "statement": "The live bucket policy (identity 7bb73e62066e52303c5d48ed0cd740cb16b4f2825110dde92d9cc4d6dfc164a5, verified equal to the Amendment R sealed value recorded at ab78bb5, so the policy is unchanged since that amendment) contains DenyPermanentDeletionOfSealedObjectVersions scoped to: the bucket itself for s3:PutBucketVersioning, plus validation/* and oos/* object versions. runtime-custody/* is NOT among them. The custody object's versions are therefore deletable by an administrative principal.",
+   "what_would_close_it": "adding arn:aws:s3:::workbench-mr002-sealed-219024422756/runtime-custody/* to the Resource list of that ONE existing statement. It grants nothing, removes no read access from anyone, and extends only deletion protection.",
+   "why_it_is_NOT_applied_here": "This is the same bucket-policy surface whose quiet mis-scoping cost the program a governed latch cycle on 2026-08-21 — a complete, correct identity-side amendment defeated by the resource side nobody had re-pointed. The program's own Amendment R procedure exists for this: seal the amendment before applying it, ENUMERATE every top-level element, and REFUSE if any element other than the intended one changes. Applying a policy change to that surface unilaterally, at the end of a long session, is exactly the shortcut that history argues against.",
+   "recommended_procedure_if_approved": [
+    "seal the proposed document and its identity BEFORE application",
+    "diff every top-level element (Version, Id, and all four Sids) and refuse on any unintended change — note that the live policy already HAS an Id (MR002SealedStorePolicy), so a naive draft that writes an Id would REPLACE it, which is the precise defect Amendment R caught in itself",
+    "verify deployed == sealed after application",
+    "re-verify latch 8/CLOSED and that no read-Deny scope changed"
+   ]
+  },
+  {
+   "id": "P1-CUST-F2",
+   "severity": "informational — durability accounting",
+   "title": "The artifact now exists in three independent places; the single-failure-domain risk from F4 is gone.",
+   "statement": "Copies: (1) the evaluator host's local Docker image store and its 08-18 runtime_custody tar, both on i-00c1034f7026db45e's EBS volume; (2) the staging object in workbench-backups-219024422756, version-pinned; (3) the custody object in workbench-mr002-sealed-219024422756, version-pinned. Copies 2 and 3 are in different buckets and are each independently self-authenticating, because each contains the config object whose own hash is the bound identity.",
+   "consequence_for_F4": "F4's catastrophic component — loss of one EBS volume making the runtime behind both consumed holdouts permanently unreproducible — is RESOLVED. F4's governance component — the artifact is under no durable custody control — is reduced to the deletion-Deny gap in P1-CUST-F1 and remains OPEN until that is closed."
+  }
+ ],
+
+ "state": {
+  "evaluator_host": "i-00c1034f7026db45e — STOPPED, untouched by this record",
+  "latch": "8 / CLOSED",
+  "sealed_bucket_policy": "UNCHANGED — identity 7bb73e62..., no amendment applied",
+  "consumed_holdout_access": "none",
+  "T2": "NOT COMPLETE",
+  "A2": "FAILED",
+  "T5_T6": "BLOCKED and NOT EXECUTED",
+  "P1_disposition": "NOT SELECTED — INSUFFICIENT_DEVELOPMENT_EVIDENCE stands"
+ },
+
+ "not_authorized_by_this_record": [
+  "any bucket-policy amendment",
+  "T5, T6, or any numerical run",
+  "provisioning a reproduction host — under the frozen rule there is currently nothing it is authorized to unlock",
+  "P2A, P3, any freeze, registration, holdout opening, paper or production activation",
+  "Question B — the v1/v2 execution-lineage investigation — which proceeds only under its already recorded post-numerical scope"
+ ]
+}
