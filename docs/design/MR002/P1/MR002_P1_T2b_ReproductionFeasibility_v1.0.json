@@ -1,0 +1,110 @@
+{
+ "record_type": "MR002_P1_T2B_REPRODUCTION_FEASIBILITY",
+ "version": "1.0",
+ "phase": "P1",
+ "track": "T2b — feasibility assessment for the authorized development-reproduction environment",
+ "date_utc": "2026-08-21",
+ "governing_protocol": "MR002_P1_NumericalInvestigation_Protocol_v1.0",
+ "predecessor": "MR002_P1_T2_EnvironmentIdentity_v1.0, committed 2418164",
+ "authorization": "owner ruling 2026-08-21 — one isolated development-reproduction environment using the exact ReadinessQualification v5.0 numerical image/runtime identity, no validation/OOS access, solely to reproduce the authoritative development corpus and complete A-2, T5, T6. Do not narrow A-2. Do not modify or repurpose the validation host.",
+ "why_this_record_exists": "The owner's condition 1 requires the EXACT evaluator image digest with no tag, rebuild or substitution, and condition 5 requires development inputs from the authoritative lineage. Establishing whether those conditions are SATISFIABLE is a prerequisite to building anything. One of them is; the other has a blocking obstacle the program has not previously recorded.",
+
+ "condition_5_development_lineage": {
+  "verdict": "SATISFIABLE — the strong chain is available, and no adjudication question arises",
+  "owner_caveat_resolved": "The owner noted that if raw development inputs no longer existed, whether A-2 permits reproduction from a frozen intermediate would be a separate adjudication question. That question does NOT arise: the raw authoritative input exists and verifies.",
+  "authoritative_input": {
+   "path": "apps/backend/data/mr002_research.duckdb",
+   "bytes": 132395008,
+   "sha256_observed": "24e5153cc0ebed77c7b422562e5a8ebfa147aad3019b27035b5314aaaacfad5a",
+   "sha256_bound": "24e5153cc0ebed77c7b422562e5a8ebfa147aad3019b27035b5314aaaacfad5a",
+   "result": "PASS — byte-exact match",
+   "binding_sources": [
+    "MR002_N3_FinalVerdict_v1.0.json  -> dataset.sha256",
+    "MR002_N3_ProspectiveRegistration_v1.0.json  -> domain.dataset.sha256",
+    "MR002_Validation2_StructuralPreflight_v1.0.json  -> pre-sealing snapshot",
+    "app/research/mr002/spq1/adapters/__init__.py  -> REGISTERED_RESEARCH_DB"
+   ],
+   "no_wal_sidecar": true
+  },
+  "supporting_frozen_identities": {
+   "DEV_CALENDAR_SHA256": "a7ec4f0f2d5ce794d7a24a3d48e628f830cb68dbf1af9b0a51c557d38836e0c0 — 1700 dev session dates",
+   "GOVERNED_SESSION_LIST_SHA256": "b873421516ba5c4bbeb4ff3859e574f64f7251a956a2ba6ddea0e753981dad3f — 3400 sessions",
+   "REGISTERED_CORPUS_HASH": "1d2319301a7b52dfe369819bc8029f7b6d64ad820d828f041eba15a91348390b — the regeneration target"
+  },
+  "authoritative_generator": {
+   "driver": "apps/backend/scripts/mr002_n1_capture_corpus.py",
+   "capture_device": "scripts.mr002_solver_intersection.capture_solver — IMPORTED, never re-derived. The script's own header records why: 'a different device produces a DIFFERENT downstream instance sequence and a different hash.'",
+   "inputs": "FrozenDataset(mr002_research.duckdb).day_inputs(2013-01-02, 2019-10-02), configs A/B/C from app.research.mr002.runner.CONFIGS",
+   "note": "FrozenDataset opens read-only but does NOT itself verify the dataset identity. The verification above was performed externally and must be performed by the reproduction run explicitly."
+  }
+ },
+
+ "condition_1_exact_image_digest": {
+  "verdict": "BLOCKED — not satisfiable by a registry pull. See finding P1-T2-F4.",
+  "required": "sha256:770553aeae6c3d47f1735f61a4e0df75515c105ddda0431dcc2a07b8bdbfe4b6 (config digest), tag mr002-research:v1.4, bound by ReadinessQualification v5.0",
+  "ecr_inventory": {
+   "repositories": ["mr002-evaluator-p5"],
+   "images": [
+    {"manifest": "sha256:60b15568aa5960ee...", "tag": "qualify-d1e7ffc", "mediaType": "oci.image.index.v1", "config_digest": "n/a — index"},
+    {"manifest": "sha256:4d1945a64c114c07...", "tag": "runtime-v1", "mediaType": "docker.manifest.v2", "config_digest": "sha256:226643c46e0d0043..."},
+    {"manifest": "sha256:194efbdf96ee11c1...", "tag": "runtime-index-v1", "mediaType": "oci.image.index.v1", "config_digest": "n/a — index"},
+    {"manifest": "sha256:b81cd073e34445ec...", "tag": null},
+    {"manifest": "sha256:a4e3ac54151b0bd2...", "tag": null}
+   ],
+   "conclusion": "sha256:770553ae... appears NOWHERE in ECR. The ECR lineage resolves to config digest sha256:226643c4..., a DIFFERENT image."
+  }
+ },
+
+ "findings": [
+  {
+   "id": "P1-T2-F4",
+   "severity": "governance defect — HIGH, and wider than P1",
+   "status_label": "BOUND_NUMERICAL_RUNTIME_NOT_UNDER_REGISTRY_CUSTODY",
+   "title": "The image that actually executed Stage-3 is not in any registry and is not covered by the evaluator image-custody records.",
+   "statement": "ReadinessQualification v5.0 binds the runtime as mr002-research:v1.4, config digest sha256:770553aeae6c... That image is not in ECR. The only ECR repository is mr002-evaluator-p5, whose images resolve to config digest sha256:226643c46e0d... — a different lineage. Both custody records, MR002_EvaluatorImageCustody_v1.0 and MR002_EvaluatorImageCustody_Runtime_v1.0, reference ONLY mr002-evaluator-p5 digests (60b15568, 6962e4a7, a4e3ac54, b81cd073, 194efbdf, 226643c4, 4d1945a6). None of them is 770553ae.",
+   "consequence_1_for_P1": "The owner's condition 1 cannot be met by pulling the digest, because there is nothing to pull. The only route that does not rebuild or substitute is to export the image from the evaluator host's local Docker storage (docker save), transport it, load it into the reproduction environment, and verify the loaded config digest equals 770553ae... A rebuild from deploy/research/mr002/Dockerfile would NOT reproduce the digest and is excluded by the owner's condition and by ordinary reproducibility.",
+   "consequence_2_standing_risk": "The bound numerical runtime for MR-002 currently exists as a SINGLE local image on one stopped EC2 instance's EBS volume. If that volume is lost, the numerical environment that produced Validation-1 and Validation-2 becomes unreproducible permanently, and the frozen method's runtime identity becomes unverifiable by anyone, forever. This risk is independent of P1 and does not wait on it.",
+   "pattern": "This is the SAME failure class as P1-T2-F1, one level up. F1: an identity was recorded but the algorithm that produces it was not preserved. F4: an identity was recorded but the artifact it names was not placed under custody. In both cases the number can be quoted and cannot be checked. v1.3.1 stated the correct principle — 'durable ECR custody by immutable digest' — and it was applied to the evaluator-p5 lineage while the image that actually ran the numerics was left outside it.",
+   "explicitly_not_claimed": "This is NOT a claim that the numerics are wrong, that the image drifted, or that Validation-2's terminal is thereby explained. The image was verified present and byte-consistent on the host during T2, and its config digest matched the binding exactly."
+  },
+  {
+   "id": "P1-T2-F5",
+   "severity": "clarification of a committed record",
+   "title": "The Aug-9 digest sha256:60b15568... does exist — in ECR, as a manifest digest of a different lineage.",
+   "statement": "The committed T2 record states that this digest 'does not correspond to any image present on the evaluator host'. That remains literally true and is not withdrawn. This record adds the precision a later reader needs: 60b15568 IS present in ECR, tagged qualify-d1e7ffc, as an OCI image-index MANIFEST digest in the mr002-evaluator-p5 repository. Manifest digests and config digests are different identifier types and are not comparable directly, so the fact that it differs from 770553ae is not by itself evidence of anything.",
+   "why_recorded_here_rather_than_by_editing_T2": "T2 was committed as a chronological checkpoint. Correcting it in place would destroy the property that makes the checkpoint worth having. The clarification is therefore additive and dated.",
+   "substantive_position_unchanged": "The owner's instruction not to reuse the Aug-9 digest on trust was correct, and for a stronger reason than first reported: it names a different image lineage entirely, not merely a stale version of the same one."
+  }
+ ],
+
+ "recommended_next_action": {
+  "summary": "One decision is needed before the reproduction environment can be built, and one action should be taken regardless of P1.",
+  "decision_required": {
+   "question": "May the evaluator host be started once more, READ-ONLY, solely to `docker save` the bound image sha256:770553ae... ?",
+   "why_it_needs_a_ruling": "The owner's standing instruction is 'do not modify or repurpose the validation host'. It is the one remaining action that touches that host, so it is surfaced rather than assumed.",
+   "invariant_claimed_precisely": {
+    "note": "Corrected before this record was first committed, at owner instruction. An earlier draft said the export 'modifies nothing'. That is FALSE as stated: booting a host updates ordinary OS logs, timestamps and journal state.",
+    "the_narrower_and_stronger_invariant": "no MR-002 research or validation PAYLOAD mutation, and no holdout access",
+    "why_it_matters": "'modifies nothing' is an overclaim that a single `last` or journalctl entry falsifies, which would then cast doubt on every other claim in the record. The payload/holdout invariant is the one that actually protects the evidence, and it is checkable."
+   },
+   "if_denied": "There is no compliant route to the exact digest, condition 1 cannot be met, T2 cannot be completed, and the P1 disposition remains INSUFFICIENT_DEVELOPMENT_EVIDENCE."
+  },
+  "independent_of_P1": "Place sha256:770553ae... under durable registry custody by immutable digest, on the same footing v1.3.1 required for the evaluator image. It is currently a single copy on one EBS volume. This should not wait on a P1 disposition.",
+  "not_a_workaround": "Rebuilding from deploy/research/mr002/Dockerfile is NOT an alternative. It would produce a different digest and would substitute a look-alike runtime for the bound one — precisely the substitution the owner's condition 1 excludes."
+ },
+
+ "state": {
+  "evaluator_host": "i-00c1034f7026db45e — STOPPED",
+  "latch": "8 / CLOSED, unchanged",
+  "consumed_holdout_access": "none, at any point",
+  "A2": "FAILED — unchanged from T2",
+  "P1_disposition": "NOT SELECTED — INSUFFICIENT_DEVELOPMENT_EVIDENCE stands"
+ },
+
+ "not_authorized_by_this_record": [
+  "building the reproduction environment — pending the decision above",
+  "starting or touching the evaluator host again",
+  "P2A, P3, any freeze, registration, holdout opening, paper or production activation",
+  "Question B — why the 2026-08-21 run was bound to the v1 layer — remains OUT of P1 scope"
+ ]
+}
