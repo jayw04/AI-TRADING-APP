@@ -1,0 +1,171 @@
+{
+ "record_type": "MR002_P1_T2_ENVIRONMENT_IDENTITY",
+ "version": "1.0",
+ "phase": "P1",
+ "track": "T2",
+ "date_utc": "2026-08-21",
+ "governing_protocol": "MR002_P1_NumericalInvestigation_Protocol_v1.0",
+ "authorization": "owner ruling 2026-08-21 — temporary evaluator-host start solely to reproduce the pinned P1 numerical environment and execute T2/T5/T6. Not authorization for P2A, a validation rerun, OOS access, a strategy change, or a disposition.",
+
+ "verdict": {
+  "A2_admissibility_condition": "FAILED — on TWO independent grounds",
+  "T2_track_status": "NOT COMPLETE",
+  "environment_identity": "CONFIRMED on the decisive binding (image config digest, thread env, numerical stack provenance, BLAS/CPU dispatch)",
+  "corpus_reproduction": "NOT EXECUTED — the development dataset is not present on this host",
+  "dependency_identity": "NOT CONFIRMABLE — see P1-T2-F1",
+  "consequence": "P1 tracks T5 and T6 remain blocked. The standing disposition remains INSUFFICIENT_DEVELOPMENT_EVIDENCE.",
+
+  "why_two_grounds_and_not_one": {
+   "note": "This field was STRENGTHENED before this record was first committed, after re-reading the frozen protocol text. It is a pre-commit correction in the CONSERVATIVE direction, disclosed here rather than made silently. It is NOT a post-hoc reinterpretation of a requirement after seeing a result — that is the failure mode the owner named, and it would run the other way.",
+   "protocol_text_T2": "'Reproduce corpus.npz, confirm the registered corpus hash, confirm FROZEN_THREAD_ENV (threads = 1, OPENBLAS_CORETYPE=HASWELL), confirm pinned image AND DEPENDENCY IDENTITY.' — Protocol v1.0 §4, track T2.",
+   "protocol_text_A2": "'A-2  T2 complete: the development corpus reproduces to the registered hash under a confirmed deterministic environment.' — Protocol v1.0 §5.1.",
+   "ground_1": "corpus reproduction did not occur (P1-T2-F2)",
+   "ground_2": "dependency identity confirmation is part of T2 as frozen, and it cannot be performed (P1-T2-F1). T2 is therefore not complete, independently of the corpus.",
+   "consequence_under_the_frozen_rule": "Protocol §5.1 is unconditional: 'If any of A-1...A-4 fails, the disposition is INSUFFICIENT_DEVELOPMENT_EVIDENCE, however suggestive the partial evidence is.' There is no clause admitting a partially complete T2. The rule therefore decides its own consequence and no judgement call is available here.",
+   "the_only_two_legitimate_exits": [
+    "satisfy T2 in full — reproduce the corpus AND establish a dependency identity that can actually be confirmed",
+    "an EXPLICIT, PROSPECTIVELY RECORDED owner amendment to the protocol — a governance act, versioned and dated, never a reading"
+   ],
+   "explicitly_not_an_exit": "inventing a twentieth canonicalisation and stopping when one happens to hash-match. That would fit the algorithm to the answer."
+  }
+ },
+
+ "authority_resolution": {
+  "method": "the current authoritative image/runtime binding was re-derived from the post-2026-08-19/21 authority artifacts, NOT carried forward from the 2026-08-09 development plan",
+  "authoritative_source": "MR002_Validation2_ReadinessQualification_v5.0 (e914a4f4f891a5a166287dd1f6425964b94ab2746f623ac742cfaa1224fd2630), which supersedes v4.0",
+  "stale_value_deliberately_NOT_used": {
+   "value": "sha256:60b15568aa5960ee04cf10b8c9b006d2ee702aa815a17384beffc979ed4554c9",
+   "source": "MR002_Development_Plan_Next_Phases_v1.3.md, dated 2026-08-09, section WP-B",
+   "finding": "this digest does not correspond to any image present on the evaluator host. The owner's instruction not to reuse it on trust was correct."
+  }
+ },
+
+ "host": {
+  "instance_id": "i-00c1034f7026db45e",
+  "name_tag": "mr002-phase3c-run-host",
+  "type": "c6a.xlarge",
+  "az": "us-east-1d",
+  "state_at_start_of_track": "stopped",
+  "started_for": "P1 track T2 only",
+  "access_path": "SSM Session Manager (AWS-RunShellScript). No SG change was made; no SSH was used."
+ },
+
+ "latch_preflight": {
+  "why": "verified BEFORE the host was started, so a running host could not reach holdout material",
+  "mechanism": "inline IAM policy mr002-phase3c-qualification-only on role mr002-phase3c-run-host; the latch is its statement count",
+  "statement_count": 8,
+  "state": "8 / CLOSED",
+  "canonical_sha256": "44f5549a97042d2829a3027e764105b0ab272774ec3bb343d224bfba999fab48",
+  "matches_recorded_canonical": true,
+  "computed_with": "the program's own canonical() from apps/backend/scripts/mr002_v2_resource_policy_gate.py — json.dumps(doc, sort_keys=True, separators=(',',':')), not a re-implementation",
+  "blocking_statements_in_force": [
+   "DenyAssumingTheValidationReaderRole — Deny sts:AssumeRole",
+   "DenyAllAccessToTheSealedStore — Deny s3:*"
+  ],
+  "verification_class": "BEHAVIOURAL PRECONDITION, computed live from IAM, not asserted from a record"
+ },
+
+ "environment_identity_checks": {
+  "image_config_digest": {
+   "bound": "sha256:770553aeae6c3d47f1735f61a4e0df75515c105ddda0431dcc2a07b8bdbfe4b6",
+   "observed": "sha256:770553aeae6c3d47f1735f61a4e0df75515c105ddda0431dcc2a07b8bdbfe4b6",
+   "tag_on_host": "mr002-research:v1.4",
+   "result": "PASS — EXACT MATCH",
+   "resolution_discipline": "every container in this track was invoked BY DIGEST, never by tag, never rebuilt, never pulled"
+  },
+  "frozen_thread_env": {
+   "OMP_NUM_THREADS": "1", "OPENBLAS_NUM_THREADS": "1", "MKL_NUM_THREADS": "1",
+   "NUMEXPR_NUM_THREADS": "1", "OPENBLAS_CORETYPE": "HASWELL",
+   "result": "PASS — all five bound variables present with the bound values, observed from inside the container"
+  },
+  "numerical_stack_provenance": {
+   "rule": "the numerical stack must come from the IMAGE, not the dependency mount",
+   "observed": {
+    "numpy": {"version": "2.2.6", "source": "IMAGE"},
+    "scipy": {"version": "1.18.0", "source": "IMAGE"},
+    "quadprog": {"version": "(C extension, no __version__)", "source": "IMAGE"},
+    "piqp": {"version": "0.6.3", "source": "IMAGE", "note": "piqp_python_avx2 — the AVX2 build"},
+    "duckdb": {"version": "1.1.3", "source": "IMAGE"},
+    "mpmath": {"version": "1.3.0", "source": "IMAGE"},
+    "clarabel": {"version": "0.11.1", "source": "IMAGE"},
+    "pyarrow": {"version": "20.0.0", "source": "MOUNT", "note": "bound to come from the mount"}
+   },
+   "python": "3.13.14",
+   "result": "PASS — matches the readiness v5.0 bound stack exactly, including the image/mount split"
+  },
+  "blas_and_cpu_dispatch": {
+   "blas": "scipy-openblas 0.3.29",
+   "openblas_configuration": "OpenBLAS 0.3.29 USE64BITINT DYNAMIC_ARCH NO_AFFINITY Haswell MAX_THREADS=64",
+   "numpy_cpu_baseline": ["SSE", "SSE2", "SSE3"],
+   "numpy_cpu_dispatch_head": ["SSSE3", "SSE41", "POPCNT", "SSE42", "AVX", "F16C", "FMA3", "AVX2"],
+   "result": "PASS — DYNAMIC_ARCH pinned to Haswell is consistent with OPENBLAS_CORETYPE=HASWELL; this is the binding that makes BLAS kernel selection deterministic across CPU models"
+  },
+  "dependency_bundle_content_identity": {
+   "bound": "26e230493f218aba332b0888f2751def9f143ee136f68a86bdb91aaa03110dc1",
+   "bound_file_count": 2954,
+   "observed_file_count": 2954,
+   "result": "NOT VERIFIABLE — see finding P1-T2-F1",
+   "mount": "-v /opt/mr002/deps_v12:/opt/mr002/deps:ro",
+   "mount_did_happen": "PROVEN — 2954 files present at the container path and pyarrow resolves to /opt/mr002/deps/pyarrow/__init__.py. The empty-mount failure mode that readiness v4.0 recorded as a near-miss is excluded."
+  }
+ },
+
+ "findings": [
+  {
+   "id": "P1-T2-F1",
+   "severity": "governance defect — recorded, not repaired",
+   "status_label": "BOUND_AGGREGATE_ALGORITHM_NOT_REPRODUCIBLE; NO_OBSERVED_NUMERICAL_COMPONENT_DRIFT",
+   "status_label_authority": "owner ruling 2026-08-21. This finding is a provenance/reproducibility defect and is NOT evidence of numerical drift — but it is also NOT declared globally non-blocking. Both halves of the label are load-bearing and must be quoted together.",
+   "bears_on_A2": "YES — T2 as frozen requires confirming 'pinned image and dependency identity', so this is the second independent ground on which A-2 fails. See verdict.why_two_grounds_and_not_one.",
+   "title": "The bound dependency-bundle content identity cannot be reproduced by any tooling in the repository.",
+   "statement": "The bound value 26e230493f218aba332b0888f2751def9f143ee136f68a86bdb91aaa03110dc1 was not reproduced by any of NINETEEN candidate canonicalisations computed inside the bound container over the mounted bundle: two-space hash-path lines (the format mr002_v2_tree_aggregate.py uses), one-space, path-then-hash, hashes-only, streaming rel+bytes, streaming bytes-only, hash-lines, JSON dict (indented and compact), NUL-separated, rel=hash, raw-digest concatenation, sorted-by-hash, tab-separated, no-newline, walk-order variants of two of these, absolute-path, and basename-only. The file COUNT matches the record exactly (2954), and the mount demonstrably happened, so this is a lost-algorithm problem and not evidence that the bundle drifted.",
+   "precedent": "This is the same failure class the repository already documents. apps/backend/scripts/mr002_v2_tree_aggregate.py records that the prior rollback aggregate ff0308be99dd82087b03ef3b48006f4a7c4b87ca37bd951a8be42794c03f4bbc 'was computed on the host under an implementation that is not preserved anywhere in this repository' and that 'seven plausible formula variants over two candidate file sets ... all failed to reproduce it.' That docstring states the general lesson: 'an aggregate described in prose and re-implemented twice is two algorithms wearing one name.' The deps-bundle identity is a second instance of exactly that.",
+   "proportionate_assessment": "This does NOT impugn numerical determinism. Every numerical library — numpy, scipy, quadprog, piqp, mpmath, clarabel — resolves from the IMAGE, and the image config digest matches the bound value exactly. The unverifiable bundle supplies pyarrow and the AWS/dateutil libraries, none of which participate in solving a QP or evaluating a certificate.",
+   "recommendation": "A future freeze must bind the dependency bundle with an identity produced by a SHIPPED, versioned implementation, on the same footing as mr002_v2_tree_aggregate.py. Recording a hash without preserving the function that produced it yields a value that can be quoted but never checked. Do NOT retrofit a new algorithm onto the old number and call it verified."
+  },
+  {
+   "id": "P1-T2-F2",
+   "severity": "blocker for A-2",
+   "title": "The development corpus cannot be reproduced on this host as provisioned.",
+   "statement": "corpus.npz is not present in the bound tree (/opt/mr002/phase3c_src/.mr002out does not exist), and /opt/mr002/inputs contains only Validation-2 material — config.json, sessions.json, structural_manifest.json, reference_manifest.json, upload_manifest.json. This host was provisioned as a VALIDATION execution host. The development dataset that mr002_n1_capture_corpus.py replays over the window 2013-01-02 to 2019-10-02 is not on it.",
+   "why_it_matters": "T2's clause is that the environment REGENERATES the corpus to the registered hash 1d2319301a7b52dfe369819bc8029f7b6d64ad820d828f041eba15a91348390b. Copying the existing local corpus.npz onto the host would NOT satisfy that clause — it would demonstrate only that the environment can read a file. It would, however, be sufficient to run T5 and T6, which need the instances and the solvers rather than a regeneration proof.",
+   "owner_decision_required": true,
+   "options_not_chosen_by_the_developer": [
+    "Provision the development dataset onto the host — a host mutation, and the dataset needs its own identity binding before it can be an input to a governed run.",
+    "Transfer the local corpus.npz — unblocks T5/T6 but leaves A-2's reproduction clause UNSATISFIED, which must then be stated in the disposition record rather than quietly treated as met.",
+    "Narrow A-2 by ruling — accept environment identity via image digest, thread env and stack provenance, and record corpus reproduction as deferred."
+   ]
+  },
+  {
+   "id": "P1-T2-F3",
+   "severity": "custody — verified clean",
+   "title": "A consumed-materialization alarm was raised and resolved against evidence.",
+   "statement": "A filesystem sweep found /opt/mr002/stage/v2open/run/validation2.duckdb, which appeared to contradict the custody record's claim that the host copy was deleted. It does not. The sealed custody record MR002_ConsumedValidation2_MaterializationCustodyTransfer_v1.0 accounts for it explicitly under 'also_present_and_deliberately_retained': it is the FAILED FIRST ATTEMPT's database from 12:07:54Z, created before the resource-policy refusal, containing zero tables and no Validation-2 bytes, retained because it is the artifact behind the PreReadFailure record.",
+   "verification": "Verified rather than accepted: observed 12288 bytes, mtime 2026-08-21T12:07:54Z, sha256 0dbc2c9e3be28c0770c3ab64461659bbfd177e17f22cfcf96925f216f2d6487d — matching the sealed record on size, timestamp AND content hash. The CONSUMED materialization (13,905,920 bytes, created 14:26:22Z) is absent: both a targeted search and a whole-filesystem size-band sweep returned nothing.",
+   "outcome": "No custody defect. No consumed-holdout access occurred at any point in this track."
+  }
+ ],
+
+ "data_scope_actually_touched": {
+  "opened": [
+   "IAM policy documents for the latch preflight (read-only)",
+   "container runtime metadata and module versions",
+   "the mounted dependency bundle at /opt/mr002/deps (file bytes, for identity computation only)",
+   "filesystem metadata across the host for the custody sweep"
+  ],
+  "not_opened": [
+   "the consumed Validation-2 materialization — absent from the host",
+   "the retained pre-read-failure stub — hashed as bytes, never opened as a database",
+   "any sealed reader, validation store, S3 sealed prefix, or OOS data",
+   "any corpus or development dataset — none is present"
+  ],
+  "host_filesystem_mutated": "only /tmp probe scripts were written. /opt/mr002 was not modified; no bundle, tree, image or manifest was created, altered, renamed or deleted.",
+  "latch_state_throughout": "8 / CLOSED, unchanged. No AssumeRole against the validation reader was attempted."
+ },
+
+ "not_authorized_by_this_record": [
+  "P2A, P3, any freeze, any registration, any holdout opening, paper or production activation",
+  "any change to a frozen numerical parameter, tolerance, profile or acceptance predicate",
+  "any P1 disposition — the frozen decision rule is applied only after T2, T5 and T6 complete"
+ ]
+}
