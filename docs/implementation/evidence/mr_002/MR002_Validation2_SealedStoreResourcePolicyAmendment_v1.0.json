@@ -1,0 +1,89 @@
+{
+ "admitted_principal": "arn:aws:iam::219024422756:role/mr002-validation-reader",
+ "admitted_principal_broadened": false,
+ "authority": "owner ruling 2026-08-21 \u2014 minimal oos/* resource-policy repair, AUTHORIZED TO SEAL AND APPLY",
+ "authorizes": "NOTHING. Applying this amendment does not open Validation-2. A fresh opening requires its own owner ruling, and readiness must first carry the eleventh gate.",
+ "bucket": "workbench-mr002-sealed-219024422756",
+ "date": "2026-08-21",
+ "defective_identity_before": "b529bb26c5d542b255adf8c94349609180bd4599108debbd8fac693567437baf",
+ "diff": [
+  {
+   "element": "top-level Id",
+   "unchanged_byte_for_byte": true,
+   "value": "MR002SealedStorePolicy"
+  },
+  {
+   "element": "top-level Version",
+   "unchanged_byte_for_byte": true,
+   "value": "2012-10-17"
+  },
+  {
+   "element": "Sid",
+   "new": "DenyValidation2ReadsToEveryPrincipalButGovernedValidationReader",
+   "old": "DenyOOSReadsToEveryPrincipalButTheFutureOOSReader",
+   "why": "the stale Future-OOS terminology is the semantic debt that caused this defect family; the name must state the CURRENT governance role"
+  },
+  {
+   "element": "Condition.StringNotEquals.aws:PrincipalArn",
+   "new": "arn:aws:iam::219024422756:role/mr002-validation-reader",
+   "old": "arn:aws:iam::219024422756:role/mr002-oos-reader-NOT-YET-PROVISIONED",
+   "why": "the placeholder role has never existed, so the statement denied the governed reader"
+  },
+  {
+   "element": "statement DenyInsecureTransport",
+   "unchanged_byte_for_byte": true
+  },
+  {
+   "element": "statement DenyPermanentDeletionOfSealedObjectVersions",
+   "unchanged_byte_for_byte": true
+  },
+  {
+   "element": "statement DenyValidationReadsToEveryPrincipalButTheValidationReader",
+   "unchanged_byte_for_byte": true
+  },
+  {
+   "element": "DenyValidation2ReadsToEveryPrincipalButGovernedValidationReader.Effect",
+   "unchanged_byte_for_byte": true,
+   "value": "Deny"
+  },
+  {
+   "element": "DenyValidation2ReadsToEveryPrincipalButGovernedValidationReader.Principal",
+   "unchanged_byte_for_byte": true,
+   "value": "*"
+  },
+  {
+   "element": "DenyValidation2ReadsToEveryPrincipalButGovernedValidationReader.Action",
+   "unchanged_byte_for_byte": true,
+   "value": [
+    "s3:GetObject",
+    "s3:GetObjectVersion",
+    "s3:GetObjectAttributes",
+    "s3:GetObjectVersionAttributes"
+   ]
+  },
+  {
+   "element": "DenyValidation2ReadsToEveryPrincipalButGovernedValidationReader.Resource",
+   "unchanged_byte_for_byte": true,
+   "value": "arn:aws:s3:::workbench-mr002-sealed-219024422756/oos/*"
+  }
+ ],
+ "explicitly_not_done": {
+  "blanket_validation_deny": "NOT APPROVED and NOT INCLUDED. Validation-1 is permanently inadmissible to EVALUATION; that is not the same as its bytes being unreadable by every custody, forensic or administrative principal forever. An unconditional Deny would block legitimate evidence verification until the bucket policy were edited again. A narrower evaluator-path guard with its custody principals enumerated is a SEPARATE strengthening.",
+  "identity_side": "Amendment A v1.2 is correct as deployed and is NOT touched.",
+  "other_statements": "DenyInsecureTransport, DenyValidationReadsToEveryPrincipalButTheValidationReader and DenyPermanentDeletionOfSealedObjectVersions are carried over byte-for-byte."
+ },
+ "governance_invariant": "oos/ is a PHYSICAL STORAGE PREFIX; its CURRENT GOVERNANCE ROLE is Validation-2, readable only by arn:aws:iam::219024422756:role/mr002-validation-reader at its six registered VersionIds. validation/ is the CONSUMED Validation-1 partition, permanently inadmissible to evaluation.",
+ "placeholder_removed": "arn:aws:iam::219024422756:role/mr002-oos-reader-NOT-YET-PROVISIONED",
+ "record_type": "MR002_Validation2_SealedStoreResourcePolicyAmendment",
+ "repairs": "MR002_Validation2_OpeningPreReadFailure_v1.0 / d1303229...",
+ "sealed_before_application": true,
+ "sealed_identity_after": "7bb73e62066e52303c5d48ed0cd740cb16b4f2825110dde92d9cc4d6dfc164a5",
+ "sid_renamed": {
+  "from": "DenyOOSReadsToEveryPrincipalButTheFutureOOSReader",
+  "to": "DenyValidation2ReadsToEveryPrincipalButGovernedValidationReader"
+ },
+ "statement_count_after": 4,
+ "statement_count_before": 4,
+ "version": "1.0",
+ "where_the_invariant_is_stated": "in the SID of the amended statement, which is the element that names what a statement enforces, and in full in this record. It is deliberately NOT written into the top-level Id: the live policy already has one (MR002SealedStorePolicy), so writing it there would REPLACE an existing element rather than add one, which is broader than the authorized change. An earlier draft of this script did exactly that while the diff omitted it \u2014 the diff now enumerates every top-level element and refuses if any changed."
+}

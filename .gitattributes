@@ -74,3 +74,13 @@ apps/backend/scripts/mr002_v2_fold_gate_rehearsal.py text eol=lf
 apps/backend/scripts/mr002_v2_tree_aggregate.py text eol=lf
 apps/backend/scripts/mr002_v2_build_deployment_artifact.py text eol=lf
 apps/backend/scripts/mr002_v2_boundary_probe.py text eol=lf
+
+# Gate 11 (owner ruling 2026-08-21), the resource-side counterpart to Amendment A. The HEAD
+# authorization probe's sha256 is BOUND in readiness v5.0 as the instrument identity, and the
+# staged host-side copy is verified equal to the Git blob — a CRLF checkout would break both.
+# Same trap family as the v3.5 CRLF retirement and the phase3c adoption binding.
+apps/backend/scripts/mr002_v2_head_authorization_probe.py text eol=lf
+apps/backend/scripts/mr002_v2_resource_policy_gate.py text eol=lf
+scripts/mr002_custody/validation2_resource_policy_amendment.py text eol=lf
+# custody copies of live AWS policy documents: byte custody, not just canonical-JSON equality
+scripts/mr002_custody/aws/*.json text eol=lf

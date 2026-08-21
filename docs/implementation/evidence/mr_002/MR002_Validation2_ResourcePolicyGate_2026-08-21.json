@@ -1,0 +1,415 @@
+{
+ "authorization_matrix": [
+  {
+   "case": "reader GetObjectVersion oos/actions.parquet @registered",
+   "decided_by": [
+    [
+     "identity",
+     "ReadValidation2ActionsAtItsRegisteredVersionOnly"
+    ]
+   ],
+   "expected": "ALLOW",
+   "got": "ALLOW",
+   "pass": true
+  },
+  {
+   "case": "reader GetObjectVersion oos/actions.parquet @WRONG version",
+   "decided_by": [
+    [
+     "identity",
+     "DenyValidation2ActionsAtAnyVersionButItsOwn"
+    ]
+   ],
+   "expected": "DENY",
+   "got": "DENY",
+   "pass": true
+  },
+  {
+   "case": "reader HeadObject(versioned) oos/actions.parquet @registered",
+   "decided_by": [
+    [
+     "identity",
+     "ReadValidation2ActionsAtItsRegisteredVersionOnly"
+    ]
+   ],
+   "expected": "ALLOW",
+   "got": "ALLOW",
+   "pass": true
+  },
+  {
+   "case": "reader GetObjectVersion oos/anchors.parquet @registered",
+   "decided_by": [
+    [
+     "identity",
+     "ReadValidation2AnchorsAtItsRegisteredVersionOnly"
+    ]
+   ],
+   "expected": "ALLOW",
+   "got": "ALLOW",
+   "pass": true
+  },
+  {
+   "case": "reader GetObjectVersion oos/anchors.parquet @WRONG version",
+   "decided_by": [
+    [
+     "identity",
+     "DenyValidation2AnchorsAtAnyVersionButItsOwn"
+    ]
+   ],
+   "expected": "DENY",
+   "got": "DENY",
+   "pass": true
+  },
+  {
+   "case": "reader HeadObject(versioned) oos/anchors.parquet @registered",
+   "decided_by": [
+    [
+     "identity",
+     "ReadValidation2AnchorsAtItsRegisteredVersionOnly"
+    ]
+   ],
+   "expected": "ALLOW",
+   "got": "ALLOW",
+   "pass": true
+  },
+  {
+   "case": "reader GetObjectVersion oos/etf_prices.parquet @registered",
+   "decided_by": [
+    [
+     "identity",
+     "ReadValidation2EtfPricesAtItsRegisteredVersionOnly"
+    ]
+   ],
+   "expected": "ALLOW",
+   "got": "ALLOW",
+   "pass": true
+  },
+  {
+   "case": "reader GetObjectVersion oos/etf_prices.parquet @WRONG version",
+   "decided_by": [
+    [
+     "identity",
+     "DenyValidation2EtfPricesAtAnyVersionButItsOwn"
+    ]
+   ],
+   "expected": "DENY",
+   "got": "DENY",
+   "pass": true
+  },
+  {
+   "case": "reader HeadObject(versioned) oos/etf_prices.parquet @registered",
+   "decided_by": [
+    [
+     "identity",
+     "ReadValidation2EtfPricesAtItsRegisteredVersionOnly"
+    ]
+   ],
+   "expected": "ALLOW",
+   "got": "ALLOW",
+   "pass": true
+  },
+  {
+   "case": "reader GetObjectVersion oos/prices.parquet @registered",
+   "decided_by": [
+    [
+     "identity",
+     "ReadValidation2PricesAtItsRegisteredVersionOnly"
+    ]
+   ],
+   "expected": "ALLOW",
+   "got": "ALLOW",
+   "pass": true
+  },
+  {
+   "case": "reader GetObjectVersion oos/prices.parquet @WRONG version",
+   "decided_by": [
+    [
+     "identity",
+     "DenyValidation2PricesAtAnyVersionButItsOwn"
+    ]
+   ],
+   "expected": "DENY",
+   "got": "DENY",
+   "pass": true
+  },
+  {
+   "case": "reader HeadObject(versioned) oos/prices.parquet @registered",
+   "decided_by": [
+    [
+     "identity",
+     "ReadValidation2PricesAtItsRegisteredVersionOnly"
+    ]
+   ],
+   "expected": "ALLOW",
+   "got": "ALLOW",
+   "pass": true
+  },
+  {
+   "case": "reader GetObjectVersion oos/sic_observations.parquet @registered",
+   "decided_by": [
+    [
+     "identity",
+     "ReadValidation2SicObservationsAtItsRegisteredVersionOnly"
+    ]
+   ],
+   "expected": "ALLOW",
+   "got": "ALLOW",
+   "pass": true
+  },
+  {
+   "case": "reader GetObjectVersion oos/sic_observations.parquet @WRONG version",
+   "decided_by": [
+    [
+     "identity",
+     "DenyValidation2SicObservationsAtAnyVersionButItsOwn"
+    ]
+   ],
+   "expected": "DENY",
+   "got": "DENY",
+   "pass": true
+  },
+  {
+   "case": "reader HeadObject(versioned) oos/sic_observations.parquet @registered",
+   "decided_by": [
+    [
+     "identity",
+     "ReadValidation2SicObservationsAtItsRegisteredVersionOnly"
+    ]
+   ],
+   "expected": "ALLOW",
+   "got": "ALLOW",
+   "pass": true
+  },
+  {
+   "case": "reader GetObjectVersion oos/universe.parquet @registered",
+   "decided_by": [
+    [
+     "identity",
+     "ReadValidation2UniverseAtItsRegisteredVersionOnly"
+    ]
+   ],
+   "expected": "ALLOW",
+   "got": "ALLOW",
+   "pass": true
+  },
+  {
+   "case": "reader GetObjectVersion oos/universe.parquet @WRONG version",
+   "decided_by": [
+    [
+     "identity",
+     "DenyValidation2UniverseAtAnyVersionButItsOwn"
+    ]
+   ],
+   "expected": "DENY",
+   "got": "DENY",
+   "pass": true
+  },
+  {
+   "case": "reader HeadObject(versioned) oos/universe.parquet @registered",
+   "decided_by": [
+    [
+     "identity",
+     "ReadValidation2UniverseAtItsRegisteredVersionOnly"
+    ]
+   ],
+   "expected": "ALLOW",
+   "got": "ALLOW",
+   "pass": true
+  },
+  {
+   "case": "reader UNVERSIONED GetObject on a registered key",
+   "decided_by": [
+    [
+     "identity",
+     "DenyEveryActionOnValidation2ExceptPinnedVersionReads"
+    ]
+   ],
+   "expected": "DENY",
+   "got": "DENY",
+   "pass": true
+  },
+  {
+   "case": "reader GetObjectVersion on an UNREGISTERED oos key",
+   "decided_by": [
+    [
+     "identity",
+     "DenyGetObjectVersionOnEveryS3ResourceExceptTheEnumeratedExceptions"
+    ]
+   ],
+   "expected": "DENY",
+   "got": "DENY",
+   "pass": true
+  },
+  {
+   "case": "reader PutObject on oos/",
+   "decided_by": [
+    [
+     "identity",
+     "DenyEveryActionOnValidation2ExceptPinnedVersionReads"
+    ],
+    [
+     "identity",
+     "DenyAnyWriteToTheSealedStore"
+    ]
+   ],
+   "expected": "DENY",
+   "got": "DENY",
+   "pass": true
+  },
+  {
+   "case": "reader DeleteObjectVersion on oos/",
+   "decided_by": [
+    [
+     "resource",
+     "DenyPermanentDeletionOfSealedObjectVersions"
+    ],
+    [
+     "identity",
+     "DenyEveryActionOnValidation2ExceptPinnedVersionReads"
+    ],
+    [
+     "identity",
+     "DenyAnyWriteToTheSealedStore"
+    ]
+   ],
+   "expected": "DENY",
+   "got": "DENY",
+   "pass": true
+  },
+  {
+   "case": "reader read of CONSUMED validation/",
+   "decided_by": [
+    [
+     "identity",
+     "DenyTheConsumedValidation1Partition"
+    ],
+    [
+     "identity",
+     "DenyGetObjectVersionOnEveryS3ResourceExceptTheEnumeratedExceptions"
+    ]
+   ],
+   "expected": "DENY",
+   "got": "DENY",
+   "pass": true
+  },
+  {
+   "case": "RUN-HOST role reading oos/ directly",
+   "decided_by": [
+    [
+     "resource",
+     "DenyValidation2ReadsToEveryPrincipalButGovernedValidationReader"
+    ]
+   ],
+   "expected": "DENY",
+   "got": "DENY",
+   "pass": true
+  },
+  {
+   "case": "ADMIN (modelled Allow-*) reading oos/",
+   "decided_by": [
+    [
+     "resource",
+     "DenyValidation2ReadsToEveryPrincipalButGovernedValidationReader"
+    ]
+   ],
+   "expected": "DENY",
+   "got": "DENY",
+   "pass": true
+  },
+  {
+   "case": "ADMIN (modelled Allow-*) HeadObject oos/ unversioned",
+   "decided_by": [
+    [
+     "resource",
+     "DenyValidation2ReadsToEveryPrincipalButGovernedValidationReader"
+    ]
+   ],
+   "expected": "DENY",
+   "got": "DENY",
+   "pass": true
+  },
+  {
+   "case": "reader read over INSECURE transport",
+   "decided_by": [
+    [
+     "resource",
+     "DenyInsecureTransport"
+    ]
+   ],
+   "expected": "DENY",
+   "got": "DENY",
+   "pass": true
+  },
+  {
+   "case": "reader read of open reference/",
+   "decided_by": [
+    [
+     "identity",
+     "ReadOpenReferenceAndDevelopmentPartitions"
+    ]
+   ],
+   "expected": "ALLOW",
+   "got": "ALLOW",
+   "pass": true
+  }
+ ],
+ "authorization_matrix_summary": "28/28",
+ "bound": {
+  "expected_bucket_policy_identity": "7bb73e62066e52303c5d48ed0cd740cb16b4f2825110dde92d9cc4d6dfc164a5",
+  "expected_reader_identity_policy": "d7b5cf2be0d4523967ff63d121341572c3b111ac5085e04f9c4a7a2b4e25eedd",
+  "expected_sid": "DenyValidation2ReadsToEveryPrincipalButGovernedValidationReader",
+  "governed_reader_arn": "arn:aws:iam::219024422756:role/mr002-validation-reader",
+  "live_bucket_policy_identity": "7bb73e62066e52303c5d48ed0cd740cb16b4f2825110dde92d9cc4d6dfc164a5",
+  "live_reader_identity_policy": "d7b5cf2be0d4523967ff63d121341572c3b111ac5085e04f9c4a7a2b4e25eedd",
+  "oos_resource_scope": "arn:aws:s3:::workbench-mr002-sealed-219024422756/oos/*"
+ },
+ "gate": "resource_policy_admits_only_the_governed_validation2_reader_to_the_registered_validation2_population",
+ "live_head_authorization_probe": {
+  "on_any_failure": "restore the latch 7->8 immediately, seal a PRE-READ failure, leave Validation-2 UNCONSUMED, do not launch the evaluation.",
+  "required_before_any_content_read": [
+   "all six exact registered oos/* keys",
+   "the exact registered VersionId on each, via the pinned-version HeadObject",
+   "six successful metadata-only probes",
+   "zero GetObject / GetObjectVersion content calls",
+   "zero read_verified journal rows",
+   "zero body bytes transferred"
+  ],
+  "status": "NOT YET RUN",
+  "sufficiency": "a versioned HeadObject authorizes under s3:GetObjectVersion, the SAME action as the versioned content read. The probe proves the exact authorization decision the read will receive, without a body.",
+  "why": "the governed reader is assumable only with the latch OPEN, so the live authorization decision is unobservable from a closed state. This is the same residual that readiness v4.0 registered and that the 2026-08-21 opening realised."
+ },
+ "mutation_control": {
+  "because": [
+   [
+    "resource",
+    "DenyOOSReadsToEveryPrincipalButTheFutureOOSReader"
+   ]
+  ],
+  "discriminates": true,
+  "ran": true,
+  "verdict_under_the_defective_policy": "DENY"
+ },
+ "record_type": "MR002_Validation2_ResourcePolicyGate",
+ "static_checks": {
+  "combined bucket+identity authorization matrix": true,
+  "insecure transport still denied": true,
+  "live bucket policy == the sealed amended identity": true,
+  "live reader identity policy == Amendment A v1.2": true,
+  "mutation control: the evaluator DENIES the reader under the defective policy": true,
+  "no never-provisioned placeholder anywhere in the document": true,
+  "the consumed validation/ statement is untouched": true,
+  "the current-role Sid is present": true,
+  "the oos statement admits EXACTLY the governed reader and nobody else": true,
+  "the oos statement is still a Deny": true,
+  "the oos statement scope is exactly the oos/ prefix": true,
+  "the stale Future-OOS Sid is gone": true,
+  "version deletion still denied": true
+ },
+ "static_half": true,
+ "verdict": {
+  "gate_11": "PARTIAL \u2014 STATIC HALF PASSES",
+  "is_true": false,
+  "why_not_true": "this gate is defined to be TRUE only when the static half passes AND the six live metadata-only authorization probes have succeeded. Reporting TRUE on the static half alone would reproduce exactly the failure this gate exists to prevent: a faithful hash of a policy that is faithfully wrong."
+ },
+ "version": "1.0"
+}
