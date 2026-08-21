@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { opportunitiesApi } from "@/api/opportunities";
-import type { OppHistoryOccurrence } from "@/api/types";
+import type { OppHistoryCheckpoint, OppHistoryOccurrence } from "@/api/types";
+
+const OFFSET_CHECKPOINTS = ["D1", "D5", "D10", "D20"] as const;
 
 function fmtPrice(v: number | null | undefined): string {
   if (v == null) return "—";
@@ -25,6 +27,36 @@ function changeClass(v: number | null | undefined): string {
 function chipLine(row: OppHistoryOccurrence): string {
   const chips = row.reason.chips ?? [];
   return chips.map((c) => c.value).join(" · ");
+}
+
+function checkpointMap(
+  row: OppHistoryOccurrence,
+): Record<string, OppHistoryCheckpoint> {
+  return Object.fromEntries(row.checkpoints.map((c) => [c.checkpoint, c]));
+}
+
+function CheckpointStrip({ row }: { row: OppHistoryOccurrence }) {
+  const byName = checkpointMap(row);
+  return (
+    <div className="flex flex-wrap items-baseline gap-x-3 gap-y-0.5 font-mono text-[10px] text-neutral-400">
+      <span className="uppercase tracking-wide text-neutral-500">
+        {row.family} · {row.horizon}
+      </span>
+      {OFFSET_CHECKPOINTS.map((name) => {
+        const cp = byName[name];
+        const pending = cp == null || cp.price == null;
+        const mixed = !pending && cp.return_pct == null;
+        return (
+          <span key={name} title={mixed ? "later SEP print; return withheld (basis differs)" : undefined}>
+            <span className="text-neutral-500">{name}</span>{" "}
+            <span className={changeClass(cp?.return_pct)}>
+              {pending ? "—" : fmtChange(cp.return_pct)}
+            </span>
+          </span>
+        );
+      })}
+    </div>
+  );
 }
 
 export default function OpportunityHistoryPage() {
@@ -74,8 +106,10 @@ export default function OpportunityHistoryPage() {
             Opportunity History
           </h2>
           <p className="text-xs text-neutral-500">
-            Durable DISC-001 occurrences. Current price is live SEP, not stored
-            on the occurrence. Not a signal, and not in the order path.
+            Durable DISC-001 occurrences. Current return and D1/D5/D10/D20 are
+            live SEP on the proposal adjustment basis — not stored, not a
+            signal, and not a hold period. GAP later SEP prints are facts
+            without a mixed-basis return.
           </p>
         </div>
         <div className="flex items-center gap-3">
@@ -113,19 +147,21 @@ export default function OpportunityHistoryPage() {
             <thead className="border-b border-neutral-800 text-[10px] uppercase tracking-wide text-neutral-500">
               <tr>
                 <th className="px-3 py-2 font-medium">Symbol</th>
-                <th className="px-3 py-2 font-medium">Family</th>
+                <th className="px-3 py-2 font-medium">Family / horizon</th>
                 <th className="px-3 py-2 font-medium">Last seen</th>
                 <th className="px-3 py-2 font-medium">First seen</th>
                 <th className="px-3 py-2 font-medium">N</th>
                 <th className="px-3 py-2 font-medium">Proposal</th>
                 <th className="px-3 py-2 font-medium">Current</th>
-                <th className="px-3 py-2 font-medium">Change</th>
+                <th className="px-3 py-2 font-medium">Return</th>
+                <th className="px-3 py-2 font-medium">D1 D5 D10 D20</th>
                 <th className="px-3 py-2 font-medium">Status</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-neutral-800">
               {rows.map((row) => {
                 const active = selected === row.symbol;
+                const byName = checkpointMap(row);
                 return (
                   <tr
                     key={`${row.symbol}-${row.family}`}
@@ -142,6 +178,9 @@ export default function OpportunityHistoryPage() {
                     </td>
                     <td className="px-3 py-2 text-[10px] uppercase tracking-wide text-neutral-400">
                       {row.family}
+                      <div className="normal-case tracking-normal text-neutral-500">
+                        {row.horizon}
+                      </div>
                     </td>
                     <td className="px-3 py-2 font-mono text-xs text-neutral-300">
                       {row.last_seen}
@@ -163,6 +202,18 @@ export default function OpportunityHistoryPage() {
                     >
                       {fmtChange(row.change_pct)}
                     </td>
+                    <td className="px-3 py-2 font-mono text-[10px] text-neutral-400">
+                      {OFFSET_CHECKPOINTS.map((name) => (
+                        <span key={name} className="mr-2">
+                          {name}{" "}
+                          <span className={changeClass(byName[name]?.return_pct)}>
+                            {byName[name]?.price == null
+                              ? "—"
+                              : fmtChange(byName[name]?.return_pct)}
+                          </span>
+                        </span>
+                      ))}
+                    </td>
                     <td className="px-3 py-2 text-[10px] text-neutral-400">
                       {row.status_at_proposal}
                     </td>
@@ -180,8 +231,9 @@ export default function OpportunityHistoryPage() {
             {selected} timeline
           </h3>
           <p className="mb-2 text-[10px] text-neutral-500">
-            Append-only family rows. Same-as-of re-ingest does not overwrite
-            proposal facts.
+            Append-only family rows. D20 on a hours–1d GAP card is a fact, not
+            the intended hold. Same-as-of re-ingest does not overwrite proposal
+            facts.
           </p>
           {timeline.length === 0 ? (
             <div className="py-3 text-center text-xs text-neutral-500">
@@ -199,9 +251,6 @@ export default function OpportunityHistoryPage() {
                       <span className="font-mono text-xs text-neutral-300">
                         {row.candidate_date}
                       </span>
-                      <span className="ml-2 text-[10px] uppercase tracking-wide text-neutral-500">
-                        {row.family} · {row.horizon}
-                      </span>
                     </div>
                     <span className="font-mono text-xs text-neutral-300">
                       {fmtPrice(row.proposal_price)}
@@ -209,6 +258,9 @@ export default function OpportunityHistoryPage() {
                         {fmtChange(row.change_pct)}
                       </span>
                     </span>
+                  </div>
+                  <div className="mt-0.5">
+                    <CheckpointStrip row={row} />
                   </div>
                   <div className="mt-0.5 font-mono text-[10px] text-neutral-400">
                     {chipLine(row)}
