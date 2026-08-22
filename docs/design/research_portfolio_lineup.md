@@ -37,6 +37,7 @@ returns. This is the moat. The registry's verdicts are:
 | **LOW-001** Low Volatility | 🟡 **Diversifier (B)** — no decisive standalone edge | Best risk-adjusted book (Sharpe ~0.59) but no standalone edge; defensive complement. |
 | **SEC-001** Sector Rotation | 🟡 **Diversifier (B)** — construction line **archived** | Non-momentum return source; archived per the stopping rule (no standalone edge). |
 | **RNG-001** Range / Mean-Reversion | 🔴 **Rejected** — no edge | PF 1.27 (< 1.3 bar); bootstrap mean-P&L CI spans zero; walk-forward PF decays to 0.89. |
+| **MR-002** Sector-Neutral Residual Reversion | ⚫ **Terminated — no economic verdict** (*not* rejected) | Validation gate **never satisfied**. Validation-2 consumed in a non-conforming execution — the registration froze the v2 Stage-3 method, the launcher routed v1 — so it is retained as integrity evidence with **zero** economic-validation credit. No economic statistic was ever produced. OOS unconsumed, permanent DENY. `docs/design/MR002/MR002_ProgramTermination_v1.0.md` |
 | **MF-001** Multi-Factor (value+quality) | 🟡 **Inconclusive** — gate held | ΔSharpe +0.04, CI [−0.35, +0.48] spans zero → keep Momentum v1.1. |
 | **SCAN-001** Discovery Engine | ⚙ **Capability** — Validated, Maturity L3 | Not a strategy; shared infrastructure (Market Opportunity Discovery Engine). |
 
