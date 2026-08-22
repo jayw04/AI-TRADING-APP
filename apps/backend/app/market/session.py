@@ -25,7 +25,7 @@ gate fails toward *not trading*.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import UTC, date, datetime, time
+from datetime import UTC, date, datetime, time, timedelta
 from enum import StrEnum
 from zoneinfo import ZoneInfo
 
@@ -185,6 +185,24 @@ class MarketSession:
         if d not in self._cache:
             self._cache[d] = _compute_day_schedule(d)
         return self._cache[d]
+
+    def is_trading_day(self, d: date) -> bool:
+        """True if ``d`` is an NYSE session (full or half-day), not a weekend/holiday."""
+        return self._day_schedule(d) is not None
+
+    def previous_trading_day(self, as_of: date) -> date:
+        """Most recent completed NYSE session strictly before ``as_of``.
+
+        Walks back through weekends and full-day holidays (the same calendar
+        ``classify`` uses). Half-days count as sessions. Bounded to 21 calendar
+        days so a missing holiday list cannot loop forever.
+        """
+        d = as_of - timedelta(days=1)
+        for _ in range(21):
+            if self.is_trading_day(d):
+                return d
+            d -= timedelta(days=1)
+        raise ValueError(f"no NYSE session found in the 21 days before {as_of.isoformat()}")
 
 
 def _compute_day_schedule(d: date) -> _DaySchedule | None:

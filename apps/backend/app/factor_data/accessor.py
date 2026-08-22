@@ -7,7 +7,7 @@ strategy reaches point-in-time factor data — the factor analog of how
 - holds a `FactorDataStore` opened **read-only** (a live strategy can never mutate
   the factor store, and a read handle won't contend with an ingest);
 - imports no order path, no broker, and holds no DB session or network client;
-- exposes only three read methods (never the raw store handle / connection /
+- exposes only read methods (never the raw store handle / connection /
   ingest methods);
 - is point-in-time by construction: `as_of=None` resolves to the store's latest
   price date, and an `as_of` past that clamps **down** (never forward).
@@ -51,12 +51,19 @@ class FactorAccessor:
             )
         return self._store
 
-    def _resolve_as_of(self, as_of: date | None) -> date:
-        """Latest price date when `as_of` is None; clamp a future `as_of` down to it."""
+    def latest_price_date(self) -> date:
+        """Latest SEP date in the store (the PIT `as_of` default). Session-aware
+        freshness checks use this so a strategy can HOLD when ingest is stale
+        instead of ranking a silent lag."""
         store = self._require_store()
         _, latest = store.price_date_bounds()
         if latest is None:
             raise FactorDataUnavailable("factor store has no price history; ingest first")
+        return latest
+
+    def _resolve_as_of(self, as_of: date | None) -> date:
+        """Latest price date when `as_of` is None; clamp a future `as_of` down to it."""
+        latest = self.latest_price_date()
         if as_of is None or as_of > latest:
             return latest
         return as_of

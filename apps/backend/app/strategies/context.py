@@ -372,6 +372,24 @@ class StrategyContext:
             out[t] = out.get(t, Decimal(0)) + Decimal(qty)
         return out
 
+    async def recent_payloads(self, *, limit: int = 50) -> list[dict[str, Any]]:
+        """Newest ``signals.payload_json`` rows for THIS strategy.
+
+        Durable across process restarts (unlike in-memory week guards). Used by
+        weekly books to record rebalance_started / rebalance_completed and to
+        retry an incomplete week. Read-only; does not leak other strategies.
+        """
+        async with self._session_factory() as session:
+            rows = (
+                await session.execute(
+                    select(Signal.payload_json)
+                    .where(Signal.strategy_id == self.strategy_id)
+                    .order_by(Signal.received_at.desc(), Signal.id.desc())
+                    .limit(int(limit))
+                )
+            ).scalars().all()
+        return [dict(p) for p in rows if p]
+
     async def recent_fills(
         self,
         *,
