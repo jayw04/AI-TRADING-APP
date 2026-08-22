@@ -638,6 +638,11 @@ class BacktestContext:
         )
         return len(self.signals)
 
+    async def recent_payloads(self, *, limit: int = 50) -> list[dict[str, Any]]:
+        """Newest in-memory signal payloads (newest first), live-ctx parity."""
+        payloads = [dict(s.get("payload") or {}) for s in reversed(self.signals)]
+        return [p for p in payloads if p][: int(limit)]
+
     # ---------- helpers ----------
 
     def _current_bar_ts(self) -> datetime | None:
