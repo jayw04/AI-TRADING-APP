@@ -7,6 +7,79 @@
 *.sh      text eol=lf
 *.service text eol=lf
 *.timer   text eol=lf
+
+# ======================================================================================
+# DEPLOY-EOL DETERMINISM (2026-08-22) -- the runtime source must BE the Git bytes.
+#
+# The paper box has no .git: code arrives as a `git archive` tarball extracted into
+# /opt/workbench/app. `git archive` applies EOL conversion, so on a workstation with
+# core.autocrlf=true it emits CRLF for every file Git treats as text that carries no eol
+# attribute. Measured on this tree immediately before this block was added: 2,078 of 2,239
+# archived files (93%) did not match their Git blob -- 1,225 .py, 508 .md, 117 .json,
+# 114 .tsx. Only the three pins above and the -text protections below were safe.
+#
+# That is how the 2026-08-21 22:57Z redeploy shipped app/research/disc_mdq/ledger.py with
+# 670 CR bytes. Nothing broke -- Python reads CRLF, and the governed-artifact loader
+# LF-normalizes before comparing pins -- but "the deployed bytes ARE the reviewed bytes"
+# stopped being true, and every deployment hash claim needed an "up to EOL conversion"
+# caveat. The property this block establishes is:
+#
+#     Git blob -> deterministic archive -> extracted runtime source == exact Git bytes
+#
+# NOT: Git blob -> workstation checkout rules -> maybe CRLF -> normalize later and declare
+# it equivalent. Normalized hashing stays correct for governed DATA semantics; it is not a
+# substitute for exact source-deployment identity.
+#
+# Enforced by scripts/check_deploy_archive_determinism.py, which builds the archive under
+# BOTH core.autocrlf settings and fails on any byte mismatch against the blobs. Add a new
+# text file type and that check fails until it is pinned here -- the cheap failure.
+#
+# ORDERING IS LOAD-BEARING: the LAST matching rule wins, so every `-text` protection below
+# (digest-pinned manifests, the drift-audit tree, and any future one) MUST stay AFTER this
+# block. Appending a generic `*.json text eol=lf` at the end of this file would silently
+# override `manifests/layer2/*.json -text` and rewrite digest-pinned bytes.
+#
+# Binaries are deliberately NOT force-converted. Git's own binary detection protects
+# undeclared binary content, and the `-text` rules protect the digest-pinned trees. This
+# block names text extensions ONLY -- never replace it with a blanket `* text=auto`.
+# ======================================================================================
+*.py      text eol=lf
+*.md      text eol=lf
+*.json    text eol=lf
+*.ts      text eol=lf
+*.tsx     text eol=lf
+*.js      text eol=lf
+*.txt     text eol=lf
+*.yml     text eol=lf
+*.yaml    text eol=lf
+*.toml    text eol=lf
+*.ini     text eol=lf
+*.cfg     text eol=lf
+*.csv     text eol=lf
+*.sql     text eol=lf
+*.html    text eol=lf
+*.css     text eol=lf
+*.sha256  text eol=lf
+*.mako    text eol=lf
+*.mdc     text eol=lf
+*.pine    text eol=lf
+*.ps1     text eol=lf
+*.example text eol=lf
+*.conf    text eol=lf
+Dockerfile      text eol=lf
+Dockerfile.*    text eol=lf
+.dockerignore   text eol=lf
+.gitignore      text eol=lf
+.gitattributes  text eol=lf
+.gitkeep        text eol=lf
+
+# Windows-only launchers, never executed on the Linux box. cmd.exe has historically been
+# fragile with LF-only batch files (labels / goto), so pin them CRLF: the archive stays
+# DETERMINISTIC -- the property that matters -- while keeping the form Windows expects.
+# They are the single documented exception to archive-equals-blob, and the checker carries
+# them in an explicit allowlist rather than silently skipping them.
+*.bat     text eol=crlf
+
 docs/review/momentum_daily/drift_audit/** -text
 
 # The Layer 2 governed artifacts are pinned BY DIGEST in corpus_manifest_v2.json. Any

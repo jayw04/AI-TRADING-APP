@@ -725,6 +725,49 @@ class FactorDataStore:
         found = {r[0]: r[1] for r in rows}
         return {t: found.get(t) for t in tickers}
 
+    def get_ticker_meta(self, tickers: list[str]) -> pd.DataFrame:
+        """Reference rows for ``tickers``: ticker, name, category, sector, industry.
+
+        Missing tickers are absent from the frame. Empty input → empty frame.
+        """
+        if not tickers:
+            return pd.DataFrame(columns=["ticker", "name", "category", "sector", "industry"])
+        placeholders = ",".join(["?"] * len(tickers))
+        cols = {r[1] for r in self.con.execute("PRAGMA table_info(tickers)").fetchall()}
+        sector_expr = "sector" if "sector" in cols else "NULL AS sector"
+        industry_expr = "industry" if "industry" in cols else "NULL AS industry"
+        return self.con.execute(
+            f"""
+            SELECT ticker, name, category, {sector_expr}, {industry_expr}
+            FROM tickers
+            WHERE ticker IN ({placeholders})
+            """,
+            tickers,
+        ).df()
+
+    def get_prices_many(
+        self,
+        tickers: list[str],
+        start: date,
+        end: date,
+        *,
+        adjusted: bool = True,
+    ) -> pd.DataFrame:
+        """Daily prices for many tickers in ``[start, end]``, ordered (ticker, date)."""
+        if not tickers:
+            return pd.DataFrame(columns=["ticker", "date", "close", "volume"])
+        close_expr = "closeadj" if adjusted else "closeunadj"
+        placeholders = ",".join(["?"] * len(tickers))
+        return self.con.execute(
+            f"""
+            SELECT ticker, date, {close_expr} AS close, volume
+            FROM sep
+            WHERE ticker IN ({placeholders}) AND date BETWEEN ? AND ?
+            ORDER BY ticker, date
+            """,
+            [*tickers, start, end],
+        ).df()
+
     def get_prices(
         self, ticker: str, start: date, end: date, *, adjusted: bool = True
     ) -> pd.DataFrame:

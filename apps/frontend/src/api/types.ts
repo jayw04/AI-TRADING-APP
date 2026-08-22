@@ -494,6 +494,51 @@ export interface OppPremarketGappersWidget {
   stale: boolean;
 }
 
+export interface OppWatchlistChip {
+  key: string;
+  value: string;
+}
+
+export interface OppWatchlistItem {
+  symbol: string;
+  family_ids: string[];
+  horizon: string;
+  status: string;
+  name: string | null;
+  sector: string | null;
+  chips: OppWatchlistChip[];
+  why: string;
+  tradability: string;
+  price_source: string;
+  close: number | null;
+  market_cap: number | null;
+  adv20: number | null;
+}
+
+export interface OppWatchlistFamily {
+  family_id: string;
+  operator_name: string;
+  horizon: string;
+  available: boolean;
+  unavailable_reason: string | null;
+  count: number;
+  items: OppWatchlistItem[];
+}
+
+export interface OppCandidateWatchlistWidget {
+  as_of: string;
+  as_of_session: string | null;
+  universe_id: string;
+  screen_id: string;
+  screen_version: string;
+  subtitle: string;
+  vix: number | null;
+  families: Record<string, OppWatchlistFamily>;
+  all_items: OppWatchlistItem[];
+  all_count: number;
+  stale: boolean;
+}
+
 export interface OpportunitiesWidget<T> {
   items: T[];
   count: number;
@@ -509,6 +554,47 @@ export interface OpportunitiesResponse {
   risk_rejections: OpportunitiesWidget<OppRiskRejectItem>;
   recent_fills: OpportunitiesWidget<OppFillItem>;
   premarket_gappers: OppPremarketGappersWidget;
+  candidate_watchlist: OppCandidateWatchlistWidget;
+  as_of: string;
+}
+
+export interface OppHistoryCheckpoint {
+  checkpoint: string;
+  price: number | null;
+  price_as_of: string | null;
+  price_source: string | null;
+  adjustment_basis: string | null;
+  return_pct: number | null;
+}
+
+export interface OppHistoryOccurrence {
+  symbol: string;
+  family: string;
+  candidate_date: string;
+  horizon: string;
+  status_at_proposal: string;
+  proposal_price: number;
+  proposal_price_source: string;
+  adjustment_basis: string;
+  reason: { chips?: { key: string; value: string }[]; why?: string };
+  screen_id: string;
+  screen_version: string;
+  snapshot_sha256: string;
+  snapshot_generated_at: string;
+  first_seen: string;
+  last_seen: string;
+  occurrence_count: number;
+  current_price: number | null;
+  current_price_as_of: string | null;
+  current_price_source: string | null;
+  change_pct: number | null;
+  checkpoints: OppHistoryCheckpoint[];
+}
+
+export interface OppHistoryResponse {
+  view: "summary" | "timeline";
+  count: number;
+  items: OppHistoryOccurrence[];
   as_of: string;
 }
 

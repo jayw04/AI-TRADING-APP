@@ -43,14 +43,20 @@ def main() -> int:
     if not (key and sec):
         raise SystemExit("no Alpaca paper creds in .env (ALPACA_PAPER_API_KEY / _SECRET)")
 
+    from alpaca.data.enums import DataFeed
     from alpaca.data.historical import StockHistoricalDataClient
     from alpaca.data.requests import StockBarsRequest
     from alpaca.data.timeframe import TimeFrame
 
     client = StockHistoricalDataClient(key, sec)
+    # Explicit-feed rule (Strategy proposals v1.4.1 §3.1): the committed fixture was
+    # built under IEX semantics; without this pin the SDK default silently becomes
+    # SIP the moment the credential's account gains an Algo Trader Plus entitlement,
+    # changing fixture semantics with no code change.
     req = StockBarsRequest(
         symbol_or_symbols=_SYMBOL, timeframe=TimeFrame.Day,
         start=datetime(2007, 1, 1), end=datetime(2026, 6, 12),
+        feed=DataFeed.IEX,
     )
     df = client.get_stock_bars(req).df
     if df.empty:

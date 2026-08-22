@@ -36,11 +36,19 @@ def _load():
 fa = _load()
 
 FRONTIER = datetime.date(2026, 8, 10)
-CUTOFF = FRONTIER - datetime.timedelta(days=4)  # 2026-08-06
+TOLERANCE_DAYS = 4
+CUTOFF = FRONTIER - datetime.timedelta(days=TOLERANCE_DAYS)  # 2026-08-06
 D = datetime.date
 
+#: When the corroboration was observed. Deliberately equal to ``FRONTIER`` so the
+#: observation-time cutoff equals ``CUTOFF`` and every date relationship in the cases
+#: below means exactly what it meant before the 2026-08-19 anachronism fix.
+OBSERVED = FRONTIER
+#: Run date: a couple of days after the observation, i.e. well inside the age bound.
+AS_OF = FRONTIER + datetime.timedelta(days=2)
 
-def _evidence(symbol, *, claim, rows=0, requested=True, status="ok", corr=None):
+
+def _evidence(symbol, *, claim, rows=0, requested=True, status="ok", corr=None, observed=OBSERVED):
     rec = {
         "symbol": symbol,
         "expected_classification": claim,
@@ -48,6 +56,8 @@ def _evidence(symbol, *, claim, rows=0, requested=True, status="ok", corr=None):
         "request_status": status,
         "provider_rows_after_live_frontier": rows,
     }
+    if observed is not None:
+        rec["adjudicated_at_utc"] = f"{observed.isoformat()}T19:30:57Z"
     if corr is not None:
         rec["corroboration"] = corr
     return rec
@@ -65,16 +75,22 @@ def _corr(last_date, *, control="AAPL", control_last=CONTROL_CURRENT, source="al
     }
 
 
-def _classify(symbol, *, live, stage, ev, held=0.0, orders=0, registered=()):
+def _classify(
+    symbol, *, live, stage, ev, held=0.0, orders=0, registered=(), as_of=AS_OF, max_age=None
+):
+    kw = {} if max_age is None else {"max_evidence_age_days": max_age}
     return fa.classify_stale_symbol(
         symbol,
         live_last=live,
         stage_last=stage,
         cutoff=CUTOFF,
+        tolerance_days=TOLERANCE_DAYS,
+        as_of=as_of,
         evidence=ev,
         held_qty=held,
         open_orders=orders,
         registered_in=registered,
+        **kw,
     )
 
 
@@ -308,6 +324,8 @@ def _adjudicate(universe, non_fresh, stage, live, evidence, operational=None):
         live_effective=live,
         non_fresh=non_fresh,
         cutoff=CUTOFF,
+        tolerance_days=TOLERANCE_DAYS,
+        as_of=AS_OF,
         evidence=evidence,
         operational=operational or {},
     )
@@ -415,3 +433,126 @@ def test_fresh_prices_with_a_lagging_lastpricedate_are_not_fresh_for_gating():
 def test_the_exemption_ceiling_has_a_floor_for_small_universes():
     assert fa.exemption_ceiling(10) == 5
     assert fa.exemption_ceiling(510) == 25
+
+
+# ------------------------------- case 8: the corroboration observation is not a live feed
+#
+# THE 2026-08-18/19 REGRESSION. The corroboration block records what an alternate source
+# said at one instant. Comparing that frozen answer against a cutoff that advances with
+# the store frontier is an anachronism: on 2026-08-18 the cutoff walked past a control
+# observed on 2026-08-11 and all ten attributed names flipped to FAILED_OR_UNEXPLAINED in
+# a single run, blaming the alternate source for what was really an expired observation.
+# The refresh then failed every day, and — because the live frontier froze with it — the
+# watchdog kept publishing attribution PASS from the same artifact. Same contradiction
+# this module exists to remove, arriving through the clock instead of through the code.
+
+
+def test_an_observation_that_was_current_when_made_survives_an_advancing_cutoff():
+    """THE regression. Evidence observed 2026-08-10; the run is 8 days later and the
+    cutoff has moved well past the control date. The observation was valid when taken,
+    is inside the age bound, and must still attribute."""
+    late_cutoff = D(2026, 8, 18)
+    verdict, reason = fa.classify_stale_symbol(
+        "UUP",
+        live_last=None,
+        stage_last=None,
+        cutoff=late_cutoff,  # advanced far beyond CONTROL_CURRENT
+        tolerance_days=TOLERANCE_DAYS,
+        as_of=D(2026, 8, 18),
+        evidence=_evidence("UUP", claim=fa.PROVIDER_NOT_COVERED, corr=_corr(D(2026, 8, 11))),
+        held_qty=138.0,
+        open_orders=0,
+        registered_in=["9:IDLE"],
+    )
+    assert verdict == fa.PROVIDER_NOT_COVERED, (
+        "a past observation must be judged against the cutoff of its own moment; "
+        "this is exactly the flip that broke the 2026-08-18 refresh"
+    )
+    assert "outside provider coverage" in reason
+
+
+def test_an_observation_past_the_age_bound_expires_LOUDLY_and_names_the_remedy():
+    """The sibling. Age is bounded explicitly, and expiry says what to do — it must
+    never present as 'the alternate source is broken', which is what sent the 08-18
+    investigation after Sharadar and Alpaca instead of after the artifact."""
+    verdict, reason = _classify(
+        "UUP",
+        live=None,
+        stage=None,
+        ev=_evidence("UUP", claim=fa.PROVIDER_NOT_COVERED, corr=_corr(D(2026, 8, 11))),
+        as_of=OBSERVED + datetime.timedelta(days=31),
+    )
+    assert verdict == fa.FAILED_OR_UNEXPLAINED
+    assert "expired" in reason and "regenerate" in reason
+    assert "31d old" in reason and "limit 30d" in reason
+    assert "alternate source unproven" not in reason, "expiry must not blame the source"
+
+
+def test_the_age_bound_is_a_boundary_not_a_gradient():
+    """Exactly at the limit still counts; one day past does not."""
+    ev = _evidence("UUP", claim=fa.PROVIDER_NOT_COVERED, corr=_corr(D(2026, 8, 11)))
+    at_limit, _ = _classify(
+        "UUP", live=None, stage=None, ev=ev, as_of=OBSERVED + datetime.timedelta(days=30)
+    )
+    past_limit, _ = _classify(
+        "UUP", live=None, stage=None, ev=ev, as_of=OBSERVED + datetime.timedelta(days=31)
+    )
+    assert at_limit == fa.PROVIDER_NOT_COVERED
+    assert past_limit == fa.FAILED_OR_UNEXPLAINED
+
+
+def test_evidence_with_no_observation_time_cannot_be_interpreted_at_all():
+    """Without a timestamp there is no way to tell a fresh probe from a year-old one,
+    so the frozen dates mean nothing. Fail closed rather than guess."""
+    verdict, reason = _classify(
+        "UUP",
+        live=None,
+        stage=None,
+        ev=_evidence(
+            "UUP", claim=fa.PROVIDER_NOT_COVERED, corr=_corr(D(2026, 8, 11)), observed=None
+        ),
+    )
+    assert verdict == fa.FAILED_OR_UNEXPLAINED
+    assert "no observation time" in reason
+
+
+def test_evidence_observed_after_the_run_date_is_refused():
+    """A future-dated observation is a broken or crafted artifact, and it would
+    otherwise sail through the age bound with a negative age."""
+    verdict, reason = _classify(
+        "UUP",
+        live=None,
+        stage=None,
+        ev=_evidence("UUP", claim=fa.PROVIDER_NOT_COVERED, corr=_corr(D(2026, 8, 11))),
+        as_of=OBSERVED - datetime.timedelta(days=1),
+    )
+    assert verdict == fa.FAILED_OR_UNEXPLAINED
+    assert "after the run date" in reason
+
+
+def test_a_control_that_was_ALREADY_stale_when_observed_is_still_refused():
+    """The fix must not become a way to launder a bad observation: currency is judged
+    against the observation's own cutoff, and this control failed even that."""
+    verdict, reason = _classify(
+        "UUP",
+        live=None,
+        stage=None,
+        ev=_evidence(
+            "UUP",
+            claim=fa.PROVIDER_NOT_COVERED,
+            corr=_corr(D(2026, 8, 11), control_last=D(2026, 7, 1)),
+        ),
+    )
+    assert verdict == fa.FAILED_OR_UNEXPLAINED
+    assert "was not current when observed" in reason and "alternate source unproven" in reason
+
+
+def test_static_evidence_fields_are_retained_untouched_for_audit():
+    """Provenance is not the classifier's to edit. The artifact keeps what was seen and
+    when; the fix changes only what classification CONSUMES."""
+    ev = _evidence("UUP", claim=fa.PROVIDER_NOT_COVERED, corr=_corr(D(2026, 8, 11)))
+    before = json.loads(json.dumps(ev))
+    _classify("UUP", live=None, stage=None, ev=ev)
+    assert ev == before, "adjudication must never mutate the evidence record"
+    assert ev["corroboration"]["control_last_date"] == CONTROL_CURRENT.isoformat()
+    assert ev["adjudicated_at_utc"].startswith(OBSERVED.isoformat())

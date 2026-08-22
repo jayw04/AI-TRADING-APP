@@ -1,3 +1,4 @@
+import { Link } from "react-router-dom";
 import { useCallback, useEffect, useState } from "react";
 import { opportunitiesApi } from "@/api/opportunities";
 import type { OpportunitiesResponse } from "@/api/types";
@@ -9,7 +10,7 @@ import { StrategyErrorsWidget } from "./widgets/StrategyErrorsWidget";
 import { OpenOrdersExpiringWidget } from "./widgets/OpenOrdersExpiringWidget";
 import { RiskRejectionsWidget } from "./widgets/RiskRejectionsWidget";
 import { RecentFillsWidget } from "./widgets/RecentFillsWidget";
-import { PremarketGappersWidget } from "./widgets/PremarketGappersWidget";
+import { CandidateWatchlistWidget } from "./widgets/CandidateWatchlistWidget";
 
 const POLL_INTERVAL_MS = 10_000;
 const WS_TOPICS = ["signals", "strategies", "orders", "fills", "system"];
@@ -68,6 +69,12 @@ export default function OpportunitiesPage() {
           >
             {loading ? "…" : "Refresh"}
           </button>
+          <Link
+            to="/opportunities/history"
+            className="rounded border border-neutral-800 bg-neutral-900 px-3 py-1 text-sm text-neutral-200 hover:bg-neutral-800"
+          >
+            History
+          </Link>
         </div>
       </div>
 
@@ -76,6 +83,10 @@ export default function OpportunitiesPage() {
           {error}
         </div>
       )}
+
+      <CandidateWatchlistWidget
+        watchlist={data?.candidate_watchlist ?? null}
+      />
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 xl:grid-cols-3">
         <LiveSignalsWidget
@@ -112,14 +123,6 @@ export default function OpportunitiesPage() {
           items={data?.recent_fills.items ?? []}
           count={data?.recent_fills.count ?? 0}
           asOf={data?.recent_fills.as_of ?? ""}
-        />
-        <PremarketGappersWidget
-          items={data?.premarket_gappers.items ?? []}
-          count={data?.premarket_gappers.count ?? 0}
-          asOf={data?.premarket_gappers.as_of ?? ""}
-          scannedAt={data?.premarket_gappers.scanned_at ?? null}
-          date={data?.premarket_gappers.date ?? null}
-          stale={data?.premarket_gappers.stale ?? true}
         />
       </div>
     </div>

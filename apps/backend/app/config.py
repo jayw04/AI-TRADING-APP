@@ -151,6 +151,11 @@ class Settings(BaseSettings):
     # the day across restarts. Read-only/advisory — never an order signal.
     premarket_gate_evidence_dir: str = "data/premarket_gate_evidence"
 
+    # DISC-001 Phase-1 candidate watchlist snapshots (dated JSON; research-plane).
+    # Retention is enforced in app.research.disc001.snapshot (90 daily files /
+    # 90 calendar days; warn-before-prune; pinned as-of dates preserved).
+    disc001_snapshot_dir: str = "data/disc001_snapshots"
+
     # --- Agent (P3) ---
     # Empty key disables the agent; Session 3's runtime refuses to start a
     # session with a clear error message rather than crashing on the first

@@ -5,6 +5,7 @@ import StatusBar from "./components/StatusBar";
 import ModeBanner from "@/components/ui/ModeBanner";
 import { NAV_ITEMS } from "./routes";
 import StrategyDetailPage from "./pages/Strategies/Detail";
+import OpportunityHistory from "./pages/Opportunities/History";
 import AuthorWithAI from "./pages/Strategies/AuthorWithAI";
 import ReviewQueue from "./pages/Proposals/ReviewQueue";
 import Credentials from "./pages/Settings/Credentials";
@@ -26,6 +27,7 @@ export default function App() {
               {NAV_ITEMS.map((item) => (
                 <Route key={item.path} path={item.path} element={item.element} />
               ))}
+              <Route path="/opportunities/history" element={<OpportunityHistory />} />
               <Route path="/strategies/author" element={<AuthorWithAI />} />
               <Route path="/strategies/:id" element={<StrategyDetailPage />} />
               <Route path="/proposals/review" element={<ReviewQueue />} />

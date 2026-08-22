@@ -568,6 +568,13 @@ def test_held_symbols_reads_against_the_real_schema(M, tmp_path):
 
 CUT = date(2026, 7, 31)
 DEAD = date(2026, 6, 12)
+TOL = 4
+#: Observation date chosen so the observation-time cutoff equals ``CUT`` — every date
+#: relationship below therefore means what it meant before the 2026-08-19 fix.
+#: Named CORR_* deliberately: the module-level ``AS_OF`` above is a DIFFERENT date used
+#: by the universe tests, and rebinding it here would silently retune them.
+CORR_OBSERVED = CUT + timedelta(days=TOL)  # 2026-08-04
+CORR_AS_OF = CORR_OBSERVED + timedelta(days=2)
 
 
 def _ev(**over):
@@ -577,6 +584,7 @@ def _ev(**over):
         "requested": True,
         "request_status": "ok",
         "provider_rows_after_live_frontier": 0,
+        "adjudicated_at_utc": f"{CORR_OBSERVED.isoformat()}T19:30:57Z",
         "corroboration": {
             "source": "alpaca",
             "last_date": "2026-06-23",
@@ -593,6 +601,8 @@ def _classify(M, **over):
         "live_last": DEAD,
         "stage_last": DEAD,
         "cutoff": CUT,
+        "tolerance_days": TOL,
+        "as_of": CORR_AS_OF,
         "evidence": _ev(),
         "held_qty": 0,
         "open_orders": 0,
@@ -639,7 +649,7 @@ def test_current_symbol_is_fresh_and_never_exhausted(M):
                     }
                 )
             },
-            "control is not current",
+            "control was not current when observed",
         ),
         (
             {
@@ -700,6 +710,8 @@ def test_uncovered_etf_with_no_provider_history_is_not_covered(M):
         live_last=None,
         stage_last=None,
         cutoff=CUT,
+        tolerance_days=TOL,
+        as_of=CORR_AS_OF,
         evidence=_etf_ev(),
         held_qty=0,
         open_orders=0,
@@ -717,6 +729,8 @@ def test_held_uncovered_etf_is_allowed_because_alternate_source_prices_it(M):
         live_last=None,
         stage_last=None,
         cutoff=CUT,
+        tolerance_days=TOL,
+        as_of=CORR_AS_OF,
         evidence=_etf_ev(),
         held_qty=250.0,
         open_orders=0,
@@ -733,6 +747,8 @@ def test_provider_stopped_while_instrument_still_trades_is_a_coverage_regression
         live_last=DEAD,
         stage_last=DEAD,
         cutoff=CUT,
+        tolerance_days=TOL,
+        as_of=CORR_AS_OF,
         evidence=_etf_ev(symbol="XYZ"),
         held_qty=0,
         open_orders=0,
