@@ -297,6 +297,18 @@ jobs:
         working-directory: ${{ matrix.p.dir }}
         run: python scripts/check_alembic_single_head.py
 
+      # Deploy-EOL determinism (2026-08-22). The paper box has no .git -- code arrives as a
+      # `git archive` tarball, so the bytes that run are whatever the BUILDER's core.autocrlf
+      # produced. On 2026-08-21 a redeploy shipped ledger.py with 670 CR bytes while every
+      # governed blob was LF; 2,078 of 2,239 archived files did not match their blob. This
+      # builds the archive under BOTH autocrlf settings and fails on any byte mismatch, so the
+      # property is enforced instead of depending on an operator remembering a flag. Repo-wide,
+      # so it runs in the backend LIGHT job (always in the matrix). Two archive builds, ~seconds.
+      - name: Deploy-archive determinism gate (repo-wide)
+        if: matrix.p.project == 'backend'
+        working-directory: ${{ github.workspace }}
+        run: python scripts/check_deploy_archive_determinism.py
+
       # NOTE: pytest + coverage no longer run in this matrix. Every project's FULL suite lives in the
       # dedicated `python-full` job, which runs on push AND on a PR whenever the classifier flags that
       # project — so a red pytest (backend OR aux) cannot merge on green LIGHT. This job is LIGHT only.
