@@ -567,6 +567,14 @@ export interface OppHistoryCheckpoint {
   return_pct: number | null;
 }
 
+export interface OppHistoryWhyLeft {
+  state: "still_meets" | "no_longer_meets" | "unavailable";
+  as_of: string | null;
+  summary: string | null;
+  details: string[];
+  not_a_signal: string;
+}
+
 export interface OppHistoryOccurrence {
   symbol: string;
   family: string;
@@ -589,6 +597,7 @@ export interface OppHistoryOccurrence {
   current_price_source: string | null;
   change_pct: number | null;
   checkpoints: OppHistoryCheckpoint[];
+  why_left: OppHistoryWhyLeft | null;
 }
 
 export interface OppHistoryResponse {
