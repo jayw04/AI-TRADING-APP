@@ -1,0 +1,99 @@
+{
+ "record_type": "MR002_QB_OWNER_ADJUDICATION",
+ "version": "1.0",
+ "date_utc": "2026-08-21",
+ "adjudicates": "MR002_QB_LineageVerdict_v1.0 (440afe0), disposition EXECUTION_PACKAGE_BINDING_GAP",
+ "ruling": "CONFIRMED MATERIAL EXECUTION-CONFORMANCE FAILURE",
+ "authority": "owner adjudication, 2026-08-21",
+ "status": "Question B CLOSED",
+
+ "the_ruling": {
+  "finding_accepted": "The prospective registration governed Validation-2 and enforced the v2 method; the bound launcher routed Stage-3 through v1; the registration's specifically required wrong-layer abort guard was not implemented.",
+  "why_it_is_material": "It conflicts directly with MR-002's standing rule that the preregistered evaluator/model identity and structural bindings may not change during validation.",
+
+  "evidentiary_disposition_of_validation_2": {
+   "one_line": "Validation-2 is RETAINED as integrity evidence and EXCLUDED as economic-validation evidence.",
+   "permanently_consumed": true,
+   "is_a_conforming_validation_execution": false,
+   "economic_validation_credit": "ZERO — it does not count toward satisfying the MR-002 validation gate",
+   "must_not_be_done": [
+    "erase or overwrite the terminal record 9c08bfc5cb18d683beeb347243fb657cc24d37d925ad06d5409b76979d5fa53b (INTEGRITY FAILURE / NOT EVALUATED)",
+    "reinterpret the event as a failed economic test",
+    "assign any performance meaning to what the v1 layer did",
+    "state that v2 would have passed, failed, or continued"
+   ],
+   "why_the_terminal_record_stands": "Question B explains a material CAUSE of the nonconformance. It does not replace the terminal record, and an integrity stop remains what it always was — not an economic verdict."
+  },
+
+  "rerun_explicitly_denied": {
+   "same_validation_data_plus_corrected_launcher": "NOT AUTHORIZED",
+   "reasoning": "Once the holdout was opened under the wrong execution layer, a second execution would no longer be the preregistered single untouched validation event. A seemingly corrective v2 run is still a second look at a consumed partition.",
+   "oos_partition": "REMAINS UNDER DENY",
+   "oos_as_replacement_validation": "REFUSED — using the final holdout as a substitute after observing an integrity failure would repurpose it after the fact and destroy its role. Validation precedes OOS, and an integrity failure stops progression rather than licensing OOS consumption."
+  }
+ },
+
+ "adjudicated_program_state": {
+  "P1": "CLOSED — INSUFFICIENT_DEVELOPMENT_EVIDENCE",
+  "Question_B": "CLOSED — EXECUTION_PACKAGE_BINDING_GAP CONFIRMED",
+  "Validation_2": "CONSUMED — INTEGRITY FAILURE / NOT EVALUATED",
+  "validation_gate": "NOT SATISFIED",
+  "economic_validation_verdict": "UNKNOWN / NONE",
+  "OOS_authorization": "DENIED / NOT REACHED",
+  "same_partition_rerun": "PROHIBITED",
+  "v2_counterfactual": "NOT DETERMINED",
+  "why_rewiring_was_omitted": "NOT DETERMINED — and not required to close Question B"
+ },
+
+ "next_decision": {
+  "what_it_is": "a separate Validation Recovery Adjudication",
+  "not_authorized_now": "no further Question B investigation, no numerical work, no rerun, no OOS access",
+  "the_only_two_legitimate_paths": [
+   "TERMINATE MR-002 at the current research state, because its designated validation opportunity was consumed non-conformantly",
+   "AUTHORIZE an entirely new prospective validation design on genuinely untouched data, with a fresh preregistration and a fully built execution-package conformance gate IN PLACE BEFORE ANY ACCESS"
+  ],
+  "explicitly_excluded_path": "repair-and-replay of the consumed partition, in any form",
+  "on_further_root_cause_work": "Blame-oriented RCA — who omitted the rewiring — is not authorized and cannot change the scientific state of a consumed validation."
+ },
+
+ "mandated_pre_access_conformance_gate": {
+  "applies_to": "any future MR-002 validation execution",
+  "must_mechanically_prove_BEFORE_data_access": [
+   "exact registered source identities",
+   "exact execution-package / launcher identity",
+   "actual v2 seam invocation",
+   "expected v2 disposition vocabulary",
+   "non-zero Stage-3 invocation census",
+   "abort to INVALID_TEST_HARNESS on any mismatch"
+  ],
+  "the_lesson": "Hash-binding the launcher was INSUFFICIENT, because the launcher itself contained the wrong seam. Future readiness must bind not merely WHICH FILE ran, but mechanically prove WHICH REGISTERED EXECUTION LAYER that file actually routed."
+ },
+
+ "developer_observations_offered_and_recorded": {
+  "status": "NOT part of the owner ruling. Recorded because both bear on building the mandated gate correctly.",
+  "observation_1_the_failure_class_is_broader_than_the_launcher": {
+   "statement": "The registration's frozen_method was DECLARATIVE — three files marked enforced:true — and enforcement verified their PRESENCE and HASHES, not their USE. Both v2 files were deployed on the host and byte-correct at execution time. Nothing connected the declaration to runtime behaviour.",
+   "generalisation": "Hash-binding proves an artifact is PRESENT. It never proves the artifact was EXECUTED.",
+   "scope_of_the_implication": "this applies to every other enforced:true binding in the MR-002 governance corpus, not only to the launcher. Any binding whose satisfaction is checked by hashing a file on disk carries the same gap."
+  },
+  "observation_2_the_gate_must_be_observational_not_preflight": {
+   "statement": "The six mandated proofs are correct, but their ORDERING is load-bearing. The original N3 defect was that the solver handle was captured BEFORE entering the routing context. A pre-flight assertion of the form 'we imported the right module' is defeated in exactly the same way.",
+   "requirement": "the routing proof must read EMITTED CENSUS VOCABULARY after the first Stage-3 invocation — evidence of what actually happened — rather than any declaration of intent made before the run.",
+   "note": "the mandated list already names 'actual v2 seam invocation' and 'expected v2 disposition vocabulary'; this observation fixes HOW those must be evidenced so the same class of defect cannot recur a third time."
+  },
+  "observation_3_a_narrow_non_blame_question_that_is_a_design_input": {
+   "statement": "Distinct from blame RCA: not WHO omitted the rewiring, but WHAT allowed a registration-REQUIRED control to be absent at execution time with nothing detecting its absence.",
+   "why_it_may_already_be_discharged": "building the mandated conformance gate answers it operationally. If the gate exists and aborts, a required-but-unbuilt control can no longer reach execution silently.",
+   "status": "offered, not pursued — no further Question B work is authorized"
+  }
+ },
+
+ "scope_compliance": {
+  "numerical_runs": 0,
+  "aws_calls": 0,
+  "consumed_holdout_access": "none",
+  "validation_2_reopened": false,
+  "OOS_touched": false,
+  "P1_reopened": false
+ }
+}
