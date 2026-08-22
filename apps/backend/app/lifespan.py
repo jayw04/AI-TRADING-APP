@@ -682,6 +682,59 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
                     )
                 logger.info("insider_reference_monitor_scheduled")
 
+            # 10c-dec. GAP-NATIVE-001 box-native premarket gapper screener (ADR 0041).
+            # Weekdays 09:05 ET + an idempotent 09:18 ET retry, ≥7 min before the 09:25
+            # SCAN-001 scan consumes the file. DEFAULT OFF (conservative-defaults): the
+            # box flips WORKBENCH_NATIVE_GAPPER_SCREENER_ENABLED=1 explicitly, so
+            # tests/CI boots stay hermetic (no Alpaca screener calls). Read-only
+            # advisory data — never an order signal; catalyst stays null (no LLM).
+            if os.environ.get("WORKBENCH_NATIVE_GAPPER_SCREENER_ENABLED", "").lower() in ("1", "true"):
+                from apscheduler.triggers.cron import CronTrigger as _NativeGapCron
+
+                from app.jobs.native_gapper_scan import run_native_gapper_scan
+
+                for _ng_id, _ng_hour, _ng_min in (
+                    ("native_gapper_scan", 9, 5),
+                    ("native_gapper_scan_retry", 9, 18),
+                ):
+                    scheduler.scheduler.add_job(
+                        run_native_gapper_scan,
+                        _NativeGapCron(day_of_week="mon-fri", hour=_ng_hour, minute=_ng_min, timezone="America/New_York"),
+                        id=_ng_id,
+                        max_instances=1,
+                        coalesce=True,
+                        replace_existing=True,
+                        kwargs={"factor_store": factor_store},
+                    )
+                logger.info("native_gapper_scan_scheduled")
+
+                # Source-parity accrual, 09:30 ET — after the native scan (09:05/09:18)
+                # and the SCAN-001 gate scan (09:25), so both source files and the day's
+                # gate record exist. Scheduled with the screener because parity is only
+                # meaningful once a native source is producing: rider 3 of the 2026-08-10
+                # discovery decision requires it running from probation day 1, since
+                # §8.1 probation measures transport capture and cannot detect an
+                # incomplete path-B universe. Read-only; fail-soft.
+                from app.jobs.gapper_parity import run_gapper_parity_job
+
+                scheduler.scheduler.add_job(
+                    run_gapper_parity_job,
+                    _NativeGapCron(
+                        day_of_week="mon-fri", hour=9, minute=30, timezone="America/New_York"
+                    ),
+                    id="gapper_source_parity",
+                    max_instances=1,
+                    coalesce=True,
+                    replace_existing=True,
+                    kwargs={
+                        "native_dir": settings.native_gappers_dir,
+                        "external_dir": settings.premarket_gappers_dir,
+                        "evidence_dir": settings.premarket_gate_evidence_dir,
+                        "directory": settings.gapper_parity_dir,
+                    },
+                )
+                logger.info("gapper_source_parity_scheduled")
+
             # 10d. Daily SQLite backup (P5 §8.5). 02:00 in the scheduler's
             # timezone (America/New_York). 30-day retention is enforced inside
             # the script. max_instances=1 + coalesce so a slow/long backup can't

@@ -196,6 +196,28 @@ async def main():
     except Exception as e:  # noqa: BLE001
         alerts.append(("warn", f"factor-store health check failed: {type(e).__name__}"))
 
+    # --- native gapper screener (GAP-NATIVE-001, ADR 0041): today's file must exist ---
+    # Only checked when the screener is enabled on this host; weekdays only. The scan
+    # runs 09:05/09:18 ET, so by report time (16:35 ET) a missing file means both runs
+    # failed and the gate fell back to external/stale input for the day.
+    import os as _os
+    if _os.environ.get("WORKBENCH_NATIVE_GAPPER_SCREENER_ENABLED", "").lower() in ("1", "true") \
+            and now_et.weekday() < 5:
+        try:
+            from app.config import get_settings as _gs
+            _ng_path = _os.path.join(
+                _gs().native_gappers_dir, f"premarket_gappers_{et_today.isoformat()}.json"
+            )
+            if _os.path.exists(_ng_path):
+                data_lines.append(f"- native gappers: **present** (`{_ng_path}`)")
+            else:
+                data_lines.append("- native gappers: **MISSING today**")
+                alerts.append(("warn",
+                    "native_gapper_scan_missing_today — no box-native gappers file was "
+                    "written by 09:18 ET; the 09:25 gate ran on external/stale input"))
+        except Exception as e:  # noqa: BLE001
+            alerts.append(("warn", f"native-gappers health check failed: {type(e).__name__}"))
+
     # --- Portfolio Analytics Engine: correlation / overlap / diversification ---
     pa = None
     try:
