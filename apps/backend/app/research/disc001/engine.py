@@ -80,24 +80,19 @@ class WatchlistResult:
     subtitle: str = "Watch, not a signal"
 
 
+@dataclass(frozen=True)
+class FrozenGateObservation:
+    """One frozen admission check. Eligibility is the conjunction of these."""
+
+    key: str
+    passed: bool
+    summary: str
+
+
 def _is_etf(category: str | None) -> bool:
     if not category:
         return False
     return "ETF" in category.upper()
-
-
-def shared_eligible(feat: SymbolFeatures) -> bool:
-    """Price / ADV / cap / ETF policy. Halt and pending CA are not applied here
-    (HALT_CA_GATE = deferred_phase1b). Delisted-before-as_of names never reach
-    this function — the PIT universe already dropped them.
-    """
-    if _is_etf(feat.category):
-        return False
-    if feat.close is None or feat.close < MIN_PRICE:
-        return False
-    if feat.adv20 is None or feat.adv20 < MIN_ADV_20D:
-        return False
-    return feat.market_cap is not None and feat.market_cap >= MIN_MARKET_CAP
 
 
 def _crash_or_persist(feat: SymbolFeatures) -> bool:
@@ -112,30 +107,119 @@ def _crash_or_persist(feat: SymbolFeatures) -> bool:
     return crash or persist
 
 
+def shared_gate_observations(feat: SymbolFeatures) -> tuple[FrozenGateObservation, ...]:
+    """Price / ADV / cap / ETF policy. Halt and pending CA are not applied here
+    (HALT_CA_GATE = deferred_phase1b). Delisted-before-as_of names never reach
+    this function — the PIT universe already dropped them.
+    """
+    return (
+        FrozenGateObservation(
+            key="etf",
+            passed=not _is_etf(feat.category),
+            summary="category contains ETF" if _is_etf(feat.category) else "not an ETF",
+        ),
+        FrozenGateObservation(
+            key="min_price",
+            passed=feat.close is not None and feat.close >= MIN_PRICE,
+            summary=f"price = {_fmt_num(feat.close)}",
+        ),
+        FrozenGateObservation(
+            key="min_adv20",
+            passed=feat.adv20 is not None and feat.adv20 >= MIN_ADV_20D,
+            summary=_fmt_adv(feat.adv20),
+        ),
+        FrozenGateObservation(
+            key="min_market_cap",
+            passed=feat.market_cap is not None and feat.market_cap >= MIN_MARKET_CAP,
+            summary=_fmt_cap(feat.market_cap),
+        ),
+    )
+
+
+def oversold_family_observations(feat: SymbolFeatures) -> tuple[FrozenGateObservation, ...]:
+    rsi_ok = feat.rsi14 is not None and feat.rsi14 < RSI14_MAX
+    trend_ok = feat.close is not None and feat.sma200 is not None and feat.close > feat.sma200
+    stretch_ok = _crash_or_persist(feat)
+    vs_sma: float | None = None
+    sma200 = feat.sma200
+    if feat.close is not None and sma200 is not None and sma200 != 0:
+        vs_sma = feat.close / sma200 - 1.0
+    return (
+        FrozenGateObservation(
+            key="rsi14",
+            passed=rsi_ok,
+            summary=f"RSI14 = {_fmt_num(feat.rsi14)}",
+        ),
+        FrozenGateObservation(
+            key="sma200",
+            passed=trend_ok,
+            summary=f"close vs SMA(200) = {_fmt_pct(vs_sma)}",
+        ),
+        FrozenGateObservation(
+            key="crash_or_persist",
+            passed=stretch_ok,
+            summary=f"ret_5d = {_fmt_pct(feat.ret_5d)}",
+        ),
+    )
+
+
+def mom_near_family_observations(
+    feat: SymbolFeatures, mom_core_symbols: frozenset[str]
+) -> tuple[FrozenGateObservation, ...]:
+    rvol_ok = feat.rvol20 is not None and feat.rvol20 >= RVOL20_MIN
+    rising_ok = feat.volume_rising_20d is True
+    dist_ok = feat.dist_52w is not None and 0 <= feat.dist_52w <= DIST_52W_MAX
+    return (
+        FrozenGateObservation(
+            key="not_mom_core",
+            passed=feat.symbol not in mom_core_symbols,
+            summary="also on MOM-CORE readout"
+            if feat.symbol in mom_core_symbols
+            else "not on MOM-CORE readout",
+        ),
+        FrozenGateObservation(
+            key="rs_20_vs_spy",
+            passed=feat.rs_20_vs_spy is not None and feat.rs_20_vs_spy > RS_20_VS_SPY_MIN,
+            summary=f"RS20 vs SPY = {_fmt_pct(feat.rs_20_vs_spy)}",
+        ),
+        FrozenGateObservation(
+            key="rs_accel",
+            passed=feat.rs_accel is not None and feat.rs_accel > RS_ACCEL_MIN,
+            summary=f"RS accel = {_fmt_pct(feat.rs_accel)}",
+        ),
+        FrozenGateObservation(
+            key="dist_52w",
+            passed=dist_ok,
+            summary=f"dist from 52w high = {_fmt_pct(feat.dist_52w)}",
+        ),
+        FrozenGateObservation(
+            key="participation",
+            passed=rvol_ok or rising_ok,
+            summary=(f"RVOL20 = {feat.rvol20:.1f}×" if feat.rvol20 is not None else "RVOL20 = —"),
+        ),
+    )
+
+
+def oversold_gate_observations(feat: SymbolFeatures) -> tuple[FrozenGateObservation, ...]:
+    return shared_gate_observations(feat) + oversold_family_observations(feat)
+
+
+def mom_near_gate_observations(
+    feat: SymbolFeatures, mom_core_symbols: frozenset[str]
+) -> tuple[FrozenGateObservation, ...]:
+    return shared_gate_observations(feat) + mom_near_family_observations(feat, mom_core_symbols)
+
+
+def shared_eligible(feat: SymbolFeatures) -> bool:
+    return all(obs.passed for obs in shared_gate_observations(feat))
+
+
 def oversold_eligible(feat: SymbolFeatures) -> bool:
-    if not shared_eligible(feat):
-        return False
-    if feat.rsi14 is None or feat.rsi14 >= RSI14_MAX:
-        return False
-    if feat.close is None or feat.sma200 is None or feat.close <= feat.sma200:
-        return False
-    return _crash_or_persist(feat)
+    return all(obs.passed for obs in oversold_gate_observations(feat))
 
 
 def mom_near_eligible(feat: SymbolFeatures, mom_core_symbols: frozenset[str]) -> bool:
-    if feat.symbol in mom_core_symbols:
-        return False
-    if not shared_eligible(feat):
-        return False
-    if feat.rs_20_vs_spy is None or feat.rs_20_vs_spy <= RS_20_VS_SPY_MIN:
-        return False
-    if feat.rs_accel is None or feat.rs_accel <= RS_ACCEL_MIN:
-        return False
-    if feat.dist_52w is None or feat.dist_52w > DIST_52W_MAX or feat.dist_52w < 0:
-        return False
-    rvol_ok = feat.rvol20 is not None and feat.rvol20 >= RVOL20_MIN
-    rising_ok = feat.volume_rising_20d is True
-    return rvol_ok or rising_ok
+    return all(obs.passed for obs in mom_near_gate_observations(feat, mom_core_symbols))
 
 
 def weakest_status(statuses: list[EvidenceStatus]) -> EvidenceStatus:

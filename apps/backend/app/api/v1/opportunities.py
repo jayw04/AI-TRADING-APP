@@ -23,6 +23,7 @@ from app.api.v1.schemas.opportunities import (
     OppHistoryCheckpoint,
     OppHistoryOccurrence,
     OppHistoryResponse,
+    OppHistoryWhyLeft,
     OppLiveSignalsWidget,
     OppOpenOrderItem,
     OppOpenOrdersExpiringWidget,
@@ -62,7 +63,12 @@ from app.db.models.symbol import Symbol
 from app.db.session import get_session
 from app.research.disc001.checkpoints import build_checkpoints, parse_iso_date
 from app.research.disc001.spec import PRICE_SOURCE_SEP
-from app.services.opportunity_history import history_price_series, parse_reason_json
+from app.research.disc001.why_left import WhyLeft
+from app.services.opportunity_history import (
+    explain_history_why_left,
+    history_price_series,
+    parse_reason_json,
+)
 from app.services.premarket_gappers import read_latest_gappers
 from app.utils.time import EASTERN
 
@@ -145,7 +151,7 @@ async def get_opportunity_history(
     family: str | None = Query(default=None),
     limit: int = Query(default=200, ge=1, le=500),
 ) -> OppHistoryResponse:
-    """Durable CandidateSnapshot occurrences. Prices and checkpoints are read-time only."""
+    """Durable CandidateSnapshot occurrences. Prices, checkpoints, and why-left are read-time only."""
     _ = current_user
     now = datetime.now(UTC)
     stmt = select(OpportunityOccurrence)
@@ -169,7 +175,18 @@ async def get_opportunity_history(
     if items:
         start = min(parse_iso_date(item.candidate_date) for item in items)
         series = history_price_series([item.symbol for item in items], start=start)
-    enriched = [_enrich_history_item(item, series.get(item.symbol, ())) for item in items]
+    why_map = explain_history_why_left(
+        [(item.symbol, item.family, item.candidate_date) for item in items],
+        sessions_by_symbol=series,
+    )
+    enriched = [
+        _enrich_history_item(
+            item,
+            series.get(item.symbol, ()),
+            why_map.get((item.symbol, item.family, item.candidate_date)),
+        )
+        for item in items
+    ]
     return OppHistoryResponse(view=view, count=len(enriched), items=enriched, as_of=now)
 
 
@@ -239,6 +256,7 @@ def _occurrence_item(
 def _enrich_history_item(
     item: OppHistoryOccurrence,
     sessions: tuple[tuple[date, float], ...],
+    why_left: WhyLeft | None = None,
 ) -> OppHistoryOccurrence:
     facts = build_checkpoints(
         proposal_price=item.proposal_price,
@@ -261,6 +279,15 @@ def _enrich_history_item(
         )
         for fact in facts
     ]
+    why_model = None
+    if why_left is not None:
+        why_model = OppHistoryWhyLeft(
+            state=why_left.state,
+            as_of=why_left.as_of,
+            summary=why_left.summary,
+            details=list(why_left.details),
+            not_a_signal=why_left.not_a_signal,
+        )
     return item.model_copy(
         update={
             "current_price": current.price if current is not None else None,
@@ -268,6 +295,7 @@ def _enrich_history_item(
             "current_price_source": current.price_source if current is not None else None,
             "change_pct": current.return_pct if current is not None else None,
             "checkpoints": checkpoints,
+            "why_left": why_model,
         }
     )
 

@@ -283,3 +283,123 @@ def latest_closes(symbols: Sequence[str]) -> dict[str, PriceQuote]:
             adjustment_basis=PRICE_SOURCE_SEP,
         )
     return out
+
+
+def explain_history_why_left(
+    items: Sequence[tuple[str, str, str]],
+    *,
+    sessions_by_symbol: dict[str, tuple[tuple[date, float], ...]],
+) -> dict[tuple[str, str, str], Any]:
+    """Read-time frozen-rule re-evaluation for history rows. Never writes back.
+
+    ``items`` are ``(symbol, family, candidate_date)``. Missing store or later
+    bar → unavailable, not a synthesized explanation.
+    """
+    from app.research.disc001.adapter import (
+        gap_rows_from_payload,
+        load_mom_core_rows,
+        load_symbol_features,
+    )
+    from app.research.disc001.spec import FamilyId
+    from app.research.disc001.why_left import WhyLeft, explain_why_left, latest_session_after
+    from app.services.premarket_gappers import read_gappers_after
+
+    if not items:
+        return {}
+
+    store = None
+    try:
+        from app.factor_data.config import resolve_store_path
+        from app.factor_data.store import FactorDataStore
+
+        path = resolve_store_path()
+        if path.is_file():
+            store = FactorDataStore(read_only=True)
+    except Exception:
+        store = None
+
+    features_by: dict[tuple[str, str], Any] = {}
+    mom_core_by_as_of: dict[str, tuple[tuple[Any, ...], bool]] = {}
+    gap_by_origin: dict[str, tuple[date | None, Any, bool]] = {}
+
+    try:
+        sep_groups: dict[date, set[str]] = {}
+        for symbol, family, candidate_date in items:
+            if family not in (FamilyId.OVERSOLD, FamilyId.MOM_NEAR, FamilyId.MOM_CORE):
+                continue
+            origin = date.fromisoformat(str(candidate_date)[:10])
+            later = latest_session_after(
+                [d for d, _ in sessions_by_symbol.get(symbol.upper(), ())], origin
+            )
+            if later is None:
+                continue
+            sep_groups.setdefault(later, set()).add(symbol.upper())
+
+        if store is not None:
+            for later, tickers in sep_groups.items():
+                feats, feat_reason = load_symbol_features(store, sorted(tickers), later)
+                if feat_reason:
+                    continue
+                for panel in feats:
+                    features_by[(panel.symbol.upper(), later.isoformat())] = panel
+                mom_loaded, mom_reason = load_mom_core_rows(store, later)
+                mom_core_by_as_of[later.isoformat()] = (
+                    mom_loaded if not mom_reason else (),
+                    mom_reason is None,
+                )
+
+        for _symbol, family, candidate_date in items:
+            if family != FamilyId.GAP:
+                continue
+            origin_key = str(candidate_date)[:10]
+            if origin_key in gap_by_origin:
+                continue
+            origin = date.fromisoformat(origin_key)
+            payload = read_gappers_after(origin)
+            if not payload:
+                gap_by_origin[origin_key] = (None, None, False)
+                continue
+            gap_loaded = gap_rows_from_payload(payload)
+            later_day = (
+                date.fromisoformat(str(payload.get("date"))) if payload.get("date") else None
+            )
+            gap_by_origin[origin_key] = (later_day, gap_loaded, gap_loaded is not None)
+    except Exception:
+        logger.info("disc001_history_why_left_unavailable")
+    finally:
+        if store is not None:
+            store.close()
+
+    out: dict[tuple[str, str, str], WhyLeft] = {}
+    for symbol, family, candidate_date in items:
+        key = (symbol, family, candidate_date)
+        origin = date.fromisoformat(str(candidate_date)[:10])
+        ticker = symbol.upper()
+        if family == FamilyId.GAP:
+            later_day, gap_rows, gap_ok = gap_by_origin.get(
+                str(candidate_date)[:10], (None, None, False)
+            )
+            out[key] = explain_why_left(
+                family=family,
+                symbol=ticker,
+                later_as_of=later_day,
+                gap_rows=gap_rows,
+                gap_available=gap_ok,
+            )
+            continue
+        later = latest_session_after([d for d, _ in sessions_by_symbol.get(ticker, ())], origin)
+        later_feat = features_by.get((ticker, later.isoformat())) if later is not None else None
+        mom_rows, mom_ok = mom_core_by_as_of.get(
+            later.isoformat() if later is not None else "", ((), False)
+        )
+        mom_symbols = frozenset(r.symbol for r in mom_rows) if mom_ok else frozenset()
+        out[key] = explain_why_left(
+            family=family,
+            symbol=ticker,
+            later_as_of=later,
+            feat=later_feat,
+            mom_core_symbols=mom_symbols,
+            mom_core_rows=mom_rows if mom_ok else None,
+            mom_core_available=mom_ok,
+        )
+    return out

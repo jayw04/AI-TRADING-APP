@@ -128,6 +128,10 @@ async def test_summary_uses_last_occurrence(client_and_factory, monkeypatch) -> 
         "app.api.v1.opportunities.history_price_series",
         lambda symbols, start, end=None: _nvda_series(),
     )
+    monkeypatch.setattr(
+        "app.api.v1.opportunities.explain_history_why_left",
+        lambda items, sessions_by_symbol: {},
+    )
     resp = await client.get("/api/v1/opportunities/history")
     assert resp.status_code == 200
     body = resp.json()
@@ -155,6 +159,10 @@ async def test_timeline_keeps_every_row(client_and_factory, monkeypatch) -> None
         "app.api.v1.opportunities.history_price_series",
         lambda symbols, start, end=None: {},
     )
+    monkeypatch.setattr(
+        "app.api.v1.opportunities.explain_history_why_left",
+        lambda items, sessions_by_symbol: {},
+    )
     resp = await client.get("/api/v1/opportunities/history", params={"symbol": "NVDA"})
     assert resp.status_code == 200
     body = resp.json()
@@ -179,6 +187,10 @@ async def test_gap_current_price_is_shown_without_mixed_basis_return(
         return out
 
     monkeypatch.setattr("app.api.v1.opportunities.history_price_series", series)
+    monkeypatch.setattr(
+        "app.api.v1.opportunities.explain_history_why_left",
+        lambda items, sessions_by_symbol: {},
+    )
     resp = await client.get("/api/v1/opportunities/history")
     assert resp.status_code == 200
     gap = next(item for item in resp.json()["items"] if item["family"] == "GAP")
@@ -190,3 +202,41 @@ async def test_gap_current_price_is_shown_without_mixed_basis_return(
     assert by_cp["D1"]["return_pct"] is None
     assert by_cp["D1"]["adjustment_basis"] == PRICE_SOURCE_SEP
     assert by_cp["PROPOSAL"]["adjustment_basis"] == PRICE_SOURCE_GAP
+
+
+async def test_why_left_is_read_time_frozen_rule_not_a_signal(
+    client_and_factory, monkeypatch
+) -> None:
+    from app.research.disc001.why_left import NOT_A_SIGNAL, STATE_NO_LONGER_MEETS, WhyLeft
+
+    def why(items, sessions_by_symbol):
+        out = {}
+        for symbol, family, candidate_date in items:
+            out[(symbol, family, candidate_date)] = WhyLeft(
+                family=family,
+                state=STATE_NO_LONGER_MEETS,
+                as_of="2026-08-21",
+                summary="No longer OVERSOLD: RSI14 = 34.2.",
+                details=("RSI14 = 34.2",),
+                not_a_signal=NOT_A_SIGNAL,
+            )
+        return out
+
+    monkeypatch.setattr(
+        "app.api.v1.opportunities.history_price_series",
+        lambda symbols, start, end=None: _nvda_series(),
+    )
+    monkeypatch.setattr("app.api.v1.opportunities.explain_history_why_left", why)
+    client, _ = client_and_factory
+    resp = await client.get("/api/v1/opportunities/history")
+    assert resp.status_code == 200
+    item = next(
+        row
+        for row in resp.json()["items"]
+        if row["symbol"] == "NVDA" and row["family"] == "OVERSOLD"
+    )
+    assert item["why_left"]["summary"] == "No longer OVERSOLD: RSI14 = 34.2."
+    assert item["why_left"]["not_a_signal"] == NOT_A_SIGNAL
+    assert item["why_left"]["state"] == STATE_NO_LONGER_MEETS
+    assert item["screen_version"] == "v0.3.0"
+
