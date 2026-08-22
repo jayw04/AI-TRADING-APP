@@ -1,10 +1,10 @@
 """Phase 2 — low-volatility template (LOW-001 Capability Promotion).
 
-Covers schema parity, the weekly rebalance cadence + failure-retry guard, the
-top-quintile lowest-volatility selection (``ceil(N · top_quantile)`` held count,
-matching the research harness), equal-weight sizing, SPY exclusion, the
-factor-unavailable bail-out (→ HOLD), the market-regime filter, and the rejection
-policy — all against a synthetic StrategyContext (no engine, no DB).
+Covers schema parity, weekly rebalance cadence (durable completed + same-process
+storm skip), top-quintile lowest-volatility selection (``ceil(N · top_quantile)``),
+equal-weight sizing, SPY exclusion, factor-unavailable / factor-stale HOLD,
+always-invested (no SPY cash gate), PIT unregistered-name skip, and the
+rejection policy — all against a synthetic StrategyContext (no engine, no DB).
 
 The selection mirrors the validated LOW-001 V1 research (``run_momentum_backtest``
 with ``score_fn=low_vol_score``, ``top_quantile=0.20``): rank by −(trailing realized
@@ -14,7 +14,7 @@ Methodology-Transfer discipline)."""
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 from decimal import Decimal
 from unittest.mock import AsyncMock, MagicMock
 
@@ -22,11 +22,16 @@ import pandas as pd
 
 from app.factor_data.accessor import FactorDataUnavailable
 from app.strategies.context import Bar
-from strategies_user.templates.low_volatility import LowVolatility
+from strategies_user.templates.low_volatility import (
+    RESEARCH_UNIVERSE_N,
+    LowVolatility,
+    expected_last_session,
+    session_lag,
+)
 
-WK1_A = datetime(2026, 6, 8, 14, 0, tzinfo=UTC)   # Mon
-WK1_B = datetime(2026, 6, 8, 14, 1, tzinfo=UTC)   # same ISO week
-WK2 = datetime(2026, 6, 15, 14, 0, tzinfo=UTC)    # next ISO week
+WK1_A = datetime(2026, 6, 8, 14, 0, tzinfo=UTC)  # Mon
+WK1_B = datetime(2026, 6, 8, 14, 1, tzinfo=UTC)  # same ISO week
+WK2 = datetime(2026, 6, 15, 14, 0, tzinfo=UTC)  # next ISO week
 
 
 def _bar(ts: datetime, symbol: str = "AAA") -> Bar:
@@ -49,11 +54,9 @@ def _pos(qty: int):
 
 
 def _params(**over):
-    """Defaults with the regime filter OFF and sizing knobs neutralized, so a test
-    can isolate one behavior. Override per test."""
+    """Sizing knobs neutralized so a test can isolate one behavior."""
     return {
         **LowVolatility.default_params,
-        "use_market_regime_filter": False,
         "cash_buffer_pct": 0.0,
         "max_position_pct": 1.0,
         "min_trade_pct": 0.0,
@@ -62,15 +65,33 @@ def _params(**over):
     }
 
 
-def _ctx(symbols, scores, holdings=None, price=100.0, equity=None, spy_bars=None):
-    """Synthetic StrategyContext driving ``ctx.factors.low_vol_scores``."""
+def _ctx(
+    symbols,
+    scores,
+    holdings=None,
+    price=100.0,
+    equity=None,
+    spy_bars=None,
+    latest_price_date: date = date(2026, 6, 19),
+):
+    """Synthetic StrategyContext driving ``ctx.factors.low_vol_scores``.
+
+    Default ``latest_price_date`` is Friday of test week 2 so both WK1 (Mon 6/8)
+    and WK2 (Mon 6/15) pass the session-freshness gate. Stale-HOLD tests
+    override it.
+    """
     holdings = holdings or {}
+    completed: list[dict] = []
     ctx = MagicMock()
     ctx.strategy_id = 1
     ctx.symbols = symbols
     ctx.factors = MagicMock()
     ctx.factors.low_vol_scores = MagicMock(return_value=scores)
-    ctx.get_position_for = AsyncMock(side_effect=lambda s: _pos(holdings[s]) if s in holdings else None)
+    ctx.factors.latest_price_date = MagicMock(return_value=latest_price_date)
+    ctx.get_position_for = AsyncMock(
+        side_effect=lambda s: _pos(holdings[s]) if s in holdings else None
+    )
+    ctx.pending_buy_qty = AsyncMock(return_value={})
 
     def _bars(sym, tf, n):
         if spy_bars is not None and sym == "SPY":
@@ -79,8 +100,16 @@ def _ctx(symbols, scores, holdings=None, price=100.0, equity=None, spy_bars=None
 
     ctx.get_recent_bars = AsyncMock(side_effect=_bars)
     ctx.get_account_equity = AsyncMock(return_value=equity)
+
+    async def _log(_sym, _typ, payload=None):
+        p = dict(payload or {})
+        if p.get("reason") == "rebalance_completed":
+            completed.append(p)
+        return 1
+
+    ctx.log_signal = AsyncMock(side_effect=_log)
+    ctx.recent_payloads = AsyncMock(side_effect=lambda limit=80: list(completed))
     ctx.submit_order = AsyncMock(return_value=MagicMock(rejection_reason=None))
-    ctx.log_signal = AsyncMock(return_value=1)
     return ctx
 
 
@@ -98,6 +127,7 @@ def _strat(ctx, **over):
 
 # ---- schema / cadence ----------------------------------------------------------
 
+
 def test_schema_matches_default_params() -> None:
     """The typed form is derived from params_schema; it must list exactly the
     params the code reads (CLAUDE.md: schema↔code drift breaks the form)."""
@@ -106,10 +136,33 @@ def test_schema_matches_default_params() -> None:
 
 def test_research_frozen_defaults() -> None:
     """The validated LOW-001 V1 parameters must not silently drift: 252-day realized
-    vol and the top-quintile (0.20) are frozen from the research."""
+    vol and the top-quintile (0.20) are frozen from the research. The SPY cash gate
+    is not a V1 param."""
     assert LowVolatility.default_params["vol_lookback_days"] == 252
     assert LowVolatility.default_params["top_quantile"] == 0.20
+    assert "use_market_regime_filter" not in LowVolatility.default_params
+    assert "use_market_regime_filter" not in LowVolatility.params_schema
     assert LowVolatility.schedule == "0 14 * * mon"
+    assert LowVolatility.version == "1.0.1"
+
+
+def test_expected_last_session_skips_weekend() -> None:
+    assert expected_last_session(date(2026, 6, 8)) == date(2026, 6, 5)  # Mon → Fri
+    assert expected_last_session(date(2026, 6, 9)) == date(2026, 6, 8)  # Tue → Mon
+
+
+def test_expected_last_session_skips_observed_holiday() -> None:
+    """Monday after Friday Independence Day observed → Thursday, not the holiday."""
+    assert expected_last_session(date(2026, 7, 6)) == date(2026, 7, 2)
+
+
+def test_session_lag_counts_trading_sessions_not_weekdays() -> None:
+    expected = date(2026, 6, 5)
+    assert session_lag(date(2026, 6, 5), expected) == 0
+    assert session_lag(date(2026, 6, 4), expected) == 1
+    assert session_lag(date(2026, 6, 3), expected) == 2
+    # Weekday walk would treat Fri 7/3 as the prior session; NYSE previous is Thu 7/2.
+    assert session_lag(date(2026, 7, 2), expected_last_session(date(2026, 7, 6))) == 0
 
 
 async def test_rebalances_once_per_iso_week() -> None:
@@ -117,10 +170,22 @@ async def test_rebalances_once_per_iso_week() -> None:
     strat = _strat(ctx)
     await strat.on_init()
     await strat.on_bar(_bar(WK1_A))
-    await strat.on_bar(_bar(WK1_B))  # same week → no second rebalance
+    await strat.on_bar(_bar(WK1_B))  # same week, completed → no second score
     assert ctx.factors.low_vol_scores.call_count == 1
-    await strat.on_bar(_bar(WK2))    # new week → rebalances again
+    await strat.on_bar(_bar(WK2))  # new week → rebalances again
     assert ctx.factors.low_vol_scores.call_count == 2
+
+
+async def test_live_dispatch_seq_storm_skips_other_symbols() -> None:
+    """Live engine calls on_bar once per symbol; dispatch_seq must collapse them."""
+    ctx = _ctx(["AAA", "BBB"], _scores([("AAA", -0.1), ("BBB", -0.2)]), equity=100_000)
+    ctx.dispatch_seq = 7
+    ctx.session = MagicMock(as_of=WK1_A)
+    strat = _strat(ctx)
+    await strat.on_init()
+    await strat.on_bar(_bar(WK1_A, "AAA"))
+    await strat.on_bar(_bar(WK1_A, "BBB"))
+    assert ctx.factors.low_vol_scores.call_count == 1
 
 
 def _last_kwargs(ctx) -> dict:
@@ -134,25 +199,32 @@ async def test_vol_window_defaults_to_252() -> None:
     await strat.on_init()
     await strat.on_bar(_bar(WK1_A))
     assert _last_kwargs(ctx)["lookback_days"] == 252
+    assert _last_kwargs(ctx)["n"] == RESEARCH_UNIVERSE_N
 
 
-async def test_unexpected_failure_marks_week_and_does_not_retry_same_week() -> None:
-    """The week is marked at the START of the attempt, so a rebalance that raises
-    is NOT retried on the next per-symbol tick in the same week (storm guard)."""
+async def test_incomplete_week_retries_after_restart() -> None:
+    """A raised rebalance does not write rebalance_completed. The same instance
+    storm-skips remaining symbols; a new instance (process restart) retries."""
     ctx = _ctx(["AAA"], _scores([("AAA", -0.1)]))
-    ctx.factors.low_vol_scores = MagicMock(side_effect=ValueError("boom"))  # not a _HOLD_ON
+    ctx.factors.low_vol_scores = MagicMock(side_effect=ValueError("boom"))
     strat = _strat(ctx)
     await strat.on_init()
     await strat.on_bar(_bar(WK1_A))
-    await strat.on_bar(_bar(WK1_B))  # same week → NO retry
+    await strat.on_bar(_bar(WK1_B))  # same instance → storm skip
     assert ctx.factors.low_vol_scores.call_count == 1
-    assert any("rebalance_failed" in str(c.kwargs.get("payload", {}))
-               for c in ctx.log_signal.call_args_list)
-    await strat.on_bar(_bar(WK2))    # next week → attempts again
+    assert any(
+        "rebalance_failed" in str(c.kwargs.get("payload", {}))
+        for c in ctx.log_signal.call_args_list
+    )
+
+    restarted = _strat(ctx)
+    await restarted.on_init()
+    await restarted.on_bar(_bar(WK1_B))
     assert ctx.factors.low_vol_scores.call_count == 2
 
 
 # ---- low-vol selection --------------------------------------------------------
+
 
 async def test_holds_lowest_vol_quintile() -> None:
     """Top ``ceil(N · top_quantile)`` names by score (= lowest realized vol). With
@@ -180,7 +252,7 @@ async def test_equal_weight_within_book() -> None:
 
 
 async def test_excludes_market_proxy_from_book() -> None:
-    """SPY may be registered only for the regime filter; it is never selected or
+    """SPY may be registered as a market proxy; it is never selected or
     held as a portfolio position, even with a strong (low-vol) score."""
     order = [("SPY", -0.01), ("AAA", -0.1), ("BBB", -0.2)]  # SPY has the best score
     ctx = _ctx(["SPY", "AAA", "BBB"], _scores(order), price=100.0, equity=100_000)
@@ -193,8 +265,9 @@ async def test_excludes_market_proxy_from_book() -> None:
 async def test_sells_names_leaving_the_book() -> None:
     """A held name that drops out of the lowest-vol quintile is sold to flat."""
     order = [("AAA", -0.1), ("BBB", -0.2), ("CCC", -0.9)]  # CCC = highest vol → excluded
-    ctx = _ctx([t for t, _ in order], _scores(order),
-               holdings={"CCC": 10}, price=100.0, equity=100_000)
+    ctx = _ctx(
+        [t for t, _ in order], _scores(order), holdings={"CCC": 10}, price=100.0, equity=100_000
+    )
     strat = _strat(ctx, top_quantile=0.20)  # ceil(3·0.20)=1 → only AAA held
     await strat.on_init()
     await strat.on_bar(_bar(WK1_A))
@@ -202,6 +275,7 @@ async def test_sells_names_leaving_the_book() -> None:
 
 
 # ---- bail-out taxonomy --------------------------------------------------------
+
 
 async def test_factor_unavailable_holds() -> None:
     """No factor data → HOLD the book (no orders), don't crash the tick."""
@@ -211,28 +285,78 @@ async def test_factor_unavailable_holds() -> None:
     await strat.on_init()
     await strat.on_bar(_bar(WK1_A))
     assert ctx.submit_order.await_count == 0
-    assert any("factor_unavailable_hold" in str(c.kwargs.get("payload", {}))
-               for c in ctx.log_signal.call_args_list)
+    assert any(
+        "factor_unavailable_hold" in str(c.kwargs.get("payload", {}))
+        for c in ctx.log_signal.call_args_list
+    )
 
 
-# ---- market-regime filter -----------------------------------------------------
+async def test_factor_stale_holds() -> None:
+    """Store more than one completed session behind the previous session → HOLD."""
+    ctx = _ctx(
+        ["AAA"], _scores([("AAA", -0.1)]), latest_price_date=date(2026, 6, 2)
+    )  # Tue; expected Fri 6/5 → lag 3
+    strat = _strat(ctx)
+    await strat.on_init()
+    await strat.on_bar(_bar(WK1_A))
+    assert ctx.submit_order.await_count == 0
+    ctx.factors.low_vol_scores.assert_not_called()
+    assert any(
+        "factor_stale_hold" in str(c.kwargs.get("payload", {}))
+        for c in ctx.log_signal.call_args_list
+    )
 
-async def test_regime_bear_moves_to_cash() -> None:
-    """When SPY is below its MA, the book goes to cash (held names sold, no buys)."""
-    spy = pd.DataFrame({"c": [300.0 - i for i in range(201)]})  # falling → last < MA
+
+async def test_friday_holiday_does_not_stale_hold() -> None:
+    """Monday after an observed Friday holiday is fresh if the store has Thursday."""
+    monday = datetime(2026, 7, 6, 14, 0, tzinfo=UTC)
+    ctx = _ctx(
+        ["AAA"],
+        _scores([("AAA", -0.1)]),
+        latest_price_date=date(2026, 7, 2),
+        equity=100_000,
+    )
+    strat = _strat(ctx)
+    await strat.on_init()
+    await strat.on_bar(_bar(monday))
+    ctx.factors.low_vol_scores.assert_called_once()
+    assert not any(
+        "factor_stale_hold" in str(c.kwargs.get("payload", {}))
+        for c in ctx.log_signal.call_args_list
+    )
+
+
+async def test_spy_below_ma_does_not_liquidate() -> None:
+    """LOW-001 V1 is always invested — a falling SPY is not a cash gate."""
+    spy = pd.DataFrame({"c": [300.0 - i for i in range(201)]})
     order = [("AAA", -0.1), ("BBB", -0.2)]
-    ctx = _ctx(["AAA", "BBB", "SPY"], _scores(order),
-               holdings={"AAA": 5}, equity=100_000, spy_bars=spy)
-    strat = _strat(ctx, use_market_regime_filter=True, market_filter_symbol="SPY",
-                   market_ma_days=200)
+    ctx = _ctx(
+        ["AAA", "BBB", "SPY"], _scores(order), holdings={"AAA": 5}, equity=100_000, spy_bars=spy
+    )
+    strat = _strat(ctx, top_quantile=1.0)
     await strat.on_init()
     await strat.on_bar(_bar(WK1_A))
     orders = _orders(ctx)
-    assert orders.get("AAA") == ("sell", Decimal(5))  # exited to cash
-    assert not any(side == "buy" for side, _ in orders.values())
+    assert any(side == "buy" for side, _ in orders.values())
+    assert orders.get("AAA") != ("sell", Decimal(5))
+
+
+async def test_pit_unregistered_names_are_logged_not_ordered() -> None:
+    """PIT quintile may include names outside the registered list; skip + log."""
+    order = [("AAA", -0.1), ("ZZZ", -0.2), ("BBB", -0.3), ("CCC", -0.4)]
+    ctx = _ctx(["AAA", "BBB", "CCC"], _scores(order), price=100.0, equity=100_000)
+    strat = _strat(ctx, top_quantile=0.50)  # ceil(3 scored ex-none * 0.5) wait 4 names → 2
+    await strat.on_init()
+    await strat.on_bar(_bar(WK1_A))
+    assert "ZZZ" not in _orders(ctx)
+    assert any(
+        "pit_name_not_registered" in str(c.kwargs.get("payload", {}))
+        for c in ctx.log_signal.call_args_list
+    )
 
 
 # ---- rejection policy ---------------------------------------------------------
+
 
 async def test_order_rejection_is_logged_not_raised() -> None:
     """A risk rejection on one order is logged and the rebalance continues."""
@@ -242,5 +366,39 @@ async def test_order_rejection_is_logged_not_raised() -> None:
     strat = _strat(ctx, top_quantile=1.0)
     await strat.on_init()
     await strat.on_bar(_bar(WK1_A))  # must not raise
-    assert any("rejected" in str(c.kwargs.get("payload", {}))
-               for c in ctx.log_signal.call_args_list)
+    assert any(
+        "rejected" in str(c.kwargs.get("payload", {})) for c in ctx.log_signal.call_args_list
+    )
+
+
+async def test_fractional_shares_false_still_sizes_fractionally() -> None:
+    """V1 always sizes fractionally; OrderRouter floors non-fractionable names."""
+    ctx = _ctx(["AAA"], _scores([("AAA", -0.1)]), price=33.0, equity=100_000)
+    strat = _strat(ctx, top_quantile=1.0, fractional_shares=False)
+    await strat.on_init()
+    await strat.on_bar(_bar(WK1_A))
+    qty = _orders(ctx)["AAA"][1]
+    assert qty == (Decimal("100000") / Decimal("33")).quantize(Decimal("0.000001"))
+
+
+async def test_inflight_buys_are_netted() -> None:
+    """A retry must not stack a second basket on in-flight buys."""
+    ctx = _ctx(["AAA", "BBB"], _scores([("AAA", -0.1), ("BBB", -0.2)]), price=100.0, equity=20_000)
+    ctx.pending_buy_qty = AsyncMock(return_value={"AAA": Decimal("100"), "BBB": Decimal("100")})
+    strat = _strat(ctx, top_quantile=1.0)
+    await strat.on_init()
+    await strat.on_bar(_bar(WK1_A))
+    assert _orders(ctx) == {}
+
+
+async def test_stale_hold_does_not_complete_the_week() -> None:
+    """A freshness HOLD leaves the week incomplete so a restart can retry."""
+    ctx = _ctx(["AAA"], _scores([("AAA", -0.1)]), latest_price_date=date(2026, 6, 2))
+    strat = _strat(ctx)
+    await strat.on_init()
+    await strat.on_bar(_bar(WK1_A))
+    restarted = _strat(ctx)
+    await restarted.on_init()
+    await restarted.on_bar(_bar(WK1_B))
+    assert ctx.factors.latest_price_date.call_count == 2
+    ctx.factors.low_vol_scores.assert_not_called()
