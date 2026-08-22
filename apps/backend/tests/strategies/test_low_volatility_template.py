@@ -65,6 +65,11 @@ def _params(**over):
     }
 
 
+#: Columns of the empty frame ``StrategyContext.get_recent_bars`` returns for a symbol
+#: outside the strategy's universe (see ``app/strategies/context.py``).
+_EMPTY_BARS = ["t", "o", "h", "l", "c", "v"]
+
+
 def _ctx(
     symbols,
     scores,
@@ -79,21 +84,51 @@ def _ctx(
     Default ``latest_price_date`` is Friday of test week 2 so both WK1 (Mon 6/8)
     and WK2 (Mon 6/15) pass the session-freshness gate. Stale-HOLD tests
     override it.
+
+    **Registration blindness is reproduced faithfully (LOW-PIT-01B).** Production
+    ``StrategyContext`` does not enforce the strategy universe by refusing orders --
+    ``submit_order`` carries no such check, and neither does OrderRouter nor the risk
+    engine. It enforces it by making the strategy *unable to see* anything outside
+    ``ctx.symbols``::
+
+        get_position_for(x)  -> None                 when x not in ctx.symbols
+        get_positions()      -> filtered to ctx.symbols
+        get_recent_bars(x)   -> empty frame          when x not in ctx.symbols
+        pending_buy_qty()    -> keys filtered to ctx.symbols
+        log_signal(x)        -> warns, but WRITES    (evidence is recordable)
+        submit_order(x)      -> reaches the router   (no registration check)
+
+    A fake that hands back a position or a price for an unregistered symbol is
+    *more permissive than production*, and an exit-safety test written against it
+    passes on code that strands the holding live. That is exactly the false pass
+    this harness must not manufacture, so the gates above are modelled here rather
+    than assumed away.
     """
     holdings = holdings or {}
     completed: list[dict] = []
     ctx = MagicMock()
     ctx.strategy_id = 1
     ctx.symbols = symbols
+    visible = {s.upper() for s in symbols}
     ctx.factors = MagicMock()
     ctx.factors.low_vol_scores = MagicMock(return_value=scores)
     ctx.factors.latest_price_date = MagicMock(return_value=latest_price_date)
-    ctx.get_position_for = AsyncMock(
-        side_effect=lambda s: _pos(holdings[s]) if s in holdings else None
-    )
+
+    async def _position_for(sym):
+        if sym.upper() not in visible:
+            return None  # production returns None, NOT the position
+        return _pos(holdings[sym]) if sym in holdings else None
+
+    async def _positions():
+        return [_pos(q) for s, q in holdings.items() if s.upper() in visible]
+
+    ctx.get_position_for = AsyncMock(side_effect=_position_for)
+    ctx.get_positions = AsyncMock(side_effect=_positions)
     ctx.pending_buy_qty = AsyncMock(return_value={})
 
     def _bars(sym, tf, n):
+        if sym.upper() not in visible:
+            return pd.DataFrame(columns=_EMPTY_BARS)  # unauthorized symbol
         if spy_bars is not None and sym == "SPY":
             return spy_bars
         return pd.DataFrame({"c": [price]})
@@ -272,6 +307,81 @@ async def test_sells_names_leaving_the_book() -> None:
     await strat.on_init()
     await strat.on_bar(_bar(WK1_A))
     assert _orders(ctx).get("CCC") == ("sell", Decimal(10))
+
+
+# ---- harness fidelity + the exit-stranding characterization (LOW-PIT-01B) ------
+#
+# These two tests are a matched pair and must be read together.
+#
+# The first pins the FAKE: it proves `_ctx` reproduces production's registration
+# blindness, so it cannot drift back into being more permissive than the real
+# StrategyContext. Without it the tightening in `_ctx` is unenforced and a future
+# edit could silently restore the false-pass condition.
+#
+# The second pins the PRODUCT as it behaves TODAY: a held symbol outside
+# `ctx.symbols` is never discovered, so no exit intent is ever formed for it. That
+# is a defect, not a desired property. It is asserted here so the repair has a
+# before/after anchor -- LOW-PIT-04 / PR S will invert this test, and the day it
+# starts failing is the day the fix landed.
+
+
+async def test_fake_context_reproduces_production_registration_blindness() -> None:
+    """The harness must hide unregistered symbols exactly as production does.
+
+    Guards the LOW-PIT-01B finding: a fake that answers `get_position_for` or
+    `get_recent_bars` for an unregistered ticker is more permissive than the real
+    context, and an exit-safety test written against it passes on code that strands
+    the holding live.
+    """
+    ctx = _ctx(["AAA"], _scores([("AAA", -0.1)]), holdings={"XYZ": 10}, price=100.0)
+
+    # Registered -> visible.
+    assert await ctx.get_position_for("AAA") is None  # registered, simply not held
+    assert not (await ctx.get_recent_bars("AAA", "1Day", 1)).empty
+
+    # Unregistered -> invisible, even though the position exists on the account.
+    assert await ctx.get_position_for("XYZ") is None
+    assert (await ctx.get_recent_bars("XYZ", "1Day", 1)).empty
+    assert await ctx.get_positions() == []
+
+    # ...but the order path itself is NOT gated on registration.
+    assert "XYZ" not in (await ctx.pending_buy_qty())
+
+
+async def test_held_symbol_outside_registration_is_never_exited_TODAY() -> None:
+    """CHARACTERIZATION OF A DEFECT — asserts current behavior, not desired behavior.
+
+    A position the strategy holds in a symbol absent from `ctx.symbols` is
+    undiscoverable: `_current_holdings()` enumerates `ctx.symbols` only, so the
+    `if sym not in target_set -> SELL` branch is never reached for it. The order
+    path would accept the sell; the intent is simply never formed.
+
+    This is the rollback-stranding case (v1.0.2 buys XYZ dynamically, rollback to a
+    build that does not know XYZ) and, with per-rebalance enrollment, the
+    week-N-to-week-N+1 case as well.
+
+    PR S inverts this assertion. Do not "fix" this test by widening the fake.
+    """
+    order = [("AAA", -0.1), ("BBB", -0.2)]
+    ctx = _ctx(
+        [t for t, _ in order],
+        _scores(order),
+        holdings={"XYZ": 10},  # held, but NOT in ctx.symbols
+        price=100.0,
+        equity=100_000,
+    )
+    strat = _strat(ctx, top_quantile=0.50)
+    await strat.on_init()
+    await strat.on_bar(_bar(WK1_A))
+
+    orders = _orders(ctx)
+    assert "XYZ" not in orders, (
+        "XYZ became sellable -- if PR S landed, invert this test rather than relaxing it"
+    )
+    # And the omission is silent: nothing in the signal feed names the stranded holding.
+    assert not any(
+        "XYZ" in str(c.args) or "XYZ" in str(c.kwargs) for c in ctx.log_signal.call_args_list
+    )
 
 
 # ---- bail-out taxonomy --------------------------------------------------------
