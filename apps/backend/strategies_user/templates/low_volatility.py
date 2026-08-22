@@ -219,8 +219,8 @@ class LowVolatility(Strategy):
         # Same-process storm skip. Live uses ctx.dispatch_seq (201-symbol loop +
         # 2026-07-13 stale-bar incident). Backtest uses ISO week. Durable
         # ``rebalance_completed`` is what survives a restart.
-        self._inflight_week: tuple[int, int] | None = None
-        self._inflight_dispatch: int | None = None
+        self._last_rebalance_week: tuple[int, int] | None = None
+        self._last_dispatch_seq: int | None = None
 
     def _as_of_date(self, bar: Any) -> date:
         """Live: ET date of this engine dispatch, not the symbol bar.
@@ -246,13 +246,13 @@ class LowVolatility(Strategy):
             return
         seq = getattr(self.ctx, "dispatch_seq", None)
         if isinstance(seq, int):
-            if seq == getattr(self, "_inflight_dispatch", None):
+            if seq == getattr(self, "_last_dispatch_seq", None):
                 return
-            self._inflight_dispatch = seq
-        elif getattr(self, "_inflight_week", None) == wk:
+            self._last_dispatch_seq = seq
+        elif getattr(self, "_last_rebalance_week", None) == wk:
             return
         else:
-            self._inflight_week = wk
+            self._last_rebalance_week = wk
         try:
             await self._mark("rebalance_started", wk)
             if await self._rebalance(as_of=as_of):
