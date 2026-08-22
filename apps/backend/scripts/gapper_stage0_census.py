@@ -135,7 +135,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--contract",
         default=None,
-        help="path to a §3.1 dataset-contract JSON; omitted ⇒ the default "
+        help="path to a §3.1 dataset-contract JSON; omitted => the default "
         "contract with source_vendor=UNSET_OWNER_DECISION (incomplete)",
     )
     parser.add_argument("--bar-cache-root", required=True, help="bars_cache/ root directory")
@@ -146,7 +146,7 @@ def main(argv: list[str] | None = None) -> int:
         "--events",
         default=None,
         help='optional JSON file: [{"symbol": "XYZ", "date": "YYYY-MM-DD"}, ...]; '
-        "omitted ⇒ census every cached 1Min day-file",
+        "omitted => census every cached 1Min day-file",
     )
     parser.add_argument("--out", required=True, help="output directory for the census report")
     parser.add_argument(
