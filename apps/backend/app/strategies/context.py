@@ -124,6 +124,11 @@ class OpenOrderObs:
 # OrderRouter.submit).
 OrderRouterCallable = Callable[[OrderRequest], Awaitable[Any]]
 
+#: Returns the uppercased tickers this strategy may READ because it unambiguously owns a
+#: current holding in them (PR S / S3). Built by ``app.universe`` and injected, so this
+#: module never learns how ownership is established. Never a buy authorization.
+OwnedHoldingsCallable = Callable[[], Awaitable[frozenset[str]]]
+
 
 # Default lookback windows by timeframe — sized so SMA200 has headroom on
 # every supported timeframe. Values are hours.
@@ -168,6 +173,7 @@ class StrategyContext:
         submit_order_fn: OrderRouterCallable,
         bus: Any | None = None,  # app.events.bus.EventBus; optional for tests
         factor_accessor: Any | None = None,  # app.factor_data.accessor.FactorAccessor
+        owned_holdings_fn: OwnedHoldingsCallable | None = None,
     ) -> None:
         self.strategy_id = strategy_id
         self.user_id = user_id
@@ -179,6 +185,26 @@ class StrategyContext:
         self._submit_order_fn = submit_order_fn
         self._bus = bus
         self._factor_accessor = factor_accessor
+
+        # PR S / S3 — READ authority, and ONLY read authority (LOW-PIT v0.3 §4.7).
+        #
+        # ``symbols`` stays exactly what it has always been: the registered universe. It
+        # drives dispatch iteration, target-selection membership and buy planning, and
+        # widening it would quietly widen all three. So ownership-derived visibility is a
+        # SEPARATE scope consulted only by the three read operations a strategy needs in
+        # order to manage a position it already holds — ``get_position_for``,
+        # ``get_positions`` and ``get_recent_bars``.
+        #
+        # ``pending_buy_qty`` is deliberately NOT widened: netting in-flight buys is buy
+        # planning, and an owned-but-unregistered holding is only ever exited.
+        #
+        # The capability is injected (built in ``app.universe``) rather than constructed
+        # here, so this module gains no dependency on the ownership resolver, the position
+        # query or any identity source — the same seam ``submit_order_fn`` uses, and what
+        # keeps ``check_strategy_isolation.sh`` satisfiable once PR B adds broker imports
+        # to that package. ``None`` means no widening at all: pure v1.0.1 behavior.
+        self._owned_holdings_fn = owned_holdings_fn
+        self._owned_cache: tuple[int | None, frozenset[str]] | None = None
 
         # Which cron dispatch we are inside. The engine bumps this ONCE per
         # ``_dispatch_bar_tick`` and then calls ``on_bar`` once per symbol (200+ times), so a
@@ -193,6 +219,53 @@ class StrategyContext:
         # None in backtests (bars are replayed with no engine dispatch), where the bar-derived
         # week IS the correct cadence signal.
         self.dispatch_seq: int | None = None
+
+    # ---- read authority (PR S / S3) ----
+
+    def _registered(self, symbol: str) -> bool:
+        return symbol.upper() in {s.upper() for s in self.symbols}
+
+    async def _owned_readable(self) -> frozenset[str]:
+        """Ownership-derived read scope for the current dispatch.
+
+        Cached per ``dispatch_seq`` because the engine calls ``on_bar`` once per symbol —
+        200+ times in one rebalance slot — and the owned set cannot change within a slot.
+        A ``None`` dispatch_seq (backtests, unit tests) caches under its own key; that is
+        the same lifetime the rest of this class already assumes for a non-dispatch
+        context.
+
+        **Fails closed on error.** If the capability raises, the read scope is empty, so
+        behaviour degrades to registered-only v1.0.1 rather than to unbounded visibility.
+        A failure here must never be able to widen what a strategy can see.
+        """
+        if self._owned_holdings_fn is None:
+            return frozenset()
+        if self._owned_cache is not None and self._owned_cache[0] == self.dispatch_seq:
+            return self._owned_cache[1]
+        try:
+            owned = frozenset(t.upper() for t in await self._owned_holdings_fn())
+        except Exception:
+            logger.exception(
+                "owned_holdings_resolution_failed",
+                strategy_id=self.strategy_id,
+                account_id=self.account_id,
+            )
+            owned = frozenset()
+        self._owned_cache = (self.dispatch_seq, owned)
+        return owned
+
+    async def _readable(self, symbol: str) -> bool:
+        """May this strategy READ ``symbol``? Registered, or an unambiguously owned holding.
+
+        This is NOT buy authority (LOW-PIT v0.3 §4.7). Registration is checked first so a
+        registered symbol never pays for an ownership lookup, and a strategy with no
+        injected capability behaves exactly as it did in v1.0.1.
+        """
+        return self._registered(symbol) or symbol.upper() in await self._owned_readable()
+
+    async def read_scope(self) -> frozenset[str]:
+        """Registered ∪ owned-held, uppercased. Diagnostics and tests; not for planning."""
+        return frozenset(s.upper() for s in self.symbols) | await self._owned_readable()
 
     # ---- factor data (P9 §2) ----
 
@@ -237,11 +310,14 @@ class StrategyContext:
     ) -> pd.DataFrame:
         """Return the most recent ``n`` bars for ``(symbol, timeframe)``.
 
-        Symbol must be in this strategy's allowed universe; otherwise we
-        return an empty frame and log a warning. (Don't raise — a typo in a
-        strategy shouldn't take itself down.)
+        Symbol must be READABLE — registered, or an unambiguously owned current holding
+        (PR S / S3). Otherwise we return an empty frame and log a warning. (Don't raise —
+        a typo in a strategy shouldn't take itself down.)
+
+        Pricing an owned holding is a prerequisite for exiting it, which is why this is in
+        the widened set. It confers no buy eligibility: a price is not a target.
         """
-        if symbol.upper() not in {s.upper() for s in self.symbols}:
+        if not await self._readable(symbol):
             logger.warning(
                 "strategy_requested_unauthorized_symbol",
                 strategy_id=self.strategy_id,
@@ -289,49 +365,68 @@ class StrategyContext:
     # ---- positions ----
 
     async def get_positions(self) -> list[Position]:
-        """Open positions for THIS strategy's allowed symbols only.
+        """Open positions inside this strategy's READ scope.
 
-        A strategy should not be aware of holdings outside its mandate.
+        A strategy should not be aware of holdings outside its mandate — but a holding it
+        unambiguously owns *is* its mandate even when the symbol was never registered
+        (PR S / S3). Without this, a dynamically acquired position is invisible and
+        therefore un-exitable, which is the LOW-PIT-01B defect.
         """
+        readable = await self.read_scope()
         async with self._session_factory() as session:
             symbol_ids = (
-                await session.execute(
-                    select(Symbol.id).where(
-                        Symbol.ticker.in_([s.upper() for s in self.symbols])
+                (
+                    await session.execute(
+                        select(Symbol.id).where(Symbol.ticker.in_(sorted(readable)))
                     )
                 )
-            ).scalars().all()
+                .scalars()
+                .all()
+            )
             if not symbol_ids:
                 return []
             positions = (
-                await session.execute(
-                    select(Position).where(
-                        Position.account_id == self.account_id,
-                        Position.symbol_id.in_(symbol_ids),
+                (
+                    await session.execute(
+                        select(Position).where(
+                            Position.account_id == self.account_id,
+                            Position.symbol_id.in_(symbol_ids),
+                        )
                     )
                 )
-            ).scalars().all()
+                .scalars()
+                .all()
+            )
             return list(positions)
 
     async def get_position_for(self, symbol: str) -> Position | None:
-        """Open position in one specific symbol, or None."""
+        """Open position in one specific symbol, or None.
+
+        Readable if registered OR unambiguously owned and currently held (PR S / S3).
+        """
         symbol = symbol.upper()
-        if symbol not in {s.upper() for s in self.symbols}:
+        if not await self._readable(symbol):
             return None
         async with self._session_factory() as session:
             sym = (
-                await session.execute(select(Symbol).where(Symbol.ticker == symbol))
-            ).scalars().first()
+                (await session.execute(select(Symbol).where(Symbol.ticker == symbol)))
+                .scalars()
+                .first()
+            )
             if sym is None:
                 return None
             return (
-                await session.execute(
-                    select(Position).where(
-                        Position.account_id == self.account_id,
-                        Position.symbol_id == sym.id,
+                (
+                    await session.execute(
+                        select(Position).where(
+                            Position.account_id == self.account_id,
+                            Position.symbol_id == sym.id,
+                        )
                     )
                 )
-            ).scalars().first()
+                .scalars()
+                .first()
+            )
 
     async def pending_buy_qty(self) -> dict[str, Decimal]:
         """In-flight BUY quantity per ticker for THIS strategy, keyed by ticker.
@@ -381,13 +476,17 @@ class StrategyContext:
         """
         async with self._session_factory() as session:
             rows = (
-                await session.execute(
-                    select(Signal.payload_json)
-                    .where(Signal.strategy_id == self.strategy_id)
-                    .order_by(Signal.received_at.desc(), Signal.id.desc())
-                    .limit(int(limit))
+                (
+                    await session.execute(
+                        select(Signal.payload_json)
+                        .where(Signal.strategy_id == self.strategy_id)
+                        .order_by(Signal.received_at.desc(), Signal.id.desc())
+                        .limit(int(limit))
+                    )
                 )
-            ).scalars().all()
+                .scalars()
+                .all()
+            )
         return [dict(p) for p in rows if p]
 
     async def recent_fills(
@@ -436,9 +535,17 @@ class StrategyContext:
         """
         stmt = (
             select(
-                Fill.id, Fill.order_id, Fill.qty, Fill.price, Fill.filled_at,
-                Order.client_order_id, Order.account_id, Order.source_id,
-                Order.status, Order.side, Symbol.ticker,
+                Fill.id,
+                Fill.order_id,
+                Fill.qty,
+                Fill.price,
+                Fill.filled_at,
+                Order.client_order_id,
+                Order.account_id,
+                Order.source_id,
+                Order.status,
+                Order.side,
+                Symbol.ticker,
             )
             .join(Order, Order.id == Fill.order_id)
             .join(Symbol, Symbol.id == Order.symbol_id)
@@ -450,8 +557,7 @@ class StrategyContext:
         )
         if since is not None and after_fill_id is not None:
             stmt = stmt.where(
-                (Fill.filled_at > since)
-                | ((Fill.filled_at == since) & (Fill.id > after_fill_id))
+                (Fill.filled_at > since) | ((Fill.filled_at == since) & (Fill.id > after_fill_id))
             )
         elif since is not None:
             stmt = stmt.where(Fill.filled_at >= since)
@@ -479,9 +585,7 @@ class StrategyContext:
             )
         return out
 
-    async def open_orders(
-        self, *, client_order_id_prefix: str | None = None
-    ) -> list[OpenOrderObs]:
+    async def open_orders(self, *, client_order_id_prefix: str | None = None) -> list[OpenOrderObs]:
         """Still-open (non-terminal) orders for THIS strategy+account, oldest-first
         (P7 §7-A). Strategy+account-scoped like ``recent_fills``;
         ``client_order_id_prefix`` optionally narrows to a single seed attempt.
@@ -506,8 +610,9 @@ class StrategyContext:
         async with self._session_factory() as session:
             rows = (await session.execute(stmt)).all()
         return [
-            OpenOrderObs(order_id=oid, symbol=ticker.upper(), status=str(status),
-                         client_order_id=coid)
+            OpenOrderObs(
+                order_id=oid, symbol=ticker.upper(), status=str(status), client_order_id=coid
+            )
             for oid, ticker, status, coid in rows
         ]
 
@@ -522,10 +627,14 @@ class StrategyContext:
         rather than assume an equity."""
         async with self._session_factory() as session:
             row = (
-                await session.execute(
-                    select(AccountState).where(AccountState.account_id == self.account_id)
+                (
+                    await session.execute(
+                        select(AccountState).where(AccountState.account_id == self.account_id)
+                    )
                 )
-            ).scalars().first()
+                .scalars()
+                .first()
+            )
             return row.equity if row is not None else None
 
     # ---- order submission ----
@@ -584,8 +693,10 @@ class StrategyContext:
             )
         async with self._session_factory() as session:
             sym = (
-                await session.execute(select(Symbol).where(Symbol.ticker == symbol))
-            ).scalars().first()
+                (await session.execute(select(Symbol).where(Symbol.ticker == symbol)))
+                .scalars()
+                .first()
+            )
             if sym is None:
                 if not is_portfolio:
                     logger.warning("strategy_signal_unknown_symbol", symbol=symbol)
@@ -604,10 +715,14 @@ class StrategyContext:
                         await session.flush()
                 except IntegrityError:
                     sym = (
-                        await session.execute(
-                            select(Symbol).where(Symbol.ticker == PORTFOLIO_SIGNAL_SYMBOL)
+                        (
+                            await session.execute(
+                                select(Symbol).where(Symbol.ticker == PORTFOLIO_SIGNAL_SYMBOL)
+                            )
                         )
-                    ).scalars().first()
+                        .scalars()
+                        .first()
+                    )
                     if sym is None:
                         return 0
             sig = Signal(
@@ -657,13 +772,17 @@ class StrategyContext:
 
         async with self._session_factory() as session:
             row = (
-                await session.execute(
-                    select(StrategyState).where(
-                        StrategyState.strategy_id == self.strategy_id,
-                        StrategyState.key == key,
+                (
+                    await session.execute(
+                        select(StrategyState).where(
+                            StrategyState.strategy_id == self.strategy_id,
+                            StrategyState.key == key,
+                        )
                     )
                 )
-            ).scalars().first()
+                .scalars()
+                .first()
+            )
             return row.value if row is not None else default
 
     async def set_state(self, key: str, value: Any) -> None:
@@ -677,13 +796,17 @@ class StrategyContext:
 
         async with self._session_factory() as session, session.begin():
             row = (
-                await session.execute(
-                    select(StrategyState).where(
-                        StrategyState.strategy_id == self.strategy_id,
-                        StrategyState.key == key,
+                (
+                    await session.execute(
+                        select(StrategyState).where(
+                            StrategyState.strategy_id == self.strategy_id,
+                            StrategyState.key == key,
+                        )
                     )
                 )
-            ).scalars().first()
+                .scalars()
+                .first()
+            )
             if row is None:
                 session.add(
                     StrategyState(
@@ -719,7 +842,9 @@ class StrategyContext:
                 async with self._session_factory() as session, session.begin():
                     session.add(
                         StrategyState(
-                            strategy_id=self.strategy_id, key=key, value=new_value,
+                            strategy_id=self.strategy_id,
+                            key=key,
+                            value=new_value,
                             updated_at=datetime.now(UTC),
                         )
                     )
@@ -750,12 +875,16 @@ class StrategyContext:
 
         async with self._session_factory() as session, session.begin():
             row = (
-                await session.execute(
-                    select(StrategyState).where(
-                        StrategyState.strategy_id == self.strategy_id,
-                        StrategyState.key == key,
+                (
+                    await session.execute(
+                        select(StrategyState).where(
+                            StrategyState.strategy_id == self.strategy_id,
+                            StrategyState.key == key,
+                        )
                     )
                 )
-            ).scalars().first()
+                .scalars()
+                .first()
+            )
             if row is not None:
                 await session.delete(row)
