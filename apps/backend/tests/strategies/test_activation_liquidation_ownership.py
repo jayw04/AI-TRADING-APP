@@ -69,6 +69,12 @@ class _FakeIdentity:
         # a real factor store in tests/universe/test_security_identity.py (S5.5).
         return _IDENTITY.get(ticker.upper())
 
+    def current_identity_date(self) -> date:
+        # Date-insensitive stand-in: a fixed frontier so the default as_of is well defined.
+        # Dated/interval semantics are proven against a real store in
+        # tests/universe/test_identity_asof_and_readiness.py.
+        return date(2026, 8, 20)
+
 
 @pytest.fixture
 async def env(session_factory):

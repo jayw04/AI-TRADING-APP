@@ -41,10 +41,11 @@ closed with a stated reason rather than being dropped.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import UTC, date, datetime
+from datetime import date
 from decimal import Decimal
 from enum import StrEnum
 
+import structlog
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
@@ -54,8 +55,9 @@ from app.universe.strategy_ownership import (
     OwnershipStatus,
     SecurityIdentityResolver,
     StrategyOwnedSecurityResolver,
-    market_date,
 )
+
+logger = structlog.get_logger(__name__)
 
 __all__ = [
     "ExcludedHolding",
@@ -155,13 +157,47 @@ class StrategyOwnedHoldingsProvider:
     ) -> OwnedHoldings:
         """Classify every current holding for ``strategy_id``.
 
-        ``as_of`` is the session the CURRENT positions' identities resolve on, defaulting
-        to today's exchange date. Acquisitions resolve on their own fill dates inside the
-        ownership layer — the two dates are deliberately different, because a rename means
-        the same permanent identity was reached from two different tickers at two
-        different times, and that is exactly the case attribution must survive.
+        ``as_of`` is the session the CURRENT positions' identities resolve on. It defaults
+        to the identity source's own coverage frontier, NOT the wall clock.
+
+        Defaulting to today's exchange date was the S8.6 production defect. The vendor
+        TICKERS slice always lags — on 2026-08-23 it reached 2026-08-20 — so every
+        effective interval had already closed and all 39 Account-6 holdings resolved to
+        None and failed closed, against a completely healthy store. The wall clock is not
+        a fact about the data; the coverage frontier is.
+
+        Acquisitions still resolve on their own exchange-local fill dates inside the
+        ownership layer. The two dates are deliberately different: a rename means one
+        permanent identity was reached from two tickers at two times, and that is exactly
+        the case attribution must survive.
+
+        An explicitly passed ``as_of`` is honoured unchanged — historical questions must
+        stay answerable at the date the caller asked about.
         """
-        as_of = as_of or market_date(datetime.now(UTC))
+        if as_of is None:
+            as_of = self._default_as_of()
+            if as_of is None:
+                # No identity frontier: nothing can be attributed. Fail closed rather than
+                # substituting a date the data cannot support.
+                logger.warning(
+                    "owned_holdings_no_identity_coverage",
+                    account_id=account_id,
+                    strategy_id=strategy_id,
+                )
+                held = await self._held_tickers(account_id)
+                return OwnedHoldings(
+                    account_id,
+                    strategy_id,
+                    (),
+                    tuple(
+                        ExcludedHolding(
+                            t,
+                            HoldingExclusionReason.OWNERSHIP_AMBIGUOUS,
+                            "identity_unresolved",
+                        )
+                        for t in sorted(held)
+                    ),
+                )
         held = await self._held_tickers(account_id)
         if not held:
             return OwnedHoldings(account_id, strategy_id, (), ())
@@ -221,6 +257,17 @@ class StrategyOwnedHoldingsProvider:
                 )
 
         return OwnedHoldings(account_id, strategy_id, tuple(holdings), tuple(excluded))
+
+    def _default_as_of(self) -> date | None:
+        """The identity source's coverage frontier, or ``None`` if it has none."""
+        getter = getattr(self._identity, "current_identity_date", None)
+        if getter is None:
+            return None
+        try:
+            return getter()
+        except Exception:
+            logger.exception("owned_holdings_identity_date_failed")
+            return None
 
     async def readable_tickers(
         self, *, account_id: int, strategy_id: int, as_of: date | None = None
