@@ -4,7 +4,9 @@
 **Ordering evidence:** the pre-crawl coverage freeze was sealed at commit **`5b26ffa209a6a13a599a99fb28268b46be569cd2`** *before* this capture ran and before any coverage result was inspected.
 **Date:** 2026-08-23 · **Method:** owner-ruled zero-downtime capture (no stop, no restart, no timer change)
 
-> **Status: capture COMPLETE and verified. Measurement BLOCKED — see §4.** The captured artifact is sound and sealed; it is not *sufficient* to perform the rider-2 coverage measurement, for a reason discovered only by inspecting it.
+> **Status: capture COMPLETE and verified. Measurement NOT RUN — INPUT-QUALIFICATION FAILURE (§4).** The captured artifact is sound and sealed; it is not *sufficient* to perform the rider-2 coverage measurement, for a reason discovered only by inspecting it.
+>
+> **This is not a failed coverage result and must never be cited as one.** No coverage statistic was produced, because no artifact satisfied all four resolution clauses — the failure occurs *upstream* of measurement, at input qualification. Consequently the sealed 0.95 / 0.95 / 20-year rule (`5b26ffa209a6…`) is **unspent**: it is applied once, and there has been no admissible measurement for it to apply to. Owner ruling 2026-08-23.
 
 ---
 
