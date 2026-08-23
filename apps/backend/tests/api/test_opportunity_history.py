@@ -303,6 +303,34 @@ async def test_date_range_does_not_redefine_current(client_and_factory, monkeypa
     assert {item["symbol"] for item in body["items"]} == {"NVDA", "AAPL"}
 
 
+async def test_presence_current_does_not_reclassify_window_tail(
+    client_and_factory, monkeypatch
+) -> None:
+    """A historical name that is last-in-window stays historical.
+
+    Latest ingested date is 2026-08-19. AAPL's only row is 2026-08-14, so it
+    is the tail of ``to_date=2026-08-14`` but must not become current when
+    ``presence=current`` is applied. NVDA remains current because it still
+    appears on the latest snapshot, not because it is last in the window.
+    """
+    client, _ = client_and_factory
+    _mute_read_time(monkeypatch)
+    resp = await client.get(
+        "/api/v1/opportunities/history",
+        params={"presence": "current", "to_date": "2026-08-14"},
+    )
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["latest_candidate_date"] == "2026-08-19"
+    symbols = [item["symbol"] for item in body["items"]]
+    assert "AAPL" not in symbols
+    assert symbols == ["NVDA"]
+    assert body["items"][0]["last_seen"] == "2026-08-14"
+    assert body["items"][0]["on_watchlist"] is True
+    assert body["current_count"] == 1
+    assert body["historical_count"] == 1
+
+
 async def test_presence_and_family_and_screen_version(client_and_factory, monkeypatch) -> None:
     client, _ = client_and_factory
     _mute_read_time(monkeypatch)
