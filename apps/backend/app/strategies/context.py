@@ -364,6 +364,39 @@ class StrategyContext:
 
     # ---- positions ----
 
+    async def get_holdings(self) -> dict[str, Decimal]:
+        """Long quantities currently held inside this strategy's READ scope, by ticker.
+
+        The ticker-keyed projection of :meth:`get_positions`. ``Position`` rows carry a
+        ``symbol_id`` and no ticker, so a strategy that needs to reason about *which*
+        securities it holds would otherwise have to resolve symbols itself — and would end
+        up re-deriving the read scope, which is exactly the ownership logic that must stay
+        below this boundary (PR S / S4).
+
+        The candidate set is registered ∪ strategy-owned-held, so a holding the strategy
+        unambiguously owns is enumerated even when its symbol was never registered. That is
+        what makes an exit intent formable for it. It is still not buy authority: the
+        result feeds "what do I hold", never "what may I buy".
+
+        One query rather than one per symbol. Long side only, ``qty > 0`` — a flat or short
+        row is not a holding to manage here.
+        """
+        readable = await self.read_scope()
+        if not readable:
+            return {}
+        stmt = (
+            select(Symbol.ticker, Position.qty)
+            .join(Position, Position.symbol_id == Symbol.id)
+            .where(
+                Position.account_id == self.account_id,
+                Symbol.ticker.in_(sorted(readable)),
+                Position.qty > Decimal(0),
+            )
+        )
+        async with self._session_factory() as session:
+            rows = (await session.execute(stmt)).all()
+        return {ticker.upper(): Decimal(qty) for ticker, qty in rows}
+
     async def get_positions(self) -> list[Position]:
         """Open positions inside this strategy's READ scope.
 

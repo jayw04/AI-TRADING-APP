@@ -78,6 +78,8 @@ def _ctx(
     equity=None,
     spy_bars=None,
     latest_price_date: date = date(2026, 6, 19),
+    owned=None,
+    legacy_context: bool = False,
 ):
     """Synthetic StrategyContext driving ``ctx.factors.low_vol_scores``.
 
@@ -103,13 +105,24 @@ def _ctx(
     passes on code that strands the holding live. That is exactly the false pass
     this harness must not manufacture, so the gates above are modelled here rather
     than assumed away.
+
+    ``owned`` (PR S / S3) is the set of tickers this strategy unambiguously owns and
+    currently holds despite their never having been registered. Production widens READ
+    authority — and only READ authority — to ``registered ∪ owned``. Note ``owned`` does
+    NOT join ``ctx.symbols``: a widened symbol stays outside selection and buy planning,
+    which is the property PIT-T16 exists to protect.
+
+    ``legacy_context=True`` strips ``get_holdings`` to emulate a pre-S4 runtime, so the
+    template's fallback path stays covered.
     """
     holdings = holdings or {}
     completed: list[dict] = []
     ctx = MagicMock()
     ctx.strategy_id = 1
     ctx.symbols = symbols
-    visible = {s.upper() for s in symbols}
+    registered = {s.upper() for s in symbols}
+    owned_scope = {s.upper() for s in (owned or ())}
+    visible = registered | owned_scope  # READ scope, never the buy scope
     ctx.factors = MagicMock()
     ctx.factors.low_vol_scores = MagicMock(return_value=scores)
     ctx.factors.latest_price_date = MagicMock(return_value=latest_price_date)
@@ -122,8 +135,19 @@ def _ctx(
     async def _positions():
         return [_pos(q) for s, q in holdings.items() if s.upper() in visible]
 
+    async def _holdings():
+        return {
+            s.upper(): Decimal(q) for s, q in holdings.items() if s.upper() in visible and q > 0
+        }
+
     ctx.get_position_for = AsyncMock(side_effect=_position_for)
     ctx.get_positions = AsyncMock(side_effect=_positions)
+    if legacy_context:
+        # A MagicMock auto-creates any attribute, so absence has to be explicit.
+        ctx.get_holdings = None
+    else:
+        ctx.get_holdings = AsyncMock(side_effect=_holdings)
+    # Buy-side netting is NOT widened by ownership (v0.3 §4.7).
     ctx.pending_buy_qty = AsyncMock(return_value={})
 
     def _bars(sym, tf, n):
@@ -348,25 +372,27 @@ async def test_fake_context_reproduces_production_registration_blindness() -> No
     assert "XYZ" not in (await ctx.pending_buy_qty())
 
 
-async def test_held_symbol_outside_registration_is_never_exited_TODAY() -> None:
-    """CHARACTERIZATION OF A DEFECT — asserts current behavior, not desired behavior.
+async def test_owned_held_symbol_outside_registration_is_exited() -> None:
+    """CLOSES the LOW-PIT-01B stranding defect for the normal rebalance path (PR S / S4).
 
-    A position the strategy holds in a symbol absent from `ctx.symbols` is
-    undiscoverable: `_current_holdings()` enumerates `ctx.symbols` only, so the
-    `if sym not in target_set -> SELL` branch is never reached for it. The order
-    path would accept the sell; the intent is simply never formed.
+    History: before S4 this test existed in inverted form
+    (``test_held_symbol_outside_registration_is_never_exited_TODAY``) and asserted the
+    defect. ``_current_holdings()`` enumerated ``ctx.symbols``, so a holding in an
+    unregistered symbol was never a candidate, the ``sym not in target_set -> SELL`` branch
+    was never reached for it, and the omission was silent. The order path would have
+    accepted the sell; the intent was simply never formed.
 
-    This is the rollback-stranding case (v1.0.2 buys XYZ dynamically, rollback to a
-    build that does not know XYZ) and, with per-rebalance enrollment, the
-    week-N-to-week-N+1 case as well.
+    That is the rollback case — v1.0.2 buys XYZ dynamically, roll back to a build that does
+    not know XYZ — and, under per-rebalance enrollment, the week-N-to-week-N+1 case.
 
-    PR S inverts this assertion. Do not "fix" this test by widening the fake.
+    S4 makes the position book the candidate set, so the intent forms.
     """
     order = [("AAA", -0.1), ("BBB", -0.2)]
     ctx = _ctx(
         [t for t, _ in order],
         _scores(order),
-        holdings={"XYZ": 10},  # held, but NOT in ctx.symbols
+        holdings={"XYZ": 10},  # held, NOT registered...
+        owned={"XYZ"},  # ...but unambiguously ours
         price=100.0,
         equity=100_000,
     )
@@ -374,14 +400,128 @@ async def test_held_symbol_outside_registration_is_never_exited_TODAY() -> None:
     await strat.on_init()
     await strat.on_bar(_bar(WK1_A))
 
-    orders = _orders(ctx)
-    assert "XYZ" not in orders, (
-        "XYZ became sellable -- if PR S landed, invert this test rather than relaxing it"
+    assert _orders(ctx).get("XYZ") == ("sell", Decimal(10))
+
+
+async def test_visibility_alone_does_not_force_liquidation() -> None:
+    """A widened holding that is still wanted must not be sold (PIT-T16, exit side).
+
+    Making a holding visible is not a decision to exit it. ``_apply_targets`` is driven
+    here directly because v1.0.1 selection cannot place an unregistered name in the target
+    set — the point is that the exit rule keys on target membership, not on how the holding
+    became visible.
+    """
+    ctx = _ctx(
+        ["AAA"],
+        _scores([("AAA", -0.1)]),
+        holdings={"XYZ": 10},
+        owned={"XYZ"},
+        price=100.0,
+        equity=100_000,
     )
-    # And the omission is silent: nothing in the signal feed names the stranded holding.
-    assert not any(
-        "XYZ" in str(c.args) or "XYZ" in str(c.kwargs) for c in ctx.log_signal.call_args_list
+    strat = _strat(ctx)
+    await strat.on_init()
+    await strat._apply_targets(["XYZ"], held={"XYZ": Decimal(10)}, reason="rebalance")
+
+    assert _orders(ctx).get("XYZ", ("none", 0))[0] != "sell"
+
+
+async def test_unowned_holdings_are_not_touched() -> None:
+    """Ambiguous / unclaimed / unevidenced holdings never reach the strategy.
+
+    The provider excludes them below ``ctx.get_holdings()``, so LOW-001 does not see them
+    and cannot trade them. Modelled here as simply absent from ``owned``.
+    """
+    order = [("AAA", -0.1), ("BBB", -0.2)]
+    ctx = _ctx(
+        [t for t, _ in order],
+        _scores(order),
+        holdings={"FOREIGN": 10},  # held on the account, not ours
+        owned=set(),
+        price=100.0,
+        equity=100_000,
     )
+    strat = _strat(ctx, top_quantile=0.50)
+    await strat.on_init()
+    await strat.on_bar(_bar(WK1_A))
+
+    assert "FOREIGN" not in _orders(ctx)
+
+
+async def test_flat_position_is_not_a_holding() -> None:
+    """qty = 0 yields no holding and therefore no order."""
+    ctx = _ctx(
+        ["AAA"],
+        _scores([("AAA", -0.1)]),
+        holdings={"XYZ": 0},
+        owned={"XYZ"},
+        price=100.0,
+        equity=100_000,
+    )
+    strat = _strat(ctx)
+    await strat.on_init()
+    assert await strat._current_holdings() == {}
+    await strat.on_bar(_bar(WK1_A))
+    assert "XYZ" not in _orders(ctx)
+
+
+async def test_renamed_ticker_exits_under_its_current_ticker() -> None:
+    """The holding is keyed by the ticker the position is held under today.
+
+    Identity resolution happens in the provider; by the time LOW-001 sees it, a renamed
+    security is simply the current ticker. The exit must be routed there.
+    """
+    order = [("AAA", -0.1), ("BBB", -0.2)]
+    ctx = _ctx(
+        [t for t, _ in order],
+        _scores(order),
+        holdings={"NEWTICK": 7},
+        owned={"NEWTICK"},
+        price=100.0,
+        equity=100_000,
+    )
+    strat = _strat(ctx, top_quantile=0.50)
+    await strat.on_init()
+    await strat.on_bar(_bar(WK1_A))
+
+    assert _orders(ctx).get("NEWTICK") == ("sell", Decimal(7))
+    assert "OLDTICK" not in _orders(ctx)
+
+
+async def test_registered_holding_behaviour_is_unchanged() -> None:
+    """The existing path must be untouched: a registered name leaving the book still sells."""
+    order = [("AAA", -0.1), ("BBB", -0.2), ("CCC", -0.9)]
+    ctx = _ctx(
+        [t for t, _ in order], _scores(order), holdings={"CCC": 10}, price=100.0, equity=100_000
+    )
+    strat = _strat(ctx, top_quantile=0.20)
+    await strat.on_init()
+    await strat.on_bar(_bar(WK1_A))
+
+    assert _orders(ctx).get("CCC") == ("sell", Decimal(10))
+
+
+async def test_legacy_context_without_get_holdings_stays_registered_only() -> None:
+    """Against a pre-S4 runtime the template falls back to the registered scan.
+
+    v1.0.1 behaviour is preserved exactly, including the stranding — which is why PR S must
+    be deployed, not merely merged, before anything can create such a position.
+    """
+    order = [("AAA", -0.1), ("BBB", -0.2)]
+    ctx = _ctx(
+        [t for t, _ in order],
+        _scores(order),
+        holdings={"XYZ": 10},
+        owned={"XYZ"},
+        price=100.0,
+        equity=100_000,
+        legacy_context=True,
+    )
+    strat = _strat(ctx, top_quantile=0.50)
+    await strat.on_init()
+    await strat.on_bar(_bar(WK1_A))
+
+    assert "XYZ" not in _orders(ctx)
 
 
 # ---- bail-out taxonomy --------------------------------------------------------

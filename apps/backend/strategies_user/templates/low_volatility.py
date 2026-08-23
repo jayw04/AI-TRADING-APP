@@ -468,9 +468,35 @@ class LowVolatility(Strategy):
             )
 
     async def _current_holdings(self) -> dict[str, Decimal]:
-        """Long quantities currently held, excluding the market proxy."""
-        held: dict[str, Decimal] = {}
+        """Long quantities currently held, excluding the market proxy.
+
+        The candidate set is the position book, not the registered symbol list. Enumerating
+        ``ctx.symbols`` meant a holding whose symbol was never registered was never even
+        considered, so ``_apply_targets`` never reached its exit branch for it and the
+        position was silently unmanageable — the LOW-PIT-01B stranding defect. That is the
+        rollback case (a build that does not know a dynamically acquired name) and, under
+        per-rebalance enrollment, the week-N-to-week-N+1 case.
+
+        Ownership filtering happens below ``ctx.get_holdings()``: only securities this
+        strategy unambiguously owns are in scope, and ambiguous / unclaimed / unevidenced
+        positions are excluded there with a stated reason. LOW-001 deliberately does not
+        re-derive any of that — it asks what it holds and trades the difference.
+
+        Quantity comes from the position, never from the order ledger (v0.3 §4.8).
+
+        Older contexts without ``get_holdings`` fall back to the registered-symbol scan, so
+        the template keeps working against a v1.0.1 runtime.
+        """
         market_sym = str(self.params.get("market_filter_symbol", "SPY")).upper()
+        get_holdings = getattr(self.ctx, "get_holdings", None)
+        if get_holdings is None:
+            return await self._current_holdings_registered_only(market_sym)
+        held = await get_holdings()
+        return {t.upper(): Decimal(q) for t, q in held.items() if t.upper() != market_sym}
+
+    async def _current_holdings_registered_only(self, market_sym: str) -> dict[str, Decimal]:
+        """Pre-S4 fallback: scan the registered universe one symbol at a time."""
+        held: dict[str, Decimal] = {}
         for sym in self.ctx.symbols:
             if sym.upper() == market_sym:
                 continue
