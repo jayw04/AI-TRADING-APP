@@ -194,4 +194,5 @@ def test_why_left_stays_off_db_order_path_and_mdq():
     assert "mdq_collector" not in text
     assert "from app.mdq" not in text
     assert "FactorDataStore" not in text
-    assert "ROUTER_TOKEN" not in text
+    assert "low_volatility" not in text
+    assert "strategies_user" not in text
