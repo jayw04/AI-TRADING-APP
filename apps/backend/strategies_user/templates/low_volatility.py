@@ -86,7 +86,14 @@ def session_lag(latest: date, expected: date) -> int:
 
 class LowVolatility(Strategy):
     name: ClassVar[str] = "low-volatility"
-    version: ClassVar[str] = "1.0.1"  # V1 economics frozen; implementation-drift repairs only
+    # RUNTIME IMPLEMENTATION revision, not the research spec. LOW-001's own 1.0.0 -> 1.0.1
+    # was a pure conformance repair with no economics change (#661), so this field already
+    # tracks the running implementation for this strategy. 1.0.2 is PR S: ownership-based
+    # holding visibility, exit and liquidation, startup readiness, operator diagnostics and
+    # the schedule-semantics fix. Two materially different runtimes both reporting 1.0.1
+    # would break rollback and evidence attribution. 1.0.3 is reserved for Dynamic PIT
+    # acquisition/enrollment.
+    version: ClassVar[str] = "1.0.2"  # V1 economics frozen; PR S safety/conformance runtime
     symbols: ClassVar[list[str]] = []  # set at registration (same 201 as Momentum: top-200 + SPY)
     # Weekly, Monday 10:32 ET. Strategy schedule strings are EASTERN-TIME: the engine pins
     # ``CronTrigger.from_crontab(..., timezone="America/New_York")`` so the book stays on the

@@ -216,7 +216,9 @@ def test_research_frozen_defaults() -> None:
     assert LowVolatility.default_params["top_quantile"] == 0.20
     assert "use_market_regime_filter" not in LowVolatility.default_params
     assert "use_market_regime_filter" not in LowVolatility.params_schema
-    assert LowVolatility.version == "1.0.1"
+    # Version tracks the RUNTIME implementation for this strategy (1.0.0 -> 1.0.1 was
+    # itself a pure conformance repair). 1.0.2 == PR S; 1.0.3 reserved for Dynamic PIT.
+    assert LowVolatility.version == "1.0.2"
     # Weekly cadence IS frozen economics; the hour is not.
     assert LowVolatility.schedule.split()[-1] == "mon"
 
