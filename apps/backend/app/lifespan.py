@@ -308,6 +308,11 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
             )
             app.state.owned_holdings_provider = owned_holdings_provider
             app.state.security_identity_resolver = security_identity
+            # PR S / S5.7 — the governed PAPER-liquidation grant: LOW-001 only. Default-deny
+            # everywhere else, so no other paper strategy gains automatic liquidation.
+            from app.services.paper_strategy_liquidation import PaperLiquidationPolicy
+
+            app.state.paper_liquidation_policy = PaperLiquidationPolicy.for_pr_s()
             logger.info(
                 "strategy_ownership_provisioned",
                 identity_resolver_ready=security_identity.ready,
