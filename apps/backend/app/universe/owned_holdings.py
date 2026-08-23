@@ -136,6 +136,16 @@ class StrategyOwnedHoldingsProvider:
         self._identity = identity_resolver
         self._ownership = StrategyOwnedSecurityResolver(session_factory, identity_resolver)
 
+    @property
+    def ready(self) -> bool:
+        """Whether attribution can actually answer — i.e. the identity source is provisioned.
+
+        A provider whose resolver has no store returns ``None`` for every identity, so it
+        is present but useless. The PR-S readiness assertion checks THIS, not merely that
+        an object was injected.
+        """
+        return bool(getattr(self._identity, "ready", True))
+
     async def resolve(
         self, *, account_id: int, strategy_id: int, as_of: date | None = None
     ) -> OwnedHoldings:

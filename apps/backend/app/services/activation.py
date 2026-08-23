@@ -519,13 +519,19 @@ class ActivationService:
         }
 
     async def _enqueue_liquidation(self, strategy: Strategy) -> list[int]:
-        """Close open positions in the strategy's symbols via the OrderRouter.
+        """Close the strategy's owned open positions on its LIVE account.
 
-        Uses MANUAL source with confirmation_text=symbol: MANUAL bypasses the §6
-        cooldown and the §7 strategy-status guard, so liquidation works for both
-        LIVE and HALTED strategies. Orders still pass the §5 risk gates (incl. the
-        circuit breaker) and are audited. Best-effort: broker errors are logged,
-        not retried."""
+        Semantics are unchanged: this service is the paper->live promotion flow (ADR 0005)
+        and stays **LIVE-only**. A paper-only strategy still liquidates nothing here; the
+        explicit PAPER entrypoint is a separate, separately-authorized door
+        (``app.services.paper_strategy_liquidation``), so every existing paper strategy
+        keeps its current behaviour.
+
+        The mechanics — ownership attribution, broker quantity, current-ticker routing,
+        fail-closed refusals — are delegated to the shared
+        :class:`StrategyPositionLiquidator` rather than reimplemented, so both exit paths
+        can never drift apart on what "this strategy's position" means.
+        """
         if self._broker_registry is None or self._order_router is None:
             logger.warning("liquidation_no_broker_or_router", strategy_id=strategy.id)
             return []
@@ -543,33 +549,59 @@ class ActivationService:
             logger.exception("liquidation_position_fetch_failed", strategy_id=strategy.id)
             return []
 
+        if self._owned_holdings_provider is None:
+            # No attribution capability wired: fall back to pre-PR-S behaviour rather than
+            # silently disabling liquidation for existing LIVE strategies. This path still
+            # trusts registration and MUST NOT survive into the Dynamic PIT deployment --
+            # the LOW-001 startup readiness assertion is what prevents that.
+            logger.warning(
+                "liquidation_ownership_capability_missing_using_registration",
+                strategy_id=strategy.id,
+            )
+            return await self._legacy_registration_liquidation(strategy, live_account.id, positions)
+
+        from app.universe.liquidation import StrategyPositionLiquidator
+
+        result = await StrategyPositionLiquidator(
+            self._owned_holdings_provider, self._order_router
+        ).liquidate(
+            strategy_id=strategy.id,
+            user_id=strategy.user_id,
+            account_id=live_account.id,
+            broker_positions=positions,
+        )
+        return result.order_ids
+
+    async def _legacy_registration_liquidation(
+        self, strategy: Strategy, account_id: int, positions: list[Any]
+    ) -> list[int]:
+        """Pre-PR-S behaviour: close positions whose ticker is in ``symbols_json``.
+
+        Retained only so an un-wired deployment does not lose LIVE liquidation entirely.
+        It trusts registration as a proxy for ownership, which PR S exists to remove.
+        """
         from app.risk.types import OrderRequest
 
-        liquidatable = await self._liquidatable_tickers(strategy, live_account.id)
-        if liquidatable is None:
-            return []
+        registered = {s.upper() for s in (strategy.symbols_json or [])}
         order_ids: list[int] = []
         for pos in positions:
             symbol = pos.get("symbol") if isinstance(pos, dict) else None
             qty_raw = pos.get("qty") if isinstance(pos, dict) else None
-            if symbol is None or qty_raw is None:
-                continue
-            if symbol.upper() not in liquidatable:
+            if symbol is None or qty_raw is None or symbol.upper() not in registered:
                 continue
             qty = Decimal(str(qty_raw))
             if qty == 0:
                 continue
-            side = OrderSide.SELL if qty > 0 else OrderSide.BUY
             req = OrderRequest(
                 user_id=strategy.user_id,
-                account_id=live_account.id,
+                account_id=account_id,
                 symbol_ticker=symbol,
-                side=side,
+                side=OrderSide.SELL if qty > 0 else OrderSide.BUY,
                 qty=abs(qty),
                 type=OrderType.MARKET,
                 tif=TimeInForce.DAY,
                 source_type=OrderSourceType.MANUAL,
-                confirmation_text=symbol,  # auto-confirm: MANUAL+LIVE gate
+                confirmation_text=symbol,
             )
             try:
                 order = await self._order_router.submit(req)
@@ -580,59 +612,3 @@ class ActivationService:
                     "liquidation_submit_failed", strategy_id=strategy.id, symbol=symbol
                 )
         return order_ids
-
-    async def _liquidatable_tickers(self, strategy: Strategy, account_id: int) -> set[str] | None:
-        """Tickers this strategy may have liquidated on its behalf. ``None`` = liquidate nothing.
-
-        Attribution comes from the SAME ownership capability the strategy runtime uses
-        (``app.universe``), never from ``symbols_json``. Registration is a configuration
-        list, not a record of what a strategy acquired: a symbol can sit in
-        ``symbols_json`` having never been bought, and — after Dynamic PIT — a genuinely
-        owned holding can sit outside it. Deriving ownership from registration here would
-        quietly preserve the exact assumption PR S exists to remove, on the *safety* path
-        of all places.
-
-        Only ``OWNED`` positions with a live quantity are returned. ``AMBIGUOUS``,
-        ``UNCLAIMED`` and ``ownership_evidence_missing`` all fail closed: an automated
-        liquidation must never guess whose shares it is selling. The exclusions are logged
-        with their typed reasons so an operator can tell a contested holding from one the
-        system has no record of (S6 will surface these as events; today they are log-only).
-
-        The provider is consumed directly rather than through ``StrategyContext`` — the
-        activation service must be able to liquidate precisely when the strategy runtime is
-        halted or absent, so the two exit paths share an attribution authority without
-        sharing a lifecycle.
-        """
-        if self._owned_holdings_provider is None:
-            # No capability wired: fall back to pre-PR-S behaviour rather than silently
-            # disabling liquidation for existing LIVE strategies. This path still trusts
-            # registration and MUST NOT survive into the Dynamic PIT deployment — see the
-            # wiring note in the PR body.
-            logger.warning(
-                "liquidation_ownership_capability_missing_using_registration",
-                strategy_id=strategy.id,
-            )
-            return {s.upper() for s in (strategy.symbols_json or [])}
-        try:
-            owned = await self._owned_holdings_provider.resolve(
-                account_id=account_id, strategy_id=strategy.id
-            )
-        except Exception:
-            # Fail CLOSED. An attribution outage must not authorise liquidating positions
-            # of unknown ownership; better to close nothing and surface the failure.
-            logger.exception(
-                "liquidation_ownership_resolution_failed",
-                strategy_id=strategy.id,
-                account_id=account_id,
-            )
-            return None
-        for ex in owned.excluded:
-            logger.warning(
-                "liquidation_position_not_attributable",
-                strategy_id=strategy.id,
-                account_id=account_id,
-                symbol=ex.ticker,
-                reason=ex.reason.value,
-                detail=ex.detail,
-            )
-        return set(owned.tickers)

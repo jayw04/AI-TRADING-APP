@@ -95,21 +95,34 @@ PR_S_SAFETY_CRITICAL_STRATEGIES = frozenset({"low-volatility"})
 
 
 def assert_pr_s_capability_ready(
-    strategy_name: str, identity_resolver: Any | None, owned_holdings_provider: Any | None
+    strategy_name: str,
+    owned_holdings_provider: Any | None,
+    *,
+    paper_liquidation_policy: Any | None = None,
 ) -> None:
     """Raise if a PR-S safety-critical strategy would start without ownership attribution.
 
-    Static strategies are unaffected: absent capability leaves their legacy behaviour
+    Static strategies are unaffected: an absent capability leaves their legacy behaviour
     intact. Only the strategies listed above treat absence as fatal, because for them
-    "registered-only" is precisely the defect PR S repairs.
+    "registered-only" is precisely the defect PR S repairs — and a deployment where
+    LOW-001 looks healthy while S3-S5 silently run their fallback paths is the specific
+    failure this prevents.
+
+    Checks the capability can actually ANSWER, not merely that an object was injected: a
+    provider whose identity source is unprovisioned resolves nothing.
+
+    Runtime lookup failures remain fail-closed-to-registered-only. Only *initialization*
+    absence is fatal; that distinction is deliberate (v0.3 §5.5).
     """
     if strategy_name not in PR_S_SAFETY_CRITICAL_STRATEGIES:
         return
     missing = []
     if owned_holdings_provider is None:
         missing.append("owned_holdings_provider")
-    if identity_resolver is None or not getattr(identity_resolver, "ready", False):
-        missing.append("identity_resolver")
+    elif not getattr(owned_holdings_provider, "ready", False):
+        missing.append("security_identity_resolver")
+    if paper_liquidation_policy is not None and not paper_liquidation_policy.permits(strategy_name):
+        missing.append("paper_liquidation_capability")
     if missing:
         raise PrSCapabilityUnavailable(
             f"{strategy_name} requires the PR-S ownership capability; not ready: "

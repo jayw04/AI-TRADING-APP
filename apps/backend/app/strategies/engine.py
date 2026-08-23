@@ -389,6 +389,20 @@ class StrategyEngine:
                 await session.commit()
                 raise
 
+            # PR S / S5.6 — a safety-critical strategy may not START without ownership
+            # attribution. Without this a deployment goes green while LOW-001 quietly runs
+            # the registered-only fallback, i.e. with the stranding defect PR S repairs
+            # still live. Static strategies are untouched: the assertion returns
+            # immediately for any name outside PR_S_SAFETY_CRITICAL_STRATEGIES.
+            from app.universe.security_identity import assert_pr_s_capability_ready
+
+            try:
+                assert_pr_s_capability_ready(cls.name, self._owned_holdings_provider)
+            except Exception as exc:
+                await self._mark_error(session, row, f"pr_s_capability_unavailable: {exc}")
+                await session.commit()
+                raise
+
             symbols = list(row.symbols_json) or list(cls.symbols)
             merged_params = {**cls.default_params, **(row.params_json or {})}
 
