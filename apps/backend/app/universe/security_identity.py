@@ -62,11 +62,73 @@ class FactorStoreSecurityIdentityResolver:
     def __init__(self, store: Any | None) -> None:
         self._store = store
         self._cache: dict[tuple[str, date], str | None] = {}
+        self._readiness: bool | None = None
+
+    def current_identity_date(self) -> date | None:
+        """The date "who is this security *now*" should be asked on.
+
+        The identity frontier of the data, not the wall clock. See
+        ``FactorDataStore.identity_coverage_date`` — asking on today's calendar date makes
+        every interval look closed on a weekend or a pre-ingest morning, which is exactly
+        how S8.6 failed with a perfectly healthy store.
+        """
+        if self._store is None:
+            return None
+        try:
+            return self._store.identity_coverage_date()
+        except Exception:
+            logger.exception("security_identity_coverage_date_failed")
+            return None
 
     @property
     def ready(self) -> bool:
-        """Whether a store is provisioned at all. Used by the LOW-001 readiness assertion."""
-        return self._store is not None
+        """Whether this resolver can actually ANSWER — not merely whether a store exists.
+
+        ``store is not None`` was the earlier test and it was insufficient in the way that
+        matters: a provisioned-but-unusable identity source resolves every ticker to
+        ``None``, ownership silently becomes "nothing is ours", and the whole thing reads
+        as healthy. The S8.6 deployment proved it — ``ready`` was True while not a single
+        Account-6 holding could be attributed.
+
+        So readiness resolves a real symbol end to end. It fails for: an absent store,
+        empty identity data, all-null or otherwise unresolvable identity data, and an
+        unestablishable current identity date. Cached — this is a startup gate, not a
+        per-call check.
+        """
+        if self._readiness is not None:
+            return self._readiness
+        self._readiness = self._probe()
+        return self._readiness
+
+    def _probe(self) -> bool:
+        if self._store is None:
+            logger.warning("security_identity_not_ready", reason="no_store")
+            return False
+        as_of = self.current_identity_date()
+        if as_of is None:
+            logger.warning("security_identity_not_ready", reason="no_identity_coverage_date")
+            return False
+        try:
+            probe = self._store.identity_probe_ticker(as_of)
+        except Exception:
+            logger.exception("security_identity_not_ready", reason="probe_query_failed")
+            return False
+        if not probe:
+            logger.warning(
+                "security_identity_not_ready", reason="no_resolvable_identity", as_of=str(as_of)
+            )
+            return False
+        resolved = self.resolve(probe, as_of)
+        if resolved is None:
+            logger.warning(
+                "security_identity_not_ready",
+                reason="probe_did_not_resolve",
+                probe=probe,
+                as_of=str(as_of),
+            )
+            return False
+        logger.info("security_identity_ready", probe=probe, as_of=str(as_of), permaticker=resolved)
+        return True
 
     def resolve(self, ticker: str, as_of: date) -> str | None:
         if self._store is None:

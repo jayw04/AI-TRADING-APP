@@ -148,6 +148,17 @@ class SecurityIdentityResolver(Protocol):
     def resolve(self, ticker: str, as_of: date) -> str | None:  # pragma: no cover
         ...
 
+    def current_identity_date(self) -> date | None:  # pragma: no cover
+        """The date "who is this security *now*" should be asked on.
+
+        The identity source's own coverage frontier, never the wall clock: vendor identity
+        data lags, so on a weekend or a pre-ingest morning every effective interval has
+        already closed and the entire book becomes unattributable (the S8.6 failure).
+        ``None`` when no usable identity data exists — callers must fail closed, not
+        substitute a date of their own.
+        """
+        ...
+
 
 @dataclass(frozen=True)
 class OwnedSecurity:

@@ -32,8 +32,16 @@ logger = structlog.get_logger(__name__)
 # incoming vendor frame to exactly these columns (missing -> NULL) so we are
 # robust to vendor column-order changes or extra columns we don't store.
 _SEP_COLS = [
-    "ticker", "date", "open", "high", "low", "close",
-    "volume", "closeadj", "closeunadj", "lastupdated",
+    "ticker",
+    "date",
+    "open",
+    "high",
+    "low",
+    "close",
+    "volume",
+    "closeadj",
+    "closeunadj",
+    "lastupdated",
 ]
 _TICKERS_COLS = [
     # `permaticker` is the vendor's PERMANENT security identifier and leads the projection because it,
@@ -41,30 +49,87 @@ _TICKERS_COLS = [
     # unrelated issuers and retro-mapped on rename, so a ticker-keyed row says nothing durable about
     # WHICH security it describes. See `app/validation/security_lineage.py`.
     "permaticker",
-    "ticker", "name", "exchange", "category", "sector", "industry", "isdelisted",
-    "firstpricedate", "lastpricedate", "lastupdated",
+    "ticker",
+    "name",
+    "exchange",
+    "category",
+    "sector",
+    "industry",
+    "isdelisted",
+    "firstpricedate",
+    "lastpricedate",
+    "lastupdated",
 ]
 _ACTIONS_COLS = ["date", "action", "ticker", "name", "value", "contraticker"]
 _FUNDAMENTALS_COLS = [
-    "ticker", "period", "fiscal_year", "period_end", "filing_date", "accepted_date",
-    "revenue", "gross_profit", "operating_income", "ebitda", "net_income",
-    "free_cash_flow", "total_debt", "total_equity", "total_assets",
-    "shares_diluted", "enterprise_value", "lastupdated",
+    "ticker",
+    "period",
+    "fiscal_year",
+    "period_end",
+    "filing_date",
+    "accepted_date",
+    "revenue",
+    "gross_profit",
+    "operating_income",
+    "ebitda",
+    "net_income",
+    "free_cash_flow",
+    "total_debt",
+    "total_equity",
+    "total_assets",
+    "shares_diluted",
+    "enterprise_value",
+    "lastupdated",
 ]
 _INDEX_COLS = ["symbol", "date", "close", "lastupdated"]
 # Curated Sharadar SF1 projection (ADR 0023) — keys/PIT + the value/quality/profitability/growth
 # fields the Factor Lab needs. The full SF1 has 112 columns; we store this subset (reindex → NULL
 # for any absent), keeping the store lean while covering the standard factor families.
 _SF1_COLS = [
-    "ticker", "dimension", "calendardate", "datekey", "reportperiod", "lastupdated",
+    "ticker",
+    "dimension",
+    "calendardate",
+    "datekey",
+    "reportperiod",
+    "lastupdated",
     # value
-    "marketcap", "ev", "pe", "pb", "ps", "evebit", "evebitda", "fcf", "fcfps", "bvps", "divyield",
+    "marketcap",
+    "ev",
+    "pe",
+    "pb",
+    "ps",
+    "evebit",
+    "evebitda",
+    "fcf",
+    "fcfps",
+    "bvps",
+    "divyield",
     # quality / profitability
-    "roe", "roa", "roic", "ros", "grossmargin", "netmargin", "ebitdamargin", "currentratio", "de",
-    "payoutratio", "assetturnover",
+    "roe",
+    "roa",
+    "roic",
+    "ros",
+    "grossmargin",
+    "netmargin",
+    "ebitdamargin",
+    "currentratio",
+    "de",
+    "payoutratio",
+    "assetturnover",
     # raw fundamentals (growth + composite)
-    "revenue", "netinc", "gp", "ebit", "ebitda", "ncfo", "assets", "equity", "debt",
-    "eps", "epsdil", "shareswa", "price",
+    "revenue",
+    "netinc",
+    "gp",
+    "ebit",
+    "ebitda",
+    "ncfo",
+    "assets",
+    "equity",
+    "debt",
+    "eps",
+    "epsdil",
+    "shareswa",
+    "price",
 ]
 
 _SCHEMA = """
@@ -203,6 +268,7 @@ ACTIONS_DATASET = "actions"
 @dataclass(frozen=True)
 class ActionsIngestReceipt:
     """What one governed ACTIONS ingest loaded, and the artifact identity it is bound to."""
+
     run_id: str
     dataset: str
     rows: int
@@ -213,11 +279,16 @@ class ActionsIngestReceipt:
     source_identity: str
 
     def to_open_provenance(self) -> dict[str, Any]:
-        return {"run_id": self.run_id, "dataset": self.dataset, "rows": self.rows,
-                "coverage_start": self.coverage_start.isoformat(),
-                "coverage_end": self.coverage_end.isoformat(),
-                "artifact_path": self.artifact_path, "artifact_sha256": self.artifact_sha256,
-                "source_identity": self.source_identity}
+        return {
+            "run_id": self.run_id,
+            "dataset": self.dataset,
+            "rows": self.rows,
+            "coverage_start": self.coverage_start.isoformat(),
+            "coverage_end": self.coverage_end.isoformat(),
+            "artifact_path": self.artifact_path,
+            "artifact_sha256": self.artifact_sha256,
+            "source_identity": self.source_identity,
+        }
 
 
 class DatasetIngestMismatch(ValueError):
@@ -365,9 +436,12 @@ class FactorDataStore:
         restatement, which carries a new datekey) converges. ``df`` is reindexed to
         ``_SF1_COLS`` (missing → NULL), so it is robust to vendor column changes."""
         df = df.reindex(columns=_SF1_COLS)
-        num_cols = [c for c in _SF1_COLS
-                    if c not in ("ticker", "dimension", "calendardate", "datekey",
-                                 "reportperiod", "lastupdated")]
+        num_cols = [
+            c
+            for c in _SF1_COLS
+            if c
+            not in ("ticker", "dimension", "calendardate", "datekey", "reportperiod", "lastupdated")
+        ]
         select = (
             "ticker, dimension, TRY_CAST(calendardate AS DATE), TRY_CAST(datekey AS DATE), "
             "TRY_CAST(reportperiod AS DATE), TRY_CAST(lastupdated AS DATE), "
@@ -405,8 +479,13 @@ class FactorDataStore:
         return len(df)
 
     def record_ingest_run(
-        self, dataset: str, started_at: datetime, finished_at: datetime,
-        rows: int, status: str, run_id: str | None = None,
+        self,
+        dataset: str,
+        started_at: datetime,
+        finished_at: datetime,
+        rows: int,
+        status: str,
+        run_id: str | None = None,
     ) -> str:
         """Record one ingest execution and return its `run_id` — deterministic from the run's own
         fields plus the current run count, so it is reproducible and cannot collide with an earlier
@@ -419,15 +498,28 @@ class FactorDataStore:
         )
         return rid
 
-    def _derive_run_id(self, dataset: str, started_at: datetime, finished_at: datetime | None,
-                       rows: int, status: str) -> str:
+    def _derive_run_id(
+        self,
+        dataset: str,
+        started_at: datetime,
+        finished_at: datetime | None,
+        rows: int,
+        status: str,
+    ) -> str:
         seq = self.con.execute("SELECT COUNT(*) FROM ingest_runs").fetchone()
         payload = f"{dataset}|{started_at}|{finished_at}|{rows}|{status}|{seq[0] if seq else 0}"
         return hashlib.sha256(payload.encode("utf-8")).hexdigest()[:32]
 
     def finalize_dataset_ingest(
-        self, dataset: str, *, started_at: datetime, finished_at: datetime, rows: int,
-        coverage_start: date, coverage_end: date, artifact_path: Path | str,
+        self,
+        dataset: str,
+        *,
+        started_at: datetime,
+        finished_at: datetime,
+        rows: int,
+        coverage_start: date,
+        coverage_end: date,
+        artifact_path: Path | str,
         source_identity: str,
     ) -> str:
         """The GOVERNED completion protocol for an ingest: mark the run complete AND record what it
@@ -438,7 +530,9 @@ class FactorDataStore:
         never backfilled beside it.
         """
         if coverage_start > coverage_end:
-            raise ValueError(f"coverage_start {coverage_start} is after coverage_end {coverage_end}")
+            raise ValueError(
+                f"coverage_start {coverage_start} is after coverage_end {coverage_end}"
+            )
         if not source_identity.strip():
             raise ValueError("source_identity is required")
         path = Path(artifact_path)
@@ -452,10 +546,16 @@ class FactorDataStore:
         self.con.execute("BEGIN TRANSACTION")
         try:
             rid = self._finalize_within_transaction(
-                dataset, started_at=started_at, finished_at=finished_at, rows=rows,
-                coverage_start=coverage_start, coverage_end=coverage_end,
-                artifact_digest=digest.hexdigest(), artifact_path=path,
-                source_identity=source_identity)
+                dataset,
+                started_at=started_at,
+                finished_at=finished_at,
+                rows=rows,
+                coverage_start=coverage_start,
+                coverage_end=coverage_end,
+                artifact_digest=digest.hexdigest(),
+                artifact_path=path,
+                source_identity=source_identity,
+            )
             self.con.execute("COMMIT")
         except BaseException:
             self.con.execute("ROLLBACK")
@@ -463,8 +563,16 @@ class FactorDataStore:
         return rid
 
     def _finalize_within_transaction(
-        self, dataset: str, *, started_at: datetime, finished_at: datetime, rows: int,
-        coverage_start: date, coverage_end: date, artifact_digest: str, artifact_path: Path,
+        self,
+        dataset: str,
+        *,
+        started_at: datetime,
+        finished_at: datetime,
+        rows: int,
+        coverage_start: date,
+        coverage_end: date,
+        artifact_digest: str,
+        artifact_path: Path,
         source_identity: str,
     ) -> str:
         """The ONLY place that writes the three completion facts — the coverage row, the completed
@@ -484,18 +592,33 @@ class FactorDataStore:
         # inside the same transaction that writes the receipt: either both hold or neither is
         # recorded.
         self._verify_persisted_dataset(
-            dataset, rows=rows, coverage_start=coverage_start, coverage_end=coverage_end)
+            dataset, rows=rows, coverage_start=coverage_start, coverage_end=coverage_end
+        )
         rid = self.record_ingest_run(dataset, started_at, finished_at, rows, "ok")
         self.con.execute(
             "INSERT INTO dataset_coverage VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-            [dataset, rid, coverage_start, coverage_end, artifact_digest, str(artifact_path),
-             source_identity.strip(), rows, finished_at, "ok"],
+            [
+                dataset,
+                rid,
+                coverage_start,
+                coverage_end,
+                artifact_digest,
+                str(artifact_path),
+                source_identity.strip(),
+                rows,
+                finished_at,
+                "ok",
+            ],
         )
         return rid
 
     def ingest_actions_from_artifact(
-        self, artifact_path: Path | str, *, source_identity: str,
-        started_at: datetime, finished_at: datetime,
+        self,
+        artifact_path: Path | str,
+        *,
+        source_identity: str,
+        started_at: datetime,
+        finished_at: datetime,
     ) -> ActionsIngestReceipt:
         """The GOVERNED ACTIONS ingest (A4): load an immutable artifact and finalize it atomically.
 
@@ -535,12 +658,14 @@ class FactorDataStore:
         if declared_rows == 0:
             raise DatasetIngestMismatch(
                 f"the ACTIONS artifact {path} parsed to zero rows; an empty artifact cannot establish "
-                f"coverage")
+                f"coverage"
+            )
         parsed_dates = pd.to_datetime(frame.get("date"), errors="coerce")
         if parsed_dates.isna().any():
             raise DatasetIngestMismatch(
                 f"the ACTIONS artifact {path} has {int(parsed_dates.isna().sum())} row(s) whose date "
-                f"could not be parsed; every action must carry a date to fall inside a coverage window")
+                f"could not be parsed; every action must carry a date to fall inside a coverage window"
+            )
         coverage_start = parsed_dates.min().date()
         coverage_end = parsed_dates.max().date()
 
@@ -548,12 +673,16 @@ class FactorDataStore:
         # inflating the action count while being unverifiable in either direction — present enough to
         # count, absent enough to never be checked. Refused at the source rather than stored.
         tickers = frame.get("ticker")
-        blank = 0 if tickers is None else int(
-            (tickers.isna() | (tickers.astype(str).str.strip() == "")).sum())
+        blank = (
+            0
+            if tickers is None
+            else int((tickers.isna() | (tickers.astype(str).str.strip() == "")).sum())
+        )
         if tickers is None or blank:
             raise DatasetIngestMismatch(
                 f"the ACTIONS artifact {path} has {blank or 'no ticker column and so all'} row(s) with "
-                f"no ticker; an action that names no security cannot be verified against any series")
+                f"no ticker; an action that names no security cannot be verified against any series"
+            )
 
         self.con.execute("BEGIN TRANSACTION")
         try:
@@ -562,12 +691,19 @@ class FactorDataStore:
             self.con.execute("DELETE FROM actions")
             self.con.execute(
                 "INSERT INTO actions SELECT TRY_CAST(date AS DATE), action, ticker, name, "
-                "TRY_CAST(value AS DOUBLE), contraticker FROM incoming_actions")
+                "TRY_CAST(value AS DOUBLE), contraticker FROM incoming_actions"
+            )
             rid = self._finalize_within_transaction(
-                ACTIONS_DATASET, started_at=started_at, finished_at=finished_at, rows=declared_rows,
-                coverage_start=coverage_start, coverage_end=coverage_end,
-                artifact_digest=digest.hexdigest(), artifact_path=path,
-                source_identity=source_identity)
+                ACTIONS_DATASET,
+                started_at=started_at,
+                finished_at=finished_at,
+                rows=declared_rows,
+                coverage_start=coverage_start,
+                coverage_end=coverage_end,
+                artifact_digest=digest.hexdigest(),
+                artifact_path=path,
+                source_identity=source_identity,
+            )
             self.con.execute("COMMIT")
         except BaseException:
             self.con.execute("ROLLBACK")
@@ -577,13 +713,23 @@ class FactorDataStore:
                 self.con.unregister("incoming_actions")
 
         return ActionsIngestReceipt(
-            run_id=rid, dataset=ACTIONS_DATASET, rows=declared_rows,
-            coverage_start=coverage_start, coverage_end=coverage_end,
-            artifact_path=str(path), artifact_sha256=digest.hexdigest(),
-            source_identity=source_identity.strip())
+            run_id=rid,
+            dataset=ACTIONS_DATASET,
+            rows=declared_rows,
+            coverage_start=coverage_start,
+            coverage_end=coverage_end,
+            artifact_path=str(path),
+            artifact_sha256=digest.hexdigest(),
+            source_identity=source_identity.strip(),
+        )
 
     def _verify_persisted_dataset(
-        self, dataset: str, *, rows: int, coverage_start: date, coverage_end: date,
+        self,
+        dataset: str,
+        *,
+        rows: int,
+        coverage_start: date,
+        coverage_end: date,
     ) -> None:
         """Require the persisted table to actually support the coverage being claimed (A2).
 
@@ -602,41 +748,47 @@ class FactorDataStore:
         """
         table = self._resolve_dataset_table(dataset)
         columns = {
-            str(r[0]).lower() for r in self.con.execute(
+            str(r[0]).lower()
+            for r in self.con.execute(
                 "SELECT column_name FROM information_schema.columns WHERE lower(table_name) = ?",
-                [table.lower()]).fetchall()
+                [table.lower()],
+            ).fetchall()
         }
-        counted = self.con.execute(f"SELECT COUNT(*) FROM {table}").fetchone()      # noqa: S608
+        counted = self.con.execute(f"SELECT COUNT(*) FROM {table}").fetchone()  # noqa: S608
         total = int(counted[0]) if counted else 0
         if total != rows:
             raise DatasetIngestMismatch(
                 f"the ingest declares {rows} row(s) for dataset {dataset!r} but the persisted table "
-                f"holds {total}; the receipt would attest to data the store does not contain")
+                f"holds {total}; the receipt would attest to data the store does not contain"
+            )
         if total == 0:
             raise DatasetIngestMismatch(
                 f"dataset {dataset!r} is empty, so the window "
                 f"{coverage_start}..{coverage_end} is not evidenced by anything; an empty table cannot "
-                f"establish coverage")
+                f"establish coverage"
+            )
 
         if "date" not in columns:
-            return                                # undated dataset (e.g. tickers): row count is all
+            return  # undated dataset (e.g. tickers): row count is all
 
-        bounds = self.con.execute(                                                  # noqa: S608
+        bounds = self.con.execute(  # noqa: S608
             f"SELECT COUNT(*) FILTER (WHERE date IS NULL), MIN(date), MAX(date) FROM {table}"
         ).fetchone()
-        if bounds is None:                        # pragma: no cover - an aggregate always returns a row
+        if bounds is None:  # pragma: no cover - an aggregate always returns a row
             raise DatasetIngestMismatch(f"dataset {dataset!r} could not be read back")
         undated, dmin, dmax = bounds
         if int(undated):
             raise DatasetIngestMismatch(
                 f"dataset {dataset!r} has {int(undated)} row(s) with no date; they fall outside every "
-                f"coverage window, so the declared window cannot be true of the whole dataset")
+                f"coverage window, so the declared window cannot be true of the whole dataset"
+            )
         got_start, got_end = _as_date(dmin), _as_date(dmax)
         if (got_start, got_end) != (coverage_start, coverage_end):
             raise DatasetIngestMismatch(
                 f"the ingest declares coverage {coverage_start}..{coverage_end} for dataset "
                 f"{dataset!r} but the persisted rows span {got_start}..{got_end}; the recorded window "
-                f"must be exactly what was loaded, neither wider nor narrower")
+                f"must be exactly what was loaded, neither wider nor narrower"
+            )
 
     def _resolve_dataset_table(self, dataset: str) -> str:
         """The table a dataset name refers to, confirmed to exist.
@@ -649,11 +801,12 @@ class FactorDataStore:
         if not re.fullmatch(r"[a-z_][a-z0-9_]*", name):
             raise ValueError(f"dataset {dataset!r} is not a plain identifier")
         row = self.con.execute(
-            "SELECT table_name FROM information_schema.tables WHERE lower(table_name) = ?",
-            [name]).fetchone()
+            "SELECT table_name FROM information_schema.tables WHERE lower(table_name) = ?", [name]
+        ).fetchone()
         if row is None:
             raise DatasetIngestMismatch(
-                f"dataset {dataset!r} has no table in this store, so nothing was persisted for it")
+                f"dataset {dataset!r} has no table in this store, so nothing was persisted for it"
+            )
         return str(row[0])
 
     def dataset_coverage(self, dataset: str) -> tuple | None:
@@ -678,14 +831,23 @@ class FactorDataStore:
         mutated the dataset since that coverage was recorded, so the coverage no longer stands."""
         row = self.con.execute(
             "SELECT COUNT(*) FROM ingest_runs WHERE dataset = ? AND LOWER(status) <> 'ok' "
-            "AND started_at >= ?", [dataset, when]).fetchone()
+            "AND started_at >= ?",
+            [dataset, when],
+        ).fetchone()
         return bool(row and row[0])
 
     # ---- queries ------------------------------------------------------------
 
     def row_count(self, table: str) -> int:
-        if table not in {"sep", "tickers", "actions", "ingest_runs", "fundamentals",
-                         "index_prices", "sf1_fundamentals"}:
+        if table not in {
+            "sep",
+            "tickers",
+            "actions",
+            "ingest_runs",
+            "fundamentals",
+            "index_prices",
+            "sf1_fundamentals",
+        }:
             raise ValueError(f"unknown table: {table}")
         row = self.con.execute(f"SELECT COUNT(*) FROM {table}").fetchone()
         assert row is not None
@@ -696,6 +858,51 @@ class FactorDataStore:
         row = self.con.execute("SELECT MIN(date), MAX(date) FROM sep").fetchone()
         assert row is not None  # an aggregate query always returns one row
         return (row[0], row[1])
+
+    def identity_coverage_date(self) -> date | None:
+        """Latest date on which this store can resolve a permanent security identity.
+
+        This is the **identity** frontier, deliberately not the calendar and deliberately not
+        the SEP price frontier. ``PERMATICKER_EFFECTIVE_INTERVAL_V1`` answers "which security
+        is X on date D" only inside ``[firstpricedate, lastpricedate]``, and the vendor's
+        TICKERS slice always lags: on a Sunday, or any morning before ingest, *every*
+        interval has already closed. Asking "who is AAPL today" then returns None for the
+        whole book — not because anything is wrong, but because the question was posed
+        outside the data.
+
+        That is not hypothetical. It is the S8.6 production failure: on 2026-08-23 the slice
+        reached 2026-08-20, and all 39 Account-6 holdings resolved to None and failed closed.
+
+        Restricted to rows that actually carry a ``permaticker``: a row without one cannot
+        resolve at any date, so counting it would inflate the frontier past the point where
+        an identity can be established. ``None`` when the store holds no usable identity
+        data at all, which callers must treat as unresolvable rather than substituting a
+        date of their own.
+        """
+        row = self.con.execute(
+            "SELECT MAX(lastpricedate) FROM tickers "
+            "WHERE permaticker IS NOT NULL AND lastpricedate IS NOT NULL"
+        ).fetchone()
+        return row[0] if row else None
+
+    def identity_probe_ticker(self, as_of: date) -> str | None:
+        """A ticker this store should be able to resolve on ``as_of``; ``None`` if none exists.
+
+        Used by readiness to prove the resolver can actually *answer*, rather than merely
+        that a store file is present. Deterministic (ordered), so readiness is reproducible.
+        """
+        row = self.con.execute(
+            """
+            SELECT ticker FROM tickers
+            WHERE permaticker IS NOT NULL
+              AND firstpricedate IS NOT NULL AND lastpricedate IS NOT NULL
+              AND firstpricedate <= ? AND lastpricedate >= ?
+            ORDER BY ticker
+            LIMIT 1
+            """,
+            [as_of, as_of],
+        ).fetchone()
+        return str(row[0]) if row else None
 
     def permaticker_asof(self, ticker: str, as_of: date) -> str | None:
         """The permanent security identity denoted by ``ticker`` on ``as_of``, or ``None``.
@@ -899,9 +1106,7 @@ class FactorDataStore:
             return pd.DataFrame()  # table absent (pre-SF1-ingest store)
         return df.set_index("ticker") if not df.empty else df
 
-    def dollar_volume_universe(
-        self, as_of: date, n: int, lookback_days: int
-    ) -> list[str]:
+    def dollar_volume_universe(self, as_of: date, n: int, lookback_days: int) -> list[str]:
         """Top-`n` tickers by trailing dollar volume, tradeable as of `as_of`.
 
         Eligibility is point-in-time and survivorship-free: a ticker qualifies
