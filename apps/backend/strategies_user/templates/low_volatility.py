@@ -25,7 +25,7 @@ the vol-scaling overlay changes **position sizing** (how much). They are complem
 run a low-vol *selection* and *also* vol-target its exposure. The overlay here is OFF by default
 so the selection signal is proven in isolation.
 
-Weekly rebalance: Monday (live cron may stagger the minute). LOW-001 V1 is **always invested** —
+Weekly rebalance: Monday 10:32 ET (schedule strings are exchange-local, not UTC). LOW-001 V1 is **always invested** —
 the SPY 200-day cash gate was a MOM-001 copy and contradicted the research; it is not applied.
 Optional vol-scaling overlay remains OFF by default. Every sell precedes buys. Turnover damping
 via a trade threshold. Factor store must be session-fresh or the week HOLDs. Rebalance
@@ -86,10 +86,30 @@ def session_lag(latest: date, expected: date) -> int:
 
 class LowVolatility(Strategy):
     name: ClassVar[str] = "low-volatility"
-    version: ClassVar[str] = "1.0.1"  # V1 economics frozen; implementation-drift repairs only
+    # RUNTIME IMPLEMENTATION revision, not the research spec. LOW-001's own 1.0.0 -> 1.0.1
+    # was a pure conformance repair with no economics change (#661), so this field already
+    # tracks the running implementation for this strategy.
+    #
+    #   1.0.1  conformance repair                       (#661)
+    #   1.0.2  PR S safety/conformance                  (#666) — DEPLOYED, FAILED S8.6
+    #   1.0.3  identity as-of + readiness repair        (this)
+    #   1.0.4  reserved for Dynamic PIT acquisition
+    #
+    # 1.0.2 is NOT reused: it was deployed to Account 6 and failed its deployment proof, so
+    # that number now names a specific runtime that exists in the evidence record. Silently
+    # replacing it with different code would make the failure unattributable.
+    version: ClassVar[str] = "1.0.3"  # V1 economics frozen; identity as-of/readiness repair
     symbols: ClassVar[list[str]] = []  # set at registration (same 201 as Momentum: top-200 + SPY)
-    # Weekly, Monday 14:00 UTC ≈ 09:00 ET. Day names avoid APScheduler's off-by-one.
-    schedule: ClassVar[str] = "0 14 * * mon"
+    # Weekly, Monday 10:32 ET. Strategy schedule strings are EASTERN-TIME: the engine pins
+    # ``CronTrigger.from_crontab(..., timezone="America/New_York")`` so the book stays on the
+    # market clock across DST (see ``_STRATEGY_SCHEDULE_TZ`` in app/strategies/engine.py).
+    #
+    # This default previously read "0 14 * * mon" and was documented as "14:00 UTC ≈ 09:00
+    # ET" — true before schedules were pinned to ET, and wrong afterwards in two ways: it is
+    # no longer UTC, and 14:00 ET is 2pm. Re-registering LOW-001 from class defaults would
+    # have moved the rebalance 3.5 hours with nothing flagging it. The value here now matches
+    # the governed live registration. Day names avoid APScheduler's dow off-by-one.
+    schedule: ClassVar[str] = "32 10 * * mon"
 
     default_params: ClassVar[dict[str, Any]] = {
         # LOW-001 research-frozen parameters (V1 headline; from low_vol_research.py)
@@ -468,9 +488,35 @@ class LowVolatility(Strategy):
             )
 
     async def _current_holdings(self) -> dict[str, Decimal]:
-        """Long quantities currently held, excluding the market proxy."""
-        held: dict[str, Decimal] = {}
+        """Long quantities currently held, excluding the market proxy.
+
+        The candidate set is the position book, not the registered symbol list. Enumerating
+        ``ctx.symbols`` meant a holding whose symbol was never registered was never even
+        considered, so ``_apply_targets`` never reached its exit branch for it and the
+        position was silently unmanageable — the LOW-PIT-01B stranding defect. That is the
+        rollback case (a build that does not know a dynamically acquired name) and, under
+        per-rebalance enrollment, the week-N-to-week-N+1 case.
+
+        Ownership filtering happens below ``ctx.get_holdings()``: only securities this
+        strategy unambiguously owns are in scope, and ambiguous / unclaimed / unevidenced
+        positions are excluded there with a stated reason. LOW-001 deliberately does not
+        re-derive any of that — it asks what it holds and trades the difference.
+
+        Quantity comes from the position, never from the order ledger (v0.3 §4.8).
+
+        Older contexts without ``get_holdings`` fall back to the registered-symbol scan, so
+        the template keeps working against a v1.0.1 runtime.
+        """
         market_sym = str(self.params.get("market_filter_symbol", "SPY")).upper()
+        get_holdings = getattr(self.ctx, "get_holdings", None)
+        if get_holdings is None:
+            return await self._current_holdings_registered_only(market_sym)
+        held = await get_holdings()
+        return {t.upper(): Decimal(q) for t, q in held.items() if t.upper() != market_sym}
+
+    async def _current_holdings_registered_only(self, market_sym: str) -> dict[str, Decimal]:
+        """Pre-S4 fallback: scan the registered universe one symbol at a time."""
+        held: dict[str, Decimal] = {}
         for sym in self.ctx.symbols:
             if sym.upper() == market_sym:
                 continue
