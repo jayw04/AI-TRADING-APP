@@ -11,9 +11,13 @@ worse than no diagnostic, because it reads as resolved.
 
 from __future__ import annotations
 
+import logging
+
 import pytest
 import structlog
+import structlog.testing
 
+from app.universe import diagnostics as diagnostics_mod
 from app.universe.diagnostics import (
     OwnershipDiagnostics,
     OwnershipOperation,
@@ -27,19 +31,44 @@ MISSING = HoldingExclusionReason.OWNERSHIP_EVIDENCE_MISSING
 
 
 @pytest.fixture
-def captured():
-    """Capture structlog events as dicts."""
-    events: list[dict] = []
+def captured(monkeypatch):
+    """Capture structlog events as dicts, via structlog's own testing API.
 
-    def sink(_logger, name, event_dict):
-        # `name` is the log method ("info"/"warning"), which is the severity under test.
-        events.append({**event_dict, "log_level": name})
-        raise structlog.DropEvent
+    An earlier version swapped ``structlog.configure(processors=[sink])`` by hand and
+    restored it on teardown. That passed in isolation and FAILED IN CI: ``app.utils.logging``
+    calls ``structlog.configure`` at import, so whether the sink survived depended on which
+    tests had run first — captured nothing, and every assertion here degraded to comparing
+    an empty list. An order-dependent capture that silently records zero events is exactly
+    the shape that makes a diagnostics test worthless, since "no events" reads the same as
+    "no problems".
 
-    old = structlog.get_config()["processors"]
-    structlog.configure(processors=[sink])
-    yield events
-    structlog.configure(processors=old)
+    ``capture_logs`` swaps the processor chain but not ``wrapper_class``, and that is only
+    half the problem. ``app.utils.logging`` configures
+    ``make_filtering_bound_logger(level)`` with **``cache_logger_on_first_use=True``**, so
+    the module-level ``logger`` in ``diagnostics.py`` binds ONCE — with whatever level was
+    active at its first call — and no later ``structlog.configure`` rebinds it. Reconfiguring
+    inside the fixture is therefore not enough; the cached logger keeps dropping the
+    ``ownership_unclaimed`` info event before any processor runs.
+
+    So the module's logger is replaced with a fresh, uncached one for the duration.
+    ``monkeypatch`` restores it, and the prior structlog config is restored explicitly.
+
+    Production is unaffected: ``settings.log_level`` defaults to INFO and the deployed value
+    is INFO, so the info-level event is emitted there. This is a test-isolation fix, not a
+    product change — but it is worth stating plainly that at a WARNING deployment level
+    ``ownership_unclaimed`` would be invisible by design.
+    """
+    saved = structlog.get_config().copy()
+    structlog.configure(
+        wrapper_class=structlog.make_filtering_bound_logger(logging.DEBUG),
+        cache_logger_on_first_use=False,
+    )
+    monkeypatch.setattr(diagnostics_mod, "logger", structlog.get_logger("app.universe.diagnostics"))
+    try:
+        with structlog.testing.capture_logs() as events:
+            yield events
+    finally:
+        structlog.configure(**saved)
 
 
 def _emit(diag, exclusions, **over):
