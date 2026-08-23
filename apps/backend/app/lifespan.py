@@ -84,9 +84,7 @@ async def run_daily_backup() -> None:
                 stderr=stderr.decode(errors="replace").strip(),
             )
         else:
-            logger.info(
-                "daily_backup_complete", detail=stdout.decode(errors="replace").strip()
-            )
+            logger.info("daily_backup_complete", detail=stdout.decode(errors="replace").strip())
     except Exception:
         logger.exception("daily_backup_exception")
 
@@ -155,7 +153,9 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
             )
 
             scheduler = WorkbenchScheduler(
-                asset_sync, account_sync, position_sync,
+                asset_sync,
+                account_sync,
+                position_sync,
                 enabled=settings.scheduler_enabled,
             )
             scheduler.start()
@@ -233,12 +233,17 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
             # the registry; dormant until §7). bar_cache (above) lets the gross
             # and buying-power gates value MARKET orders (ADR 0040).
             risk_engine = RiskEngine(
-                session_factory, broker_registry=broker_registry, bus=bus,
+                session_factory,
+                broker_registry=broker_registry,
+                bus=bus,
                 bar_cache=bar_cache,
             )
 
             order_router = OrderRouter(
-                adapter, risk_engine, session_factory, bus,
+                adapter,
+                risk_engine,
+                session_factory,
+                bus,
                 broker_registry=broker_registry,
             )
 
@@ -246,9 +251,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
             # Consumer subscribes to the bus and translates alpaca.trade_update
             # events into Fill rows + Order transitions + position recomputes.
             position_recomputer = PositionRecomputer(session_factory, bus)
-            trade_update_consumer = TradeUpdateConsumer(
-                session_factory, bus, position_recomputer
-            )
+            trade_update_consumer = TradeUpdateConsumer(session_factory, bus, position_recomputer)
             await trade_update_consumer.start()
 
             # 8. IndicatorComputer (P2 Session 1). BarCache is now constructed
@@ -286,6 +289,30 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
                 factor_accessor = FactorAccessor(None)
                 logger.warning("factor_accessor_unavailable", error=str(exc))
 
+            # 8b. Strategy-position attribution (PR S / S5.5). Composes acquisition
+            # provenance with the live position book so a strategy can see, exit and
+            # liquidate a holding it owns but never registered. Built HERE, outside the
+            # strategy plane, and injected into both consumers — StrategyContext (via the
+            # engine) and ActivationService — so neither imports the other's lifecycle and
+            # app/strategies/** stays free of broker/factor imports.
+            #
+            # The identity adapter reads the SAME read-only store handle as the accessor;
+            # with no store it resolves nothing and every ownership question fails closed
+            # to registered-only behaviour rather than to ticker equality.
+            from app.universe.owned_holdings import StrategyOwnedHoldingsProvider
+            from app.universe.security_identity import FactorStoreSecurityIdentityResolver
+
+            security_identity = FactorStoreSecurityIdentityResolver(factor_store)
+            owned_holdings_provider = StrategyOwnedHoldingsProvider(
+                session_factory, security_identity
+            )
+            app.state.owned_holdings_provider = owned_holdings_provider
+            app.state.security_identity_resolver = security_identity
+            logger.info(
+                "strategy_ownership_provisioned",
+                identity_resolver_ready=security_identity.ready,
+            )
+
             # 9. StrategyEngine (P2 Session 2). Shares the same
             # AsyncIOScheduler instance as WorkbenchScheduler — two
             # schedulers contending for the same job IDs would be a
@@ -299,6 +326,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
                 order_router=order_router,
                 strategies_root=Path("strategies_user"),
                 factor_accessor=factor_accessor,
+                owned_holdings_provider=owned_holdings_provider,
             )
 
             # 10. BacktestWorker (P4 §2). Shares the same scheduler so the
@@ -580,7 +608,9 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
             if factor_store is not None:
                 scheduler.scheduler.add_job(
                     run_premarket_scan_scheduled,
-                    _ReplayCron(day_of_week="mon-fri", hour=9, minute=25, timezone="America/New_York"),
+                    _ReplayCron(
+                        day_of_week="mon-fri", hour=9, minute=25, timezone="America/New_York"
+                    ),
                     id="premarket_scan",
                     max_instances=1,
                     coalesce=True,
@@ -622,7 +652,9 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 
                 scheduler.scheduler.add_job(
                     run_gapper_intraday_cache_scheduled,
-                    _ReplayCron(day_of_week="mon-fri", hour=16, minute=35, timezone="America/New_York"),
+                    _ReplayCron(
+                        day_of_week="mon-fri", hour=16, minute=35, timezone="America/New_York"
+                    ),
                     id="gapper_intraday_cache",
                     max_instances=1,
                     coalesce=True,
@@ -643,7 +675,9 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 
                 scheduler.scheduler.add_job(
                     run_gapper_shadow_ledger_scheduled,
-                    _ReplayCron(day_of_week="mon-fri", hour=16, minute=40, timezone="America/New_York"),
+                    _ReplayCron(
+                        day_of_week="mon-fri", hour=16, minute=40, timezone="America/New_York"
+                    ),
                     id="gapper_shadow_ledger",
                     max_instances=1,
                     coalesce=True,
@@ -674,7 +708,12 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
                 ):
                     scheduler.scheduler.add_job(
                         run_insider_reference_ingest,
-                        _InsiderCron(day_of_week="mon-fri", hour=_im_hour, minute=_im_min, timezone="America/New_York"),
+                        _InsiderCron(
+                            day_of_week="mon-fri",
+                            hour=_im_hour,
+                            minute=_im_min,
+                            timezone="America/New_York",
+                        ),
                         id=_im_id,
                         max_instances=1,
                         coalesce=True,
@@ -762,9 +801,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
                 register_proposal_evaluation_reconcile_job,
             )
 
-            register_proposal_evaluation_reconcile_job(
-                scheduler.scheduler, session_factory
-            )
+            register_proposal_evaluation_reconcile_job(scheduler.scheduler, session_factory)
             logger.info("proposal_evaluation_reconcile_registered")
 
             # 10h. Proposal human-review sampling (P6 §2b-review). Singleton
@@ -776,9 +813,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
                 register_proposal_review_sampling_job,
             )
 
-            register_proposal_review_sampling_job(
-                scheduler.scheduler, session_factory
-            )
+            register_proposal_review_sampling_job(scheduler.scheduler, session_factory)
             logger.info("proposal_review_sampling_registered")
 
             # 10i. Paper-variant expiry (P6b §2a). 6-hourly sweep that
@@ -786,9 +821,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
             # net for orphaned variants). Needs the engine to unregister them.
             from app.services.paper_variant import register_paper_variant_expiry_job
 
-            register_paper_variant_expiry_job(
-                scheduler.scheduler, session_factory, strategy_engine
-            )
+            register_paper_variant_expiry_job(scheduler.scheduler, session_factory, strategy_engine)
             logger.info("paper_variant_expiry_registered")
 
             # 10g. Promotion cooldown completion (P6b §3b, ADR 0007). Every 15

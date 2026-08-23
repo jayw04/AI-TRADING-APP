@@ -21,7 +21,7 @@ from __future__ import annotations
 
 import ast
 import inspect
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
 
 import pytest
@@ -59,7 +59,10 @@ _IDENTITY = {
 class _FakeIdentity:
     """Stand-in for the permaticker resolver the engine wires in (S3/S4)."""
 
-    def resolve(self, ticker: str) -> str | None:
+    def resolve(self, ticker: str, as_of: date) -> str | None:
+        # Date-insensitive stand-in: these suites exercise the classification rules, not
+        # the effective-interval semantics. Dated resolution is proven end-to-end against
+        # a real factor store in tests/universe/test_security_identity.py (S5.5).
         return _IDENTITY.get(ticker.upper())
 
 

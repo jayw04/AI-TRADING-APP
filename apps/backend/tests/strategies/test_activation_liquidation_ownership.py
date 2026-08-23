@@ -21,7 +21,7 @@ through the safety path.
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 from decimal import Decimal
 from unittest.mock import AsyncMock, MagicMock
 
@@ -63,7 +63,10 @@ _IDENTITY = {
 
 
 class _FakeIdentity:
-    def resolve(self, ticker: str) -> str | None:
+    def resolve(self, ticker: str, as_of: date) -> str | None:
+        # Date-insensitive stand-in: these suites exercise the classification rules, not
+        # the effective-interval semantics. Dated resolution is proven end-to-end against
+        # a real factor store in tests/universe/test_security_identity.py (S5.5).
         return _IDENTITY.get(ticker.upper())
 
 

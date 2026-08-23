@@ -697,6 +697,42 @@ class FactorDataStore:
         assert row is not None  # an aggregate query always returns one row
         return (row[0], row[1])
 
+    def permaticker_asof(self, ticker: str, as_of: date) -> str | None:
+        """The permanent security identity denoted by ``ticker`` on ``as_of``, or ``None``.
+
+        Implements ``PERMATICKER_EFFECTIVE_INTERVAL_V1`` (owner ruling 2026-07-29): the
+        durable key is the vendor permanent identifier **plus its effective interval**, so
+        a ticker alone is not an answer — the same string denotes different issuers at
+        different times, and the vendor disambiguates only by suffixing the *superseded*
+        lineage (``ECHO`` today, ``ECHO2`` for the one that held it before).
+
+        A row therefore describes the lineage holding the bare ticker **now**, and its
+        ``[firstpricedate, lastpricedate]`` window is the only span over which that answer
+        is valid. An ``as_of`` outside the window means the symbol denoted something else
+        then — an unresolved identity, not a near miss.
+
+        Returns ``None`` — never a guess — when the ticker is unknown, ``permaticker`` is
+        NULL (an unrefreshed store; the column is deliberately not backfilled from ticker
+        equality), the effective bounds are missing, ``as_of`` falls outside them, or more
+        than one row somehow claims the ticker. Callers must fail closed on ``None``.
+        """
+        rows = self.con.execute(
+            """
+            SELECT CAST(permaticker AS VARCHAR), firstpricedate, lastpricedate
+            FROM tickers
+            WHERE upper(ticker) = upper(?)
+            """,
+            [ticker],
+        ).fetchall()
+        if len(rows) != 1:
+            return None  # unknown ticker, or an ambiguous lineage claim
+        permaticker, first, last = rows[0]
+        if not permaticker or first is None or last is None:
+            return None
+        if not (first <= as_of <= last):
+            return None  # the symbol denoted a different lineage on this date
+        return str(permaticker)
+
     def trading_days(self, start: date, end: date) -> list[date]:
         """Distinct `sep` trading dates in [start, end], ascending — the union
         trading calendar across all names (drives the backtest's day loop)."""

@@ -168,6 +168,10 @@ class StrategyEngine:
         order_router: Any,  # OrderRouter (P1)
         strategies_root: Path,
         factor_accessor: Any | None = None,  # FactorAccessor (P9 §2); None = disabled
+        # PR S / S5.5 — app.universe.StrategyOwnedHoldingsProvider. Widens each context's
+        # READ scope to holdings the strategy unambiguously owns. None = no widening at
+        # all, i.e. exactly pre-PR-S behaviour.
+        owned_holdings_provider: Any | None = None,
     ) -> None:
         self._scheduler = scheduler
         self._session_factory = session_factory
@@ -179,6 +183,7 @@ class StrategyEngine:
         # P9 §2: read-only PIT factor accessor handed to every StrategyContext.
         # None = factor data not provisioned; ctx.factors raises FactorDataUnavailable.
         self._factor_accessor = factor_accessor
+        self._owned_holdings_provider = owned_holdings_provider
         # §9A market-session gate — consulted before every on_bar dispatch so a
         # strategy never acts outside its permitted session (RTH-only unless it
         # sets allow_extended_hours). Shares a per-day schedule cache.
@@ -464,6 +469,7 @@ class StrategyEngine:
                 submit_order_fn=submit_order_fn,
                 bus=self._bus,
                 factor_accessor=self._factor_accessor,
+                owned_holdings_fn=self._make_owned_holdings_fn(row.id, account.id),
             )
             try:
                 instance = cls(ctx=ctx, params=merged_params)
@@ -848,6 +854,24 @@ class StrategyEngine:
             except Exception:
                 return None
         return None
+
+    def _make_owned_holdings_fn(self, strategy_id: int, account_id: int) -> Any | None:
+        """Bind the ownership provider to one (strategy, account) for its context.
+
+        ``None`` when no provider is configured, which leaves ``StrategyContext`` in
+        pre-PR-S registered-only behaviour rather than in a half-enabled state.
+
+        The context caches the result per dispatch, so this runs once per rebalance slot
+        rather than once per symbol.
+        """
+        provider = self._owned_holdings_provider
+        if provider is None:
+            return None
+
+        async def _owned() -> frozenset[str]:
+            return await provider.readable_tickers(account_id=account_id, strategy_id=strategy_id)
+
+        return _owned
 
     async def _notify_bar_stream_changed(self) -> None:
         """Ask the bar stream service to recompute its subscription set.

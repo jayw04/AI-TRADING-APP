@@ -41,6 +41,7 @@ closed with a stated reason rather than being dropped.
 from __future__ import annotations
 
 from dataclasses import dataclass
+from datetime import UTC, date, datetime
 from decimal import Decimal
 from enum import StrEnum
 
@@ -53,6 +54,7 @@ from app.universe.strategy_ownership import (
     OwnershipStatus,
     SecurityIdentityResolver,
     StrategyOwnedSecurityResolver,
+    market_date,
 )
 
 __all__ = [
@@ -134,32 +136,54 @@ class StrategyOwnedHoldingsProvider:
         self._identity = identity_resolver
         self._ownership = StrategyOwnedSecurityResolver(session_factory, identity_resolver)
 
-    async def resolve(self, *, account_id: int, strategy_id: int) -> OwnedHoldings:
+    async def resolve(
+        self, *, account_id: int, strategy_id: int, as_of: date | None = None
+    ) -> OwnedHoldings:
+        """Classify every current holding for ``strategy_id``.
+
+        ``as_of`` is the session the CURRENT positions' identities resolve on, defaulting
+        to today's exchange date. Acquisitions resolve on their own fill dates inside the
+        ownership layer — the two dates are deliberately different, because a rename means
+        the same permanent identity was reached from two different tickers at two
+        different times, and that is exactly the case attribution must survive.
+        """
+        as_of = as_of or market_date(datetime.now(UTC))
         held = await self._held_tickers(account_id)
         if not held:
             return OwnedHoldings(account_id, strategy_id, (), ())
 
         ownership = await self._ownership.resolve(account_id=account_id, strategy_id=strategy_id)
         by_identity = {s.security_id: s for s in ownership.securities if s.security_id}
-        by_ticker = {t: s for s in ownership.securities for t in s.tickers}
 
         holdings: list[OwnedHolding] = []
         excluded: list[ExcludedHolding] = []
         for ticker in sorted(held):
-            identity = self._identity.resolve(ticker)
-            # Match on permanent identity first, so a position held under a renamed
-            # ticker still finds the acquisition recorded under the old one. Fall back to
-            # the ticker only for securities S2 itself could not resolve — there the
-            # ticker is all either side has, and the outcome is fail-closed regardless.
-            security = by_identity.get(identity) if identity else by_ticker.get(ticker)
-
-            if security is None:
+            identity = self._identity.resolve(ticker, as_of)
+            if identity is None:
+                # NEVER fall back to ticker equality here. An earlier revision matched the
+                # held ticker against the acquisition's tickers when current resolution
+                # failed, and the S5.5 integration test caught what that does: a symbol
+                # whose lineage ENDED (acquired in March under one issuer, the bare ticker
+                # now belonging to another) was matched to its own stale acquisition and
+                # admitted. Ticker equality after identity resolution fails is precisely
+                # the defect the contract exists to prevent, and it is most tempting
+                # exactly at a reuse boundary.
                 excluded.append(
                     ExcludedHolding(
                         ticker,
-                        HoldingExclusionReason.OWNERSHIP_EVIDENCE_MISSING,
-                        None if identity else "identity_unresolved",
+                        HoldingExclusionReason.OWNERSHIP_AMBIGUOUS,
+                        "identity_unresolved",
                     )
+                )
+                continue
+
+            # Match on permanent identity, so a position held under a renamed ticker finds
+            # the acquisition recorded under the old one.
+            security = by_identity.get(identity)
+
+            if security is None:
+                excluded.append(
+                    ExcludedHolding(ticker, HoldingExclusionReason.OWNERSHIP_EVIDENCE_MISSING, None)
                 )
             elif security.status is OwnershipStatus.OWNED:
                 assert security.security_id is not None  # OWNED implies resolved identity
@@ -177,9 +201,12 @@ class StrategyOwnedHoldingsProvider:
 
         return OwnedHoldings(account_id, strategy_id, tuple(holdings), tuple(excluded))
 
-    async def readable_tickers(self, *, account_id: int, strategy_id: int) -> frozenset[str]:
+    async def readable_tickers(
+        self, *, account_id: int, strategy_id: int, as_of: date | None = None
+    ) -> frozenset[str]:
         """Just the admitted tickers — the shape ``StrategyContext`` consumes."""
-        return (await self.resolve(account_id=account_id, strategy_id=strategy_id)).tickers
+        resolution = await self.resolve(account_id=account_id, strategy_id=strategy_id, as_of=as_of)
+        return resolution.tickers
 
     async def _held_tickers(self, account_id: int) -> set[str]:
         """Tickers with a live long position on the account.

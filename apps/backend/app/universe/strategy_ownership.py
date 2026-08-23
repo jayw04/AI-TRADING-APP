@@ -64,11 +64,12 @@ disown the security.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import UTC, date, datetime
 from enum import StrEnum
 from typing import Protocol
+from zoneinfo import ZoneInfo
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.db.enums import OrderSide, OrderSourceType
@@ -80,6 +81,19 @@ from app.db.models.symbol import Symbol
 #: Re-exported from the lineage module so a future change to the rule cannot leave this
 #: module silently asserting the old one.
 from app.validation.security_lineage import SECURITY_IDENTITY_CONTRACT
+
+#: Exchange the effective-interval dates are expressed in. Timestamps are stored UTC;
+#: a fill at 2026-04-01 01:30 UTC is the 2026-03-31 New York session, and resolving it on
+#: the UTC date would compare an acquisition against the wrong side of a lineage boundary.
+_MARKET_TZ = ZoneInfo("America/New_York")
+
+
+def market_date(when: datetime) -> date:
+    """The exchange-local calendar date of ``when`` (naive input is treated as UTC)."""
+    if when.tzinfo is None:
+        when = when.replace(tzinfo=UTC)
+    return when.astimezone(_MARKET_TZ).date()
+
 
 __all__ = [
     "SECURITY_IDENTITY_CONTRACT",
@@ -117,14 +131,21 @@ class AmbiguityReason(StrEnum):
 
 
 class SecurityIdentityResolver(Protocol):
-    """Maps an observed ticker to its permanent security identity.
+    """Maps an observed ticker **on a given date** to its permanent security identity.
 
-    Returns ``None`` when the identity cannot be established (unknown ticker, a lineage
-    gap, a reuse boundary inside the relevant interval). ``None`` must fail closed at the
-    call site — it is never an invitation to fall back to the ticker.
+    The date is not optional decoration. ``PERMATICKER_EFFECTIVE_INTERVAL_V1`` is an
+    identifier *plus an effective interval*, so "which security is XYZ" has no answer
+    without saying when. An acquisition resolves on its fill date; a current position
+    resolves on the current session. Comparing the two permanent identities is what makes
+    a rename attributable and a reuse boundary refusable.
+
+    Returns ``None`` when the identity cannot be established (unknown ticker, missing
+    permanent id, a date outside the effective interval, an ambiguous lineage claim).
+    ``None`` must fail closed at the call site — it is never an invitation to fall back to
+    ticker equality, which is the precise defect the contract exists to prevent.
     """
 
-    def resolve(self, ticker: str) -> str | None:  # pragma: no cover - protocol
+    def resolve(self, ticker: str, as_of: date) -> str | None:  # pragma: no cover
         ...
 
 
@@ -233,7 +254,7 @@ class StrategyOwnedSecurityResolver:
         # sentinel key so two unrelated unresolved names never merge into one entry.
         by_identity: dict[tuple[bool, str], list[_Acquisition]] = {}
         for row in rows:
-            sid = self._identity.resolve(row.ticker)
+            sid = self._identity.resolve(row.ticker, row.acquired_on)
             key = (sid is not None, sid if sid is not None else f"\0unresolved:{row.ticker}")
             by_identity.setdefault(key, []).append(row)
 
@@ -318,15 +339,25 @@ class StrategyOwnedSecurityResolver:
     async def _acquisitions(self, account_id: int) -> list[_Acquisition]:
         """Every FILLED BUY on the account, from any source, newest-agnostic.
 
-        Selects identity columns only. ``Order.qty`` and ``Fill.qty`` are deliberately
-        absent from the projection so no quantity is even in scope here.
+        Selects identity columns only — ``Order.qty`` and ``Fill.qty`` are deliberately
+        absent from the projection, so no quantity is even in scope here.
+
+        The **earliest fill time** carries alongside, because that is the date the
+        acquisition's identity must be resolved on: ``firstpricedate`` is the acquisition
+        event, and an order created just before a session boundary can fill on the next
+        trading date. ``MIN(filled_at)`` is a timestamp, not a size; §4.8 forbids deriving
+        quantity, not observing when an acquisition happened.
         """
+        first_fill = (
+            select(func.min(Fill.filled_at)).where(Fill.order_id == Order.id).scalar_subquery()
+        )
         stmt = (
             select(
                 Order.id,
                 Order.source_type,
                 Order.source_id,
                 Order.created_at,
+                first_fill.label("first_filled_at"),
                 Symbol.ticker,
             )
             .join(Symbol, Symbol.id == Order.symbol_id)
@@ -344,9 +375,10 @@ class StrategyOwnedSecurityResolver:
                 source_type=stype,
                 source=f"{stype.value}:{sid if sid is not None else ''}",
                 created_at=created,
+                acquired_on=market_date(filled or created),
                 ticker=ticker.upper(),
             )
-            for oid, stype, sid, created, ticker in rows
+            for oid, stype, sid, created, filled, ticker in rows
         ]
 
 
@@ -358,4 +390,7 @@ class _Acquisition:
     source_type: OrderSourceType
     source: str
     created_at: datetime
+    #: Exchange-local date of the earliest fill — the date this acquisition's security
+    #: identity is resolved on.
+    acquired_on: date
     ticker: str
