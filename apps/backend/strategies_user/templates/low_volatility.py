@@ -25,7 +25,7 @@ the vol-scaling overlay changes **position sizing** (how much). They are complem
 run a low-vol *selection* and *also* vol-target its exposure. The overlay here is OFF by default
 so the selection signal is proven in isolation.
 
-Weekly rebalance: Monday (live cron may stagger the minute). LOW-001 V1 is **always invested** —
+Weekly rebalance: Monday 10:32 ET (schedule strings are exchange-local, not UTC). LOW-001 V1 is **always invested** —
 the SPY 200-day cash gate was a MOM-001 copy and contradicted the research; it is not applied.
 Optional vol-scaling overlay remains OFF by default. Every sell precedes buys. Turnover damping
 via a trade threshold. Factor store must be session-fresh or the week HOLDs. Rebalance
@@ -88,8 +88,16 @@ class LowVolatility(Strategy):
     name: ClassVar[str] = "low-volatility"
     version: ClassVar[str] = "1.0.1"  # V1 economics frozen; implementation-drift repairs only
     symbols: ClassVar[list[str]] = []  # set at registration (same 201 as Momentum: top-200 + SPY)
-    # Weekly, Monday 14:00 UTC ≈ 09:00 ET. Day names avoid APScheduler's off-by-one.
-    schedule: ClassVar[str] = "0 14 * * mon"
+    # Weekly, Monday 10:32 ET. Strategy schedule strings are EASTERN-TIME: the engine pins
+    # ``CronTrigger.from_crontab(..., timezone="America/New_York")`` so the book stays on the
+    # market clock across DST (see ``_STRATEGY_SCHEDULE_TZ`` in app/strategies/engine.py).
+    #
+    # This default previously read "0 14 * * mon" and was documented as "14:00 UTC ≈ 09:00
+    # ET" — true before schedules were pinned to ET, and wrong afterwards in two ways: it is
+    # no longer UTC, and 14:00 ET is 2pm. Re-registering LOW-001 from class defaults would
+    # have moved the rebalance 3.5 hours with nothing flagging it. The value here now matches
+    # the governed live registration. Day names avoid APScheduler's dow off-by-one.
+    schedule: ClassVar[str] = "32 10 * * mon"
 
     default_params: ClassVar[dict[str, Any]] = {
         # LOW-001 research-frozen parameters (V1 headline; from low_vol_research.py)

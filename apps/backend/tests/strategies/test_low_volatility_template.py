@@ -17,17 +17,25 @@ from __future__ import annotations
 from datetime import UTC, date, datetime
 from decimal import Decimal
 from unittest.mock import AsyncMock, MagicMock
+from zoneinfo import ZoneInfo
 
 import pandas as pd
+import pytest
+from apscheduler.triggers.cron import CronTrigger
 
 from app.factor_data.accessor import FactorDataUnavailable
 from app.strategies.context import Bar
+from app.strategies.engine import _STRATEGY_SCHEDULE_TZ, _normalize_crontab_dow
 from strategies_user.templates.low_volatility import (
     RESEARCH_UNIVERSE_N,
     LowVolatility,
     expected_last_session,
     session_lag,
 )
+
+#: The governed live registration for LOW-001 on Account 6 (strategy 8), read from the
+#: running system 2026-08-22. Schedule strings are exchange-local: Monday 10:32 ET.
+GOVERNED_SCHEDULE = "32 10 * * mon"
 
 WK1_A = datetime(2026, 6, 8, 14, 0, tzinfo=UTC)  # Mon
 WK1_B = datetime(2026, 6, 8, 14, 1, tzinfo=UTC)  # same ISO week
@@ -194,15 +202,78 @@ def test_schema_matches_default_params() -> None:
 
 
 def test_research_frozen_defaults() -> None:
-    """The validated LOW-001 V1 parameters must not silently drift: 252-day realized
-    vol and the top-quintile (0.20) are frozen from the research. The SPY cash gate
-    is not a V1 param."""
+    """The validated LOW-001 V1 economics must not silently drift.
+
+    These are RESEARCH invariants: the 252-session realized-vol window, the lowest
+    quintile, equal weighting, and the weekly cadence. Changing any of them changes what
+    LOW-001 *is* and requires a research decision.
+
+    The clock time the weekly cadence fires at is NOT one of them — it is a runtime
+    conformance default and is asserted separately below. Grouping it here implied the
+    2pm-ET value was research-frozen when it was simply wrong (S7).
+    """
     assert LowVolatility.default_params["vol_lookback_days"] == 252
     assert LowVolatility.default_params["top_quantile"] == 0.20
     assert "use_market_regime_filter" not in LowVolatility.default_params
     assert "use_market_regime_filter" not in LowVolatility.params_schema
-    assert LowVolatility.schedule == "0 14 * * mon"
     assert LowVolatility.version == "1.0.1"
+    # Weekly cadence IS frozen economics; the hour is not.
+    assert LowVolatility.schedule.split()[-1] == "mon"
+
+
+def test_runtime_schedule_default_matches_the_governed_registration() -> None:
+    """Cheap literal guard: catches someone editing the cron string.
+
+    Paired with the timezone-resolution test below, which catches the other failure
+    mode — the string staying put while its interpretation moves.
+    """
+    assert LowVolatility.schedule == GOVERNED_SCHEDULE
+
+
+@pytest.mark.parametrize(
+    ("after", "label"),
+    [
+        (datetime(2026, 1, 5, 0, 0, tzinfo=ZoneInfo("America/New_York")), "EST"),
+        (datetime(2026, 6, 1, 0, 0, tzinfo=ZoneInfo("America/New_York")), "EDT"),
+    ],
+)
+def test_default_schedule_fires_monday_1032_new_york(after, label) -> None:
+    """Resolve the class default through the ENGINE's own cron path and check the instant.
+
+    This is the assertion that would have caught S7's defect. A literal string check
+    passed throughout the period the semantics silently changed from UTC to ET, because
+    the string never moved — the interpretation did.
+
+    Asserted as New York WALL-CLOCK time, deliberately, and across both EST and EDT. A
+    hard-coded "14:32Z" would re-encode exactly the timezone fragility that caused the
+    defect: it is true for half the year.
+    """
+    trigger = CronTrigger.from_crontab(
+        _normalize_crontab_dow(LowVolatility.schedule), timezone=_STRATEGY_SCHEDULE_TZ
+    )
+    fire = trigger.get_next_fire_time(None, after)
+    local = fire.astimezone(ZoneInfo("America/New_York"))
+    assert (local.hour, local.minute) == (10, 32), f"{label}: {local}"
+    assert local.weekday() == 0, f"{label}: not a Monday — {local}"
+
+
+def test_reregistration_from_class_defaults_keeps_the_governed_slot() -> None:
+    """The hazard S7 exists to prevent, stated directly.
+
+    Recreating LOW-001 from class defaults must reproduce the governed 10:32 ET slot. With
+    the old default it would have scheduled the book at 14:00 ET — a 3.5-hour move, with
+    no error and nothing in the diff to notice.
+    """
+    registered = list(LowVolatility.symbols) or []
+    schedule = LowVolatility.schedule  # exactly what StrategyEngine.register would use
+    assert registered == []  # symbols come from the DB row, not the class
+
+    trigger = CronTrigger.from_crontab(
+        _normalize_crontab_dow(schedule), timezone=_STRATEGY_SCHEDULE_TZ
+    )
+    after = datetime(2026, 8, 20, 0, 0, tzinfo=ZoneInfo("America/New_York"))  # a Thursday
+    local = trigger.get_next_fire_time(None, after).astimezone(ZoneInfo("America/New_York"))
+    assert local.strftime("%A %H:%M") == "Monday 10:32"
 
 
 def test_expected_last_session_skips_weekend() -> None:
