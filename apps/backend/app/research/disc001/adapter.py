@@ -111,6 +111,9 @@ def _gap_rows_from_payload(payload: dict[str, Any] | None) -> tuple[GapRow, ...]
     return tuple(rows)
 
 
+gap_rows_from_payload = _gap_rows_from_payload
+
+
 def _load_features(
     store: FactorDataStore, tickers: list[str], as_of: date
 ) -> tuple[tuple[SymbolFeatures, ...], str | None]:
@@ -218,6 +221,10 @@ def _mom_core_rows(
             )
         )
     return tuple(rows), None
+
+
+load_symbol_features = _load_features
+load_mom_core_rows = _mom_core_rows
 
 
 def build_watchlist(

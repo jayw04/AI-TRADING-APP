@@ -5,7 +5,9 @@ from __future__ import annotations
 from app.research.disc001.engine import (
     assemble_all,
     mom_near_eligible,
+    mom_near_gate_observations,
     oversold_eligible,
+    oversold_gate_observations,
     screen_gap,
     screen_mom_core,
     screen_mom_near,
@@ -224,4 +226,16 @@ def test_weakest_status_ordering():
     assert (
         weakest_status([EvidenceStatus.BACKTEST_PENDING, EvidenceStatus.WATCH])
         is EvidenceStatus.WATCH
+    )
+
+
+def test_admission_eligibility_is_observation_conjunction_not_a_second_formula():
+    recovered = _feat(rsi14=31.0)
+    assert oversold_eligible(recovered) is all(
+        obs.passed for obs in oversold_gate_observations(recovered)
+    )
+    core = frozenset({"CORE"})
+    dropped = _feat(symbol="CORE")
+    assert mom_near_eligible(dropped, core) is all(
+        obs.passed for obs in mom_near_gate_observations(dropped, core)
     )

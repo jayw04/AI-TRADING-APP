@@ -245,6 +245,16 @@ class OppHistoryCheckpoint(BaseModel):
     return_pct: float | None = None
 
 
+class OppHistoryWhyLeft(BaseModel):
+    """Read-time frozen-rule re-evaluation. Not a sell or exit signal."""
+
+    state: str
+    as_of: str | None = None
+    summary: str | None = None
+    details: list[str] = Field(default_factory=list)
+    not_a_signal: str
+
+
 class OppHistoryOccurrence(BaseModel):
     """One durable family-row occurrence. Current price and checkpoints are read-time only."""
 
@@ -269,6 +279,7 @@ class OppHistoryOccurrence(BaseModel):
     current_price_source: str | None = None
     change_pct: float | None = None
     checkpoints: list[OppHistoryCheckpoint] = Field(default_factory=list)
+    why_left: OppHistoryWhyLeft | None = None
 
 
 class OppHistoryResponse(BaseModel):

@@ -28,7 +28,7 @@ import glob
 import json
 import os
 import re
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 from typing import Any
 
 from app.config import get_settings
@@ -87,4 +87,34 @@ def read_latest_gappers() -> dict[str, Any]:
         "count": len(gappers),
         "gappers": gappers,
         "stale": date != today_ny,
+    }
+
+
+def read_gappers_after(after: date) -> dict[str, Any] | None:
+    """Newest governed gappers file strictly after ``after``, or None."""
+    directory = _directory()
+    try:
+        dates = list_gapper_dates(directory)
+    except OSError:
+        return None
+    bound = after.isoformat()
+    later = [day for day in dates if day > bound]
+    if not later:
+        return None
+    day = max(later)
+    path = os.path.join(directory, f"premarket_gappers_{day}.json")
+    try:
+        with open(path, encoding="utf-8") as fh:
+            payload = json.load(fh)
+    except (OSError, json.JSONDecodeError, ValueError):
+        return None
+    gappers = payload.get("gappers") or []
+    if not isinstance(gappers, list):
+        gappers = []
+    return {
+        "date": day,
+        "scanned_at": payload.get("scanned_at"),
+        "count": len(gappers),
+        "gappers": gappers,
+        "stale": True,
     }

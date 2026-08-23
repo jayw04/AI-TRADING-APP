@@ -33,6 +33,13 @@ function occurrence(
     current_price_as_of: "2026-08-20",
     current_price_source: "sharadar.sep",
     change_pct: 130 / 120.5 - 1,
+    why_left: {
+      state: "no_longer_meets",
+      as_of: "2026-08-21",
+      summary: "No longer OVERSOLD: RSI14 = 34.2.",
+      details: ["RSI14 = 34.2"],
+      not_a_signal: "Frozen-rule display, not a sell or exit signal.",
+    },
     checkpoints: [
       {
         checkpoint: "PROPOSAL",
@@ -115,6 +122,11 @@ describe("OpportunityHistoryPage", () => {
     expect(screen.getByText("$130.00")).toBeTruthy();
     expect(screen.getByText("1–10d")).toBeTruthy();
     expect(screen.getByText("D1 D5 D10 D20")).toBeTruthy();
+    expect(screen.getByText("No longer OVERSOLD: RSI14 = 34.2.")).toBeTruthy();
+    expect(
+      screen.getAllByText("Frozen-rule display, not a sell or exit signal.")
+        .length,
+    ).toBeGreaterThan(0);
   });
 
   it("loads a symbol timeline when a row is clicked", async () => {

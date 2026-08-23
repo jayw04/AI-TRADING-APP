@@ -109,7 +109,9 @@ export default function OpportunityHistoryPage() {
             Durable DISC-001 occurrences. Current return and D1/D5/D10/D20 are
             live SEP on the proposal adjustment basis — not stored, not a
             signal, and not a hold period. GAP later SEP prints are facts
-            without a mixed-basis return.
+            without a mixed-basis return. “Why it left” re-evaluates the
+            frozen family rule on a later Sharadar/GAP print — frozen-rule
+            display, not a sell or exit signal.
           </p>
         </div>
         <div className="flex items-center gap-3">
@@ -155,6 +157,7 @@ export default function OpportunityHistoryPage() {
                 <th className="px-3 py-2 font-medium">Current</th>
                 <th className="px-3 py-2 font-medium">Return</th>
                 <th className="px-3 py-2 font-medium">D1 D5 D10 D20</th>
+                <th className="px-3 py-2 font-medium">Why it left</th>
                 <th className="px-3 py-2 font-medium">Status</th>
               </tr>
             </thead>
@@ -214,6 +217,14 @@ export default function OpportunityHistoryPage() {
                         </span>
                       ))}
                     </td>
+                    <td className="px-3 py-2 text-xs text-neutral-300">
+                      {row.why_left?.summary ?? "—"}
+                      {row.why_left ? (
+                        <div className="mt-0.5 text-[10px] text-neutral-500">
+                          {row.why_left.not_a_signal}
+                        </div>
+                      ) : null}
+                    </td>
                     <td className="px-3 py-2 text-[10px] text-neutral-400">
                       {row.status_at_proposal}
                     </td>
@@ -265,6 +276,14 @@ export default function OpportunityHistoryPage() {
                   <div className="mt-0.5 font-mono text-[10px] text-neutral-400">
                     {chipLine(row)}
                   </div>
+                  {row.why_left?.summary ? (
+                    <p className="mt-1 text-xs text-neutral-300">
+                      {row.why_left.summary}
+                      <span className="ml-2 text-[10px] text-neutral-500">
+                        {row.why_left.not_a_signal}
+                      </span>
+                    </p>
+                  ) : null}
                   {row.reason.why ? (
                     <p className="mt-1 text-xs text-neutral-500">{row.reason.why}</p>
                   ) : null}
