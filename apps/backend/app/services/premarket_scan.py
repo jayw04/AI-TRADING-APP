@@ -78,6 +78,10 @@ def run_premarket_scan(store: Any, *, asof: date, top_n: int = 15) -> dict[str, 
         "date": payload.get("date"),
         "scanned_at": payload.get("scanned_at"),
         "stale": bool(payload.get("stale", True)),
+        # Carried through untouched so the evidence writer can stamp §5.5 write-time provenance
+        # naming the exact artifact this report was computed from.
+        "source_path": payload.get("source_path"),
+        "source_sha256": payload.get("source_sha256"),
         # the §0b funnel — gappers in → store-covered → engine-eligible → selected
         "gappers_in": len(gappers),
         "store_covered": len(store_features),

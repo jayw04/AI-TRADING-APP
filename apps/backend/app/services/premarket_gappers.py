@@ -25,6 +25,7 @@ The file layout and ``stale`` semantics mirror the producer project's own reader
 from __future__ import annotations
 
 import glob
+import hashlib
 import json
 import os
 import re
@@ -41,8 +42,25 @@ def _directory() -> str:
     return get_settings().premarket_gappers_dir
 
 
+#: Sentinels for a payload with no readable source file. Deliberately NOT hash-shaped: a
+#: SCAN-001 §5.5 provenance stamp must never carry a value that could be mistaken for a digest
+#: of something that was never read.
+NO_SOURCE_ARTIFACT = "(none - no readable gappers file)"
+NO_SOURCE_SHA256 = "NO_SOURCE_ARTIFACT"
+
+
+def _sha256_of(path: str) -> str:
+    """SHA-256 of ``path``, or the no-source sentinel if it cannot be read."""
+    try:
+        with open(path, "rb") as fh:
+            return hashlib.sha256(fh.read()).hexdigest()
+    except OSError:
+        return NO_SOURCE_SHA256
+
+
 def _empty(date: str | None = None) -> dict[str, Any]:
-    return {"date": date, "scanned_at": None, "count": 0, "gappers": [], "stale": True}
+    return {"date": date, "scanned_at": None, "count": 0, "gappers": [], "stale": True,
+            "source_path": NO_SOURCE_ARTIFACT, "source_sha256": NO_SOURCE_SHA256}
 
 
 def list_gapper_dates(directory: str) -> list[str]:
@@ -87,6 +105,11 @@ def read_latest_gappers() -> dict[str, Any]:
         "count": len(gappers),
         "gappers": gappers,
         "stale": date != today_ny,
+        # Source-artifact identity for the SCAN-001 §5.5 write-time provenance stamp. Captured
+        # HERE, at the read, because that is the only moment the bytes we actually consumed are
+        # in hand — a hash computed later describes a different read.
+        "source_path": path,
+        "source_sha256": _sha256_of(path),
     }
 
 
