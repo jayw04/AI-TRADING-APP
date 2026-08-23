@@ -14,8 +14,8 @@ expected, correct behavior, distinct from a hash mismatch (see --help epilog).
 Usage:
     cd apps/backend && .venv/Scripts/python.exe scripts/gapper_stage0_census.py \
         --design-docx ../../docs/design/Gapper/GAPPER_Research_Design_v2_1_1.docx \
-        --bar-cache-root ../../data/bars_cache \
-        --duckdb ../../data/factor_data.duckdb \
+        --bar-cache-root ./bars_cache \
+        --duckdb ./data/factor_data.duckdb \
         --out ./stage0_census_out
 """
 
