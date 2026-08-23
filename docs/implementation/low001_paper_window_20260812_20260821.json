@@ -1,0 +1,115 @@
+{
+  "artifact_id": "LOW001_PAPER_WINDOW_2026-08-12_2026-08-21",
+  "schema_version": "1.0",
+  "status": "SEALED",
+  "authority": "OBSERVATION_ONLY",
+  "allocation_authority": 0,
+  "no_post_seal_tuning": true,
+  "disposition": "KEEP_REPAIR",
+  "program_id": "LOW-001",
+  "strategy_id": 8,
+  "strategy_name": "low-volatility",
+  "version_at_capture": "1.0.0",
+  "account_id": 6,
+  "user_id": 6,
+  "comparator_strategy_id": 7,
+  "comparator_name": "sector-rotation",
+  "comparator_account_id": 5,
+  "window": {"start": "2026-08-12", "end": "2026-08-21", "inclusive": true},
+  "captured_at": "2026-08-22T15:33:54Z",
+  "host": "i-084f47fe4e69192e9",
+  "host_name": "ip-172-31-7-230",
+  "ssm_command_id": "8c340d8a-d543-4f8b-ac5b-7d67b2fcc98c",
+  "source": "live workbench.sqlite via docker exec python sqlite3 (read-only)",
+  "schedules_at_capture": {
+    "sector-rotation": "24 10 * * mon",
+    "low-volatility": "32 10 * * mon"
+  },
+  "status_at_capture": {
+    "sector-rotation": "PAPER",
+    "low-volatility": "PAPER"
+  },
+  "accounts_state_at_capture": {
+    "5": {"equity": 101342.08, "cash": 2295.86, "cash_pct": 0.02265, "n_positions": 99, "mkt": 99046.22},
+    "6": {"equity": 103843.45, "cash": 6714.47, "cash_pct": 0.06466, "n_positions": 39, "mkt": 97128.98}
+  },
+  "daily_equity": {
+    "5": [
+      {"d": "2026-08-10", "equity": 101964.93},
+      {"d": "2026-08-11", "equity": 101600.14},
+      {"d": "2026-08-12", "equity": 104355.98},
+      {"d": "2026-08-13", "equity": 105189.18},
+      {"d": "2026-08-14", "equity": 105259.6},
+      {"d": "2026-08-15", "equity": 105217.26},
+      {"d": "2026-08-16", "equity": 105217.26},
+      {"d": "2026-08-17", "equity": 105581.77},
+      {"d": "2026-08-18", "equity": 102433.84},
+      {"d": "2026-08-19", "equity": 100575.6},
+      {"d": "2026-08-20", "equity": 100832.89},
+      {"d": "2026-08-21", "equity": 101303.68}
+    ],
+    "6": [
+      {"d": "2026-08-10", "equity": 103424.53},
+      {"d": "2026-08-11", "equity": 103115.1},
+      {"d": "2026-08-12", "equity": 103025.73},
+      {"d": "2026-08-13", "equity": 103451.84},
+      {"d": "2026-08-14", "equity": 103832.61},
+      {"d": "2026-08-15", "equity": 103701.15},
+      {"d": "2026-08-16", "equity": 103701.15},
+      {"d": "2026-08-17", "equity": 102925.64},
+      {"d": "2026-08-18", "equity": 103955.35},
+      {"d": "2026-08-19", "equity": 104346.9},
+      {"d": "2026-08-20", "equity": 103450.29},
+      {"d": "2026-08-21", "equity": 103824.95}
+    ]
+  },
+  "mon_fri": {
+    "2026-08-10_2026-08-14": {
+      "sector": {"start": 101964.93, "end": 105259.6, "ret": 0.032311},
+      "low_vol": {"start": 103424.53, "end": 103832.61, "ret": 0.003946}
+    },
+    "2026-08-17_2026-08-21": {
+      "sector": {"start": 105581.77, "end": 101303.68, "ret": -0.040519},
+      "low_vol": {"start": 102925.64, "end": 103824.95, "ret": 0.008737}
+    }
+  },
+  "fri_fri_2026-08-14_2026-08-21": {
+    "sector": {"start": 105259.6, "end": 101303.68, "ret": -0.037583},
+    "low_vol": {"start": 103832.61, "end": 103824.95, "ret": -0.000074}
+  },
+  "monday_orders": {
+    "2026-08-10": {
+      "sector": {"BUY_FILLED": 20, "SELL_FILLED": 23, "total": 43},
+      "low_vol": {"BUY_FILLED": 4, "SELL_FILLED": 5, "total": 9}
+    },
+    "2026-08-17": {
+      "sector": {"BUY_FILLED": 56, "SELL_FILLED": 22, "total": 78},
+      "low_vol": {"BUY_FILLED": 7, "SELL_FILLED": 7, "total": 14}
+    }
+  },
+  "signals_low_vol": [
+    {"d": "2026-08-10", "reason": "rebalance_entry", "n": 4},
+    {"d": "2026-08-10", "reason": "rebalance_exit", "n": 1},
+    {"d": "2026-08-10", "reason": "rebalance_trim", "n": 4},
+    {"d": "2026-08-17", "reason": "rebalance_entry", "n": 7},
+    {"d": "2026-08-17", "reason": "rebalance_exit", "n": 1},
+    {"d": "2026-08-17", "reason": "rebalance_trim", "n": 6}
+  ],
+  "regime_cash_events_in_window": 0,
+  "inception_2026-07-07": {
+    "sector_equity_at_window_end": 101303.68,
+    "low_vol_equity_at_window_end": 103824.95
+  },
+  "rulings": {
+    "research_thesis": "SUPPORTED_NO_ADVERSE_EVIDENCE",
+    "diversifier_role": "STRENGTHENED",
+    "standalone_alpha": "NOT_ESTABLISHED",
+    "news_sip_midweek_rotation": "NO",
+    "spy_200dma_gate": "LATENT_DESIGN_NONCONFORMITY",
+    "fractional_hon": "ACTIVE_EXECUTION_PROBLEM",
+    "cash_vs_2pct_target": "IMPLEMENTATION_DRAG",
+    "factor_freshness": "MISSING_PROTECTION",
+    "in_memory_week_lock": "OPERATIONAL_CORRECTNESS_DEFECT",
+    "account_6_disposition": "KEEP_REPAIR"
+  }
+}

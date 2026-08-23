@@ -351,3 +351,19 @@ async def test_pending_buy_qty_sums_inflight_own_strategy(session_factory, seede
 async def test_pending_buy_qty_empty_when_none(session_factory, seeded):
     ctx, _ = _ctx(session_factory, symbols=["AAPL"], strategy_id=99)
     assert await ctx.pending_buy_qty() == {}
+
+
+async def test_recent_payloads_newest_first(session_factory, seeded):
+    """Durable week-lock reads newest signal payloads for THIS strategy."""
+    ctx, _ = _ctx(session_factory, symbols=["AAPL"], strategy_id=99)
+    await ctx.log_signal(
+        "AAPL", SignalType.INFO,
+        payload={"reason": "rebalance_started", "iso_week": [2026, 24]},
+    )
+    await ctx.log_signal(
+        "AAPL", SignalType.INFO,
+        payload={"reason": "rebalance_completed", "iso_week": [2026, 24]},
+    )
+    got = await ctx.recent_payloads(limit=10)
+    assert got[0]["reason"] == "rebalance_completed"
+    assert got[1]["reason"] == "rebalance_started"
