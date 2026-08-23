@@ -1,4 +1,5 @@
 """Activation lifecycle endpoints under /api/v1/strategies/{id}/ (P5 §7)."""
+
 from __future__ import annotations
 
 from datetime import datetime
@@ -131,6 +132,10 @@ async def deactivate_strategy(
         session=session,
         broker_registry=getattr(request.app.state, "broker_registry", None),
         order_router=getattr(request.app.state, "order_router", None),
+        # PR S / S5: strategy-position attribution for the liquidation path. Absent until
+        # the concrete permaticker resolver is wired in lifespan, in which case the
+        # service falls back to pre-PR-S registration behaviour and says so in the log.
+        owned_holdings_provider=getattr(request.app.state, "owned_holdings_provider", None),
     )
     try:
         result = await svc.deactivate(
@@ -157,7 +162,9 @@ async def deactivate_strategy(
     from app.services.eval_harness.service import terminate_harness_for_parent
 
     await terminate_harness_for_parent(
-        session, parent_strategy_id=strategy_id, engine=engine,
+        session,
+        parent_strategy_id=strategy_id,
+        engine=engine,
         reason="parent_deactivated",
     )
     return result

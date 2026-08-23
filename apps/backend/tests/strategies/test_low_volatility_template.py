@@ -17,17 +17,25 @@ from __future__ import annotations
 from datetime import UTC, date, datetime
 from decimal import Decimal
 from unittest.mock import AsyncMock, MagicMock
+from zoneinfo import ZoneInfo
 
 import pandas as pd
+import pytest
+from apscheduler.triggers.cron import CronTrigger
 
 from app.factor_data.accessor import FactorDataUnavailable
 from app.strategies.context import Bar
+from app.strategies.engine import _STRATEGY_SCHEDULE_TZ, _normalize_crontab_dow
 from strategies_user.templates.low_volatility import (
     RESEARCH_UNIVERSE_N,
     LowVolatility,
     expected_last_session,
     session_lag,
 )
+
+#: The governed live registration for LOW-001 on Account 6 (strategy 8), read from the
+#: running system 2026-08-22. Schedule strings are exchange-local: Monday 10:32 ET.
+GOVERNED_SCHEDULE = "32 10 * * mon"
 
 WK1_A = datetime(2026, 6, 8, 14, 0, tzinfo=UTC)  # Mon
 WK1_B = datetime(2026, 6, 8, 14, 1, tzinfo=UTC)  # same ISO week
@@ -65,6 +73,11 @@ def _params(**over):
     }
 
 
+#: Columns of the empty frame ``StrategyContext.get_recent_bars`` returns for a symbol
+#: outside the strategy's universe (see ``app/strategies/context.py``).
+_EMPTY_BARS = ["t", "o", "h", "l", "c", "v"]
+
+
 def _ctx(
     symbols,
     scores,
@@ -73,27 +86,81 @@ def _ctx(
     equity=None,
     spy_bars=None,
     latest_price_date: date = date(2026, 6, 19),
+    owned=None,
+    legacy_context: bool = False,
 ):
     """Synthetic StrategyContext driving ``ctx.factors.low_vol_scores``.
 
     Default ``latest_price_date`` is Friday of test week 2 so both WK1 (Mon 6/8)
     and WK2 (Mon 6/15) pass the session-freshness gate. Stale-HOLD tests
     override it.
+
+    **Registration blindness is reproduced faithfully (LOW-PIT-01B).** Production
+    ``StrategyContext`` does not enforce the strategy universe by refusing orders --
+    ``submit_order`` carries no such check, and neither does OrderRouter nor the risk
+    engine. It enforces it by making the strategy *unable to see* anything outside
+    ``ctx.symbols``::
+
+        get_position_for(x)  -> None                 when x not in ctx.symbols
+        get_positions()      -> filtered to ctx.symbols
+        get_recent_bars(x)   -> empty frame          when x not in ctx.symbols
+        pending_buy_qty()    -> keys filtered to ctx.symbols
+        log_signal(x)        -> warns, but WRITES    (evidence is recordable)
+        submit_order(x)      -> reaches the router   (no registration check)
+
+    A fake that hands back a position or a price for an unregistered symbol is
+    *more permissive than production*, and an exit-safety test written against it
+    passes on code that strands the holding live. That is exactly the false pass
+    this harness must not manufacture, so the gates above are modelled here rather
+    than assumed away.
+
+    ``owned`` (PR S / S3) is the set of tickers this strategy unambiguously owns and
+    currently holds despite their never having been registered. Production widens READ
+    authority — and only READ authority — to ``registered ∪ owned``. Note ``owned`` does
+    NOT join ``ctx.symbols``: a widened symbol stays outside selection and buy planning,
+    which is the property PIT-T16 exists to protect.
+
+    ``legacy_context=True`` strips ``get_holdings`` to emulate a pre-S4 runtime, so the
+    template's fallback path stays covered.
     """
     holdings = holdings or {}
     completed: list[dict] = []
     ctx = MagicMock()
     ctx.strategy_id = 1
     ctx.symbols = symbols
+    registered = {s.upper() for s in symbols}
+    owned_scope = {s.upper() for s in (owned or ())}
+    visible = registered | owned_scope  # READ scope, never the buy scope
     ctx.factors = MagicMock()
     ctx.factors.low_vol_scores = MagicMock(return_value=scores)
     ctx.factors.latest_price_date = MagicMock(return_value=latest_price_date)
-    ctx.get_position_for = AsyncMock(
-        side_effect=lambda s: _pos(holdings[s]) if s in holdings else None
-    )
+
+    async def _position_for(sym):
+        if sym.upper() not in visible:
+            return None  # production returns None, NOT the position
+        return _pos(holdings[sym]) if sym in holdings else None
+
+    async def _positions():
+        return [_pos(q) for s, q in holdings.items() if s.upper() in visible]
+
+    async def _holdings():
+        return {
+            s.upper(): Decimal(q) for s, q in holdings.items() if s.upper() in visible and q > 0
+        }
+
+    ctx.get_position_for = AsyncMock(side_effect=_position_for)
+    ctx.get_positions = AsyncMock(side_effect=_positions)
+    if legacy_context:
+        # A MagicMock auto-creates any attribute, so absence has to be explicit.
+        ctx.get_holdings = None
+    else:
+        ctx.get_holdings = AsyncMock(side_effect=_holdings)
+    # Buy-side netting is NOT widened by ownership (v0.3 §4.7).
     ctx.pending_buy_qty = AsyncMock(return_value={})
 
     def _bars(sym, tf, n):
+        if sym.upper() not in visible:
+            return pd.DataFrame(columns=_EMPTY_BARS)  # unauthorized symbol
         if spy_bars is not None and sym == "SPY":
             return spy_bars
         return pd.DataFrame({"c": [price]})
@@ -135,15 +202,80 @@ def test_schema_matches_default_params() -> None:
 
 
 def test_research_frozen_defaults() -> None:
-    """The validated LOW-001 V1 parameters must not silently drift: 252-day realized
-    vol and the top-quintile (0.20) are frozen from the research. The SPY cash gate
-    is not a V1 param."""
+    """The validated LOW-001 V1 economics must not silently drift.
+
+    These are RESEARCH invariants: the 252-session realized-vol window, the lowest
+    quintile, equal weighting, and the weekly cadence. Changing any of them changes what
+    LOW-001 *is* and requires a research decision.
+
+    The clock time the weekly cadence fires at is NOT one of them — it is a runtime
+    conformance default and is asserted separately below. Grouping it here implied the
+    2pm-ET value was research-frozen when it was simply wrong (S7).
+    """
     assert LowVolatility.default_params["vol_lookback_days"] == 252
     assert LowVolatility.default_params["top_quantile"] == 0.20
     assert "use_market_regime_filter" not in LowVolatility.default_params
     assert "use_market_regime_filter" not in LowVolatility.params_schema
-    assert LowVolatility.schedule == "0 14 * * mon"
-    assert LowVolatility.version == "1.0.1"
+    # Version tracks the RUNTIME implementation for this strategy (1.0.0 -> 1.0.1 was
+    # itself a pure conformance repair). 1.0.2 == PR S; 1.0.3 reserved for Dynamic PIT.
+    assert LowVolatility.version == "1.0.3"
+    # Weekly cadence IS frozen economics; the hour is not.
+    assert LowVolatility.schedule.split()[-1] == "mon"
+
+
+def test_runtime_schedule_default_matches_the_governed_registration() -> None:
+    """Cheap literal guard: catches someone editing the cron string.
+
+    Paired with the timezone-resolution test below, which catches the other failure
+    mode — the string staying put while its interpretation moves.
+    """
+    assert LowVolatility.schedule == GOVERNED_SCHEDULE
+
+
+@pytest.mark.parametrize(
+    ("after", "label"),
+    [
+        (datetime(2026, 1, 5, 0, 0, tzinfo=ZoneInfo("America/New_York")), "EST"),
+        (datetime(2026, 6, 1, 0, 0, tzinfo=ZoneInfo("America/New_York")), "EDT"),
+    ],
+)
+def test_default_schedule_fires_monday_1032_new_york(after, label) -> None:
+    """Resolve the class default through the ENGINE's own cron path and check the instant.
+
+    This is the assertion that would have caught S7's defect. A literal string check
+    passed throughout the period the semantics silently changed from UTC to ET, because
+    the string never moved — the interpretation did.
+
+    Asserted as New York WALL-CLOCK time, deliberately, and across both EST and EDT. A
+    hard-coded "14:32Z" would re-encode exactly the timezone fragility that caused the
+    defect: it is true for half the year.
+    """
+    trigger = CronTrigger.from_crontab(
+        _normalize_crontab_dow(LowVolatility.schedule), timezone=_STRATEGY_SCHEDULE_TZ
+    )
+    fire = trigger.get_next_fire_time(None, after)
+    local = fire.astimezone(ZoneInfo("America/New_York"))
+    assert (local.hour, local.minute) == (10, 32), f"{label}: {local}"
+    assert local.weekday() == 0, f"{label}: not a Monday — {local}"
+
+
+def test_reregistration_from_class_defaults_keeps_the_governed_slot() -> None:
+    """The hazard S7 exists to prevent, stated directly.
+
+    Recreating LOW-001 from class defaults must reproduce the governed 10:32 ET slot. With
+    the old default it would have scheduled the book at 14:00 ET — a 3.5-hour move, with
+    no error and nothing in the diff to notice.
+    """
+    registered = list(LowVolatility.symbols) or []
+    schedule = LowVolatility.schedule  # exactly what StrategyEngine.register would use
+    assert registered == []  # symbols come from the DB row, not the class
+
+    trigger = CronTrigger.from_crontab(
+        _normalize_crontab_dow(schedule), timezone=_STRATEGY_SCHEDULE_TZ
+    )
+    after = datetime(2026, 8, 20, 0, 0, tzinfo=ZoneInfo("America/New_York"))  # a Thursday
+    local = trigger.get_next_fire_time(None, after).astimezone(ZoneInfo("America/New_York"))
+    assert local.strftime("%A %H:%M") == "Monday 10:32"
 
 
 def test_expected_last_session_skips_weekend() -> None:
@@ -272,6 +404,197 @@ async def test_sells_names_leaving_the_book() -> None:
     await strat.on_init()
     await strat.on_bar(_bar(WK1_A))
     assert _orders(ctx).get("CCC") == ("sell", Decimal(10))
+
+
+# ---- harness fidelity + the exit-stranding characterization (LOW-PIT-01B) ------
+#
+# These two tests are a matched pair and must be read together.
+#
+# The first pins the FAKE: it proves `_ctx` reproduces production's registration
+# blindness, so it cannot drift back into being more permissive than the real
+# StrategyContext. Without it the tightening in `_ctx` is unenforced and a future
+# edit could silently restore the false-pass condition.
+#
+# The second pins the PRODUCT as it behaves TODAY: a held symbol outside
+# `ctx.symbols` is never discovered, so no exit intent is ever formed for it. That
+# is a defect, not a desired property. It is asserted here so the repair has a
+# before/after anchor -- LOW-PIT-04 / PR S will invert this test, and the day it
+# starts failing is the day the fix landed.
+
+
+async def test_fake_context_reproduces_production_registration_blindness() -> None:
+    """The harness must hide unregistered symbols exactly as production does.
+
+    Guards the LOW-PIT-01B finding: a fake that answers `get_position_for` or
+    `get_recent_bars` for an unregistered ticker is more permissive than the real
+    context, and an exit-safety test written against it passes on code that strands
+    the holding live.
+    """
+    ctx = _ctx(["AAA"], _scores([("AAA", -0.1)]), holdings={"XYZ": 10}, price=100.0)
+
+    # Registered -> visible.
+    assert await ctx.get_position_for("AAA") is None  # registered, simply not held
+    assert not (await ctx.get_recent_bars("AAA", "1Day", 1)).empty
+
+    # Unregistered -> invisible, even though the position exists on the account.
+    assert await ctx.get_position_for("XYZ") is None
+    assert (await ctx.get_recent_bars("XYZ", "1Day", 1)).empty
+    assert await ctx.get_positions() == []
+
+    # ...but the order path itself is NOT gated on registration.
+    assert "XYZ" not in (await ctx.pending_buy_qty())
+
+
+async def test_owned_held_symbol_outside_registration_is_exited() -> None:
+    """CLOSES the LOW-PIT-01B stranding defect for the normal rebalance path (PR S / S4).
+
+    History: before S4 this test existed in inverted form
+    (``test_held_symbol_outside_registration_is_never_exited_TODAY``) and asserted the
+    defect. ``_current_holdings()`` enumerated ``ctx.symbols``, so a holding in an
+    unregistered symbol was never a candidate, the ``sym not in target_set -> SELL`` branch
+    was never reached for it, and the omission was silent. The order path would have
+    accepted the sell; the intent was simply never formed.
+
+    That is the rollback case — v1.0.2 buys XYZ dynamically, roll back to a build that does
+    not know XYZ — and, under per-rebalance enrollment, the week-N-to-week-N+1 case.
+
+    S4 makes the position book the candidate set, so the intent forms.
+    """
+    order = [("AAA", -0.1), ("BBB", -0.2)]
+    ctx = _ctx(
+        [t for t, _ in order],
+        _scores(order),
+        holdings={"XYZ": 10},  # held, NOT registered...
+        owned={"XYZ"},  # ...but unambiguously ours
+        price=100.0,
+        equity=100_000,
+    )
+    strat = _strat(ctx, top_quantile=0.50)
+    await strat.on_init()
+    await strat.on_bar(_bar(WK1_A))
+
+    assert _orders(ctx).get("XYZ") == ("sell", Decimal(10))
+
+
+async def test_visibility_alone_does_not_force_liquidation() -> None:
+    """A widened holding that is still wanted must not be sold (PIT-T16, exit side).
+
+    Making a holding visible is not a decision to exit it. ``_apply_targets`` is driven
+    here directly because v1.0.1 selection cannot place an unregistered name in the target
+    set — the point is that the exit rule keys on target membership, not on how the holding
+    became visible.
+    """
+    ctx = _ctx(
+        ["AAA"],
+        _scores([("AAA", -0.1)]),
+        holdings={"XYZ": 10},
+        owned={"XYZ"},
+        price=100.0,
+        equity=100_000,
+    )
+    strat = _strat(ctx)
+    await strat.on_init()
+    await strat._apply_targets(["XYZ"], held={"XYZ": Decimal(10)}, reason="rebalance")
+
+    assert _orders(ctx).get("XYZ", ("none", 0))[0] != "sell"
+
+
+async def test_unowned_holdings_are_not_touched() -> None:
+    """Ambiguous / unclaimed / unevidenced holdings never reach the strategy.
+
+    The provider excludes them below ``ctx.get_holdings()``, so LOW-001 does not see them
+    and cannot trade them. Modelled here as simply absent from ``owned``.
+    """
+    order = [("AAA", -0.1), ("BBB", -0.2)]
+    ctx = _ctx(
+        [t for t, _ in order],
+        _scores(order),
+        holdings={"FOREIGN": 10},  # held on the account, not ours
+        owned=set(),
+        price=100.0,
+        equity=100_000,
+    )
+    strat = _strat(ctx, top_quantile=0.50)
+    await strat.on_init()
+    await strat.on_bar(_bar(WK1_A))
+
+    assert "FOREIGN" not in _orders(ctx)
+
+
+async def test_flat_position_is_not_a_holding() -> None:
+    """qty = 0 yields no holding and therefore no order."""
+    ctx = _ctx(
+        ["AAA"],
+        _scores([("AAA", -0.1)]),
+        holdings={"XYZ": 0},
+        owned={"XYZ"},
+        price=100.0,
+        equity=100_000,
+    )
+    strat = _strat(ctx)
+    await strat.on_init()
+    assert await strat._current_holdings() == {}
+    await strat.on_bar(_bar(WK1_A))
+    assert "XYZ" not in _orders(ctx)
+
+
+async def test_renamed_ticker_exits_under_its_current_ticker() -> None:
+    """The holding is keyed by the ticker the position is held under today.
+
+    Identity resolution happens in the provider; by the time LOW-001 sees it, a renamed
+    security is simply the current ticker. The exit must be routed there.
+    """
+    order = [("AAA", -0.1), ("BBB", -0.2)]
+    ctx = _ctx(
+        [t for t, _ in order],
+        _scores(order),
+        holdings={"NEWTICK": 7},
+        owned={"NEWTICK"},
+        price=100.0,
+        equity=100_000,
+    )
+    strat = _strat(ctx, top_quantile=0.50)
+    await strat.on_init()
+    await strat.on_bar(_bar(WK1_A))
+
+    assert _orders(ctx).get("NEWTICK") == ("sell", Decimal(7))
+    assert "OLDTICK" not in _orders(ctx)
+
+
+async def test_registered_holding_behaviour_is_unchanged() -> None:
+    """The existing path must be untouched: a registered name leaving the book still sells."""
+    order = [("AAA", -0.1), ("BBB", -0.2), ("CCC", -0.9)]
+    ctx = _ctx(
+        [t for t, _ in order], _scores(order), holdings={"CCC": 10}, price=100.0, equity=100_000
+    )
+    strat = _strat(ctx, top_quantile=0.20)
+    await strat.on_init()
+    await strat.on_bar(_bar(WK1_A))
+
+    assert _orders(ctx).get("CCC") == ("sell", Decimal(10))
+
+
+async def test_legacy_context_without_get_holdings_stays_registered_only() -> None:
+    """Against a pre-S4 runtime the template falls back to the registered scan.
+
+    v1.0.1 behaviour is preserved exactly, including the stranding — which is why PR S must
+    be deployed, not merely merged, before anything can create such a position.
+    """
+    order = [("AAA", -0.1), ("BBB", -0.2)]
+    ctx = _ctx(
+        [t for t, _ in order],
+        _scores(order),
+        holdings={"XYZ": 10},
+        owned={"XYZ"},
+        price=100.0,
+        equity=100_000,
+        legacy_context=True,
+    )
+    strat = _strat(ctx, top_quantile=0.50)
+    await strat.on_init()
+    await strat.on_bar(_bar(WK1_A))
+
+    assert "XYZ" not in _orders(ctx)
 
 
 # ---- bail-out taxonomy --------------------------------------------------------

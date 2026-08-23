@@ -86,3 +86,15 @@ def test_malformed_json_degrades_to_empty(gapper_dir):
     assert out["gappers"] == []
     assert out["stale"] is True
     assert out["date"] == "2020-06-15"
+
+
+def test_read_gappers_after_uses_later_file_not_same_day(gapper_dir):
+    from datetime import date
+
+    _write(gapper_dir, "2026-08-19", [{"rank": 1, "symbol": "OLD"}])
+    _write(gapper_dir, "2026-08-21", [{"rank": 1, "symbol": "NEW"}])
+    out = pg.read_gappers_after(date(2026, 8, 19))
+    assert out is not None
+    assert out["date"] == "2026-08-21"
+    assert out["gappers"][0]["symbol"] == "NEW"
+    assert pg.read_gappers_after(date(2026, 8, 21)) is None

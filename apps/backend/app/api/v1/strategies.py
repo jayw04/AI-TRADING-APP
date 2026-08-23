@@ -22,7 +22,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -87,9 +87,7 @@ def _strategy_to_response(row: StrategyRow) -> StrategyResponse:
     return StrategyResponse.model_validate(row, from_attributes=True)
 
 
-async def _signal_to_response(
-    session: AsyncSession, signal: Signal
-) -> SignalResponse:
+async def _signal_to_response(session: AsyncSession, signal: Signal) -> SignalResponse:
     sym = await session.get(Symbol, signal.symbol_id)
     return SignalResponse(
         id=signal.id,
@@ -118,14 +116,11 @@ async def create_strategy(
         raise HTTPException(
             status_code=400,
             detail=(
-                f"Strategy type {body.type.value} is reserved but not "
-                "supported until later phases"
+                f"Strategy type {body.type.value} is reserved but not supported until later phases"
             ),
         )
     if not body.code_path:
-        raise HTTPException(
-            status_code=400, detail="code_path is required for python strategies"
-        )
+        raise HTTPException(status_code=400, detail="code_path is required for python strategies")
 
     # Validate the loader can resolve code_path BEFORE persisting — keeps the
     # DB from ever holding an unloadable row.
@@ -133,9 +128,7 @@ async def create_strategy(
         loader = StrategyLoader(_strategies_root())
         cls = loader.load(body.code_path)
     except StrategyLoadError as exc:
-        raise HTTPException(
-            status_code=400, detail=f"Strategy file invalid: {exc}"
-        ) from exc
+        raise HTTPException(status_code=400, detail=f"Strategy file invalid: {exc}") from exc
 
     symbols = body.symbols or list(cls.symbols)
     now = datetime.now(UTC)
@@ -248,10 +241,7 @@ async def update_strategy(
     if row.status != StrategyStatus.IDLE:
         raise HTTPException(
             status_code=409,
-            detail=(
-                f"Strategy is in status {row.status.value}; "
-                "stop it before updating."
-            ),
+            detail=(f"Strategy is in status {row.status.value}; stop it before updating."),
         )
 
     changed: dict = {}
@@ -362,9 +352,7 @@ async def start_strategy(
     except StrategyLoadError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     except Exception as exc:
-        raise HTTPException(
-            status_code=500, detail=f"Engine register failed: {exc}"
-        ) from exc
+        raise HTTPException(status_code=500, detail=f"Engine register failed: {exc}") from exc
 
     # Re-fetch row so the response reflects what's actually in the DB
     # (engine.register may have transitioned to ERROR mid-init).
@@ -380,10 +368,21 @@ async def start_strategy(
 # ---------- POST /strategies/{id}/stop ----------
 
 
+class StopRequest(BaseModel):
+    """Optional body for ``/stop``. Absent body == the pre-PR-S behaviour."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    #: Also flatten the positions this strategy owns. Routed by
+    #: ``StrategyControlService``; PAPER requires explicit PR-S authorization.
+    liquidate: bool = False
+
+
 @router.post("/{strategy_id}/stop", response_model=StrategyActionResponse)
 async def stop_strategy(
     strategy_id: int,
     request: Request,
+    body: StopRequest | None = None,
     current_user: CurrentUser = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
 ) -> StrategyActionResponse:
@@ -393,7 +392,25 @@ async def stop_strategy(
 
     old_status = row.status
     engine = _get_engine(request)
-    await engine.unregister(strategy_id, reason="user_stop")
+
+    # PR S / S5.7 — an explicit stop MAY also flatten what the strategy owns. Default is
+    # False, so the existing behaviour of this endpoint is untouched. Mode routing and the
+    # PAPER authorization policy live in StrategyControlService, the single seam, so no
+    # caller can reach the liquidator without passing the policy.
+    if body is not None and body.liquidate:
+        from app.services.strategy_control import StrategyControlService
+
+        control = StrategyControlService(
+            session=session,
+            engine=engine,
+            broker_registry=getattr(request.app.state, "broker_registry", None),
+            order_router=getattr(request.app.state, "order_router", None),
+            owned_holdings_provider=getattr(request.app.state, "owned_holdings_provider", None),
+            paper_liquidation_policy=getattr(request.app.state, "paper_liquidation_policy", None),
+        )
+        await control.deactivate(strategy_id=strategy_id, user_id=current_user.id, liquidate=True)
+    else:
+        await engine.unregister(strategy_id, reason="user_stop")
 
     # P6b §2b-variant D8 (i): when a parent leaves ACTIVE_STRATEGY_STATUSES,
     # terminate its in-flight paper variant (no-op if none). The variant runs on
@@ -410,7 +427,9 @@ async def stop_strategy(
         from app.services.eval_harness.service import terminate_harness_for_parent
 
         await terminate_harness_for_parent(
-            session, parent_strategy_id=strategy_id, engine=engine,
+            session,
+            parent_strategy_id=strategy_id,
+            engine=engine,
             reason="parent_deactivated",
         )
 
@@ -500,13 +519,9 @@ async def reload_strategy(
                 ),
             ) from exc
         except StrategyLoadError as exc:
-            raise HTTPException(
-                status_code=400, detail=f"Reload failed: {exc}"
-            ) from exc
+            raise HTTPException(status_code=400, detail=f"Reload failed: {exc}") from exc
         except Exception as exc:
-            raise HTTPException(
-                status_code=400, detail=f"Reload failed: {exc}"
-            ) from exc
+            raise HTTPException(status_code=400, detail=f"Reload failed: {exc}") from exc
 
     await session.refresh(row)
     return StrategyActionResponse(
@@ -555,13 +570,17 @@ async def submit_backtest(
 
     # Single-flight: refuse if a pending job already exists for this strategy.
     existing = (
-        await session.execute(
-            select(BacktestJob).where(
-                BacktestJob.strategy_id == strategy_id,
-                BacktestJob.status.in_(list(PENDING_BACKTEST_JOB_STATUSES)),
+        (
+            await session.execute(
+                select(BacktestJob).where(
+                    BacktestJob.strategy_id == strategy_id,
+                    BacktestJob.status.in_(list(PENDING_BACKTEST_JOB_STATUSES)),
+                )
             )
         )
-    ).scalars().first()
+        .scalars()
+        .first()
+    )
     if existing is not None:
         raise HTTPException(
             status_code=409,
@@ -639,9 +658,7 @@ async def submit_backtest(
 # ---------- GET /strategies/{id}/backtest-jobs ----------
 
 
-@router.get(
-    "/{strategy_id}/backtest-jobs", response_model=BacktestJobListResponse
-)
+@router.get("/{strategy_id}/backtest-jobs", response_model=BacktestJobListResponse)
 async def list_strategy_backtest_jobs(
     strategy_id: int,
     status: BacktestJobStatus | None = Query(default=None),
@@ -677,18 +694,19 @@ async def list_runs(
     if row is None or row.user_id != current_user.id:
         raise HTTPException(status_code=404, detail="Strategy not found")
     runs = (
-        await session.execute(
-            select(StrategyRun)
-            .where(StrategyRun.strategy_id == strategy_id)
-            .order_by(StrategyRun.started_at.desc())
-            .limit(limit)
+        (
+            await session.execute(
+                select(StrategyRun)
+                .where(StrategyRun.strategy_id == strategy_id)
+                .order_by(StrategyRun.started_at.desc())
+                .limit(limit)
+            )
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
     return StrategyRunListResponse(
-        items=[
-            StrategyRunResponse.model_validate(r, from_attributes=True)
-            for r in runs
-        ],
+        items=[StrategyRunResponse.model_validate(r, from_attributes=True) for r in runs],
         count=len(runs),
     )
 
@@ -707,13 +725,17 @@ async def list_strategy_signals(
     if row is None or row.user_id != current_user.id:
         raise HTTPException(status_code=404, detail="Strategy not found")
     signals = (
-        await session.execute(
-            select(Signal)
-            .where(Signal.strategy_id == strategy_id)
-            .order_by(Signal.received_at.desc())
-            .limit(limit)
+        (
+            await session.execute(
+                select(Signal)
+                .where(Signal.strategy_id == strategy_id)
+                .order_by(Signal.received_at.desc())
+                .limit(limit)
+            )
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
     items = [await _signal_to_response(session, s) for s in signals]
     return SignalListResponse(items=items, count=len(items))
 
@@ -732,18 +754,19 @@ async def list_strategy_backtests(
     if row is None or row.user_id != current_user.id:
         raise HTTPException(status_code=404, detail="Strategy not found")
     results = (
-        await session.execute(
-            select(BacktestResult)
-            .where(BacktestResult.strategy_id == strategy_id)
-            .order_by(BacktestResult.created_at.desc())
-            .limit(limit)
+        (
+            await session.execute(
+                select(BacktestResult)
+                .where(BacktestResult.strategy_id == strategy_id)
+                .order_by(BacktestResult.created_at.desc())
+                .limit(limit)
+            )
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
     return BacktestListResponse(
-        items=[
-            BacktestResultSummary.model_validate(r, from_attributes=True)
-            for r in results
-        ],
+        items=[BacktestResultSummary.model_validate(r, from_attributes=True) for r in results],
         count=len(results),
     )
 
@@ -805,9 +828,7 @@ async def clear_strategy_cooldown(
     session: AsyncSession = Depends(get_session),
 ) -> dict[str, object]:
     try:
-        await StrategyCooldownService(session).clear_cooldown(
-            strategy_id, user_id=current_user.id
-        )
+        await StrategyCooldownService(session).clear_cooldown(strategy_id, user_id=current_user.id)
     except PermissionError:
         raise HTTPException(status_code=404, detail="Strategy not found") from None
     except ValueError as exc:
