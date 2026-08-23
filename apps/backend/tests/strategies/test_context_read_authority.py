@@ -144,7 +144,7 @@ def _ctx(session_factory, *, widened: bool) -> tuple[StrategyContext, list]:
     if widened:
         provider = StrategyOwnedHoldingsProvider(session_factory, _FakeIdentity())
 
-        async def owned_fn():  # noqa: F811 - deliberate rebinding
+        async def owned_fn(scope_id=None):  # noqa: F811 - deliberate rebinding
             return await provider.readable_tickers(account_id=6, strategy_id=8)
 
     return (
@@ -274,7 +274,7 @@ async def test_scope_is_cached_per_dispatch_and_refreshed_across_dispatches(book
     calls = {"n": 0}
     provider = StrategyOwnedHoldingsProvider(session_factory, _FakeIdentity())
 
-    async def counting():
+    async def counting(scope_id=None):
         calls["n"] += 1
         return await provider.readable_tickers(account_id=6, strategy_id=8)
 
@@ -304,7 +304,7 @@ async def test_registered_symbols_never_pay_for_an_ownership_lookup(book, sessio
     """Registration is checked first, so the common path costs nothing new."""
     calls = {"n": 0}
 
-    async def counting():
+    async def counting(scope_id=None):
         calls["n"] += 1
         return frozenset()
 
@@ -326,7 +326,7 @@ async def test_registered_symbols_never_pay_for_an_ownership_lookup(book, sessio
 async def test_capability_failure_fails_closed(book, session_factory):
     """A broken ownership lookup degrades to registered-only, never to open visibility."""
 
-    async def boom():
+    async def boom(scope_id=None):
         raise RuntimeError("ownership backend down")
 
     ctx = StrategyContext(

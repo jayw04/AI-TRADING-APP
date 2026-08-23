@@ -127,7 +127,12 @@ OrderRouterCallable = Callable[[OrderRequest], Awaitable[Any]]
 #: Returns the uppercased tickers this strategy may READ because it unambiguously owns a
 #: current holding in them (PR S / S3). Built by ``app.universe`` and injected, so this
 #: module never learns how ownership is established. Never a buy authorization.
-OwnedHoldingsCallable = Callable[[], Awaitable[frozenset[str]]]
+#:
+#: Receives the current dispatch identity (``dispatch_seq``, ``None`` outside an engine
+#: dispatch). The capability uses it to scope operator diagnostics: the context calls this
+#: at most once per dispatch, so an unresolvable holding is reported once per rebalance
+#: slot rather than once per symbol (PR S / S6).
+OwnedHoldingsCallable = Callable[[int | None], Awaitable[frozenset[str]]]
 
 
 # Default lookback windows by timeframe — sized so SMA200 has headroom on
@@ -243,7 +248,7 @@ class StrategyContext:
         if self._owned_cache is not None and self._owned_cache[0] == self.dispatch_seq:
             return self._owned_cache[1]
         try:
-            owned = frozenset(t.upper() for t in await self._owned_holdings_fn())
+            owned = frozenset(t.upper() for t in await self._owned_holdings_fn(self.dispatch_seq))
         except Exception:
             logger.exception(
                 "owned_holdings_resolution_failed",

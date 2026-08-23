@@ -483,7 +483,12 @@ class StrategyEngine:
                 submit_order_fn=submit_order_fn,
                 bus=self._bus,
                 factor_accessor=self._factor_accessor,
-                owned_holdings_fn=self._make_owned_holdings_fn(row.id, account.id),
+                owned_holdings_fn=self._make_owned_holdings_fn(
+                    row.id,
+                    account.id,
+                    strategy_name=cls.name,
+                    account_mode=account.mode.value,
+                ),
             )
             try:
                 instance = cls(ctx=ctx, params=merged_params)
@@ -869,21 +874,48 @@ class StrategyEngine:
                 return None
         return None
 
-    def _make_owned_holdings_fn(self, strategy_id: int, account_id: int) -> Any | None:
+    def _make_owned_holdings_fn(
+        self,
+        strategy_id: int,
+        account_id: int,
+        *,
+        strategy_name: str | None = None,
+        account_mode: str | None = None,
+    ) -> Any | None:
         """Bind the ownership provider to one (strategy, account) for its context.
 
         ``None`` when no provider is configured, which leaves ``StrategyContext`` in
         pre-PR-S registered-only behaviour rather than in a half-enabled state.
 
         The context caches the result per dispatch, so this runs once per rebalance slot
-        rather than once per symbol.
+        rather than once per symbol — which is also what makes the operator diagnostics
+        below deduped by construction rather than by a filter that could drift out of step
+        with the dispatch loop (PR S / S6).
         """
         provider = self._owned_holdings_provider
         if provider is None:
             return None
 
-        async def _owned() -> frozenset[str]:
-            return await provider.readable_tickers(account_id=account_id, strategy_id=strategy_id)
+        from app.universe.diagnostics import OwnershipDiagnostics, OwnershipOperation
+
+        diagnostics = OwnershipDiagnostics()
+
+        async def _owned(scope_id: int | None = None) -> frozenset[str]:
+            resolution = await provider.resolve(account_id=account_id, strategy_id=strategy_id)
+            # Emitted here, not inside the context: this seam knows the strategy/account
+            # identity, and the context never sees the exclusions at all — it consumes
+            # only the admitted set.
+            diagnostics.emit_exclusions(
+                resolution.excluded,
+                strategy_id=strategy_id,
+                account_id=account_id,
+                operation=OwnershipOperation.NORMAL_REBALANCE_EXIT,
+                source="strategy_context",
+                strategy_name=strategy_name,
+                account_mode=account_mode,
+                scope_id=scope_id,
+            )
+            return resolution.tickers
 
         return _owned
 

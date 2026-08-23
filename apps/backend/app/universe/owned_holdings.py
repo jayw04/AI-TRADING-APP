@@ -102,6 +102,10 @@ class ExcludedHolding:
     reason: HoldingExclusionReason
     #: Free-text refinement (e.g. the S2 ambiguity reason, or ``identity_unresolved``).
     detail: str | None = None
+    #: Permanent identity when it could be established. ``None`` for an unresolved
+    #: identity (there is nothing to report) and for a position with no provenance.
+    #: Carried so operator diagnostics can name the security, not just today's ticker.
+    security_id: str | None = None
 
 
 @dataclass(frozen=True)
@@ -204,10 +208,17 @@ class StrategyOwnedHoldingsProvider:
                         ticker,
                         HoldingExclusionReason.OWNERSHIP_AMBIGUOUS,
                         security.reason.value if security.reason else None,
+                        security_id=security.security_id,
                     )
                 )
             else:
-                excluded.append(ExcludedHolding(ticker, HoldingExclusionReason.OWNERSHIP_UNCLAIMED))
+                excluded.append(
+                    ExcludedHolding(
+                        ticker,
+                        HoldingExclusionReason.OWNERSHIP_UNCLAIMED,
+                        security_id=security.security_id,
+                    )
+                )
 
         return OwnedHoldings(account_id, strategy_id, tuple(holdings), tuple(excluded))
 

@@ -35,6 +35,7 @@ from typing import Any
 import structlog
 
 from app.db.enums import OrderSide, OrderSourceType, OrderType, TimeInForce
+from app.universe.diagnostics import OwnershipDiagnostics, OwnershipOperation
 from app.universe.owned_holdings import HoldingExclusionReason, StrategyOwnedHoldingsProvider
 
 logger = structlog.get_logger(__name__)
@@ -119,9 +120,21 @@ class StrategyPositionLiquidator:
     a *misbehaving strategy* from trading.
     """
 
-    def __init__(self, owned_holdings_provider: StrategyOwnedHoldingsProvider, order_router: Any):
+    def __init__(
+        self,
+        owned_holdings_provider: StrategyOwnedHoldingsProvider,
+        order_router: Any,
+        *,
+        operation: OwnershipOperation = OwnershipOperation.LIVE_LIQUIDATION,
+        strategy_name: str | None = None,
+        account_mode: str | None = None,
+    ) -> None:
         self._provider = owned_holdings_provider
         self._router = order_router
+        self._operation = operation
+        self._strategy_name = strategy_name
+        self._account_mode = account_mode
+        self._diagnostics = OwnershipDiagnostics()
 
     async def liquidate(
         self,
@@ -202,15 +215,31 @@ class StrategyPositionLiquidator:
                 )
             )
 
+        # Ownership vocabulary first, so an operator sees the SAME event names here as on
+        # the normal exit path. scope_id is None: a liquidation walks the book exactly
+        # once, so there is no storm to dedupe, and a later attempt must report again.
+        self._diagnostics.emit_exclusions(
+            owned.excluded,
+            strategy_id=strategy_id,
+            account_id=account_id,
+            operation=self._operation,
+            source="strategy_position_liquidator",
+            strategy_name=self._strategy_name,
+            account_mode=self._account_mode,
+            scope_id=None,
+        )
         for line in lines:
             if line.disposition is not LiquidationDisposition.LIQUIDATED:
-                logger.warning(
-                    "liquidation_position_not_attributable",
+                self._diagnostics.emit_liquidation_exclusion(
                     strategy_id=strategy_id,
                     account_id=account_id,
-                    symbol=line.ticker,
+                    operation=self._operation,
+                    ticker=line.ticker,
                     disposition=line.disposition.value,
                     detail=line.detail,
+                    security_id=line.security_id,
+                    strategy_name=self._strategy_name,
+                    account_mode=self._account_mode,
                 )
         return LiquidationResult(strategy_id, account_id, tuple(lines))
 

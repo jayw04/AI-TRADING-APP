@@ -560,10 +560,15 @@ class ActivationService:
             )
             return await self._legacy_registration_liquidation(strategy, live_account.id, positions)
 
+        from app.universe.diagnostics import OwnershipOperation
         from app.universe.liquidation import StrategyPositionLiquidator
 
         result = await StrategyPositionLiquidator(
-            self._owned_holdings_provider, self._order_router
+            self._owned_holdings_provider,
+            self._order_router,
+            operation=OwnershipOperation.LIVE_LIQUIDATION,
+            strategy_name=strategy.name,
+            account_mode=AccountMode.live.value,
         ).liquidate(
             strategy_id=strategy.id,
             user_id=strategy.user_id,

@@ -36,6 +36,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.models.account import Account, AccountMode
 from app.db.models.strategy import Strategy
+from app.universe.diagnostics import OwnershipOperation
 from app.universe.liquidation import LiquidationResult, StrategyPositionLiquidator
 
 logger = structlog.get_logger(__name__)
@@ -141,7 +142,13 @@ class PaperStrategyLiquidationService:
             logger.exception("paper_liquidation_position_fetch_failed", strategy_id=strategy_id)
             return LiquidationResult(strategy_id, account.id, ())
 
-        result = await StrategyPositionLiquidator(self._provider, self._router).liquidate(
+        result = await StrategyPositionLiquidator(
+            self._provider,
+            self._router,
+            operation=OwnershipOperation.PAPER_LIQUIDATION,
+            strategy_name=strategy.name,
+            account_mode=AccountMode.paper.value,
+        ).liquidate(
             strategy_id=strategy_id,
             user_id=strategy.user_id,
             account_id=account.id,
