@@ -299,6 +299,47 @@ Use `.github/pull_request_template.md`. Before marking ready:
 
 **Walk-away discipline still applies on top of this** (`CLAUDE.md`): ≥1 hour between ready-for-review and merge; ≥2 hours for risk-gate, live-path, and production-hardening changes. Cost policy shortens CI, never the walk-away window.
 
+### 7.1 Merge readiness — which green actually authorises a merge
+
+**Learned the hard way merging #650, 2026-08-20.** A passing test job is not merge readiness. Merge readiness is determined by the repository's **required status context(s)**, and nothing else.
+
+```text
+Python FULL (backend) PASS                       !=  merge-ready
+required context PASS on the exact head SHA
+  + base up to date + walk-away elapsed          ==  merge-ready
+```
+
+On `main` today the required context is exactly one job — **`Python CI Gate`** — and **it runs last**, after the ~25-minute `Python FULL (backend)` suite. When `Python FULL` reported SUCCESS the PR was still `mergeStateStatus = BLOCKED`, because the Gate had not started yet. Waiting on the wrong job costs a full suite cycle to rediscover.
+
+```bash
+# Confirm the required contexts rather than assuming:
+gh api repos/<owner>/<repo>/branches/main/protection \
+  --jq '{strict: .required_status_checks.strict, contexts: .required_status_checks.contexts}'
+
+# The only two signals that matter before merging:
+gh pr view <N>   --json headRefOid,mergeable,mergeStateStatus
+gh pr checks <N> --json name,state
+```
+
+Merge only when `mergeStateStatus` is **`CLEAN`**, and pass `--match-head-commit <sha>` so the merge aborts if the head moved underneath you.
+
+### 7.2 `strict: true` — merging one PR pushes every other PR BEHIND
+
+Branch protection on `main` sets **`strict: true`** (branches must be up to date before merging). Merging any PR therefore flips every other open PR to `BEHIND` and forces a re-run.
+
+**Do this once, not repeatedly:**
+
+```bash
+git fetch origin
+git merge origin/main --no-edit      # locally, in the PR's worktree
+# re-run the local gate, then:
+git push                             # ONE push -> ONE CI cycle
+```
+
+⛔ Do **not** use push-then-"Update branch", and do not restart CI repeatedly — each costs a full cycle. Let the required CI run once on the resulting exact head, then merge that head.
+
+⚠ This also means **merge order matters when PRs are related**: merge the cheap-CI PR last, or accept that the expensive one re-runs. Sequence deliberately rather than discovering it.
+
 ---
 
 ## 8. Agent-specific behavior in this repository
@@ -306,6 +347,7 @@ Use `.github/pull_request_template.md`. Before marking ready:
 1. **Do not commit or push unless the user explicitly asks.** This is both a standing user rule and the policy's batching default.
 2. **Prefer fewer, larger commits.** When the user does ask for a commit, one coherent commit beats a sequence of tiny ones.
 3. **Do not propose next steps that multiply CI runs** — no separate PR per file, no docs-only follow-up PRs, no "let me push and see if CI passes."
+   - **Wait on the required context, not on a test job** (§7.1), and when `strict` protection pushes a PR BEHIND, merge `main` in locally and push **once** (§7.2). Both mistakes cost a full suite cycle each.
 4. **Do not create documentation files the user did not ask for.**
 5. **Classify before you act.** Before editing, know the tier the touched paths land in; say so if it is Tier 3.
 6. **Never relax an architectural or CI invariant to save cost.** If cost pressure and an invariant conflict, surface it — the answer is an ADR, not a workaround.

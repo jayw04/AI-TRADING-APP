@@ -7,7 +7,7 @@ test/dev env — the same path the live runtime uses)."""
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 from zoneinfo import ZoneInfo
 
 import pytest
@@ -143,3 +143,20 @@ def test_day_schedule_is_cached(ms: MarketSession) -> None:
 
 def test_default_market_session_is_shared() -> None:
     assert default_market_session() is default_market_session()
+
+
+def test_previous_trading_day_skips_weekend(ms: MarketSession) -> None:
+    assert ms.previous_trading_day(date(2026, 6, 8)) == date(2026, 6, 5)  # Mon → Fri
+    assert ms.previous_trading_day(date(2026, 6, 9)) == date(2026, 6, 8)  # Tue → Mon
+
+
+def test_previous_trading_day_skips_observed_holiday(ms: MarketSession) -> None:
+    """Monday 2026-07-06 follows Friday 2026-07-03 (Independence Day observed)."""
+    assert ms.is_trading_day(date(2026, 7, 3)) is False
+    assert ms.previous_trading_day(date(2026, 7, 6)) == date(2026, 7, 2)
+
+
+def test_half_day_counts_as_a_session(ms: MarketSession) -> None:
+    """Day-after-Thanksgiving 2026-11-27 is an early close, still a session."""
+    assert ms.is_trading_day(date(2026, 11, 27)) is True
+    assert ms.previous_trading_day(date(2026, 11, 30)) == date(2026, 11, 27)

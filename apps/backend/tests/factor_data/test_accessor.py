@@ -22,6 +22,8 @@ def test_accessor_none_store_raises_everywhere() -> None:
         acc.universe()
     with pytest.raises(FactorDataUnavailable):
         acc.sectors(["MOM01"])
+    with pytest.raises(FactorDataUnavailable):
+        acc.latest_price_date()
 
 
 def test_accessor_sectors_delegates_to_store(momentum_store: FactorDataStore) -> None:
@@ -52,6 +54,7 @@ def test_accessor_momentum_window_is_passed_through(momentum_store: FactorDataSt
 def test_as_of_default_is_latest_store_date(momentum_store: FactorDataStore) -> None:
     acc = FactorAccessor(momentum_store)
     _, latest = momentum_store.price_date_bounds()
+    assert acc.latest_price_date() == latest
     assert acc._resolve_as_of(None) == latest
 
 
@@ -75,7 +78,7 @@ def test_accessor_surface_is_read_only(momentum_store: FactorDataStore) -> None:
     acc = FactorAccessor(momentum_store)
     public = {a for a in dir(acc) if not a.startswith("_")}
     assert public == {"momentum_scores", "low_vol_scores", "momentum_for", "universe",
-                      "sectors", "market_breadth", "vix_percentile"}
+                      "sectors", "market_breadth", "vix_percentile", "latest_price_date"}
     # no ingest/connection handle leaks through a public attribute
     for forbidden in ("con", "store", "ingest_sep", "ingest_tickers", "path"):
         assert not hasattr(acc, forbidden)

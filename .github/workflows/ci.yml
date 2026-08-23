@@ -297,9 +297,25 @@ jobs:
         working-directory: ${{ matrix.p.dir }}
         run: python scripts/check_alembic_single_head.py
 
+      # Deploy-EOL determinism (2026-08-22). The paper box has no .git -- code arrives as a
+      # `git archive` tarball, so the bytes that run are whatever the BUILDER's core.autocrlf
+      # produced. On 2026-08-21 a redeploy shipped ledger.py with 670 CR bytes while every
+      # governed blob was LF; 2,078 of 2,239 archived files did not match their blob. This
+      # builds the archive under BOTH autocrlf settings and fails on any byte mismatch, so the
+      # property is enforced instead of depending on an operator remembering a flag. Repo-wide,
+      # so it runs in the backend LIGHT job (always in the matrix). Two archive builds, ~seconds.
+      - name: Deploy-archive determinism gate (repo-wide)
+        if: matrix.p.project == 'backend'
+        working-directory: ${{ github.workspace }}
+        run: python scripts/check_deploy_archive_determinism.py
+
       # NOTE: pytest + coverage no longer run in this matrix. Every project's FULL suite lives in the
       # dedicated `python-full` job, which runs on push AND on a PR whenever the classifier flags that
       # project — so a red pytest (backend OR aux) cannot merge on green LIGHT. This job is LIGHT only.
+
+      - name: ADR 0002 single-order-entry-point check (backend)
+        if: matrix.p.project == 'backend'
+        run: bash apps/backend/scripts/check_adr0002.sh
 
       - name: Strategy isolation invariant check (backend)
         if: matrix.p.project == 'backend'
@@ -360,6 +376,10 @@ jobs:
       - name: LLM-opt-in bypass-gating invariant check (backend)
         if: matrix.p.project == 'backend'
         run: bash apps/backend/scripts/check_llm_optin_bypass_gated.sh
+
+      - name: Market-data feed-pinning invariant check (backend)
+        if: matrix.p.project == 'backend'
+        run: bash apps/backend/scripts/check_marketdata_feed_pinning.sh
 
   # The FULL Python suite, one matrix entry PER PROJECT that must run FULL this event (see the FULL
   # matrix). pytest + coverage for each; the backend entry additionally runs the risk/P2/P3 branch-

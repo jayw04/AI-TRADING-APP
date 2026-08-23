@@ -478,3 +478,38 @@ def test_overfill_cannot_manufacture_capacity():
     )
     assert claimable_reducible_quantity(snap, "AAPL") == D("300")
     assert available_reducible_quantity(snap, "AAPL") == D("200")   # == the actual long
+
+
+# ============================================================ SETTLED-ACCOUNT REGRESSION
+# 2026-07-27: a loss-locked account that is flat of OPEN orders (the normal state when you
+# begin de-risking) could not be classified at all, because the missing broker cursor was
+# replaced by the account UUID. These pin the end-to-end effect, not just the snapshot flag.
+
+
+def test_a_settled_account_can_still_verify_a_reduction():
+    """No open orders at the broker, nothing in flight locally => classifiable.
+
+    This is the exact shape of account 1 on 2026-07-27: positions held, zero open orders,
+    under a daily-loss lock, trying to reduce. It must reach ALLOW / RISK_REDUCING.
+    """
+    snap = _snap(MOMENTUM_BOOK, cursor=None, observed=None)
+    action = ProposedAction(ActionType.ORDER_SUBMIT, "BE", OrderSide.SELL, D("70.76"))
+
+    d = classify(snap, action)
+
+    assert d.risk_effect is RiskEffect.RISK_REDUCING
+    assert d.decision is Decision.ALLOW
+    assert RiskEffectReason.SNAPSHOT_STALE not in d.reasons
+    assert RiskEffectReason.SNAPSHOT_INCOMPLETE not in d.reasons
+
+
+def test_a_settled_account_still_refuses_a_risk_increasing_buy():
+    """Unblocking classification must NOT weaken the control it feeds: the same settled
+    snapshot must still reject exposure-increasing actions."""
+    snap = _snap(MOMENTUM_BOOK, cursor=None, observed=None)
+    action = ProposedAction(ActionType.ORDER_SUBMIT, "BE", OrderSide.BUY, D("1"))
+
+    d = classify(snap, action)
+
+    assert d.risk_effect is not RiskEffect.RISK_REDUCING
+    assert d.decision is not Decision.ALLOW

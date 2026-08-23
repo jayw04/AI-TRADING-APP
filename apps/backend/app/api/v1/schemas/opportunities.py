@@ -174,6 +174,53 @@ class OppPremarketGappersWidget(BaseModel):
     stale: bool = True
 
 
+class OppWatchlistChip(BaseModel):
+    key: str
+    value: str
+
+
+class OppWatchlistItem(BaseModel):
+    symbol: str
+    family_ids: list[str]
+    horizon: str
+    status: str
+    name: str | None = None
+    sector: str | None = None
+    chips: list[OppWatchlistChip] = Field(default_factory=list)
+    why: str = ""
+    tradability: str = "not measured (Phase 1)"
+    price_source: str = ""
+    close: float | None = None
+    market_cap: float | None = None
+    adv20: float | None = None
+
+
+class OppWatchlistFamily(BaseModel):
+    family_id: str
+    operator_name: str
+    horizon: str
+    available: bool
+    unavailable_reason: str | None = None
+    count: int
+    items: list[OppWatchlistItem] = Field(default_factory=list)
+
+
+class OppCandidateWatchlistWidget(BaseModel):
+    """DISC-001 Band B — candidates only, never a signal."""
+
+    as_of: datetime
+    as_of_session: str | None = None
+    universe_id: str
+    screen_id: str
+    screen_version: str
+    subtitle: str = "Watch, not a signal"
+    vix: float | None = None
+    families: dict[str, OppWatchlistFamily]
+    all_items: list[OppWatchlistItem] = Field(default_factory=list)
+    all_count: int = 0
+    stale: bool = True
+
+
 class OpportunitiesResponse(BaseModel):
     live_signals: OppLiveSignalsWidget
     pine_alerts: OppPineAlertsWidget
@@ -183,4 +230,49 @@ class OpportunitiesResponse(BaseModel):
     risk_rejections: OppRiskRejectionsWidget
     recent_fills: OppRecentFillsWidget
     premarket_gappers: OppPremarketGappersWidget
+    candidate_watchlist: OppCandidateWatchlistWidget
+    as_of: datetime
+
+
+class OppHistoryCheckpoint(BaseModel):
+    """Read-time factual print. return_pct is None if pending or bases differ."""
+
+    checkpoint: str
+    price: float | None = None
+    price_as_of: str | None = None
+    price_source: str | None = None
+    adjustment_basis: str | None = None
+    return_pct: float | None = None
+
+
+class OppHistoryOccurrence(BaseModel):
+    """One durable family-row occurrence. Current price and checkpoints are read-time only."""
+
+    symbol: str
+    family: str
+    candidate_date: str
+    horizon: str
+    status_at_proposal: str
+    proposal_price: float
+    proposal_price_source: str
+    adjustment_basis: str
+    reason: dict[str, object] = Field(default_factory=dict)
+    screen_id: str
+    screen_version: str
+    snapshot_sha256: str
+    snapshot_generated_at: str
+    first_seen: str
+    last_seen: str
+    occurrence_count: int = 1
+    current_price: float | None = None
+    current_price_as_of: str | None = None
+    current_price_source: str | None = None
+    change_pct: float | None = None
+    checkpoints: list[OppHistoryCheckpoint] = Field(default_factory=list)
+
+
+class OppHistoryResponse(BaseModel):
+    view: str
+    count: int
+    items: list[OppHistoryOccurrence]
     as_of: datetime

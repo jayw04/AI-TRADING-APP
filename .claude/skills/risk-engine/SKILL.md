@@ -1,6 +1,6 @@
 ---
 name: risk-engine
-description: Use when working on the risk engine, risk gates, the OrderRouter, or any code that decides whether an order may be submitted. This includes files under apps/backend/app/risk/, apps/backend/app/services/order_router.py, the risk_limits table, the circuit breaker, the PDT/Intraday Margin checks, and any new risk check being added. Also invoke this skill when reviewing or modifying tests under apps/backend/tests/risk/.
+description: Use when working on the risk engine, risk gates, the OrderRouter, or any code that decides whether an order may be submitted. This includes files under apps/backend/app/risk/, apps/backend/app/orders/router.py, the risk_limits table, the circuit breaker, the PDT/Intraday Margin checks, and any new risk check being added. Also invoke this skill when reviewing or modifying tests under apps/backend/tests/risk/.
 ---
 
 # Risk Engine Conventions

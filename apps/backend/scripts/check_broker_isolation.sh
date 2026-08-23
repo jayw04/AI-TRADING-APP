@@ -19,7 +19,8 @@
 
 set -euo pipefail
 
-ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../" && pwd)"
+# Overridable so the equivalence tests can point the check at fixture trees.
+ROOT="${BROKER_ISOLATION_ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../" && pwd)}"
 APP_DIR="$ROOT/app"
 ALLOWED_DIR="$APP_DIR/brokers"
 
@@ -44,10 +45,44 @@ PATTERNS=(
 
 FAIL=0
 
+# ---------------------------------------------------------------------------
+# Prefilter (performance only — the reported result is unchanged)
+# ---------------------------------------------------------------------------
+#
+# This check used to run one `grep` per (file, pattern): 455 files x 10 patterns
+# = 4,550 process spawns, measured at 145s. It is the slowest step in the LIGHT
+# block, and LIGHT runs on every backend pull request.
+#
+# One `grep -REl` over the alternation of the same ten patterns collects the
+# CANDIDATE files first. The authoritative walk below is unchanged — same
+# `find`, same order, same per-pattern loop, same message — it just skips any
+# file the prefilter proved cannot match. In the normal case (no violations)
+# there are zero candidates and zero inner greps; when something does match, the
+# original code path runs on those few files and the output is byte-identical,
+# including line order.
+#
+# The prefilter can only ever ADD work relative to correctness: a candidate that
+# turns out not to match simply loops the ten patterns and finds nothing. The
+# risk to guard is the converse — a file `find` sees but `grep -r` does not —
+# which is what tests/test_check_broker_isolation.py differentially tests
+# against an independent reference implementation.
+#
+# Limitation, stated: a filename containing a newline would defeat the candidate
+# membership test below. `find -print0` tolerates such names and this does not.
+# No such file exists or could reasonably exist here, and the pre-existing
+# `grep -Eq "$pat" "$file"` was already unsafe for other exotic names.
+COMBINED="$(IFS='|'; printf '%s' "${PATTERNS[*]}")"
+CANDIDATES="$(grep -REl --include='*.py' "$COMBINED" "$APP_DIR" || true)"
+
 while IFS= read -r -d '' file; do
   # Files under app/brokers/ are allowed to import the trading SDK.
   case "$file" in
     "$ALLOWED_DIR"/*) continue ;;
+  esac
+  # Skip files the single prefilter pass proved cannot match any pattern.
+  case $'\n'"$CANDIDATES"$'\n' in
+    *$'\n'"$file"$'\n'*) ;;
+    *) continue ;;
   esac
   for pat in "${PATTERNS[@]}"; do
     if grep -Eq "$pat" "$file"; then

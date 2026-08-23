@@ -8,17 +8,21 @@ projections with joined names where the page needs them.
 
 from __future__ import annotations
 
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
 from zoneinfo import ZoneInfo
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.v1.schemas.opportunities import (
+    OppCandidateWatchlistWidget,
     OppDiscoveryMatchesWidget,
     OppDiscoveryMatchItem,
     OppFillItem,
+    OppHistoryCheckpoint,
+    OppHistoryOccurrence,
+    OppHistoryResponse,
     OppLiveSignalsWidget,
     OppOpenOrderItem,
     OppOpenOrdersExpiringWidget,
@@ -32,6 +36,8 @@ from app.api.v1.schemas.opportunities import (
     OppSignalItem,
     OppStrategyErrorItem,
     OppStrategyErrorsWidget,
+    OppWatchlistFamily,
+    OppWatchlistItem,
 )
 from app.audit import AuditAction
 from app.auth.stub import CurrentUser, get_current_user
@@ -45,6 +51,7 @@ from app.db.enums import (
 )
 from app.db.models.audit_log import AuditLog
 from app.db.models.fill import Fill
+from app.db.models.opportunity_occurrence import OpportunityOccurrence
 from app.db.models.order import Order
 from app.db.models.risk_check import RiskCheck
 from app.db.models.scanner_definition import ScannerDefinition
@@ -53,6 +60,9 @@ from app.db.models.signal import Signal
 from app.db.models.strategy import Strategy as StrategyRow
 from app.db.models.symbol import Symbol
 from app.db.session import get_session
+from app.research.disc001.checkpoints import build_checkpoints, parse_iso_date
+from app.research.disc001.spec import PRICE_SOURCE_SEP
+from app.services.opportunity_history import history_price_series, parse_reason_json
 from app.services.premarket_gappers import read_latest_gappers
 from app.utils.time import EASTERN
 
@@ -99,10 +109,9 @@ async def get_opportunities(
     )
     risk_rejections = await _fetch_risk_rejections(session, user_id=current_user.id, now=now)
     recent_fills = await _fetch_recent_fills(session, user_id=current_user.id, now=now)
-    discovery_matches = await _fetch_discovery_matches(
-        session, user_id=current_user.id, now=now
-    )
+    discovery_matches = await _fetch_discovery_matches(session, user_id=current_user.id, now=now)
     premarket_gappers = _fetch_premarket_gappers(now=now)
+    candidate_watchlist = _fetch_candidate_watchlist(now=now)
 
     return OpportunitiesResponse(
         live_signals=OppLiveSignalsWidget(items=live_signals, count=len(live_signals), as_of=now),
@@ -123,7 +132,143 @@ async def get_opportunities(
         ),
         recent_fills=OppRecentFillsWidget(items=recent_fills, count=len(recent_fills), as_of=now),
         premarket_gappers=premarket_gappers,
+        candidate_watchlist=candidate_watchlist,
         as_of=now,
+    )
+
+
+@router.get("/history", response_model=OppHistoryResponse)
+async def get_opportunity_history(
+    current_user: CurrentUser = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+    symbol: str | None = Query(default=None),
+    family: str | None = Query(default=None),
+    limit: int = Query(default=200, ge=1, le=500),
+) -> OppHistoryResponse:
+    """Durable CandidateSnapshot occurrences. Prices and checkpoints are read-time only."""
+    _ = current_user
+    now = datetime.now(UTC)
+    stmt = select(OpportunityOccurrence)
+    if symbol:
+        stmt = stmt.where(OpportunityOccurrence.symbol == symbol.strip().upper())
+    if family:
+        stmt = stmt.where(OpportunityOccurrence.family == family.strip())
+    stmt = stmt.order_by(
+        OpportunityOccurrence.candidate_date.asc(),
+        OpportunityOccurrence.family.asc(),
+        OpportunityOccurrence.symbol.asc(),
+    )
+    rows = list((await session.execute(stmt)).scalars().all())
+    if symbol:
+        items = _history_timeline(rows, limit=limit)
+        view = "timeline"
+    else:
+        items = _history_summaries(rows, limit=limit)
+        view = "summary"
+    series: dict[str, tuple[tuple[date, float], ...]] = {}
+    if items:
+        start = min(parse_iso_date(item.candidate_date) for item in items)
+        series = history_price_series([item.symbol for item in items], start=start)
+    enriched = [_enrich_history_item(item, series.get(item.symbol, ())) for item in items]
+    return OppHistoryResponse(view=view, count=len(enriched), items=enriched, as_of=now)
+
+
+def _history_summaries(
+    rows: list[OpportunityOccurrence], *, limit: int
+) -> list[OppHistoryOccurrence]:
+    grouped: dict[tuple[str, str], list[OpportunityOccurrence]] = {}
+    for row in rows:
+        grouped.setdefault((row.symbol, row.family), []).append(row)
+    summaries: list[OppHistoryOccurrence] = []
+    for _key, group in grouped.items():
+        ordered = sorted(group, key=lambda r: r.candidate_date)
+        last = ordered[-1]
+        first_seen = ordered[0].candidate_date
+        last_seen = last.candidate_date
+        summaries.append(
+            _occurrence_item(last, first_seen=first_seen, last_seen=last_seen, count=len(ordered))
+        )
+    summaries.sort(key=lambda item: (item.symbol, item.family))
+    summaries.sort(key=lambda item: item.last_seen, reverse=True)
+    return summaries[:limit]
+
+
+def _history_timeline(
+    rows: list[OpportunityOccurrence], *, limit: int
+) -> list[OppHistoryOccurrence]:
+    if not rows:
+        return []
+    dates = [row.candidate_date for row in rows]
+    first_seen = min(dates)
+    last_seen = max(dates)
+    count = len(rows)
+    items = [
+        _occurrence_item(row, first_seen=first_seen, last_seen=last_seen, count=count)
+        for row in rows
+    ]
+    return items[:limit]
+
+
+def _occurrence_item(
+    row: OpportunityOccurrence,
+    *,
+    first_seen: str,
+    last_seen: str,
+    count: int,
+) -> OppHistoryOccurrence:
+    return OppHistoryOccurrence(
+        symbol=row.symbol,
+        family=row.family,
+        candidate_date=row.candidate_date,
+        horizon=row.horizon,
+        status_at_proposal=row.status_at_proposal,
+        proposal_price=row.proposal_price,
+        proposal_price_source=row.proposal_price_source,
+        adjustment_basis=row.adjustment_basis,
+        reason=parse_reason_json(row.reason_json),
+        screen_id=row.screen_id,
+        screen_version=row.screen_version,
+        snapshot_sha256=row.snapshot_sha256,
+        snapshot_generated_at=row.snapshot_generated_at,
+        first_seen=first_seen,
+        last_seen=last_seen,
+        occurrence_count=count,
+    )
+
+
+def _enrich_history_item(
+    item: OppHistoryOccurrence,
+    sessions: tuple[tuple[date, float], ...],
+) -> OppHistoryOccurrence:
+    facts = build_checkpoints(
+        proposal_price=item.proposal_price,
+        proposal_basis=item.adjustment_basis,
+        proposal_source=item.proposal_price_source,
+        candidate_date=parse_iso_date(item.candidate_date),
+        sessions=sessions,
+        later_source=PRICE_SOURCE_SEP,
+        later_basis=PRICE_SOURCE_SEP,
+    )
+    current = next((fact for fact in facts if fact.checkpoint == "CURRENT"), None)
+    checkpoints = [
+        OppHistoryCheckpoint(
+            checkpoint=fact.checkpoint,
+            price=fact.price,
+            price_as_of=fact.price_as_of,
+            price_source=fact.price_source,
+            adjustment_basis=fact.adjustment_basis,
+            return_pct=fact.return_pct,
+        )
+        for fact in facts
+    ]
+    return item.model_copy(
+        update={
+            "current_price": current.price if current is not None else None,
+            "current_price_as_of": current.price_as_of if current is not None else None,
+            "current_price_source": current.price_source if current is not None else None,
+            "change_pct": current.return_pct if current is not None else None,
+            "checkpoints": checkpoints,
+        }
     )
 
 
@@ -168,15 +313,56 @@ def _fetch_premarket_gappers(*, now: datetime) -> OppPremarketGappersWidget:
     )
 
 
+def _fetch_candidate_watchlist(*, now: datetime) -> OppCandidateWatchlistWidget:
+    """DISC-001 Band B. Read-only snapshot + live GAP; never the order path."""
+    from app.research.disc001.presentation import load_watchlist_widget
+
+    try:
+        payload = read_latest_gappers()
+    except Exception:
+        payload = None
+    try:
+        widget = load_watchlist_widget(gappers_payload=payload, now=now)
+    except Exception:
+        widget = {
+            "as_of": now,
+            "as_of_session": None,
+            "universe_id": "SEP-liquid-v0",
+            "screen_id": "DISC-001-WATCHLIST",
+            "screen_version": "v0.3.0",
+            "subtitle": "Watch, not a signal",
+            "vix": None,
+            "families": {},
+            "all_items": [],
+            "all_count": 0,
+            "stale": True,
+        }
+    families = {
+        fid: OppWatchlistFamily.model_validate(blob)
+        for fid, blob in (widget.get("families") or {}).items()
+    }
+    return OppCandidateWatchlistWidget(
+        as_of=widget.get("as_of") or now,
+        as_of_session=widget.get("as_of_session"),
+        universe_id=str(widget.get("universe_id") or "SEP-liquid-v0"),
+        screen_id=str(widget.get("screen_id") or "DISC-001-WATCHLIST"),
+        screen_version=str(widget.get("screen_version") or "v0.3.0"),
+        subtitle=str(widget.get("subtitle") or "Watch, not a signal"),
+        vix=widget.get("vix"),
+        families=families,
+        all_items=[OppWatchlistItem.model_validate(i) for i in (widget.get("all_items") or [])],
+        all_count=int(widget.get("all_count") or 0),
+        stale=bool(widget.get("stale", True)),
+    )
+
+
 async def _fetch_discovery_matches(
     session: AsyncSession, *, user_id: int, now: datetime
 ) -> list[OppDiscoveryMatchItem]:
     """Matches from the user's most recent SCHEDULED scan run today (P8 §4).
     On-demand runs (from the Discovery page) do not surface here."""
     today_start = (
-        now.astimezone(EASTERN)
-        .replace(hour=0, minute=0, second=0, microsecond=0)
-        .astimezone(UTC)
+        now.astimezone(EASTERN).replace(hour=0, minute=0, second=0, microsecond=0).astimezone(UTC)
     )
     row = (
         await session.execute(
@@ -203,9 +389,7 @@ async def _fetch_discovery_matches(
             scan_name=scan_name,
             definition_id=run.scanner_definition_id,
             run_id=run.id,
-            values={
-                k: float(v) for k, v in (m.get("values") or {}).items()
-            },
+            values={k: float(v) for k, v in (m.get("values") or {}).items()},
             run_at=run.run_at,
         )
         for m in (run.matched_json or [])[:DISCOVERY_MATCHES_MAX]

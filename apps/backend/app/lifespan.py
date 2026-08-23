@@ -384,6 +384,22 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
                     kwargs={"bar_cache": bar_cache, "directory": gate_dir},
                 )
                 logger.info("premarket_gate_scheduled", directory=gate_dir)
+
+                from app.jobs.disc001_watchlist import run_disc001_watchlist_snapshot
+
+                snapshot_dir = settings.disc001_snapshot_dir
+                scheduler.scheduler.add_job(
+                    run_disc001_watchlist_snapshot,
+                    trigger="cron",
+                    day_of_week="mon-fri",
+                    hour=16,
+                    minute=20,
+                    id="disc001_watchlist_snapshot",
+                    max_instances=1,
+                    coalesce=True,
+                    kwargs={"factor_store": factor_store, "snapshot_dir": snapshot_dir},
+                )
+                logger.info("disc001_watchlist_scheduled", directory=snapshot_dir)
             else:
                 logger.info("premarket_gate_disabled_no_factor_store")
 

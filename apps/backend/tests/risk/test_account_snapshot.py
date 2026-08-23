@@ -228,3 +228,139 @@ async def test_a_clean_snapshot_is_causally_complete(session_factory, acct):
     snap = await _fetch(session_factory, ad)
     ok, why = snap.is_causally_complete()
     assert ok is True and why is None
+
+
+# ------------------------------------------------- causal completeness of a SETTLED account
+#
+# 2026-07-27. `broker_cursor` fell back to the Alpaca ACCOUNT ID when a read contained no
+# order events. A UUID beginning "1" sorts before every ISO timestamp, so an account that was
+# flat of open orders but had ever filled compared as permanently behind itself: every
+# risk-REDUCING sell on it returned INDETERMINATE -> FAIL_CLOSED. The verified-reduction path
+# was therefore unavailable exactly when a loss-locked account needed to de-risk.
+
+
+async def test_a_non_temporal_identifier_is_never_used_as_a_cursor(session_factory, acct):
+    """THE DEFECT. The account id is not a point in time. A read with no order events has no
+    stamp to offer, and inventing one out of an identifier is worse than admitting that."""
+    ad = _adapter([{"symbol": "AAPL", "qty": "500", "side": "long", "current_price": "100"}])
+    ad.get_account.return_value = {
+        "cash": "1000", "equity": "50000",
+        "id": "14365a33-b654-4ebc-a20a-e2f46b58aea0",  # the real acct-1 UUID shape
+    }
+    snap = await _fetch(session_factory, ad)
+
+    assert snap.broker_cursor is None
+    assert snap.broker_cursor != "14365a33-b654-4ebc-a20a-e2f46b58aea0"
+
+
+async def test_settled_account_with_nothing_in_flight_is_causally_complete(
+    session_factory, acct
+):
+    """Broker flat, we are flat. There is no broker event for this read to be behind."""
+    ad = _adapter([{"symbol": "AAPL", "qty": "500", "side": "long", "current_price": "100"}])
+    snap = await _fetch(session_factory, ad)
+
+    ok, why = snap.is_causally_complete()
+    assert ok is True and why is None
+
+
+async def test_old_terminal_fills_do_not_permanently_stale_a_settled_account(
+    session_factory, acct
+):
+    """The regression that blocked account 1: a week-old FILLED order must not make an
+    otherwise-settled account unclassifiable forever. Its economic effect is already carried
+    by the positions and cash fetched live in this same snapshot."""
+    async with session_factory() as s:
+        o = Order(
+            user_id=1, account_id=1, symbol_id=1, broker_order_id="settled",
+            side=OrderSide.SELL, qty=D("10"), type=OrderType.MARKET,
+            tif=TimeInForce.DAY, status=OrderStatus.FILLED,
+            source_type=OrderSourceType.STRATEGY, created_at=T0, updated_at=T0,
+        )
+        s.add(o)
+        await s.flush()
+        s.add(Fill(order_id=o.id, broker_fill_id="f-settled", qty=D("10"),
+                   price=D("100"), filled_at=T0 + timedelta(days=7)))
+        await s.commit()
+
+    ad = _adapter([{"symbol": "AAPL", "qty": "500", "side": "long", "current_price": "100"}])
+    snap = await _fetch(session_factory, ad)
+
+    assert snap.observed_inflight_by_symbol == {}  # nothing is actually in flight
+    ok, why = snap.is_causally_complete()
+    assert ok is True and why is None
+
+
+async def test_broker_flat_but_a_local_order_is_in_flight_is_stale(session_factory, acct):
+    """The broker says nothing is in flight; we believe something is. That is a genuine
+    disagreement about the PRESENT and must still fail closed."""
+    async with session_factory() as s:
+        s.add(
+            Order(
+                user_id=1, account_id=1, symbol_id=1, broker_order_id="live",
+                side=OrderSide.SELL, qty=D("10"), type=OrderType.MARKET,
+                tif=TimeInForce.DAY, status=OrderStatus.SUBMITTED,
+                source_type=OrderSourceType.STRATEGY, created_at=T0, updated_at=T0,
+            )
+        )
+        await s.commit()
+
+    ad = _adapter([{"symbol": "AAPL", "qty": "500", "side": "long", "current_price": "100"}])
+    snap = await _fetch(session_factory, ad)
+
+    assert snap.broker_cursor is None
+    assert snap.observed_inflight_by_symbol.get("AAPL") is not None
+    # account-wide question (anything that is not a proven same-symbol reduction)
+    ok, why = snap.is_causally_complete()
+    assert ok is False
+    assert why is RiskEffectReason.SNAPSHOT_STALE
+    # and SAME-SYMBOL reductions stay blocked too: that position is genuinely ambiguous
+    ok, why = snap.is_causally_complete(reducing_candidate_symbol="AAPL")
+    assert ok is False
+    assert why is RiskEffectReason.SNAPSHOT_STALE
+    # ...but an UNRELATED symbol is not made ambiguous by AAPL's stuck row
+    ok, why = snap.is_causally_complete(reducing_candidate_symbol="MSFT")
+    assert ok is True and why is None
+
+
+async def test_open_broker_order_without_a_usable_stamp_is_incomplete(session_factory, acct):
+    """Open orders exist but none carried an event time: we cannot place this read at all.
+    That is INCOMPLETE, and must not be confused with the settled-and-flat case."""
+    ad = _adapter(
+        [{"symbol": "AAPL", "qty": "500", "side": "long", "current_price": "100"}],
+        [{"id": "o-nostamp", "symbol": "AAPL", "side": "sell", "qty": "1", "filled_qty": "0"}],
+    )
+    snap = await _fetch(session_factory, ad)
+
+    assert snap.broker_cursor is None
+    assert snap.open_orders
+    ok, why = snap.is_causally_complete()
+    assert ok is False
+    assert why is RiskEffectReason.SNAPSHOT_INCOMPLETE
+
+
+async def test_a_newer_broker_cursor_is_accepted(session_factory, acct):
+    """Equal-or-newer is the pass condition; only strictly-behind fails."""
+    async with session_factory() as s:
+        o = Order(
+            user_id=1, account_id=1, symbol_id=1, broker_order_id="b-old",
+            side=OrderSide.SELL, qty=D("10"), type=OrderType.MARKET,
+            tif=TimeInForce.DAY, status=OrderStatus.FILLED,
+            source_type=OrderSourceType.STRATEGY, created_at=T0, updated_at=T0,
+        )
+        s.add(o)
+        await s.flush()
+        s.add(Fill(order_id=o.id, broker_fill_id="f-old", qty=D("10"),
+                   price=D("100"), filled_at=T0))
+        await s.commit()
+
+    ad = _adapter(
+        [{"symbol": "AAPL", "qty": "500", "side": "long", "current_price": "100"}],
+        [{"id": "o-new", "symbol": "AAPL", "side": "sell", "qty": "1", "filled_qty": "0",
+          "updated_at": str(T0 + timedelta(hours=1))}],
+    )
+    snap = await _fetch(session_factory, ad)
+
+    assert snap.broker_cursor > snap.observed_cursor
+    ok, why = snap.is_causally_complete()
+    assert ok is True and why is None
