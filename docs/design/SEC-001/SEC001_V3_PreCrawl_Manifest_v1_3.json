@@ -1,0 +1,179 @@
+{
+  "artifact": "SEC-001 V3 EDGAR classification crawl — PRE-CRAWL MANIFEST v1.3",
+  "status": "AUTHORIZING — but ONLY for one bounded diagnostic request. It does NOT authorize a canary rerun or the remaining 1,166.",
+  "generated_utc": "2026-08-24T19:45:00Z",
+  "crawl_id": "SEC001_V3_CLASSIFICATION_CRAWL_V1",
+  "capture_date": "2026-08-24",
+
+  "supersession_chain": {
+    "v1_0": {"commit": "c581253", "status": "BLOCKED BEFORE REQUEST #1: NO_GOVERNED_CIK_RESOLUTION", "edited": false},
+    "v1_1": {"commit": "77f1169", "status": "SUPERSEDED: authorized the first canary, which found the acquisition machinery nonconforming", "edited": false},
+    "v1_2": {"commit": "88ac3e5f (blob)", "status": "SUPERSEDED: authorized the repaired canary, which found Defects C and D", "edited": false},
+    "v1_3": "this document",
+    "remediation_ruling": "0eaa064 — committed and pushed BEFORE any remediation code existed"
+  },
+
+  "why_v1_2_was_superseded": {
+    "defect_c": "a transport-level failure produced no response, yet the evidence record inherited the PREVIOUS attempt's digests and sent_monotonic_ns — fabricated provenance and a duplicated send stamp that broke the fair-access timing proof. One record in 337 was enough to fail it.",
+    "defect_d": "the override reported HEADER_COMPLETE whenever the document was exhausted, whether or not </SEC-HEADER> was ever observed — laundering a SOURCE-FORMAT anomaly into apparent EVIDENCE COMPLETENESS.",
+    "not_deployed": "the Defect-C-only commit 8a64239 was deliberately NOT tagged, deployed, or manifest-bound once Defect D was known. A governed manifest may not knowingly freeze a status vocabulary already ruled incorrect. Its validation PR #676 is left open and unmerged as evidence that the Defect-C change was otherwise sound (FULL SUCCESS, LIGHT red only on crosswalk.py:91)."
+  },
+
+  "authorization_state": {
+    "authorizes": "EXACTLY ONE bounded diagnostic request for accession 0000912057-00-024277 (ABT, 10-Q, accepted 2000-05-15)",
+    "does_not_authorize": ["a canary rerun", "the remaining 1,166 identities", "any source substitution", "any coverage computation"],
+    "v1_3_epoch_edgar_requests_issued": 0,
+    "v1_3_epoch_terminal_identities": 0,
+    "coverage_state": "UNSPENT",
+    "coverage_freeze_token_prefix": "5b26ffa2",
+    "no_coverage_calculation_has_occurred": true,
+    "population_unchanged": 1167
+  },
+
+  "diagnostic_authorization": {
+    "accession": "0000912057-00-024277",
+    "uri": "https://www.sec.gov/Archives/edgar/data/1800/000091205700024277/0000912057-00-024277.txt",
+    "cik": 1800,
+    "ticker": "ABT",
+    "form": "10-Q",
+    "accepted_utc": "2000-05-15T04:00:00+00:00",
+    "document_bytes_observed_in_v1_2": 28350,
+    "selection_rule": "Fixed before inspection: among ABT observations where the ranged fallback completed with NO SIC and acceptance predates 2014 (49 candidates), take the EARLIEST by acceptance timestamp. No filing was chosen for containing SIC — by construction every candidate is known NOT to have produced one.",
+    "question": "Does the complete SEC header for this frozen filing actually contain a SIC field that the frozen parser should be able to consume?",
+    "why_a_new_request_is_needed": "The v1.2 evidence retained digests and byte counts only; response bodies were never persisted. The three contiguous ranges covering all 28,350 bytes therefore cannot be reassembled. Under the new retention invariant this diagnostic will itself persist the bytes, so no future question about this accession costs another request.",
+    "predicates_to_record": [
+      "document_complete",
+      "sec_header_open_present",
+      "sec_header_close_present",
+      "sic_field_present_anywhere",
+      "sic_field_present_inside_sec_header",
+      "frozen_parser_result",
+      "acquisition_status"
+    ],
+    "labelling": "DIAGNOSTIC — written outside the authoritative crawl state, computing no population coverage and spending no token",
+    "forbidden": "the diagnostic must not decide what source should replace a missing SIC, must not substitute a source, and must not compute coverage"
+  },
+
+  "field_naming_note": {
+    "issue": "The artifact field is currently named `parser_result` and the driver sets it to the binarisation \"SIC\"/\"NO_SIC\", derived from whether the spine produced a code. The governing vocabulary calls for `frozen_parser_result`, meaning what the frozen parser actually returned.",
+    "resolution_for_this_manifest": "The retained decision BYTES are what satisfy the reproducibility invariant; the stored field is a cross-check, not the evidence. The diagnostic therefore recomputes the true frozen-parser result — the (code, name) tuple or (None, None) — directly from the retained bytes using the frozen SIC_RE, and reports it under the name frozen_parser_result.",
+    "carried_forward": "renaming the field and storing the full parser return, rather than a binarisation, is queued for the next driver revision. It is a fidelity improvement, not a correctness defect, and does not justify a separate validate/tag/deploy/gate/manifest cycle on its own."
+  },
+
+  "preserved_prior_epochs": [
+    {
+      "epoch": "CANARY_V1_1_FAILED_ACQUISITION",
+      "path": "/opt/workbench/sec001-v3/crawl",
+      "record_sha256": "411e6ded225c84c0766e72a04dfbd2a99a6b2850bb8fb9bc1a693b41cb47f950",
+      "file_count": 5,
+      "reason": "ran under the original machinery: the legacy Range fallback recovered zero SIC, and the evidence clock was stamped pre-throttle"
+    },
+    {
+      "epoch": "CANARY_V1_2_FAILED_ACQUISITION",
+      "path": "/opt/workbench/sec001-v3/crawl-v1.2",
+      "record_sha256": "bce49798800d27e90babd43d18e822ffa5d748f01aabc41646f8995248263f29",
+      "file_count": 5,
+      "reason": "ran under machinery still carrying Defects C and D"
+    }
+  ],
+  "preserved_epoch_disposition": "Both are PRESERVED IMMUTABLY — not deleted, not edited, not resumed. Made read-only on the host. Verified byte-intact by the host gate.",
+
+  "v1_3_execution_epoch": {
+    "path": "/opt/workbench/sec001-v3/crawl-v1.3",
+    "population": 1167,
+    "ordering": "unchanged — WorkUnit sorts by (cik, ticker)",
+    "first_identity": "cik 1800 / ABT / permaticker 199997 — unchanged, not re-selected",
+    "terminal_identities": 0,
+    "artifacts": 0,
+    "classification": "a superseding acquisition execution after pre-coverage machinery defects — NOT a new research trial and NOT a new population"
+  },
+
+  "source_custody": {
+    "crawl_source_commit": "3fe67041cdd284350cde97a314019587d4243580",
+    "archival_tag": "sec001-v3-edgar-driver-3fe6704",
+    "archival_tag_object": "13f96bb4dcde124cf9a92751e2e86b159f6d84c5",
+    "supersedes_tags": ["sec001-v3-edgar-driver-35c4670", "sec001-v3-edgar-driver-0e9e14e"],
+    "never_deployed": "8a64239628630a7524e9caa7c7eec3634a346f6b (Defect C only)"
+  },
+
+  "scoped_validation": {
+    "validation_pr": 677,
+    "assertion": "SCOPED VALIDATION, NOT 'CI GREEN'",
+    "python_full_backend": "SUCCESS",
+    "python_light_backend": "FAILURE",
+    "python_ci_gate": "FAILURE (fails closed because LIGHT failed)",
+    "light_failure_detail": "mypy: app/altdata/mr002/crosswalk.py:91 [type-var] — 'Found 1 error in 1 file (checked 510 source files)'; ruff clean",
+    "light_failure_classification": "PRE-EXISTING FROZEN-DEPENDENCY TYPE ERROR — introduced by the minimal validation closure, not driver code. Blob NOT modified to satisfy mypy.",
+    "driver_tests_in_full": 126,
+    "sec001_v3_failures": 0,
+    "blob_identity": "19/19 byte-identical to 3fe6704, applied by object id",
+    "prior_prs": "#674, #675, #676 all left open, unmerged and untouched as evidence"
+  },
+
+  "deployment": {
+    "host_instance_id": "i-00e6b78fcabd32413",
+    "access_path": "AWS SSM only",
+    "archive_sha256": "d48f7d9ea479aeee530329ed68656b8a6aca3cc84f7a2e737efcbff84b256977",
+    "archive_bytes": 153600,
+    "archive_files": 17,
+    "destination_path": "/opt/workbench/sec001-v3/driver/d48f7d9e",
+    "source": "remote-fetched Git objects, NOT the Windows working tree",
+    "sha_verified_on_arrival": true,
+    "prior_drivers_retained": ["fd97ec62", "c13e8cdb"]
+  },
+
+  "host_gate_v3": {
+    "sections_declared": 13,
+    "sections_completed": 13,
+    "checks_declared": 75,
+    "checks_executed": 75,
+    "checks_passed": 75,
+    "structural_failures": 0,
+    "result": "PASS",
+    "note": "Run from zero. No prior green assertion reused.",
+    "new_sections": ["defect D status model", "decision-byte retention"]
+  },
+
+  "frozen_acquisition_policy": {
+    "legacy_header_range": "bytes=0-4095",
+    "header_completion_windows": [4096, 16384, 65536, 262144, 1048576],
+    "header_completion_cap_bytes": 1048576,
+    "header_completion_max_requests": 8,
+    "cap_unchanged": "The 1 MiB / 8-request bound is NOT relaxed. If a document has no SEC-header terminator, a larger limit merely downloads more content and makes request cost depend on filing size. The cap is doing useful defensive work.",
+    "acquisition_status_vocabulary": {
+      "HEADER_INDEX": "-index-headers.html served it",
+      "HEADER_TERMINATED": "</SEC-HEADER> actually observed",
+      "DOCUMENT_EOF_NO_SEC_HEADER_TERMINATOR": "the complete document was acquired, but no closing SEC-header tag exists in it — a SOURCE-FORMAT fact, not evidence completeness",
+      "ACQUISITION_HEADER_INCOMPLETE": "neither terminator nor authoritative EOF reached before the frozen ceiling — OUR machinery failure"
+    },
+    "hard_invariants": [
+      "DOCUMENT_EOF_NO_SEC_HEADER_TERMINATOR must NEVER imply no_pit_sic",
+      "ACQUISITION_HEADER_INCOMPLETE must NEVER be treated as historical missingness",
+      "HEADER_COMPLETE no longer exists as a symbol, so the old conflation is unrepresentable"
+    ],
+    "decision_byte_retention": "every SIC observation OR absence is backed by persisted exact source bytes sufficient to reproduce the parser decision without refetching EDGAR; retention is bounded and NOT outcome-dependent"
+  },
+
+  "defect_a_ruling_branches": {
+    "A": "SIC exists in the complete bytes but the parser returns None → parser/integration defect. Fix before canary.",
+    "B": "No SIC exists, but a syntactically complete SEC header exists → legitimate absence from that source. Requires a source-semantics ruling on whether another already-authorized EDGAR source exists.",
+    "C": "No <SEC-HEADER>/</SEC-HEADER> structure exists at all → a source-format/source-selection condition, NOT no_pit_sic. Determine whether the frozen spine is asking the wrong historical EDGAR representation.",
+    "D": "Source cannot be completely acquired → ACQUISITION_HEADER_INCOMPLETE, still a machinery failure.",
+    "current_evidence_points_to": "C, not yet B",
+    "prohibition": "The observed ABT result must NOT be used to invent a new historical source or loosen the coverage rules. That would be the post-hoc move this program has prevented throughout."
+  },
+
+  "carried_forward": {
+    "frozen_source_archive": "049ac67990d314560417aa2d810ac0eea81a62cfd77fbfce0340136b0e8a8add",
+    "pinned_client_blob": "6c1d7006f42f9e86121dce641af6cea525b235b8",
+    "cik_resolution_sha256": "1f7d523b9419301a16d36234f19584266f3e61fc4e5673e589d0ba7016877146",
+    "population_union_sha256": "d338e65f9ece1ff74bab8f7e7e098529c8466c8074d215e5894c402b35450872",
+    "qualified_store_sha256": "89c4680f76a556d56ccd2e055605b3925375366fca41a40910edd1b844216d39",
+    "sealed_store_version_id": "CWQjPoJDRPIHcfQUjqMU1ynWyp5x4Umr",
+    "forms": ["10-K", "10-K/A", "10-Q", "10-Q/A", "20-F", "20-F/A", "40-F", "40-F/A"],
+    "rate_limit_per_sec": 5.0,
+    "user_agent_sha256": "770d8fb5112020e51098d456252cada2f13ee0e177e8af4c256a402684bdbf41",
+    "output_prefixes": ["raw/edgar/2026-08-24", "build/classification/2026-08-24"],
+    "hazard_second_frozen_src_tree": "/opt/workbench/sec001-v3/frozen-src/670b2b3f is the REJECTED Build Record v1.0 CRLF archive. Never resolve frozen-src by glob; pin 049ac679 and assert module __file__ origin."
+  }
+}
