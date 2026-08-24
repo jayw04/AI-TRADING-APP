@@ -87,3 +87,10 @@ scripts/mr002_custody/aws/*.json text eol=lf
 scripts/mr002_custody/consumed_validation2_custody_denial.py text eol=lf
 scripts/mr002_custody/consumed_holdout_custody_denial_v2.py text eol=lf
 apps/backend/scripts/mr002_host_decommissioning_sweep.py text eol=lf
+
+# SEC-001 V3 crawl driver — bytes in the worktree must equal bytes in the Git blob.
+# Governance hashes are taken from this package; CRLF normalisation would make the
+# worktree copy and the object store disagree, which is exactly the failure that cost
+# the 2026-08-24 arrival gate a rebuild (5 of 6 blobs rejected).
+apps/backend/app/altdata/sec001_v3/** -text
+apps/backend/tests/altdata/sec001_v3/** -text
