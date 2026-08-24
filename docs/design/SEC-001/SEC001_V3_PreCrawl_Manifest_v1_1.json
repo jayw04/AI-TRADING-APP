@@ -1,0 +1,170 @@
+{
+  "artifact": "SEC-001 V3 EDGAR classification crawl — PRE-CRAWL MANIFEST v1.1",
+  "status": "AUTHORIZING. Supersedes v1.0 for the purpose of authorizing EDGAR request #1. v1.0 is NOT edited and remains truthful.",
+  "generated_utc": "2026-08-24T16:40:00Z",
+  "crawl_id": "SEC001_V3_CLASSIFICATION_CRAWL_V1",
+  "capture_date": "2026-08-24",
+
+  "supersedes_v1_0": {
+    "commit": "c581253",
+    "blob": "c5ddae98886c35bb6bf6e4568e07c4076f055c83",
+    "content_sha256": "587952e6c02d0400a326b890345068983fac7cc14b33d5d9e74b6aac35a3523e",
+    "path": "docs/design/SEC-001/SEC001_V3_PreCrawl_Manifest.json",
+    "chain_status": "BLOCKED BEFORE REQUEST #1: NO_GOVERNED_CIK_RESOLUTION",
+    "disposition": "immutable and truthful — the host was ready for the crawl, but request #1 was blocked because the frozen population lacked a governed EDGAR-addressing identity. NOT overwritten, NOT edited.",
+    "all_v1_0_bindings": "carried forward unchanged and remain in force"
+  },
+
+  "authorization_state": {
+    "edgar_requests_issued_before_v1_1": 0,
+    "coverage_state": "UNSPENT",
+    "coverage_freeze_token_prefix": "5b26ffa2",
+    "authorizes": "the one-identity canary, then continuation of the SAME governed crawl state through the remaining 1,166 identities",
+    "note": "Only v1.1 authorizes request #1."
+  },
+
+  "blocker_resolution": {
+    "blocker": "EDGAR is CIK-addressed; the frozen PIT-200 union is permaticker-keyed with no CIK. No CIK existed in /opt/sec001-data/*.json, and the sealed store's 11-column tickers projection carries neither cik nor secfilings.",
+    "rejected_solution": "SEC company_tickers.json — REJECTED. It is a CURRENT ticker→CIK map and silently drops delisted/renamed issuers, which would redefine which members of the frozen population are crawlable exactly where history matters most. It may later serve as a non-authoritative corroboration diagnostic, but must never decide membership in the EDGAR crawl.",
+    "resolution": "recovered from the ORIGINAL governed vendor acquisition — no new vendor call, no post-freeze population source",
+    "new_acquisition_performed": false,
+    "qualified_store_rebuilt": false
+  },
+
+  "sealed_source_artifact": {
+    "artifact": "Sharadar TICKERS bulk export — the exact archive already consumed by the qualified-store build",
+    "path": "/opt/sec001-data/raw/TICKERS.zip",
+    "sha256": "d6ebdf5f40b46f639e85a98b06f066ff584170f3be6566726689adafd57b097b",
+    "sha256_verification": "recomputed on host; matches acquisition_manifest.json exactly",
+    "bytes": 4956581,
+    "csv_member": "SHARADAR_TICKERS_3_9d55c66cf84cd02091405a84d061ba83.csv",
+    "vendor_snapshot_time": "2026-08-22 13:40:57 UTC",
+    "retrieved_utc": "2026-08-24T00:57:20+00:00",
+    "acquisition_manifest": "/opt/sec001-data/acquisition_manifest.json",
+    "acquisition_manifest_sha256": "5fb5e7cfda4c152410c7ef371d7e73f17c23e8bd22e28c3855f21dae96b7bf27",
+    "raw_columns": 28,
+    "raw_rows": 74013,
+    "rows_ingested_to_store": 20941,
+    "projection_note": "the governed ingest kept only table=SEP (20,941 rows) and projected 11 columns, which is why secfilings was absent from the sealed DuckDB but present in the raw archive",
+    "historical_population_retained": {
+      "rows_with_secfilings": 73411,
+      "of_which_isdelisted": 36581,
+      "significance": "the snapshot retains dead issuers WITH their EDGAR links — this is what makes it usable for a frozen historical population, and is the property company_tickers.json lacks"
+    },
+    "redownloaded": false,
+    "rebuilt": false
+  },
+
+  "cik_resolution_artifact": {
+    "artifact": "SEC001_V3_CIK_RESOLUTION_V1",
+    "path": "/opt/workbench/sec001-v3/cik-resolution/SEC001_V3_CIK_RESOLUTION_V1.json",
+    "sha256": "1f7d523b9419301a16d36234f19584266f3e61fc4e5673e589d0ba7016877146",
+    "bytes": 735415,
+    "identity_semantics": "governed snapshot-resolved CIK identity — NOT an effective-dated CIK history. TICKERS supplies one snapshot secfilings URL per permanent identity, sufficient to ADDRESS the frozen issuer population on EDGAR. Claiming effective-dated CIK history would overstate the source.",
+    "custody": "deterministically reproducible from the governed inputs (proven byte-identical across two independent builds), and pinned here by SHA-256. Held at the immutable host path above.",
+    "resolver": {
+      "function": "app.altdata.mr002.crosswalk.cik_from_secfilings",
+      "blob_sha1": "f3b5800836e88d6c8757693b2cd81de1342beefd",
+      "module_origin": "/opt/workbench/sec001-v3/frozen-src/049ac679/app/altdata/mr002/crosswalk.py",
+      "origin_asserted": true,
+      "build_security_invoked": false,
+      "build_security_rationale": "deliberately not invoked — its contract includes effective-dated lineage construction and requires ACTIONS, absent from this governed acquisition. Invoking it with an empty ACTIONS set purely to claim its use would imply a lineage reconstruction that did not happen. The CIK parser used is the identical frozen function build_security calls internally, from the same pinned blob.",
+      "resolution_path": "frozen crosswalk.cik_from_secfilings applied to the unique table=SEP TICKERS row for each frozen permaticker"
+    },
+    "actions_artifact": {
+      "present": false,
+      "classification": "explicit NON-APPLICABILITY, not an acquisition gap",
+      "rationale": "ACTIONS governs ticker-lineage reconstruction, which the frozen PIT-200 union already carries (each identity records its historical tickers[]). CIK addressing is permaticker-keyed and lineage-independent. A new ACTIONS acquisition would add a post-freeze input without solving an existing deficiency.",
+      "acquired": false
+    },
+    "counts": {
+      "population": 1167,
+      "resolved_cik": 1167,
+      "unresolved_cik": 0,
+      "accounted_for": 1167,
+      "conflicts": 0,
+      "ambiguous_multi_row_permatickers": 0,
+      "unresolved_reasons": {}
+    },
+    "per_identity_fields": [
+      "permaticker", "tickers[]", "first_slot", "last_slot", "slot_count",
+      "cik", "status", "reason", "secfilings_source",
+      "tickers_source_row{ticker,name,isdelisted,firstpricedate,lastpricedate,row_sha256}",
+      "actions_source_row", "resolution_path"
+    ],
+    "terminal_status_retained": "every identity carries RESOLVED_CIK or UNRESOLVED_CIK even though all 1,167 currently resolve — the contract must be able to express a legitimately unresolvable dead issuer on any rerun",
+    "unresolved_semantics": "an UNRESOLVED_CIK identity receives no EDGAR request and remains unresolved in the classification evidence; it is NOT dropped from the population. Sufficiency is adjudicated later by the frozen coverage gate, never here."
+  },
+
+  "cik_artifact_qualification_gate": {
+    "sections_declared": 6,
+    "sections_completed": 6,
+    "checks_declared": 23,
+    "checks_executed": 23,
+    "checks_passed": 23,
+    "structural_failures": 0,
+    "result": "PASS",
+    "gates": [
+      "raw TICKERS sha256 == governed acquisition",
+      "union sha256 == frozen population",
+      "no vendor redownload performed",
+      "qualified store not rebuilt",
+      "resolver module origin == frozen-src/049ac679",
+      "crosswalk blob == f3b58008",
+      "build_security deliberately not invoked",
+      "1,167 identities present / accounted for / zero silently dropped",
+      "every identity carries a terminal status",
+      "resolved == 1,167, unresolved == 0, conflicts == 0, multi-row == 0",
+      "negative invariants (5)",
+      "deterministic second build byte-identical, sha256 stable"
+    ],
+    "determinism_proof": "two independent in-process builds produced byte-identical 735,415-byte output with identical sha256"
+  },
+
+  "negative_invariants": {
+    "no_sec_company_tickers_json": "not used as a resolution source; neither resolver nor driver imports the company_tickers loader (cik_map), and the resolver performs no network I/O. The single textual mention is documentary — the frozen resolver's docstring names it to explain why secfilings is preferred (company_tickers.json drops delisted names). Machine-tested: 0 executable references.",
+    "no_fuzzy_company_name_matching": true,
+    "no_ticker_string_guessing": true,
+    "tickers_siccode_sicsector_not_consumed": "TICKERS carries siccode/sicsector. These are vendor-CURRENT/restated classification and are NOT authorized for PIT sector classification — the EDGAR point-in-time SIC spine is the only authorized source. Machine-tested: the resolver, the emitted artifact and the whole crawl driver contain no siccode/sicsector reference. This invariant exists so a future maintainer cannot see those populated fields and 'simplify away' the EDGAR crawl.",
+    "population_unchanged": "exactly 1,167 permanent identities, union sha256 d338e65f… unchanged",
+    "no_coverage_computed": "no θ_name, θ_window, earliest qualifying start, or any coverage percentage was computed during CIK resolution"
+  },
+
+  "carried_forward_from_v1_0": {
+    "crawl_source_commit": "0e9e14e827518866e978f46125ce549526cbe5a0",
+    "archival_tag": "sec001-v3-edgar-driver-0e9e14e",
+    "validation_pr": 674,
+    "validation_head_sha": "7480b932277ce7bbc816d77361584f31bb0e78c4",
+    "scoped_ci": "Python FULL SUCCESS (107 driver tests of 6,792); Python CI Gate FAILURE, fails closed solely on frozen-dependency mypy error crosswalk.py:91. SCOPED VALIDATION, not 'CI green'.",
+    "deployment_archive_sha256": "fd97ec624061397525691659cc6974ab1567ec82c5a672531aeb8f2346045bb5",
+    "deployment_path": "/opt/workbench/sec001-v3/driver/fd97ec62",
+    "frozen_source_archive": "049ac67990d314560417aa2d810ac0eea81a62cfd77fbfce0340136b0e8a8add",
+    "pinned_client_blob": "6c1d7006f42f9e86121dce641af6cea525b235b8",
+    "host_gate": "54/54 declared checks executed, 54 PASS",
+    "population_union_sha256": "d338e65f9ece1ff74bab8f7e7e098529c8466c8074d215e5894c402b35450872",
+    "membership_sha256": "045b634946c3206a1d6228bd388de4a9f1b9a64ac90e67620dbfa5b937627754",
+    "qualified_store_sha256": "89c4680f76a556d56ccd2e055605b3925375366fca41a40910edd1b844216d39",
+    "sealed_store_version_id": "CWQjPoJDRPIHcfQUjqMU1ynWyp5x4Umr",
+    "forms": ["10-K", "10-K/A", "10-Q", "10-Q/A", "20-F", "20-F/A", "40-F", "40-F/A"],
+    "since": "2000-01-01",
+    "end_boundary": "2026-06-12",
+    "rate_limit_per_sec": 5.0,
+    "min_interval_seconds": 0.2,
+    "user_agent": "TradingWorkbench SEC001-V3 (GlobalComplyAI, LLC) jay.w0416@gmail.com",
+    "user_agent_sha256": "770d8fb5112020e51098d456252cada2f13ee0e177e8af4c256a402684bdbf41",
+    "allowed_methods": ["GET"],
+    "halt_statuses": [403],
+    "halt_cooldown_seconds": 600,
+    "output_prefixes": ["raw/edgar/2026-08-24", "build/classification/2026-08-24"],
+    "hazard_second_frozen_src_tree": "/opt/workbench/sec001-v3/frozen-src/670b2b3f is the REJECTED Build Record v1.0 CRLF archive (sic_history.py 7,919 B / 200 CRLF vs 7,719 B / 0 CRLF in 049ac679). Never resolve frozen-src by glob; pin 049ac679 and assert module __file__ origin."
+  },
+
+  "authorized_next_step": {
+    "sequence": "request #1 → complete exactly ONE deterministic identity → inspect mechanical/acquisition facts only → if conformant, resume the SAME governed crawl state through the remaining 1,166",
+    "canary_selection": "the first identity in the already-frozen deterministic crawl order (sorted by cik, then ticker). NOT hand-picked — selecting a 'good' issuer, foreign filer, or known-complicated case would introduce post-freeze discretion.",
+    "canary_purpose": "operational only. It does not spend 5b26ffa2…, does not calculate coverage, and does not change the population.",
+    "canary_non_failure": "if the first identity legitimately has no useful filing/classification history, that is NOT a canary failure — the canary tests acquisition and evidence machinery, not whether the first issuer resolves.",
+    "on_403": "obey the frozen policy — halt after the single blocked request, preserve state, wait at least 10 minutes, require explicit resume. The canary is not permission to probe repeatedly.",
+    "no_new_crawl": "resume the same governed crawl state; do not create a new crawl or regenerate order"
+  }
+}
