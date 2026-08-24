@@ -128,6 +128,25 @@ the byte ceiling cannot fix this -- there is nothing further to read."""
 ACQ_HEADER_INCOMPLETE: Final = "ACQUISITION_HEADER_INCOMPLETE"
 """Neither terminator nor authoritative EOF reached before the frozen ceiling. OUR failure."""
 
+ACQ_ENCODING_UNSUPPORTED: Final = "ACQUISITION_ENCODING_UNSUPPORTED"
+"""An encoded representation reached, or would have reached, the frozen parser.
+
+Defect E (ruling e88ea53). Ranged requests are sent with ``Accept-Encoding: identity`` so
+that range offsets refer to document bytes, which is what the frozen spine assumes. If a
+server nonetheless returns an encoded representation, or decoding fails, acquisition fails
+CLOSED under this status. It is OUR machinery failure, never historical missingness."""
+
+#: Forced on the legacy ranged fallback so range offsets refer to DOCUMENT bytes. Range plus
+#: Content-Encoding makes offsets refer to the COMPRESSED representation, which is what fed
+#: gzip fragments to the parser across three canaries.
+RANGED_ACCEPT_ENCODING: Final = "identity"
+
+#: Encodings that mean "no transformation was applied".
+IDENTITY_ENCODINGS: Final[frozenset[str | None]] = frozenset({None, "", "identity"})
+
+#: A parser-facing body may never begin with these bytes.
+GZIP_MAGIC: Final = bytes((0x1F, 0x8B))
+
 # --- where output may go --------------------------------------------------------------
 
 # The only two prefixes this driver may write. ``sealed/`` holds the governed store and is

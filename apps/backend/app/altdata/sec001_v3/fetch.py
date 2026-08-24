@@ -75,6 +75,16 @@ class CrawlExhausted(RuntimeError):
     """A retryable status kept recurring until the attempt budget ran out."""
 
 
+class AcquisitionEncodingError(RuntimeError):
+    """An encoded representation reached, or would have reached, the frozen parser.
+
+    Defect E. Raised instead of handing the parser bytes it cannot interpret. The
+    accession's acquisition status is stamped ACQUISITION_ENCODING_UNSUPPORTED *before*
+    this is raised, so that the spine's fail-soft handler cannot turn a machinery failure
+    into an apparent absence of SIC.
+    """
+
+
 #: EDGAR accession numbers are ``NNNNNNNNNN-YY-NNNNNN`` and appear verbatim in both the
 #: ``-index-headers.html`` URL and the full-submission ``.txt`` URL.
 _ACCESSION_RE = re.compile(r"(\d{10}-\d{2}-\d{6})")
@@ -99,6 +109,9 @@ class _Capture:
     sent_monotonic_ns: int
     range_header: str | None
     content_range: str | None
+    request_accept_encoding: str | None
+    decode_ok: bool
+    decode_error: str | None
 
 
 def _decode(raw: bytes, encoding: str | None) -> bytes:
@@ -107,9 +120,10 @@ def _decode(raw: bytes, encoding: str | None) -> bytes:
     Done here with the stdlib rather than by handing the bytes back to httpx, so the
     evidence digests do not depend on httpx internals.
     """
-    if not encoding:
+    enc = (encoding or "").strip().lower()
+    if enc in ("", "identity"):
+        # 'identity' is an explicit declaration that NO transformation was applied.
         return raw
-    enc = encoding.strip().lower()
     if enc == "gzip":
         return gzip.decompress(raw)
     if enc == "deflate":
@@ -117,7 +131,7 @@ def _decode(raw: bytes, encoding: str | None) -> bytes:
             return zlib.decompress(raw)
         except zlib.error:
             return zlib.decompress(raw, -zlib.MAX_WBITS)
-    return raw
+    raise ValueError(f"unsupported Content-Encoding: {encoding!r}")
 
 
 class RecordingTransport(httpx.BaseTransport):
@@ -150,10 +164,15 @@ class RecordingTransport(httpx.BaseTransport):
         response.close()
 
         encoding = response.headers.get("content-encoding")
+        decode_ok, decode_error = True, None
         try:
             body = _decode(raw, encoding)
-        except (OSError, zlib.error, EOFError):
-            body = raw  # malformed encoding: record what arrived, let the caller fail
+        except (OSError, zlib.error, EOFError, ValueError) as exc:
+            # NEVER fall back to raw. That single line handed gzip fragments to the frozen
+            # parser across three canaries (Defect E). An undecodable body yields NO body;
+            # the caller fails closed on the capture's decode_ok flag.
+            decode_ok, decode_error = False, f"{type(exc).__name__}: {exc}"
+            body = b""
 
         self.last = _Capture(
             status=response.status_code,
@@ -165,6 +184,9 @@ class RecordingTransport(httpx.BaseTransport):
             sent_monotonic_ns=sent_monotonic_ns,
             range_header=request.headers.get("range"),
             content_range=response.headers.get("content-range"),
+            request_accept_encoding=request.headers.get("accept-encoding"),
+            decode_ok=decode_ok,
+            decode_error=decode_error,
         )
         # Hand the caller a decoded, identity-encoded response so ``r.text`` is correct.
         headers = [
@@ -305,6 +327,9 @@ class PolicyFetcher:
                 self._halted = halt
                 raise halt
             if outcome == "ok":
+                cap = self._recorder.last
+                if cap is not None:
+                    self._assert_parser_safe(cap, uri)
                 return result
             if not retryable:
                 raise CrawlExhausted(f"{uri}: {detail}")
@@ -448,13 +473,10 @@ class PolicyFetcher:
         requests = 0
 
         def finish(status: str) -> str:
+            # The artifact is EXACTLY the parser-facing bytes. No trimming at the closing
+            # tag: that would break parser_body_sha256 == source_decision_bytes_sha256,
+            # which is what makes the artifact reproduce the decision.
             data = b"".join(chunks)
-            if status == policy.ACQ_HEADER_TERMINATED:
-                # Retain document start through the closing tag, inclusive -- the exact
-                # span the header occupies, not the whole document.
-                cut = data.find(SEC_HEADER_CLOSE)
-                if cut != -1:
-                    data = data[: cut + len(SEC_HEADER_CLOSE)]
             self._mark_header(accession, status)
             self._record_decision(url, status, [data], attempts,
                                   "canonical concatenation of contiguous ranges in request order")
@@ -465,7 +487,13 @@ class PolicyFetcher:
                 if requests >= policy.HEADER_COMPLETION_MAX_REQUESTS:
                     return finish(policy.ACQ_HEADER_INCOMPLETE)
                 rng = f"bytes={consumed}-{end - 1}"
-                self._run(partial(self._client.get_text, url, headers={"Range": rng}), url)
+                # Accept-Encoding: identity so that range offsets refer to DOCUMENT bytes,
+                # which is what the frozen spine assumes. Range + Content-Encoding makes
+                # them refer to the COMPRESSED representation -- Defect E.
+                self._run(partial(self._client.get_text, url, headers={
+                    "Range": rng,
+                    "Accept-Encoding": policy.RANGED_ACCEPT_ENCODING,
+                }), url)
                 requests += 1
                 cap = self._recorder.last
                 served = len(cap.body) if cap else 0
@@ -498,9 +526,16 @@ class PolicyFetcher:
         if not accession:
             return
         data = b"".join(parts)
+        cap = self._recorder.last
         rec = SourceDecisionBytes(
             accession=accession, uri=uri, acquisition_status=status,
             byte_length=len(data), sha256=sha256_hex(data),
+            parser_body_sha256=sha256_hex(data), parser_body_length=len(data),
+            request_accept_encoding=(cap.request_accept_encoding if cap else None),
+            response_content_encoding=(cap.content_encoding if cap else None),
+            decoding_status=("decoded" if cap and cap.content_encoding else "identity"),
+            wire_sha256=(sha256_hex(cap.wire) if cap else None),
+            wire_byte_length=(len(cap.wire) if cap else None),
             reconstruction=reconstruction, attempts=attempts, form=form,
             document_complete=status in (policy.ACQ_HEADER_TERMINATED,
                                          policy.ACQ_DOCUMENT_EOF_NO_TERMINATOR,
@@ -511,6 +546,41 @@ class PolicyFetcher:
         if self._decision_dir is not None:
             rec.artifact_path = str(write_artifact(Path(self._decision_dir), accession, data))
         self.decisions[accession] = rec
+
+    def _assert_parser_safe(self, cap: _Capture, uri: str) -> None:
+        """Refuse to let an encoded or undecodable representation reach the frozen parser.
+
+        Three independent checks, deliberately overlapping. The hash invariant catches the
+        general class -- any path where decoding silently did not happen. The magic-byte
+        check catches a concrete escaped encoding. The decode flag catches an outright
+        decoding failure. All three were absent, which is why Defect E survived three
+        canaries: the evidence already contained the signal (sha256_body == sha256_wire
+        while content_encoding said gzip) and nothing was checking it.
+        """
+        accession, _ = self._provenance(uri)
+        enc = (cap.content_encoding or "").strip().lower() or None
+
+        if not cap.decode_ok:
+            self._mark_header(accession, policy.ACQ_ENCODING_UNSUPPORTED)
+            raise AcquisitionEncodingError(
+                f"{uri}: body could not be decoded ({cap.decode_error}); "
+                f"refusing to hand it to the frozen parser")
+
+        # Encoded-body integrity invariant (frozen, ruling e88ea53). The zero-length guard
+        # is deliberate: an empty body with a declared encoding hashes identically on both
+        # sides and would otherwise fail closed on a spurious condition.
+        if (enc not in policy.IDENTITY_ENCODINGS and len(cap.wire) > 0
+                and sha256_hex(cap.body) == sha256_hex(cap.wire)):
+            self._mark_header(accession, policy.ACQ_ENCODING_UNSUPPORTED)
+            raise AcquisitionEncodingError(
+                f"{uri}: Content-Encoding {enc!r} declared but the parser body is "
+                f"byte-identical to the wire body -- decoding did not happen")
+
+        if cap.body[:2] == policy.GZIP_MAGIC:
+            self._mark_header(accession, policy.ACQ_ENCODING_UNSUPPORTED)
+            raise AcquisitionEncodingError(
+                f"{uri}: parser-facing body begins with gzip magic; an encoded "
+                f"representation would have reached the frozen parser")
 
     def _mark_header(self, accession: str | None, status: str) -> None:
         if accession:

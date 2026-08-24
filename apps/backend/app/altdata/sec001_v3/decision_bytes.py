@@ -18,11 +18,14 @@ measure.
 
 What is kept, per filing:
 
-``HEADER_INDEX``            the exact response body the parser consumed
-``HEADER_TERMINATED``       document start through the closing ``</SEC-HEADER>`` tag
-``DOCUMENT_EOF_...``        the complete body, which is within the frozen ceiling by
-                            construction (EOF was reached before the cap)
-``ACQUISITION_...``         exactly the bytes acquired up to the ceiling
+In every case the artifact is **exactly the parser-facing bytes** — never a prefix trimmed at
+the closing tag. Trimming would break the identity
+``parser_body_sha256 == source_decision_bytes_sha256``, which is the property that makes the
+artifact reproduce the decision rather than merely resemble it. The SEC-header boundaries are
+recorded as offsets into the persisted bytes instead (ruling e88ea53, owner-ratified). This
+also keeps the custody chain one transformation shorter, which is materially easier to audit:
+
+    SEC response -> decode -> parser-facing bytes -> persisted exact bytes -> frozen parser
 
 Where a decision was assembled from several contiguous ranges, the retained artifact is the
 canonical concatenation. The reconstruction procedure and every constituent request digest
@@ -64,6 +67,20 @@ class SourceDecisionBytes:
     byte_length: int
     sha256: str
     reconstruction: str
+    #: Identical to ``sha256`` by construction: the artifact IS the parser-facing bytes,
+    #: never a prefix trimmed at the closing tag. Trimming would break the identity that
+    #: makes the artifact reproduce the decision (ruling e88ea53, owner-ratified).
+    parser_body_sha256: str = ""
+    parser_body_length: int = 0
+    #: Boundaries recorded as OFFSETS INTO THE PERSISTED BYTES, not decoded-text character
+    #: positions, so they carry no encoding-dependent ambiguity. -1 == absent.
+    sec_header_open_offset: int = -1
+    sec_header_close_offset: int = -1
+    request_accept_encoding: str | None = None
+    response_content_encoding: str | None = None
+    decoding_status: str = "identity"
+    wire_sha256: str | None = None
+    wire_byte_length: int | None = None
     attempts: list[RangeAttempt] = field(default_factory=list)
     form: str | None = None
     parser_result: str | None = None       # filled by the driver after the spine parses
@@ -86,7 +103,7 @@ def sha256_hex(data: bytes) -> str:
     return hashlib.sha256(data).hexdigest()
 
 
-def predicates(data: bytes, sic_pattern: object | None = None) -> dict[str, bool]:
+def predicates(data: bytes, sic_pattern: object | None = None) -> dict[str, bool | int]:
     """Independent structural predicates over retained bytes.
 
     ``sic_pattern`` is the frozen spine's own compiled ``SIC_RE`` when available, so the
@@ -118,6 +135,8 @@ def predicates(data: bytes, sic_pattern: object | None = None) -> dict[str, bool
                       and (close_at == -1 or sic_at < close_at))
 
     return {
+        "sec_header_open_offset": open_at,
+        "sec_header_close_offset": close_at,
         "sec_header_open_present": open_at != -1,
         "sec_header_close_present": close_at != -1,
         "sic_field_present_anywhere": anywhere,

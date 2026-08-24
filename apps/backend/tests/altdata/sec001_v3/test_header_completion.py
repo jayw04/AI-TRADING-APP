@@ -433,7 +433,15 @@ def test_decision_bytes_retained_for_every_outcome(tmp_path) -> None:
         assert sum(a.byte_length for a in rec.attempts) >= rec.byte_length
 
 
-def test_terminated_artifact_is_truncated_at_the_closing_tag(tmp_path) -> None:
+def test_artifact_is_exactly_the_parser_facing_bytes(tmp_path) -> None:
+    """Ruling e88ea53, owner-ratified: the artifact is EXACTLY what the parser received.
+
+    Supersedes the earlier "trim at the closing tag" rule. A trimmed artifact is a *prefix*
+    of the parser input, so it can resemble the decision but never reproduce it
+    byte-for-byte. Boundaries are recorded as offsets into the persisted bytes instead.
+    """
+    import hashlib
+
     body = doc(sic_at=5000, close_at=6000, total=40000)
     f = PolicyFetcher(evidence=EvidenceLog(path=tmp_path / "ev.jsonl"),
                       transport=httpx.MockTransport(ranged(body)),
@@ -441,9 +449,21 @@ def test_terminated_artifact_is_truncated_at_the_closing_tag(tmp_path) -> None:
                       decision_dir=tmp_path / "d", sic_pattern=sic_history.SIC_RE)
     with f:
         sic_history.fetch_header_text(f, 320193, ACC)
-    kept = Path(f.decisions[ACC].artifact_path).read_bytes()
-    assert kept.endswith(b"</SEC-HEADER>"), "retain start through the closing tag"
-    assert len(kept) < 40000, "the whole document must not be retained when it terminates"
+    rec = f.decisions[ACC]
+    kept = Path(rec.artifact_path).read_bytes()
+
+    # the identity that makes the artifact reproduce the decision
+    assert rec.parser_body_sha256 == rec.sha256
+    assert hashlib.sha256(kept).hexdigest() == rec.parser_body_sha256
+    assert rec.parser_body_length == len(kept)
+    assert not kept.endswith(b"</SEC-HEADER>"), \
+        "the artifact must NOT be trimmed at the closing tag any more"
+
+    # boundaries survive as OFFSETS INTO THE PERSISTED BYTES, not by truncation
+    assert rec.sec_header_open_offset >= 0
+    assert rec.sec_header_close_offset > rec.sec_header_open_offset
+    assert kept[rec.sec_header_open_offset:].startswith(b"<SEC-HEADER>")
+    assert kept[rec.sec_header_close_offset:].startswith(b"</SEC-HEADER>")
 
 
 def test_decision_predicates_are_independent(tmp_path) -> None:
