@@ -38,12 +38,20 @@ import zlib
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 from functools import partial
+from pathlib import Path
 from typing import Any, cast
 
 import httpx
 
 from app.altdata.sec.client import EdgarClient
 from app.altdata.sec001_v3 import policy
+from app.altdata.sec001_v3.decision_bytes import (
+    SEC_HEADER_CLOSE,
+    RangeAttempt,
+    SourceDecisionBytes,
+    predicates,
+    write_artifact,
+)
 from app.altdata.sec001_v3.evidence import EvidenceLog, SourceEvidence, sha256_hex, utc_now_iso
 
 
@@ -185,6 +193,8 @@ class PolicyFetcher:
         transport: httpx.BaseTransport | None = None,
         sleep: Callable[[float], None] = time.sleep,
         monotonic: Callable[[], float] = time.monotonic,
+        decision_dir: Path | None = None,
+        sic_pattern: object | None = None,
     ) -> None:
         self._recorder = RecordingTransport(transport)
         self._client = EdgarClient(
@@ -204,6 +214,12 @@ class PolicyFetcher:
         #: accession -> acquisition status (see policy.ACQ_*). Lets the driver distinguish
         #: a machinery failure from a legitimate absence of SIC in the source.
         self.header_status: dict[str, str] = {}
+        #: accession -> persisted decision-byte record (see decision_bytes.py)
+        self.decisions: dict[str, SourceDecisionBytes] = {}
+        self._decision_dir = decision_dir
+        #: the frozen spine's own SIC_RE, so structural predicates are answered by the
+        #: authoritative expression rather than a lookalike defined in the driver
+        self._sic_pattern = sic_pattern
         self.requests_issued = 0
         self.retries = 0
 
@@ -402,7 +418,14 @@ class PolicyFetcher:
         """
         if headers and headers.get("Range") == policy.LEGACY_HEADER_RANGE:
             return self._complete_sec_header(url)
-        return self._run(lambda: self._client.get_text(url, headers=headers), url)
+        text = self._run(lambda: self._client.get_text(url, headers=headers), url)
+        if "-index-headers.html" in url:
+            cap = self._recorder.last
+            if cap is not None:
+                self._record_decision(url, policy.ACQ_HEADER_INDEX, [cap.body],
+                                      [self._attempt_of(cap, url)],
+                                      "single -index-headers.html response body")
+        return text
 
     # -- SEC-header completion (Remediation Ruling v1.0 §1) ----------------------------
 
@@ -419,42 +442,75 @@ class PolicyFetcher:
         reaches the spine's own parser and all interpretation stays there.
         """
         accession, _ = self._provenance(url)
-        parts: list[str] = []
+        chunks: list[bytes] = []
+        attempts: list[RangeAttempt] = []
         consumed = 0
         requests = 0
+
+        def finish(status: str) -> str:
+            data = b"".join(chunks)
+            if status == policy.ACQ_HEADER_TERMINATED:
+                # Retain document start through the closing tag, inclusive -- the exact
+                # span the header occupies, not the whole document.
+                cut = data.find(SEC_HEADER_CLOSE)
+                if cut != -1:
+                    data = data[: cut + len(SEC_HEADER_CLOSE)]
+            self._mark_header(accession, status)
+            self._record_decision(url, status, [data], attempts,
+                                  "canonical concatenation of contiguous ranges in request order")
+            return b"".join(chunks).decode("utf-8", errors="replace")
+
         for end in policy.HEADER_COMPLETION_WINDOWS:
             while consumed < end:
                 if requests >= policy.HEADER_COMPLETION_MAX_REQUESTS:
-                    self._mark_header(accession, policy.ACQ_HEADER_INCOMPLETE)
-                    return "".join(parts)
+                    return finish(policy.ACQ_HEADER_INCOMPLETE)
                 rng = f"bytes={consumed}-{end - 1}"
-                parts.append(self._run(
-                    partial(self._client.get_text, url, headers={"Range": rng}), url))
+                self._run(partial(self._client.get_text, url, headers={"Range": rng}), url)
                 requests += 1
-                text = "".join(parts)
-                if policy.SEC_HEADER_CLOSE_TAG in text:
-                    self._mark_header(accession, policy.ACQ_HEADER_COMPLETE)
-                    return text
-
                 cap = self._recorder.last
                 served = len(cap.body) if cap else 0
+                if cap is not None:
+                    chunks.append(cap.body)
+                    attempts.append(self._attempt_of(cap, url))
+
+                if SEC_HEADER_CLOSE in b"".join(chunks):
+                    return finish(policy.ACQ_HEADER_TERMINATED)
                 if served == 0:
-                    # Nothing more to read: the document is exhausted, so the header is
-                    # complete and any absence of SIC is evidentiary.
-                    self._mark_header(accession, policy.ACQ_HEADER_COMPLETE)
-                    return text
+                    # Nothing more to read. The document is exhausted and no terminator
+                    # exists in it -- a SOURCE-FORMAT fact, NOT evidence completeness.
+                    return finish(policy.ACQ_DOCUMENT_EOF_NO_TERMINATOR)
                 consumed += served
 
-                # Prefer Content-Range's authoritative total over inferring EOF from a
-                # short read -- a server that caps range sizes is not at end-of-file, and
-                # treating it as such would silently truncate the header.
                 total = _total_from_content_range(cap.content_range if cap else None)
                 if total is not None and consumed >= total:
-                    self._mark_header(accession, policy.ACQ_HEADER_COMPLETE)
-                    return text
-        # Cap reached without closing the header: OUR failure, not the record's.
-        self._mark_header(accession, policy.ACQ_HEADER_INCOMPLETE)
-        return "".join(parts)
+                    return finish(policy.ACQ_DOCUMENT_EOF_NO_TERMINATOR)
+        return finish(policy.ACQ_HEADER_INCOMPLETE)
+
+    def _attempt_of(self, cap: _Capture, url: str) -> RangeAttempt:
+        return RangeAttempt(uri=url, range_header=cap.range_header, http_status=cap.status,
+                            content_range=cap.content_range, byte_length=len(cap.body),
+                            sha256=sha256_hex(cap.body))
+
+    def _record_decision(self, uri: str, status: str, parts: list[bytes],
+                         attempts: list[RangeAttempt], reconstruction: str) -> None:
+        """Persist the exact bytes behind one filing's SIC decision."""
+        accession, form = self._provenance(uri)
+        if not accession:
+            return
+        data = b"".join(parts)
+        rec = SourceDecisionBytes(
+            accession=accession, uri=uri, acquisition_status=status,
+            byte_length=len(data), sha256=sha256_hex(data),
+            reconstruction=reconstruction, attempts=attempts, form=form,
+            document_complete=status in (policy.ACQ_HEADER_TERMINATED,
+                                         policy.ACQ_DOCUMENT_EOF_NO_TERMINATOR,
+                                         policy.ACQ_HEADER_INDEX),
+        )
+        for name, value in predicates(data, self._sic_pattern).items():
+            setattr(rec, name, value)
+        if self._decision_dir is not None:
+            rec.artifact_path = str(write_artifact(Path(self._decision_dir), accession, data))
+        self.decisions[accession] = rec
 
     def _mark_header(self, accession: str | None, status: str) -> None:
         if accession:

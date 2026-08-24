@@ -52,6 +52,7 @@ from app.altdata.sec001_v3.sections import GateRun, SectionSpec  # noqa: E402
 #: nobody noticed" a failure rather than a silent widening of what got frozen.
 PACKAGE_FILES: tuple[str, ...] = (
     "apps/backend/app/altdata/sec001_v3/__init__.py",
+    "apps/backend/app/altdata/sec001_v3/decision_bytes.py",
     "apps/backend/app/altdata/sec001_v3/driver.py",
     "apps/backend/app/altdata/sec001_v3/evidence.py",
     "apps/backend/app/altdata/sec001_v3/fetch.py",

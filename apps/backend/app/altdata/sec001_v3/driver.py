@@ -162,7 +162,11 @@ class CrawlDriver:
         self.build_dir = self.out_root / policy.BUILD_PREFIX
         self.obs_dir = self.raw_dir / "observations"
         self.seg_dir = self.build_dir / "segments"
-        for d in (self.obs_dir, self.seg_dir):
+        self.decision_dir = self.raw_dir / "source_decision_bytes"
+        self.decision_manifest = self.raw_dir / "source_decision_bytes.jsonl"
+        assert_output_allowed(self.decision_dir, self.out_root)
+        assert_output_allowed(self.decision_manifest, self.out_root)
+        for d in (self.obs_dir, self.seg_dir, self.decision_dir):
             assert_output_allowed(d, self.out_root)
             d.mkdir(parents=True, exist_ok=True)
 
@@ -199,6 +203,24 @@ class CrawlDriver:
             record["acquisition_status"] = status
             if status == policy.ACQ_HEADER_INCOMPLETE:
                 incomplete += 1
+
+            # Bind the observation to the exact persisted source bytes behind its decision,
+            # so a later reader can reproduce the parser result without asking EDGAR again.
+            decision = self.fetcher.decisions.get(o.accession)
+            if decision is not None:
+                decision.parser_result = "SIC" if o.sic else "NO_SIC"
+                record["source_decision"] = {
+                    "sha256": decision.sha256,
+                    "byte_length": decision.byte_length,
+                    "artifact_path": decision.artifact_path,
+                    "document_complete": decision.document_complete,
+                    "sec_header_open_present": decision.sec_header_open_present,
+                    "sec_header_close_present": decision.sec_header_close_present,
+                    "sic_field_present_anywhere": decision.sic_field_present_anywhere,
+                    "sic_field_present_inside_sec_header":
+                        decision.sic_field_present_inside_sec_header,
+                }
+                append_jsonl(asdict(decision), self.decision_manifest)
             append_jsonl(record, obs_path)
         seg_path.write_bytes(b"")
         for s in built.segments:

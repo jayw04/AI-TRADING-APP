@@ -105,12 +105,28 @@ HEADER_COMPLETION_MAX_REQUESTS: Final = 8
 #: keeps ALL SIC interpretation with the frozen spine and none in the transport layer.
 SEC_HEADER_CLOSE_TAG: Final = "</SEC-HEADER>"
 
-# Acquisition status vocabulary. The distinction between the last two is load-bearing:
-# ``no_pit_sic`` is a fact about available historical evidence; ACQUISITION_HEADER_INCOMPLETE
-# is a failure of our machinery and must NEVER count against classification coverage.
-ACQ_HEADER_INDEX: Final = "HEADER_INDEX"                       # -index-headers.html served it
-ACQ_HEADER_COMPLETE: Final = "HEADER_COMPLETE"                 # full SEC-HEADER obtained
-ACQ_HEADER_INCOMPLETE: Final = "ACQUISITION_HEADER_INCOMPLETE"  # cap hit; NOT no_pit_sic
+# Acquisition status vocabulary. Every distinction here is load-bearing, because each one
+# separates a fact about the SOURCE from a fact about OUR MACHINERY. Collapsing any pair
+# launders one into the other -- which is precisely how an extraction defect becomes
+# apparent historical missingness.
+#
+# None of these mean ``no_pit_sic``. That is a downstream determination about historical
+# evidence, made only after the source bytes have been inspected.
+ACQ_HEADER_INDEX: Final = "HEADER_INDEX"
+"""-index-headers.html served the header directly."""
+
+ACQ_HEADER_TERMINATED: Final = "HEADER_TERMINATED"
+"""``</SEC-HEADER>`` was actually observed. The header is bounded and complete."""
+
+ACQ_DOCUMENT_EOF_NO_TERMINATOR: Final = "DOCUMENT_EOF_NO_SEC_HEADER_TERMINATOR"
+"""The complete document was acquired, but no closing SEC-header tag exists in it.
+
+A SOURCE-FORMAT fact, not evidence completeness. Measured on ABT accession
+0000912057-00-024277: all 28,350 bytes retrieved, no terminator anywhere, no SIC. Raising
+the byte ceiling cannot fix this -- there is nothing further to read."""
+
+ACQ_HEADER_INCOMPLETE: Final = "ACQUISITION_HEADER_INCOMPLETE"
+"""Neither terminator nor authoritative EOF reached before the frozen ceiling. OUR failure."""
 
 # --- where output may go --------------------------------------------------------------
 

@@ -15,6 +15,8 @@ and silently move the evaluation start date.
 
 from __future__ import annotations
 
+from pathlib import Path
+
 import httpx
 import pytest
 
@@ -86,7 +88,7 @@ def test_sic_beyond_4095_is_recovered(tmp_path) -> None:
     sic, name = sic_history.parse_sic(text)
     assert sic == "2834", "SIC beyond the legacy 4 KiB window must be recovered"
     assert name == "PHARMACEUTICAL PREPARATIONS"
-    assert f.header_status[ACC] == policy.ACQ_HEADER_COMPLETE
+    assert f.header_status[ACC] == policy.ACQ_HEADER_TERMINATED
     assert f.requests_issued > 1, "completion requires more than the single legacy window"
 
 
@@ -101,7 +103,7 @@ def test_sic_within_first_window_costs_one_request(tmp_path) -> None:
     # 1 x the 404'd index-headers probe (the spine's own first attempt) + exactly 1 ranged
     # window. The override adds nothing when the header already fits in 4 KiB.
     assert f.requests_issued == 2
-    assert f.header_status[ACC] == policy.ACQ_HEADER_COMPLETE
+    assert f.header_status[ACC] == policy.ACQ_HEADER_TERMINATED
 
 
 # --- fixture 2/3: complete header with and without SIC --------------------------------
@@ -113,7 +115,7 @@ def test_complete_header_with_sic(tmp_path) -> None:
     with f:
         text = sic_history.fetch_header_text(f, 320193, ACC)
     assert sic_history.parse_sic(text)[0] == "2834"
-    assert f.header_status[ACC] == policy.ACQ_HEADER_COMPLETE
+    assert f.header_status[ACC] == policy.ACQ_HEADER_TERMINATED
 
 
 def test_complete_header_legitimately_without_sic(tmp_path) -> None:
@@ -124,7 +126,7 @@ def test_complete_header_legitimately_without_sic(tmp_path) -> None:
     with f:
         text = sic_history.fetch_header_text(f, 320193, ACC)
     assert sic_history.parse_sic(text) == (None, None)
-    assert f.header_status[ACC] == policy.ACQ_HEADER_COMPLETE, \
+    assert f.header_status[ACC] == policy.ACQ_HEADER_TERMINATED, \
         "a legitimately SIC-less header is complete, not an acquisition failure"
 
 
@@ -362,3 +364,102 @@ def test_rate_proof_ignores_unsent_attempts(tmp_path) -> None:
     deltas = [(stamps[i + 1] - stamps[i]) / 1e9 for i in range(len(stamps) - 1)]
     assert deltas, "need at least two real transmissions"
     assert all(d >= 0.196 for d in deltas), deltas
+
+
+# --- fixture 9: Defect D -- three-way status, no collapsing to "complete" --------------
+
+
+def test_eof_without_terminator_is_not_header_terminated(tmp_path) -> None:
+    """Defect D. A document read to EOF with no ``</SEC-HEADER>`` anywhere is a
+    SOURCE-FORMAT fact, not evidence completeness.
+
+    This is the real ABT case: accession 0000912057-00-024277 returned all 28,350 bytes
+    with no terminator and no SIC. Collapsing it into "complete" launders a source anomaly
+    into apparent completeness -- and raising the byte ceiling could never fix it, because
+    there is nothing further to read.
+    """
+    body = b"<SEC-HEADER>\nACCESSION NUMBER: x\n" + b"Z" * 20000  # no close tag, no SIC
+    f = make(ranged(body), tmp_path)
+    with f:
+        text = sic_history.fetch_header_text(f, 320193, ACC)
+    assert sic_history.parse_sic(text) == (None, None)
+    assert f.header_status[ACC] == policy.ACQ_DOCUMENT_EOF_NO_TERMINATOR
+    assert f.header_status[ACC] != policy.ACQ_HEADER_TERMINATED
+    assert f.header_status[ACC] != policy.ACQ_HEADER_INCOMPLETE
+
+
+def test_three_statuses_are_mutually_distinct() -> None:
+    vals = {policy.ACQ_HEADER_INDEX, policy.ACQ_HEADER_TERMINATED,
+            policy.ACQ_DOCUMENT_EOF_NO_TERMINATOR, policy.ACQ_HEADER_INCOMPLETE}
+    assert len(vals) == 4
+    assert policy.ACQ_DOCUMENT_EOF_NO_TERMINATOR == "DOCUMENT_EOF_NO_SEC_HEADER_TERMINATOR"
+    assert "COMPLETE" not in policy.ACQ_DOCUMENT_EOF_NO_TERMINATOR
+
+
+# --- fixture 10: bounded decision-byte retention ---------------------------------------
+
+
+def test_decision_bytes_retained_for_every_outcome(tmp_path) -> None:
+    """Retention is not outcome-dependent: bytes are kept whether or not a SIC was found.
+
+    Keeping evidence only where the result was interesting is how a corpus acquires a
+    selection bias nobody can later measure.
+    """
+    cases = {
+        "terminated_with_sic": (doc(sic_at=9000, close_at=12000, total=40000),
+                                policy.ACQ_HEADER_TERMINATED),
+        "terminated_no_sic": (doc(sic_at=None, close_at=6000, total=20000),
+                              policy.ACQ_HEADER_TERMINATED),
+        "eof_no_terminator": (b"<SEC-HEADER>\n" + b"Z" * 20000,
+                              policy.ACQ_DOCUMENT_EOF_NO_TERMINATOR),
+    }
+    for name, (body, expected) in cases.items():
+        d = tmp_path / name
+        f = PolicyFetcher(evidence=EvidenceLog(path=d / "ev.jsonl"),
+                          transport=httpx.MockTransport(ranged(body)),
+                          sleep=lambda x: None, monotonic=lambda: 0.0,
+                          decision_dir=d / "decisions",
+                          sic_pattern=sic_history.SIC_RE)
+        with f:
+            sic_history.fetch_header_text(f, 320193, ACC)
+        assert f.header_status[ACC] == expected, name
+        rec = f.decisions[ACC]
+        assert rec.byte_length > 0, name
+        assert rec.artifact_path and Path(rec.artifact_path).exists(), name
+        kept = Path(rec.artifact_path).read_bytes()
+        import hashlib
+        assert hashlib.sha256(kept).hexdigest() == rec.sha256, name
+        assert rec.attempts, "constituent request evidence must be recorded"
+        assert sum(a.byte_length for a in rec.attempts) >= rec.byte_length
+
+
+def test_terminated_artifact_is_truncated_at_the_closing_tag(tmp_path) -> None:
+    body = doc(sic_at=5000, close_at=6000, total=40000)
+    f = PolicyFetcher(evidence=EvidenceLog(path=tmp_path / "ev.jsonl"),
+                      transport=httpx.MockTransport(ranged(body)),
+                      sleep=lambda x: None, monotonic=lambda: 0.0,
+                      decision_dir=tmp_path / "d", sic_pattern=sic_history.SIC_RE)
+    with f:
+        sic_history.fetch_header_text(f, 320193, ACC)
+    kept = Path(f.decisions[ACC].artifact_path).read_bytes()
+    assert kept.endswith(b"</SEC-HEADER>"), "retain start through the closing tag"
+    assert len(kept) < 40000, "the whole document must not be retained when it terminates"
+
+
+def test_decision_predicates_are_independent(tmp_path) -> None:
+    """The five structural predicates are orthogonal observations. None of them may be
+    read as `no_pit_sic` -- that is a downstream determination about historical evidence."""
+    body = b"<SEC-HEADER>\n" + SIC_LINE.encode() + b"more\n</SEC-HEADER>\ntail"
+    f = PolicyFetcher(evidence=EvidenceLog(path=tmp_path / "ev.jsonl"),
+                      transport=httpx.MockTransport(ranged(body)),
+                      sleep=lambda x: None, monotonic=lambda: 0.0,
+                      decision_dir=tmp_path / "d", sic_pattern=sic_history.SIC_RE)
+    with f:
+        sic_history.fetch_header_text(f, 320193, ACC)
+    r = f.decisions[ACC]
+    assert r.sec_header_open_present
+    assert r.sec_header_close_present
+    assert r.sic_field_present_anywhere
+    assert r.sic_field_present_inside_sec_header
+    assert r.document_complete
+    assert "no_pit_sic" not in repr(r)
