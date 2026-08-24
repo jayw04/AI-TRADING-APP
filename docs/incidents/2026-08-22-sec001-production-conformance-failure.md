@@ -510,3 +510,81 @@ binding them can be lost.
   missing script on the box (§13.3). Book carries **99 positions / $97,854.74** into the session.
 - C6: ⬜ pending C5b.
 - G3–G6: ⬜ open, and gated behind C6 per §8.
+
+---
+
+## 14. C5b + C6 — EXECUTED AND CLOSED, 2026-08-24
+
+### 14.1 C5b — flatten
+
+Executed during RTH on 2026-08-24. Submission path was the authenticated HTTP API
+(`flatten_account.py` → `POST /api/v1/orders` → OrderRouter → risk engine → audit), per ADR 0002.
+**No direct broker liquidation and no DB edit was used at any point.**
+
+Transport note: the tool was delivered by `docker cp` into `workbench-backend` (see §13.3) and driven
+over an **SSM port-forward of :8000**, so the credential never entered an SSM command body, an
+instance command history, or `/var/lib/amazon/ssm/.../_script.sh`.
+
+| | |
+|---|---|
+| Dry run | 99 positions resolved, login OK, **0 orders submitted** |
+| Live submit | **99 SELL orders, 0 rejected** — every order returned a `broker_order_id` |
+| Rejections | none: no `CIRCUIT_BREAKER`, no `RATE_LIMIT`, no `MARKET_SESSION_CLOSED` |
+| Breaker headroom at submit | `day_change −1,886.63` vs cap 5,000 ⇒ **$3,113 headroom**, breaker `NULL`, `trading_blocked=0` |
+| Settlement | 13:41:35Z — **99 FILLED / 99 fill rows / 0 positions / 0 non-terminal** |
+
+⭐ **Fill-ingest lag reappeared and self-resolved.** Immediately post-submit the platform showed
+`SUBMITTED 99 / fills 0` while positions were already **0** — positions sync by REST poll, order
+lifecycle by the trade-updates stream. Consistent with the recorded EC2 behaviour (latency, not loss;
+prior measurement 8 m 31 s). It settled in **~3 minutes** with no manual reconciliation.
+⛔ Per **INV-EXEC-01**, the absence of a platform fill record was *not* treated as "unfilled" — the
+run polled to settlement rather than retrying. Had it been read as unfilled, a retry would have
+double-sold.
+
+### 14.2 C6 — post-containment verification: **PASS**
+
+`scripts/c6_verify.py`, read-only (`mode=ro`), fail-closed. ⭐ It was **run before the flatten and
+returned FAIL (exit 2)** on `positions == 0` and `flatten audit trail present` — so the PASS below is
+a state change, not a vacuous green.
+
+| Criterion | Result |
+|---|---|
+| `positions == 0` | ✅ 0 remaining |
+| `non_terminal_orders == 0` | ✅ 0 open |
+| strategy 7 still `IDLE` | ✅ IDLE |
+| no scheduled/runnable dispatch | ✅ `runnable=False` (IDLE ∉ `ENGINE_RUNNABLE_STATUSES`) |
+| account cash/equity captured | ✅ equity **99,262.44**, cash **99,262.44** (fully in cash) |
+| flatten audit trail present | ✅ 99 sells; 298 user-5 audit rows today (`ORDER_RISK_PASSED` 99 + `ORDER_SUBMITTED` 99 + fill ingests) |
+| runtime identity recorded (LF) | ✅ `sector_rotation.py` `6ee3953d…` (21990 B), `factors/sector.py` `7d91e159…` (7014 B), `crlf_present: false` |
+
+### 14.3 Custody — C1/C6 pair complete
+
+```
+object   : s3://workbench-evidence-incidents-219024422756/
+           sec001/2026-08-24/sec001_post_containment_c6_20260824T134150Z.json
+VersionId: 3snS8HgJzNUHF24BwAIiUfCSHn9lLikb
+sha256   : 132fae12406fae88207a8cf39805222e2cebe95bd2188873ac1146153dc20adf
+bytes    : 135589
+lock     : COMPLIANCE, retain-until 2033-08-22T13:42:20Z
+```
+
+S3 server checksum decodes to the local sha256 **exactly**. ⭐ `HeadObject` from the host returns
+**403** — expected, and a positive control: the instance role is **write-only** by bucket policy
+(§8.1). Retention was confirmed with admin credentials instead.
+⭐ Per §13.2 the identity recorded here is the **LF** runtime blob, not §8's CRLF artifact.
+⭐ No write probe was placed inside the evidence prefix this time (§8.1 records why that matters).
+
+### 14.4 Gate status after C6
+
+| Gate | State |
+|---|---|
+| G1 evidence quarantine | ✅ |
+| G2 blast radius | ✅ CLOSED |
+| **C5b / C6** | ✅ **CLOSED — account 5 flat, $99,262.44 all cash, containment sealed** |
+| G3 mechanical conformance repair | ⬜ open — now unblocked (§8 gated §9/§10 behind C6) |
+| G4 representability fail-closed | ⬜ open |
+| G5 SEC-001 V3 research | ⬜ open |
+| G6 fresh paper accrual | ⬜ open — starts from zero after an approved V3 activation |
+
+Account 5 becomes eligible for a later V3 reset only from this sealed clean state. The prior eight
+weeks remain non-conforming and carry zero promotion credit (G1).
