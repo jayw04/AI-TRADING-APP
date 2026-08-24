@@ -1,0 +1,86 @@
+{
+  "artifact": "SEC-001 V3 classification crawl driver",
+  "capture_date": "2026-08-24",
+  "crawl_id": "SEC001_V3_CLASSIFICATION_CRAWL_V1",
+  "dependency_pins": {
+    "apps/backend/app/altdata/mr002/__init__.py": "506870c6fadf6cc86f9a2a1b5441fe551841f435",
+    "apps/backend/app/altdata/mr002/sic_history.py": "48779adaaaecfeffb9c6a32be8531f784d72058a",
+    "apps/backend/app/altdata/sec/client.py": "6c1d7006f42f9e86121dce641af6cea525b235b8"
+  },
+  "files": [
+    {
+      "blob_sha1": "a50bc6c768964a937cbe1e3355b1540ce88286dc",
+      "bytes": 251,
+      "crlf_pairs": 0,
+      "path": "apps/backend/app/altdata/sec001_v3/__init__.py",
+      "sha256": "c7844b47efc706caa4823e54b2050a835e5a4b31dcda721f1f4c541d38b59fd2"
+    },
+    {
+      "blob_sha1": "8bece19248451408e2763b599d0bd55f64c15547",
+      "bytes": 11604,
+      "crlf_pairs": 0,
+      "path": "apps/backend/app/altdata/sec001_v3/driver.py",
+      "sha256": "05717095c8f3518f92e9b88c78596f44d67b0d2a557f369754a443683842d597"
+    },
+    {
+      "blob_sha1": "8a83c477ba97bc33346658aa428822c3ab32455b",
+      "bytes": 3516,
+      "crlf_pairs": 0,
+      "path": "apps/backend/app/altdata/sec001_v3/evidence.py",
+      "sha256": "9d85c6836afcd6ea1a78af1c644341fcc95746d170dcbef9b7c3a943301350aa"
+    },
+    {
+      "blob_sha1": "50f96b26aba3e3de58c8659051d23baa79b88652",
+      "bytes": 14421,
+      "crlf_pairs": 0,
+      "path": "apps/backend/app/altdata/sec001_v3/fetch.py",
+      "sha256": "2786f88f5f75caa4f0a86eab37fffbe27d01ff7509ab2195aa1cb2f7d4feb91e"
+    },
+    {
+      "blob_sha1": "8570677325aa1bdb54fe67df6fbde06176322942",
+      "bytes": 5595,
+      "crlf_pairs": 0,
+      "path": "apps/backend/app/altdata/sec001_v3/forbidden.py",
+      "sha256": "0a9d221b024bb1f8af89d45a9b4e1d0b174aaf283dc0bbcfc58ac5c452aafeed"
+    },
+    {
+      "blob_sha1": "f6277a86476d77cdc8a9d440d78cb7d9513437a1",
+      "bytes": 4627,
+      "crlf_pairs": 0,
+      "path": "apps/backend/app/altdata/sec001_v3/policy.py",
+      "sha256": "f53bbb3b7ee00519efbb06d1cfca03b0e3bd58e07075ef4a4acf9a629cc94b1a"
+    },
+    {
+      "blob_sha1": "ae97502b1c9a3783813572adf2c2c13b684620fa",
+      "bytes": 7645,
+      "crlf_pairs": 0,
+      "path": "apps/backend/app/altdata/sec001_v3/sections.py",
+      "sha256": "79880f7a1ce1e1d86e1d22dd90cb59a480594b3719f53359ad5f587c11e209ed"
+    },
+    {
+      "blob_sha1": "3f37faba386122f5ba7a7b4f67c402c90ab19ffc",
+      "bytes": 4115,
+      "crlf_pairs": 0,
+      "path": "apps/backend/app/altdata/sec001_v3/spine.py",
+      "sha256": "96582ca9d0d1d225157654acfd811e99d7a32c5cd94462315119e871a7f270bd"
+    },
+    {
+      "blob_sha1": "cbdccc9301aaa6b3d32ac605cd14ee380097d0a1",
+      "bytes": 6907,
+      "crlf_pairs": 0,
+      "path": "apps/backend/app/altdata/sec001_v3/state.py",
+      "sha256": "b9f8779a36c2da133a8a00986c545f06b1822bd42bafe748696716abef9af74f"
+    }
+  ],
+  "gate": {
+    "checks_declared": 31,
+    "checks_executed": 31,
+    "checks_passed": 31,
+    "failed_checks": [],
+    "passed": true,
+    "sections_completed": 5,
+    "sections_declared": 5,
+    "structural_failures": []
+  },
+  "note": "Freeze fingerprint only. No EDGAR request has been issued. The coverage-freeze token 5b26ffa2... is UNSPENT and is not referenced by this driver."
+}
