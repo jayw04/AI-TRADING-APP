@@ -162,6 +162,8 @@ rebalance session
 
 The exact top-200 ranking definition and source fingerprint must be pinned in the V3 pre-registration. A static registration list may not silently replace the PIT universe.
 
+**Universe version — AMENDED 2026-08-24, see `SEC001_V3_UniverseLiquidity_DefectRuling_v1_0.md`.** V3 binds to **`PIT_LIQUID_TOP_N_V2` / `TRUE_TRADED_DOLLAR_V1`**: daily traded dollar volume is **`SEP.closeunadj × SEP.volume`**. The trailing window, rebalance calendar, eligibility, minimum-observation rules, tie-breaking and `N = 200` are unchanged; only the dimensional price input moves from adjusted `close` to contemporaneous `closeunadj`. The prior behaviour — **`LEGACY_ADJUSTED_CLOSE_X_RAW_VOLUME`, NONCONFORMING FOR LIQUIDITY RANKING** — multiplied a split-adjusted price by raw volume and put one-share reverse-split microcaps above AAPL in the historical top-200 (68% membership agreement at 2000-01-03). It is retained only so V1/V2 evidence stays reproducible and is **never a V3 input**.
+
 ### 5.1a Sector classification pin *(added v0.2 — BLOCKING for pre-registration)*
 
 Sector membership is this strategy's load-bearing input: it determines the score, the breadth, the representability gate, and therefore everything downstream — and v0.1 left it unpinned while carefully pinning the universe. The V3 pre-registration must freeze:
@@ -510,11 +512,11 @@ These are **prospective deployment gates**, not observed results. V3 proceeds to
 | Metric | Proposed gate | Reason |
 |---|---:|---|
 | Net CAGR | **>= 8%** | Must be economically worthwhile after modeled costs |
-| Net Sharpe | **>= 0.75** | Material improvement over the V2 ~0.51 reference |
+| Net Sharpe | **>= 0.75** | Absolute gate, **frozen and unmoved**. The "V2 ~0.51" it was originally set against is now a **legacy defective-universe reference** (2026-08-24 ruling); the corrected V2 benchmark may differ. |
 | Max drawdown | **>= -35%** | V2's ~-65% drawdown is not commercially attractive |
 | Calmar | **>= 0.30** | Requires return relative to drawdown, not Sharpe alone |
 | Walk-forward windows | **>= 4 of 5 positive net-return windows** | Avoid one-regime dependence |
-| Relative to V2 | Higher Sharpe **and** shallower drawdown | New construction must solve an actual V2 weakness |
+| Relative to V2 | Higher Sharpe **and** shallower drawdown, both against the **corrected** V2 reference (true-traded-dollar universe, GICS-11, same final period/windows, same cost convention, V2's *intended* construction) | New construction must solve an actual V2 weakness |
 | Cost stress | At 25 bps turnover cost, CAGR > 0 and Sharpe >= 0.60 | Strategy must survive a materially harsher execution assumption |
 | Representability | 100% of executed rebalances satisfy K=3 / 10% cap | No economic success from infeasible books |
 
@@ -868,7 +870,9 @@ SEC-001 V3 is complete only when:
 program: SEC-001-V3
 candidate: SEC-001-V3-RC
 universe:
-  type: PIT_LIQUID_TOP_N
+  type: PIT_LIQUID_TOP_N_V2          # amended 2026-08-24 (universe liquidity defect ruling)
+  liquidity_measure: TRUE_TRADED_DOLLAR_V1   # SEP.closeunadj * SEP.volume
+  legacy_rejected: LEGACY_ADJUSTED_CLOSE_X_RAW_VOLUME  # adjusted close * raw volume - NONCONFORMING
   n: 200
 sector_classification:            # v0.2 — §5.1a; values set at pre-registration freeze
   source: <OWNER_FREEZE>          # provider + field, by name
