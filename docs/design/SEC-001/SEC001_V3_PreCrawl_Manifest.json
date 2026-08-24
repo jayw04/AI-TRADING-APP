@@ -1,0 +1,182 @@
+{
+  "artifact": "SEC-001 V3 EDGAR classification crawl — PRE-CRAWL MANIFEST",
+  "status": "Generated from measured host state. Binds both custody lineages. Must have remote custody BEFORE EDGAR request #1.",
+  "generated_utc": "2026-08-24T16:18:14Z",
+  "crawl_id": "SEC001_V3_CLASSIFICATION_CRAWL_V1",
+  "capture_date": "2026-08-24",
+
+  "authorization_state": {
+    "crawl_requests_before_freeze": 0,
+    "coverage_state": "UNSPENT",
+    "coverage_freeze_token_prefix": "5b26ffa2",
+    "note": "Both machine-evaluated as gate assertions on the host, not asserted narratively. EDGAR request #1 is permitted only after this manifest has remote custody and its blob has been fresh-fetch verified."
+  },
+
+  "source_custody": {
+    "crawl_source_commit": "0e9e14e827518866e978f46125ce549526cbe5a0",
+    "branch": "research/mr002-validation2-lineage",
+    "archival_tag": "sec001-v3-edgar-driver-0e9e14e",
+    "archival_tag_object": "238dbaafc513c09fddc0d832b8362a2568139c76",
+    "tag_dereferences_to": "0e9e14e827518866e978f46125ce549526cbe5a0",
+    "chain": ["32bc34e Amendment A", "92f3eb7 Build Record v1.0 (REJECTED)", "91d1f1b Amendment B", "cad13e6 Build Record v1.1", "0e9e14e crawl driver"],
+    "classification_source_tag": "sec001-v3-classification-source-a0a779f"
+  },
+
+  "scoped_validation": {
+    "validation_pr": 674,
+    "validation_branch": "validate/sec001-v3-edgar-driver-0e9e14e",
+    "validation_head_sha": "7480b932277ce7bbc816d77361584f31bb0e78c4",
+    "validation_base": "363daa0",
+    "validation_base_own_push_full_run": "SUCCESS",
+    "ci_run_id": "32746379113",
+    "assertion": "SCOPED VALIDATION, NOT 'CI GREEN'",
+    "python_full_backend": "SUCCESS",
+    "python_light_backend": "FAILURE",
+    "python_ci_gate": "FAILURE (fails closed because LIGHT failed)",
+    "light_failure_detail": "mypy: app/altdata/mr002/crosswalk.py:91 [type-var] — 'Found 1 error in 1 file (checked 509 source files)'; ruff clean",
+    "light_failure_classification": "PRE-EXISTING FROZEN-DEPENDENCY TYPE ERROR — not caused by SEC-001 driver code, but necessarily introduced by the minimal validation closure adding the governance-pinned crosswalk.py blob to a main-based tree. Blob NOT modified to satisfy mypy.",
+    "driver_tests_in_full": 107,
+    "suite_total_tests": 6792,
+    "sec001_v3_failures": 0,
+    "excluded_from_record": "app/research/disc001/engine.py:274 appeared only under local Python 3.13; CI runs 3.12.13 and the 363daa0 baseline is green. Not a mainline defect.",
+    "pr_disposition": "OPEN and UNMERGED — validation evidence only, never source-lineage migration"
+  },
+
+  "deployment": {
+    "host_instance_id": "i-00e6b78fcabd32413",
+    "host_name": "ip-172-31-26-199",
+    "access_path": "AWS SSM (Online, agent 3.3.4793.0, Ubuntu). No SSH, no security-group change.",
+    "archive_sha256": "fd97ec624061397525691659cc6974ab1567ec82c5a672531aeb8f2346045bb5",
+    "archive_bytes": 112640,
+    "archive_files": 15,
+    "destination_path": "/opt/workbench/sec001-v3/driver/fd97ec62",
+    "source": "remote-fetched Git objects (git cat-file blob), NOT the Windows working tree",
+    "pre_package_gate": "every governed driver blob matched the committed freeze manifest (SHA-256, size, blob SHA-1, 0 CRLF) before packaging",
+    "sha_verified_on_arrival": true,
+    "overwrote_nothing": ["frozen-src/049ac679", "client.py 6c1d7006", "qualified store", "PIT-200 artifacts"]
+  },
+
+  "host_gate": {
+    "script_sha256": "59f5cd2abb6c6d09d04768394e9b0ca3c759920de939cdbf1d3ea56abbde40f7",
+    "sections_declared": 9,
+    "sections_completed": 9,
+    "checks_declared": 54,
+    "checks_executed": 54,
+    "checks_passed": 54,
+    "structural_failures": 0,
+    "result": "PASS",
+    "note": "Run from zero. No prior green assertion reused. Declared-work invariant enforced: executed == declared."
+  },
+
+  "runtime_composition": {
+    "interpreter": "/opt/sec001/bin/python — Python 3.12.3",
+    "httpx": "0.28.1",
+    "duckdb": "1.5.5",
+    "pinned_client_blob": "6c1d7006f42f9e86121dce641af6cea525b235b8",
+    "frozen_source_archive": "049ac67990d314560417aa2d810ac0eea81a62cfd77fbfce0340136b0e8a8add",
+    "frozen_src_path": "/opt/workbench/sec001-v3/frozen-src/049ac679",
+    "frozen_blob_identities": {
+      "app/altdata/mr002/__init__.py": "506870c6fadf6cc86f9a2a1b5441fe551841f435",
+      "app/altdata/mr002/crosswalk.py": "f3b5800836e88d6c8757693b2cd81de1342beefd",
+      "app/altdata/mr002/earnings_anchors.py": "c89b9458e9034678db4b2e0e502eb4553bfdc443",
+      "app/altdata/mr002/sic_history.py": "48779adaaaecfeffb9c6a32be8531f784d72058a",
+      "app/research/mr002/__init__.py": "e69de29bb2d1d6434b8b29ae775ad8c2e48c5391",
+      "app/research/mr002/eligibility.py": "b9eb4a6d9b308949b8aa56e806550564131c2daa"
+    },
+    "module_origins_measured": {
+      "app.altdata.sec001_v3.*": "/opt/workbench/sec001-v3/driver/fd97ec62/app/altdata/sec001_v3/",
+      "app.altdata.mr002.sic_history": "/opt/workbench/sec001-v3/frozen-src/049ac679/app/altdata/mr002/sic_history.py",
+      "app.altdata.mr002.crosswalk": "/opt/workbench/sec001-v3/frozen-src/049ac679/app/altdata/mr002/crosswalk.py"
+    },
+    "extra_mr002_execution_modules_loaded": [],
+    "phase_2b_fixtures": "5/5 PASS",
+
+    "HAZARD_second_frozen_src_tree": {
+      "path": "/opt/workbench/sec001-v3/frozen-src/670b2b3f",
+      "identity": "the REJECTED Build Record v1.0 CRLF archive, still resident on the host",
+      "evidence": "sic_history.py there is 7,919 bytes with 200 CRLF pairs, vs 7,719 bytes / 0 CRLF in 049ac679",
+      "control": "the host gate pins 049ac679 explicitly and asserts module __file__ origin, so the rejected tree cannot be loaded silently",
+      "action": "never resolve frozen-src by glob or path order; always pin 049ac679 and assert origin"
+    }
+  },
+
+  "population_and_store": {
+    "population_manifest": "/opt/sec001-data/pit200_population_manifest.json",
+    "union_sha256": "d338e65f9ece1ff74bab8f7e7e098529c8466c8074d215e5894c402b35450872",
+    "union_verification": "recomputed on host",
+    "permanent_identities": 1167,
+    "membership_sha256": "045b634946c3206a1d6228bd388de4a9f1b9a64ac90e67620dbfa5b937627754",
+    "membership_verification": "recomputed on host",
+    "slots": 1247,
+    "slot_name_positions": 249400,
+    "unresolved": 0,
+    "governed_grid_sha256": "baf0da7c20bed5903986c9a94ffae5f54c06cbcba23adb1242ca27e415305a51",
+    "governed_grid_verification": "manifest-declared upstream identity; NOT a recomputable digest of governed_grid.json (that file hashes to 8c962f2e…), recorded here honestly rather than implied as recomputed",
+    "calendar_version": "SEC001_V3_MONDAY_RTH_V1",
+    "universe_version": "PIT_LIQUID_TOP_N_V2",
+    "universe_implementation_commit": "cc27f47",
+    "qualified_store_sha256": "89c4680f76a556d56ccd2e055605b3925375366fca41a40910edd1b844216d39",
+    "qualified_store_verification": "recomputed on host over the full 2,623,811,584-byte file",
+    "sealed_store_bucket": "workbench-sec001-v3-research-219024422756",
+    "sealed_store_key": "sealed/2026-08-24/factor_data_sec001v3.duckdb",
+    "sealed_store_version_id": "CWQjPoJDRPIHcfQUjqMU1ynWyp5x4Umr",
+    "sealed_store_version_verification": "independently confirmed via S3 HeadObject; ObjectLockMode COMPLIANCE, retain until 2033-08-22",
+    "sealed_store_bytes": 2623811584
+  },
+
+  "frozen_crawl_policy": {
+    "forms": ["10-K", "10-K/A", "10-Q", "10-Q/A", "20-F", "20-F/A", "40-F", "40-F/A"],
+    "form_count": 8,
+    "eight_k_excluded": true,
+    "spine_default_forms_unmodified": ["10-K", "10-K/A", "10-Q", "10-Q/A"],
+    "unknown_form_rank_fallback": 9,
+    "since": "2000-01-01",
+    "end_boundary": "2026-06-12",
+    "rate_limit_per_sec": 5.0,
+    "min_interval_seconds": 0.2,
+    "single_host": true,
+    "user_agent": "TradingWorkbench SEC001-V3 (GlobalComplyAI, LLC) jay.w0416@gmail.com",
+    "user_agent_sha256": "770d8fb5112020e51098d456252cada2f13ee0e177e8af4c256a402684bdbf41",
+    "allowed_methods": ["GET"],
+    "halt_statuses": [403],
+    "halt_behaviour": "one request, then latched halt; no automatic second request; state preserved",
+    "halt_cooldown_seconds": 600,
+    "resume": "explicit resume=True AND cooldown elapsed; no automatic resume",
+    "retry_statuses": [429, 500, 502, 503, 504],
+    "retry_max_attempts": 5,
+    "retry_base_delay_seconds": 1.0,
+    "retry_max_delay_seconds": 60.0,
+    "retry_jitter_fraction": 0.25,
+    "retry_jitter": "bounded exponential with symmetric jitter, seeded deterministically from the crawl id",
+    "output_prefixes": ["raw/edgar/2026-08-24", "build/classification/2026-08-24"],
+    "forbidden_output_prefixes": ["sealed/", "manifests/", "build/source/"],
+    "forbidden_coverage_fields": [
+      "coverage_gate_result",
+      "earliest_qualifying_start",
+      "failing_slot_count",
+      "final_evaluation_start",
+      "name_coverage_pct",
+      "qualifying_slot_count",
+      "slot_coverage_pct",
+      "theta_name_pass",
+      "theta_window_pass",
+      "window_coverage_pct"
+    ],
+    "forbidden_coverage_enforcement": "the package's only serializer refuses all ten at any depth; emitted record types are checked at import; verified 10/10 on the host"
+  },
+
+  "coverage_boundary": {
+    "rule": "The crawler emits FACTS ONLY — filings found, unresolved classifications, HTTP outcomes, source hashes. It cannot compute whether 190/200 or 95% thresholds are satisfied.",
+    "theta_name": 0.95,
+    "theta_window": 0.95,
+    "theta_span_min_years": 20,
+    "adjudication": "a separate one-shot artifact that spends 5b26ffa2…; NOT part of acquisition"
+  },
+
+  "deferred_mainline_divergence": {
+    "finding": "origin/main lacks app/altdata/mr002/ entirely and carries client.py = 258c570d (pre-remediation).",
+    "governed_requirement": "frozen classification spine + client.py = 6c1d7006",
+    "risk": "a later branch merge must not silently overwrite 6c1d7006 with 258c570d",
+    "disposition": "separate adjudicated integration task AFTER the crawl/coverage decision; deliberately not fixed in PR #674"
+  }
+}
