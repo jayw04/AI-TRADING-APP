@@ -1,0 +1,210 @@
+{
+  "artifact": "SEC-001 V3 EDGAR classification crawl — PRE-CRAWL MANIFEST v1.2",
+  "status": "AUTHORIZING. Supersedes v1.1 because the first canary exposed two acquisition defects. v1.0 and v1.1 are NOT edited and remain truthful.",
+  "generated_utc": "2026-08-24T19:05:00Z",
+  "crawl_id": "SEC001_V3_CLASSIFICATION_CRAWL_V1",
+  "capture_date": "2026-08-24",
+
+  "supersession_chain": {
+    "v1_0": {
+      "commit": "c581253",
+      "blob": "c5ddae98886c35bb6bf6e4568e07c4076f055c83",
+      "status": "BLOCKED BEFORE REQUEST #1: NO_GOVERNED_CIK_RESOLUTION",
+      "edited": false
+    },
+    "v1_1": {
+      "commit": "77f1169",
+      "blob": "e90a636a0a078f0643ffe7ba2a11e0ea370da139",
+      "status": "SUPERSEDED: authorized the canary; the canary found the acquisition machinery nonconforming",
+      "edited": false
+    },
+    "remediation_ruling": {
+      "commit": "0eaa064",
+      "document": "docs/design/SEC-001/SEC001_V3_CanaryDefect_AcquisitionRemediation_v1_0.md",
+      "note": "committed and pushed BEFORE any remediation code existed — the ordering is the control"
+    },
+    "v1_2": "this document — the only manifest that authorizes the repaired canary"
+  },
+
+  "why_v1_1_was_superseded": {
+    "defect_a": {
+      "summary": "the frozen spine's legacy Range: bytes=0-4095 fallback for pre-2014 accessions recovered ZERO SIC",
+      "measurement": "perfect split on ABT — index_headers 200 -> 53 SIC; ranged 206 -> 53 NO_SIC, every body exactly 4096 bytes",
+      "consequence_avoided": "an extraction defect would have presented as historical missingness, fed the >=20-year span provision, and manufactured an artificial 'classification history begins around 2014' result, contaminating the later 5b26ffa2 adjudication",
+      "remedy": "V3-owned SEC-header completion override; frozen spine NOT modified; loss NOT accepted as a limitation"
+    },
+    "defect_b": {
+      "summary": "requested_utc was stamped before the fair-access throttle slept",
+      "measurement": "83 of 170 gaps below 0.2s (min 0.0103s) while median elapsed_ms was 201ms",
+      "consequence_avoided": "a fair-access evidence record that cannot substantiate the rate policy it exists to demonstrate",
+      "remedy": "sent_utc + sent_monotonic_ns stamped inside the transport immediately before transmission; rate proof uses the monotonic clock only"
+    }
+  },
+
+  "authorization_state": {
+    "v1_2_epoch_edgar_requests_issued": 0,
+    "v1_2_epoch_terminal_identities": 0,
+    "coverage_state": "UNSPENT",
+    "coverage_freeze_token_prefix": "5b26ffa2",
+    "no_coverage_calculation_has_occurred": true,
+    "population_unchanged": 1167,
+    "authorizes": "rerun of the SAME deterministic first identity (ABT / permaticker 199997) under repaired machinery, and — only if that canary passes — continuation of the same v1.2 state through identities 2-1,167"
+  },
+
+  "preserved_prior_epoch": {
+    "epoch": "CANARY_V1_1_FAILED_ACQUISITION",
+    "path": "/opt/workbench/sec001-v3/crawl",
+    "epoch_record": "/opt/workbench/sec001-v3/epochs/CANARY_V1_1_FAILED_ACQUISITION.json",
+    "epoch_record_sha256": "411e6ded225c84c0766e72a04dfbd2a99a6b2850bb8fb9bc1a693b41cb47f950",
+    "file_count": 5,
+    "files": {
+      "build/classification/2026-08-24/crawl_outcome.json": "3a25efab18e25fbd",
+      "build/classification/2026-08-24/segments/0000001800.jsonl": "2ec2fd79ed91fe0d",
+      "raw/edgar/2026-08-24/observations/0000001800.jsonl": "d9a9363c9db96fdc",
+      "raw/edgar/2026-08-24/source_evidence.jsonl": "a1ae00fa96e7c267",
+      "state/crawl_progress.jsonl": "49fc5e6500ad7935"
+    },
+    "disposition": "PRESERVED IMMUTABLY — not deleted, not edited, not resumed. Made read-only on the host as a mechanical guard. Verified byte-intact by the host gate.",
+    "prior_canary_facts": "cik 1800 / ABT / permaticker 199997; 171 requests; 0x403, 0x429, 5x503 all retried; 106 observations; 1 segment; no halt"
+  },
+
+  "v1_2_execution_epoch": {
+    "path": "/opt/workbench/sec001-v3/crawl-v1.2",
+    "population": 1167,
+    "ordering": "unchanged — WorkUnit sorts by (cik, ticker)",
+    "first_identity": "cik 1800 / ABT / permaticker 199997 — the same deterministic first, not re-selected",
+    "terminal_identities_before_rerun": 0,
+    "artifacts_before_rerun": 0,
+    "classification": "a superseding acquisition execution after a pre-coverage machinery defect — NOT a new research trial and NOT a new population"
+  },
+
+  "source_custody": {
+    "crawl_source_commit": "35c467038fb3114b8746e5fd3b3dfd7afa01a334",
+    "archival_tag": "sec001-v3-edgar-driver-35c4670",
+    "archival_tag_object": "79f4da2ce33393d5a7e8a64cac7fd4316e6a32a0",
+    "supersedes_tag": "sec001-v3-edgar-driver-0e9e14e",
+    "prior_tag_disposition": "remains valid as the custody record of the PRIOR driver whose canary exposed these defects",
+    "branch": "research/mr002-validation2-lineage"
+  },
+
+  "scoped_validation": {
+    "validation_pr": 675,
+    "validation_branch": "validate/sec001-v3-edgar-driver-35c4670",
+    "validation_head_sha": "29f171d038801df8ef86d043d36626c6ad958c01",
+    "validation_base": "363daa0",
+    "validation_base_own_push_full_run": "SUCCESS",
+    "ci_run_id": "32762212382",
+    "assertion": "SCOPED VALIDATION, NOT 'CI GREEN'",
+    "python_full_backend": "SUCCESS",
+    "python_light_backend": "FAILURE",
+    "python_ci_gate": "FAILURE (fails closed because LIGHT failed)",
+    "light_failure_detail": "mypy: app/altdata/mr002/crosswalk.py:91 [type-var] — 'Found 1 error in 1 file (checked 509 source files)'; ruff clean",
+    "light_failure_classification": "PRE-EXISTING FROZEN-DEPENDENCY TYPE ERROR — not driver code; introduced by the minimal validation closure adding the governance-pinned crosswalk.py blob to a main-based tree. Blob NOT modified to satisfy mypy.",
+    "driver_tests_in_full": 119,
+    "new_regression_fixtures": 12,
+    "sec001_v3_failures": 0,
+    "blob_identity": "18/18 byte-identical to 35c4670, applied by object id",
+    "pr_674_disposition": "OPEN and UNMERGED — untouched, retained as evidence for the prior driver",
+    "pr_675_disposition": "OPEN and UNMERGED — validation evidence only"
+  },
+
+  "deployment": {
+    "host_instance_id": "i-00e6b78fcabd32413",
+    "access_path": "AWS SSM only. No SSH, no security-group change.",
+    "archive_sha256": "c13e8cdb1f55a4f171374bc7ef74cccf1b3467a6d308137d03d66498024a2ba8",
+    "archive_bytes": 133120,
+    "archive_files": 16,
+    "destination_path": "/opt/workbench/sec001-v3/driver/c13e8cdb",
+    "source": "remote-fetched Git objects (git cat-file blob), NOT the Windows working tree",
+    "pre_package_gate": "every governed driver blob matched the committed freeze manifest before packaging",
+    "sha_verified_on_arrival": true,
+    "prior_driver_untouched": "/opt/workbench/sec001-v3/driver/fd97ec62 retained",
+    "overwrote_nothing": ["frozen-src/049ac679", "client.py 6c1d7006", "qualified store", "PIT-200 artifacts", "CANARY_V1_1_FAILED_ACQUISITION state"]
+  },
+
+  "host_gate_v2": {
+    "script_sha256": "recorded in the run record; rebuilt after the declared-work control caught a missing-section defect in the gate itself",
+    "sections_declared": 11,
+    "sections_completed": 11,
+    "checks_declared": 66,
+    "checks_executed": 66,
+    "checks_passed": 66,
+    "structural_failures": 0,
+    "result": "PASS",
+    "note": "Run from zero. No prior green assertion reused. During construction the declared-work invariant caught a gate defect where two whole sections had been deleted by an over-broad edit — 56 checks passed but the gate correctly FAILED because 10 declared checks never ran.",
+    "new_checks_added_for_the_remediation": [
+      "1 MiB cap frozen",
+      "max 8 range requests frozen",
+      "first window byte-identical to the spine's legacy request",
+      "SIC beyond byte 4095 is recovered",
+      "complete header without SIC stays HEADER_COMPLETE",
+      "cap exceeded -> ACQUISITION_HEADER_INCOMPLETE, never no_pit_sic",
+      "override fires ONLY for the exact legacy Range: bytes=0-4095",
+      "every attempt records sent_monotonic_ns",
+      "every attempt records sent_utc",
+      "actual-send gaps satisfy the 0.2s minimum against the real clock"
+    ]
+  },
+
+  "cik_resolution": {
+    "artifact": "SEC001_V3_CIK_RESOLUTION_V1",
+    "sha256": "1f7d523b9419301a16d36234f19584266f3e61fc4e5673e589d0ba7016877146",
+    "resolved_cik": 1167,
+    "unresolved_cik": 0,
+    "unchanged_since_v1_1": true
+  },
+
+  "carried_forward": {
+    "frozen_source_archive": "049ac67990d314560417aa2d810ac0eea81a62cfd77fbfce0340136b0e8a8add",
+    "pinned_client_blob": "6c1d7006f42f9e86121dce641af6cea525b235b8",
+    "population_union_sha256": "d338e65f9ece1ff74bab8f7e7e098529c8466c8074d215e5894c402b35450872",
+    "membership_sha256": "045b634946c3206a1d6228bd388de4a9f1b9a64ac90e67620dbfa5b937627754",
+    "qualified_store_sha256": "89c4680f76a556d56ccd2e055605b3925375366fca41a40910edd1b844216d39",
+    "sealed_store_version_id": "CWQjPoJDRPIHcfQUjqMU1ynWyp5x4Umr",
+    "governed_grid_sha256": "baf0da7c20bed5903986c9a94ffae5f54c06cbcba23adb1242ca27e415305a51",
+    "forms": ["10-K", "10-K/A", "10-Q", "10-Q/A", "20-F", "20-F/A", "40-F", "40-F/A"],
+    "since": "2000-01-01",
+    "end_boundary": "2026-06-12",
+    "rate_limit_per_sec": 5.0,
+    "min_interval_seconds": 0.2,
+    "user_agent": "TradingWorkbench SEC001-V3 (GlobalComplyAI, LLC) jay.w0416@gmail.com",
+    "user_agent_sha256": "770d8fb5112020e51098d456252cada2f13ee0e177e8af4c256a402684bdbf41",
+    "allowed_methods": ["GET"],
+    "halt_statuses": [403],
+    "halt_cooldown_seconds": 600,
+    "output_prefixes": ["raw/edgar/2026-08-24", "build/classification/2026-08-24"],
+    "hazard_second_frozen_src_tree": "/opt/workbench/sec001-v3/frozen-src/670b2b3f is the REJECTED Build Record v1.0 CRLF archive. Never resolve frozen-src by glob; pin 049ac679 and assert module __file__ origin."
+  },
+
+  "new_frozen_acquisition_policy": {
+    "legacy_header_range": "bytes=0-4095",
+    "header_completion_windows": [4096, 16384, 65536, 262144, 1048576],
+    "header_completion_cap_bytes": 1048576,
+    "header_completion_max_requests": 8,
+    "stop_condition": "</SEC-HEADER> — subsumes both sanctioned stop conditions and keeps ALL SIC interpretation with the frozen spine",
+    "eof_determination": "Content-Range authoritative total, never inferred from a short read",
+    "acquisition_status_vocabulary": {
+      "HEADER_INDEX": "-index-headers.html served it",
+      "HEADER_COMPLETE": "full SEC-HEADER obtained; any absence of SIC is evidentiary",
+      "ACQUISITION_HEADER_INCOMPLETE": "cap or request ceiling hit; OUR machinery failure, must NEVER count as missing history"
+    },
+    "invariant": "the override may change HOW MANY BYTES are obtained from the same frozen filing; it may not change WHICH filing is authoritative or HOW SIC is interpreted. No MR-002 file is modified."
+  },
+
+  "repaired_canary_pass_criteria": [
+    "pre-2014 full-submission fallback produces complete SEC headers",
+    "historical SIC observations are recovered where present",
+    "complete headers legitimately lacking SIC remain distinguishable from acquisition failures",
+    "no ACQUISITION_HEADER_INCOMPLETE is mislabeled no_pit_sic",
+    "every outbound request has measured sent_monotonic_ns",
+    "all consecutive actual-send gaps satisfy the frozen 0.2-second minimum",
+    "retries participate in that same timing proof",
+    "zero orphan observations",
+    "no unexpected forms or domains",
+    "one terminal identity, 1,166 untouched",
+    "zero coverage computation",
+    "5b26ffa2 still UNSPENT"
+  ],
+
+  "stop_rule": "If ABT hits the 1 MiB cap or the 8-request ceiling for even ONE filing, do NOT continue automatically. Report it. That would indicate the new bound may itself be too restrictive, and changing that bound after observing the full population would require another pre-run adjudication."
+}
