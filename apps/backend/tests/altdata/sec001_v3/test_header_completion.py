@@ -21,7 +21,7 @@ import pytest
 from app.altdata.mr002 import sic_history
 from app.altdata.sec001_v3 import policy
 from app.altdata.sec001_v3.evidence import EvidenceLog
-from app.altdata.sec001_v3.fetch import PolicyFetcher
+from app.altdata.sec001_v3.fetch import CrawlExhausted, PolicyFetcher
 
 ACC = "0000320193-01-500001"
 TXT_URL = f"https://www.sec.gov/Archives/edgar/data/320193/000032019301500001/{ACC}.txt"
@@ -287,3 +287,78 @@ def test_send_deltas_measure_the_real_throttle(tmp_path) -> None:
     min_interval = 1.0 / policy.RATE_LIMIT_PER_SEC
     for d in deltas:
         assert d >= min_interval * 0.98, f"send delta {d:.4f}s below {min_interval}s"
+
+
+# --- fixture 8: Defect C -- a failed attempt must not inherit prior evidence -----------
+
+
+def test_transport_failure_does_not_inherit_previous_capture(tmp_path) -> None:
+    """Defect C, found by the v1.2 canary.
+
+    A transport-level failure produces no response. Before the fix, ``_emit`` reused the
+    previous attempt's capture, so the failed record carried another request's digests and
+    ``sent_monotonic_ns`` -- fabricated provenance, and a duplicate send stamp that
+    corrupted the fair-access timing proof (one record in 337 produced a 0.0000s gap).
+    """
+    import json
+
+    calls = {"n": 0}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        calls["n"] += 1
+        if calls["n"] == 1:
+            return httpx.Response(200, text="first response body")
+        raise httpx.ConnectError("simulated transport failure")
+
+    f = make(handler, tmp_path)
+    with f:
+        assert f.get_text("https://www.sec.gov/a.txt") == "first response body"
+        with pytest.raises(CrawlExhausted):
+            f.get_text("https://www.sec.gov/b.txt")
+
+    recs = [json.loads(x) for x in (tmp_path / "ev.jsonl").read_text().splitlines() if x]
+    ok = [r for r in recs if r["outcome"] == "ok"]
+    failed = [r for r in recs if r["outcome"] in ("retry", "error", "exhausted")]
+    assert ok and failed
+
+    for r in failed:
+        assert r["sha256_body"] is None, "a failed attempt must carry no body digest"
+        assert r["sha256_wire"] is None
+        assert r["sent_monotonic_ns"] is None, \
+            "a failed attempt must not inherit the previous attempt's send stamp"
+        assert r["http_status"] is None
+
+    # No send stamp may be duplicated across attempts.
+    stamps = [r["sent_monotonic_ns"] for r in recs if r["sent_monotonic_ns"] is not None]
+    assert len(stamps) == len(set(stamps)), "duplicate send stamps corrupt the rate proof"
+
+
+def test_rate_proof_ignores_unsent_attempts(tmp_path) -> None:
+    """Attempts that never reached the wire carry no stamp, so they cannot manufacture a
+    zero-length gap in the timing evidence."""
+    import json
+    import time
+
+    calls = {"n": 0}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        calls["n"] += 1
+        if calls["n"] == 2:
+            raise httpx.ConnectError("boom")
+        return httpx.Response(200, json={"ok": True})
+
+    f = PolicyFetcher(
+        evidence=EvidenceLog(path=tmp_path / "ev3.jsonl"),
+        transport=httpx.MockTransport(handler),
+        sleep=time.sleep,
+        monotonic=time.monotonic,
+    )
+    with f:
+        for _ in range(3):
+            f.get_json("https://data.sec.gov/submissions/CIK0000000320.json")
+
+    recs = [json.loads(x) for x in (tmp_path / "ev3.jsonl").read_text().splitlines() if x]
+    stamps = sorted(r["sent_monotonic_ns"] for r in recs if r["sent_monotonic_ns"] is not None)
+    deltas = [(stamps[i + 1] - stamps[i]) / 1e9 for i in range(len(stamps) - 1)]
+    assert deltas, "need at least two real transmissions"
+    assert all(d >= 0.196 for d in deltas), deltas

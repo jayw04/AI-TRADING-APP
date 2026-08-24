@@ -240,6 +240,13 @@ class PolicyFetcher:
 
         last_detail = ""
         for attempt in range(1, policy.RETRY_MAX_ATTEMPTS + 1):
+            # Discard any capture from a previous attempt BEFORE issuing this one. A
+            # transport-level failure produces no response, so without this the evidence
+            # record would inherit the PREVIOUS attempt's digests and sent_monotonic_ns --
+            # fabricated provenance, and a duplicated send stamp that corrupts the
+            # fair-access timing proof. Found by the v1.2 canary: one record in 337 carried
+            # another request's evidence, yielding a 0.0000s send gap.
+            self._recorder.last = None
             requested = utc_now_iso()
             started = self._monotonic()
             status: int | None = None

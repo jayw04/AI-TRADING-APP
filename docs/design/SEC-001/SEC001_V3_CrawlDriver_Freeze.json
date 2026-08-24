@@ -30,11 +30,11 @@
       "sha256": "7ec15370bb187a463a1d2f14e1cbef8afb2afd15f5062e7700819d3835f1c87d"
     },
     {
-      "blob_sha1": "beeff0a153f6a12b82613caff2067c9143ab7c7e",
-      "bytes": 19163,
+      "blob_sha1": "846bccb97903842340288b0b891f1e1c23e9e141",
+      "bytes": 19713,
       "crlf_pairs": 0,
       "path": "apps/backend/app/altdata/sec001_v3/fetch.py",
-      "sha256": "a7ec48588c14ced4f14de47c74e95c301d1c368cf676adc1d35dd4614de19f6c"
+      "sha256": "eb815acabda8020e98c7e79cf2622a3bfc68e31890946722703804bc220b318a"
     },
     {
       "blob_sha1": "8570677325aa1bdb54fe67df6fbde06176322942",
