@@ -1,0 +1,197 @@
+{
+  "artifact": "SEC-001 V3 EDGAR classification crawl — PRE-CRAWL MANIFEST v1.4",
+  "status": "AUTHORIZING — the ABT canary rerun only. It does NOT authorize the remaining 1,166.",
+  "generated_utc": "2026-08-24T20:45:00Z",
+  "crawl_id": "SEC001_V3_CLASSIFICATION_CRAWL_V1",
+  "capture_date": "2026-08-24",
+
+  "supersession_chain": {
+    "v1_0": {"commit": "c581253", "status": "BLOCKED BEFORE REQUEST #1: NO_GOVERNED_CIK_RESOLUTION", "edited": false},
+    "v1_1": {"commit": "77f1169", "status": "SUPERSEDED: first canary found the machinery nonconforming", "edited": false},
+    "v1_2": {"commit": "88ac3e5f (blob)", "status": "SUPERSEDED: repaired canary found Defects C and D", "edited": false},
+    "v1_3": {"commit": "9256fa34 (blob)", "status": "SUPERSEDED: its bounded diagnostic found Defect E, the ROOT CAUSE", "edited": false},
+    "v1_4": "this document",
+    "rulings": ["0eaa064 — Defects A/B remediation", "e88ea53 — Defect E, committed before the fix"]
+  },
+
+  "root_cause": {
+    "defect": "DEFECT E — ENCODED RANGE REPRESENTATION PASSED TO FROZEN PARSER",
+    "mechanism": "The pinned client sends Accept-Encoding: gzip, deflate. For a RANGED request SEC serves a byte range of the COMPRESSED representation. The transport called gzip.decompress() on that fragment, it raised, and one line swallowed it (`except (OSError, zlib.error, EOFError): body = raw`). Compressed bytes reached the frozen parser as document bytes.",
+    "compounding": "Two independent errors: range offsets referring to the compressed representation while the frozen spine assumes document-byte semantics, and a decode failure falling back to raw instead of failing closed. Either alone would have been visible; together they produced a plausible, self-consistent and entirely false picture across three canaries.",
+    "proof": "Accession 0000912057-00-024277: 28,350 retained bytes are a gzip stream (1f8b) decompressing to 106,350 bytes containing <SEC-HEADER> at 423, 'STANDARD INDUSTRIAL CLASSIFICATION: PHARMACEUTICAL PREPARATIONS [2834]' at 748, and </SEC-HEADER> at 1,169. The SIC was always there.",
+    "explains": ["the perfect 53/53 NO_SIC split", "</SEC-HEADER> never being found", "the six 2011-2014 ceiling hits"]
+  },
+
+  "refuted_hypotheses": {
+    "sic_lies_beyond_byte_4095": "REFUTED — the SIC is at decompressed offset 748, inside the ORIGINAL 4 KiB window",
+    "historical_archive_lacks_sic_or_sec_header": "REFUTED — both present and correctly terminated",
+    "why_recorded": "so a later reader who encounters the header-completion machinery does not infer that the theories which motivated it remained factual"
+  },
+
+  "the_fix": {
+    "ranged_accept_encoding": "identity",
+    "scope": "the legacy ranged fallback ONLY; all other request semantics unchanged",
+    "rationale": "structural rather than clever — obtain the representation the frozen spine already assumes, instead of teaching the transport to incrementally decompress arbitrary encoded byte ranges",
+    "client_untouched": "verified: a per-request Accept-Encoding overrides the pinned client's default without modifying client.py (6c1d7006)",
+    "mr002_untouched": true,
+    "fail_closed": "`except ...: body = raw` is gone from every parser-facing path. An undecodable body yields NO body. ACQUISITION_ENCODING_UNSUPPORTED is stamped BEFORE raising, so the spine's fail-soft handler cannot convert a machinery failure into an apparent absence of SIC.",
+    "three_overlapping_guards": [
+      "decode state — an outright decoding failure",
+      "encoded-body integrity invariant — content_encoding non-identity AND wire_bytes > 0 AND sha256_body == sha256_wire means decoding never happened. This signal was present in EVERY failed canary and nothing was checking it.",
+      "gzip magic — a concrete escaped encoding, catching the case where nothing is declared and the hash invariant is therefore blind"
+    ],
+    "zero_length_guard": "gzip.decompress(b'') returns b'' rather than raising, so an empty encoded body decodes successfully and correctly passes. The guard prevents a SPURIOUS failure; it does not manufacture one."
+  },
+
+  "retention_invariant": {
+    "rule": "persist EXACTLY the parser-facing bytes used for the SIC decision; do not trim at </SEC-HEADER>",
+    "identity": "parser_body_sha256 == source_decision_bytes_sha256, by construction",
+    "boundaries": "recorded as OFFSETS INTO THE PERSISTED BYTES (sec_header_open_offset, sec_header_close_offset), not decoded-text character positions, so they carry no encoding-dependent ambiguity",
+    "custody_chain": "SEC response -> decode -> parser-facing bytes -> persisted exact bytes -> frozen parser (one transformation shorter than trimming, and materially easier to audit)",
+    "not_outcome_dependent": "bytes are kept for every filing, not only failures — retaining evidence only where the result was interesting is how a corpus acquires a selection bias nobody can later measure",
+    "recorded_per_artifact": ["exact parser-facing bytes", "source_decision_bytes_sha256", "parser_body_sha256", "parser_body_length", "sec_header_open_offset", "sec_header_close_offset", "acquisition_status", "parser_result", "constituent wire-request hashes and ranges", "request Accept-Encoding", "response Content-Encoding", "decoding status", "wire sha256 and length"]
+  },
+
+  "fixture_corrections_in_the_validation_record": {
+    "why_recorded": "Both were FALSE-GREEN risks, not cosmetic test cleanup. They are why the final regression suite actually exercises the production failure mode.",
+    "mocktransport_decoded_at_stream": "httpx.Response(content=...) DECODES at .stream iteration, so httpx raised before the transport ever saw the bytes and the guard was never exercised. The real HTTPTransport yields undecoded wire bytes — which is precisely why the live canary retained gzip. Fixtures now build responses with stream=ByteStream(...).",
+    "fixture_document_was_too_compressible": "the document gzipped to 255 bytes, so a 4 KiB range returned a COMPLETE gzip stream that decoded fine and the fragmented-gzip case never occurred. The fixture now carries deterministic, poorly-compressible filler."
+  },
+
+  "authorization_state": {
+    "authorizes": "rerun of the ABT canary (identity #1 only) in a new zero-terminal v1.4 epoch",
+    "does_not_authorize": ["the remaining 1,166 identities", "any source substitution", "any coverage computation"],
+    "v1_4_epoch_edgar_requests_issued": 0,
+    "v1_4_epoch_terminal_identities": 0,
+    "coverage_state": "UNSPENT",
+    "coverage_freeze_token_prefix": "5b26ffa2",
+    "no_coverage_calculation_has_occurred": true,
+    "population_unchanged": 1167
+  },
+
+  "preserved_prior_epochs": [
+    {"epoch": "CANARY_V1_1_FAILED_ACQUISITION", "path": "/opt/workbench/sec001-v3/crawl", "files": 5, "record_sha256": "411e6ded225c84c0766e72a04dfbd2a99a6b2850bb8fb9bc1a693b41cb47f950"},
+    {"epoch": "CANARY_V1_2_FAILED_ACQUISITION", "path": "/opt/workbench/sec001-v3/crawl-v1.2", "files": 5, "record_sha256": "bce49798800d27e90babd43d18e822ffa5d748f01aabc41646f8995248263f29"},
+    {"epoch": "DIAGNOSTIC_V1_3_DEFECT_A", "path": "/opt/workbench/sec001-v3/diagnostics", "files": 3, "record_sha256": "97863f92bbfdb570206b68ce799fcb73ff1bb5d59a939df93c4c9da6959a817f", "contains": "the compressed diagnostic bytes AND the decompressed inspection result"}
+  ],
+  "preserved_epoch_disposition": "All PRESERVED IMMUTABLY — not deleted, not edited, not resumed. Read-only on the host. Verified byte-intact by the host gate.",
+
+  "v1_4_execution_epoch": {
+    "path": "/opt/workbench/sec001-v3/crawl-v1.4",
+    "population": 1167,
+    "ordering": "unchanged — WorkUnit sorts by (cik, ticker)",
+    "first_identity": "cik 1800 / ABT / permaticker 199997 — unchanged, not re-selected",
+    "terminal_identities": 0,
+    "artifacts": 0
+  },
+
+  "source_custody": {
+    "crawl_source_commit": "7021941585b0bcd060c51498e11f09fa0079de6c",
+    "archival_tag": "sec001-v3-edgar-driver-7021941",
+    "archival_tag_object": "d6bb38e039b2fbb75c475a16530c708b04129caa",
+    "supersedes_tags": ["sec001-v3-edgar-driver-3fe6704", "sec001-v3-edgar-driver-35c4670", "sec001-v3-edgar-driver-0e9e14e"],
+    "never_deployed": "8a64239 (Defect C only)"
+  },
+
+  "scoped_validation": {
+    "validation_pr": 678,
+    "assertion": "SCOPED VALIDATION, NOT 'CI GREEN'",
+    "python_full_backend": "SUCCESS",
+    "python_light_backend": "FAILURE",
+    "python_ci_gate": "FAILURE (fails closed because LIGHT failed)",
+    "light_failure_detail": "mypy: app/altdata/mr002/crosswalk.py:91 [type-var] — 'Found 1 error in 1 file (checked 510 source files)'; ruff clean",
+    "light_failure_classification": "PRE-EXISTING FROZEN-DEPENDENCY TYPE ERROR — introduced by the minimal validation closure, not driver code",
+    "driver_tests_in_full": 138,
+    "defect_e_fixtures": 12,
+    "sec001_v3_failures": 0,
+    "blob_identity": "20/20 byte-identical to 7021941, applied by object id",
+    "prior_prs": "#674, #675, #676, #677 all left open, unmerged and untouched as evidence; #676 and #677 annotated as superseded"
+  },
+
+  "deployment": {
+    "host_instance_id": "i-00e6b78fcabd32413",
+    "access_path": "AWS SSM only",
+    "archive_sha256": "86f3cca1f9a816c18990c94024302de3d5eb471aa6f899d4faf9bb63249675d3",
+    "archive_bytes": 174080,
+    "archive_files": 18,
+    "destination_path": "/opt/workbench/sec001-v3/driver/86f3cca1",
+    "source": "remote-fetched Git objects, NOT the Windows working tree",
+    "sha_verified_on_arrival": true,
+    "prior_drivers_retained": ["fd97ec62", "c13e8cdb", "d48f7d9e"]
+  },
+
+  "host_gate_v4": {
+    "sections_declared": 14,
+    "sections_completed": 14,
+    "checks_declared": 82,
+    "checks_executed": 82,
+    "checks_passed": 82,
+    "structural_failures": 0,
+    "result": "PASS",
+    "note": "Run from zero. During construction the declared-work invariant caught a miscount in the gate itself — 82 checks passed with zero failures, and the gate correctly FAILED because 7 checks ran where 6 were declared. Third time this control has caught the author's own bookkeeping.",
+    "new_section": "defect E encoding safety (7 checks)"
+  },
+
+  "abt_canary_acceptance_criteria": {
+    "accession": "0000912057-00-024277",
+    "must_be_live_behaviour_not_fixture": "the observed Accept-Encoding sent, the observed Content-Encoding returned, the actual parser-facing bytes and the range count are reported for this accession specifically",
+    "criteria": {
+      "index_headers_status": 404,
+      "fallback_request_1.range": "bytes=0-4095",
+      "fallback_request_1.accept_encoding": "identity",
+      "response_content_encoding": "absent or identity",
+      "parser_body_first_two_bytes": "!= 1f8b",
+      "parser_body_sha256": "== source_decision_bytes_sha256",
+      "sec_header_open_present": true,
+      "sec_header_close_present": true,
+      "sic_field_present_anywhere": true,
+      "sic_field_present_inside_sec_header": true,
+      "frozen_parser_sic": "2834",
+      "acquisition_status": "HEADER_TERMINATED",
+      "progressive_range_request_count": 1,
+      "ACQUISITION_HEADER_INCOMPLETE": false,
+      "DOCUMENT_EOF_NO_SEC_HEADER_TERMINATOR": false
+    },
+    "note_on_404": "asserts EDGAR's behaviour, not ours. Required because the fallback must actually execute, but recorded as an OBSERVATION OF THE SOURCE so a future change there is diagnosed correctly rather than read as a regression.",
+    "document_need_not_begin_with_angle_bracket": "EDGAR archives carry preamble; this one has 423 bytes of it"
+  },
+
+  "whole_abt_requirements": [
+    "every ranged fallback forces Accept-Encoding: identity",
+    "no encoded representation reaches the parser",
+    "the encoded-body hash invariant passes",
+    "actual send intervals >= 0.2 s, retries included",
+    "every decision has persisted source-decision bytes",
+    "every observation has source provenance",
+    "zero orphan observations",
+    "no unexpected domains or forms",
+    "no coverage fields"
+  ],
+
+  "hard_stop_rules": [
+    "if even ONE of the six former ceiling-hit filings still reaches the 1 MiB / 8-request bound, stop after ABT — that would be a separate remaining acquisition condition",
+    "if any ranged response reaches the parser encoded, stop",
+    "if the encoded-body invariant fails, stop",
+    "if retained decision bytes do not hash identically to the parser input, stop"
+  ],
+  "six_former_ceiling_hits": ["0001047469-14-001176", "0001104659-13-082270", "0001104659-13-060300", "0001047469-13-001180", "0001047469-12-001216", "0001047469-11-001056"],
+  "prediction_to_test_not_assume": "these were manifestations of Defect E, since compressed garbage can never contain </SEC-HEADER> regardless of document size. If all six now terminate normally under identity encoding, record that as confirmation.",
+
+  "carried_forward": {
+    "frozen_source_archive": "049ac67990d314560417aa2d810ac0eea81a62cfd77fbfce0340136b0e8a8add",
+    "pinned_client_blob": "6c1d7006f42f9e86121dce641af6cea525b235b8",
+    "cik_resolution_sha256": "1f7d523b9419301a16d36234f19584266f3e61fc4e5673e589d0ba7016877146",
+    "population_union_sha256": "d338e65f9ece1ff74bab8f7e7e098529c8466c8074d215e5894c402b35450872",
+    "qualified_store_sha256": "89c4680f76a556d56ccd2e055605b3925375366fca41a40910edd1b844216d39",
+    "sealed_store_version_id": "CWQjPoJDRPIHcfQUjqMU1ynWyp5x4Umr",
+    "forms": ["10-K", "10-K/A", "10-Q", "10-Q/A", "20-F", "20-F/A", "40-F", "40-F/A"],
+    "rate_limit_per_sec": 5.0,
+    "header_completion_windows": [4096, 16384, 65536, 262144, 1048576],
+    "header_completion_cap_bytes": 1048576,
+    "header_completion_max_requests": 8,
+    "cap_unchanged": "NOT relaxed. It is a sensible fair-access bound and alters neither filing selection nor SIC interpretation. Retained as a defensive control, reclassified from root-cause remedy.",
+    "acquisition_status_vocabulary": ["HEADER_INDEX", "HEADER_TERMINATED", "DOCUMENT_EOF_NO_SEC_HEADER_TERMINATOR", "ACQUISITION_HEADER_INCOMPLETE", "ACQUISITION_ENCODING_UNSUPPORTED"],
+    "hard_invariants": ["none of the acquisition statuses implies no_pit_sic", "DOCUMENT_EOF_NO_SEC_HEADER_TERMINATOR must never imply no_pit_sic", "ACQUISITION_HEADER_INCOMPLETE must never be treated as historical missingness"],
+    "hazard_second_frozen_src_tree": "/opt/workbench/sec001-v3/frozen-src/670b2b3f is the REJECTED Build Record v1.0 CRLF archive. Never resolve frozen-src by glob; pin 049ac679 and assert module __file__ origin."
+  }
+}
