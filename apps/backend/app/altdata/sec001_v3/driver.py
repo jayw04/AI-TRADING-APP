@@ -188,8 +188,18 @@ class CrawlDriver:
         # so there is no partial file to preserve, and a re-crawl after a torn write must
         # not append duplicates behind the earlier attempt.
         obs_path.write_bytes(b"")
+        incomplete = 0
         for o in built.observations:
-            append_jsonl(asdict(o), obs_path)
+            record = asdict(o)
+            # Acquisition provenance travels with every observation so that a machinery
+            # failure can never be read as evidentiary absence. A `sic: null` carrying
+            # ACQUISITION_HEADER_INCOMPLETE is OUR failure; one carrying HEADER_COMPLETE
+            # or HEADER_INDEX is a fact about the filing.
+            status = self.fetcher.header_status.get(o.accession, policy.ACQ_HEADER_INDEX)
+            record["acquisition_status"] = status
+            if status == policy.ACQ_HEADER_INCOMPLETE:
+                incomplete += 1
+            append_jsonl(record, obs_path)
         seg_path.write_bytes(b"")
         for s in built.segments:
             append_jsonl(asdict(s), seg_path)
@@ -206,6 +216,7 @@ class CrawlDriver:
             segments=len(built.segments),
             conflicts=len(built.conflicts),
             requests_issued=self.fetcher.requests_issued - before,
+            acquisition_header_incomplete=incomplete,
         )
 
     # -- the run -----------------------------------------------------------------------

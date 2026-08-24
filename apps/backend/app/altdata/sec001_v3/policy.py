@@ -77,6 +77,41 @@ RETRY_JITTER_FRACTION: Final = 0.25  # full delay in [d*(1-f), d*(1+f)]
 # own backoff schedule. Randomness here is for server politeness, not for sampling.
 JITTER_SEED: Final = f"{CRAWL_ID}:{CAPTURE_DATE}"
 
+# --- SEC-header completion override (Remediation Ruling v1.0 §1) -----------------------
+
+# The frozen spine falls back to the full-submission .txt with this exact legacy Range when
+# an accession has no ``-index-headers.html`` (true for pre-~2014 filings). Measured on the
+# 2026-08-24 canary: the SIC line is NOT inside the first 4 KiB, so every such fetch
+# succeeded and yielded no SIC -- a perfect 53/53 split against index-header fetches. Left
+# alone that turns an extraction defect into apparent historical missingness, which would
+# feed straight into the >=20-year span provision of the coverage gate.
+LEGACY_HEADER_RANGE: Final = "bytes=0-4095"
+
+# Bounded progressive windows (cumulative end offsets), never a whole-file fetch. The first
+# window is byte-identical to the spine's own request, so the common case costs exactly what
+# it did before.
+HEADER_COMPLETION_WINDOWS: Final[tuple[int, ...]] = (4096, 16384, 65536, 262144, 1048576)
+
+#: Frozen absolute cap. Reaching it is an ACQUISITION failure, never an evidentiary fact.
+HEADER_COMPLETION_CAP_BYTES: Final = 1048576  # 1 MiB
+
+#: Frozen ceiling on range requests per filing. A server that serves short ranges could
+#: otherwise turn one filing into hundreds of requests against the fair-access budget.
+#: Exceeding it is an ACQUISITION failure, not an evidentiary fact.
+HEADER_COMPLETION_MAX_REQUESTS: Final = 8
+
+#: The override stops here. This subsumes both sanctioned stop conditions -- a SIC-bearing
+#: header and a header legitimately without one are both *complete* at this tag -- which
+#: keeps ALL SIC interpretation with the frozen spine and none in the transport layer.
+SEC_HEADER_CLOSE_TAG: Final = "</SEC-HEADER>"
+
+# Acquisition status vocabulary. The distinction between the last two is load-bearing:
+# ``no_pit_sic`` is a fact about available historical evidence; ACQUISITION_HEADER_INCOMPLETE
+# is a failure of our machinery and must NEVER count against classification coverage.
+ACQ_HEADER_INDEX: Final = "HEADER_INDEX"                       # -index-headers.html served it
+ACQ_HEADER_COMPLETE: Final = "HEADER_COMPLETE"                 # full SEC-HEADER obtained
+ACQ_HEADER_INCOMPLETE: Final = "ACQUISITION_HEADER_INCOMPLETE"  # cap hit; NOT no_pit_sic
+
 # --- where output may go --------------------------------------------------------------
 
 # The only two prefixes this driver may write. ``sealed/`` holds the governed store and is

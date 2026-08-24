@@ -62,6 +62,9 @@ class UnitResult:
     segments: int
     conflicts: int
     requests_issued: int
+    #: observations whose SEC header could not be completed within the frozen cap. These
+    #: are OUR acquisition failures and must never be counted as evidentiary absence.
+    acquisition_header_incomplete: int = 0
 
 
 assert_dataclass_clean(UnitResult)

@@ -309,14 +309,22 @@ def test_accession_recovered_from_the_full_submission_fallback_url(tmp_path) -> 
 
 def test_ranged_header_read_is_supported(tmp_path) -> None:
     """Amendment B restored ``get_text(headers=)``. Without it the pre-2014 fallback
-    downloads whole multi-megabyte submission archives — the path to a 403."""
-    seen: dict = {}
+    downloads whole multi-megabyte submission archives — the path to a 403.
+
+    Since the header-completion override (Remediation Ruling v1.0 §1), the spine's legacy
+    ``bytes=0-4095`` also starts a bounded progressive read. The invariant asserted here is
+    that the FIRST range is still byte-identical to the spine's own request, so a filing
+    whose header already fits costs exactly what it did before.
+    """
+    seen: list[str | None] = []
 
     def handler(request: httpx.Request) -> httpx.Response:
-        seen["range"] = request.headers.get("range")
+        seen.append(request.headers.get("range"))
         return httpx.Response(206, text="SEC-HEADER")
 
     f = make_fetcher(handler, tmp_path)
     with f:
-        f.get_text(URL, headers={"Range": "bytes=0-4095"})
-    assert seen["range"] == "bytes=0-4095"
+        f.get_text(URL, headers={"Range": policy.LEGACY_HEADER_RANGE})
+    assert seen[0] == "bytes=0-4095", "first window must match the spine's legacy request"
+    assert all(r and r.startswith("bytes=") for r in seen), seen
+    assert len(seen) <= policy.HEADER_COMPLETION_MAX_REQUESTS

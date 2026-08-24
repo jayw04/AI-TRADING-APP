@@ -52,13 +52,25 @@ class SourceEvidence:
     uri: str
     method: str
     attempt: int                 # 1-based
-    requested_utc: str
+    requested_utc: str           # attempt-start / SCHEDULING time -- stamped BEFORE the
+                                 # fair-access throttle sleeps. NOT a transmission time and
+                                 # NOT the clock for rate proof. See sent_monotonic_ns.
 
     # response
     http_status: int | None      # None == transport failure, no status was received
     received_utc: str
     elapsed_ms: int
     outcome: str                 # ok | retry | halt | error | exhausted
+
+    # transmission evidence -- stamped inside the transport immediately before the request
+    # leaves the process, i.e. AFTER throttling. sent_monotonic_ns is the arithmetic clock
+    # for rate-compliance proof; wall time can jump, monotonic time cannot.
+    sent_utc: str | None = None
+    sent_monotonic_ns: int | None = None
+
+    # range evidence -- every individual range request is separately attributable
+    range_header: str | None = None
+    content_range: str | None = None
 
     # payload
     sha256_wire: str | None = None

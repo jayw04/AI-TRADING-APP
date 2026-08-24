@@ -37,6 +37,7 @@ import time
 import zlib
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass
+from functools import partial
 from typing import Any, cast
 
 import httpx
@@ -71,6 +72,14 @@ class CrawlExhausted(RuntimeError):
 _ACCESSION_RE = re.compile(r"(\d{10}-\d{2}-\d{6})")
 
 
+def _total_from_content_range(value: str | None) -> int | None:
+    """Total document size from a ``Content-Range: bytes a-b/total`` header, if stated."""
+    if not value:
+        return None
+    tail = value.rsplit("/", 1)[-1].strip()
+    return int(tail) if tail.isdigit() else None
+
+
 @dataclass
 class _Capture:
     status: int
@@ -78,6 +87,10 @@ class _Capture:
     wire: bytes
     body: bytes
     content_encoding: str | None
+    sent_utc: str
+    sent_monotonic_ns: int
+    range_header: str | None
+    content_range: str | None
 
 
 def _decode(raw: bytes, encoding: str | None) -> bytes:
@@ -117,6 +130,11 @@ class RecordingTransport(httpx.BaseTransport):
                 f"{request.method} is not permitted by the SEC-001 V3 crawl policy "
                 f"(allowed: {sorted(policy.ALLOWED_METHODS)})"
             )
+        # Stamped immediately before the request leaves the process -- i.e. AFTER the
+        # fair-access throttle has slept. This is the only clock that can substantiate the
+        # rate policy; ``requested_utc`` is stamped pre-throttle and cannot.
+        sent_monotonic_ns = time.monotonic_ns()
+        sent_utc = utc_now_iso()
         response = self._inner.handle_request(request)
         # Iterate the stream rather than calling ``.read()``: ``read()`` would apply
         # httpx's content decoder, and these must be the bytes as they arrived.
@@ -135,6 +153,10 @@ class RecordingTransport(httpx.BaseTransport):
             wire=raw,
             body=body,
             content_encoding=encoding,
+            sent_utc=sent_utc,
+            sent_monotonic_ns=sent_monotonic_ns,
+            range_header=request.headers.get("range"),
+            content_range=response.headers.get("content-range"),
         )
         # Hand the caller a decoded, identity-encoded response so ``r.text`` is correct.
         headers = [
@@ -179,6 +201,9 @@ class PolicyFetcher:
         self.context: dict[str, Any] = {}
         #: accession -> form, harvested from submissions payloads as they pass through
         self._form_by_accession: dict[str, str] = {}
+        #: accession -> acquisition status (see policy.ACQ_*). Lets the driver distinguish
+        #: a machinery failure from a legitimate absence of SIC in the source.
+        self.header_status: dict[str, str] = {}
         self.requests_issued = 0
         self.retries = 0
 
@@ -341,6 +366,10 @@ class PolicyFetcher:
             wire_bytes=len(used.wire) if used else None,
             body_bytes=len(used.body) if used else None,
             content_encoding=used.content_encoding if used else None,
+            sent_utc=used.sent_utc if used else None,
+            sent_monotonic_ns=used.sent_monotonic_ns if used else None,
+            range_header=used.range_header if used else None,
+            content_range=used.content_range if used else None,
             cik=self.context.get("cik"),
             ticker=self.context.get("ticker"),
             accession=accession,
@@ -358,4 +387,68 @@ class PolicyFetcher:
         return payload
 
     def get_text(self, url: str, *, headers: dict[str, str] | None = None) -> str:
+        """The spine's ``_Fetcher.get_text``, with the SEC-header completion override.
+
+        The override fires only for the frozen spine's *legacy* full-submission fallback --
+        the exact ``Range: bytes=0-4095`` it hardcodes. Everything else passes through
+        untouched.
+        """
+        if headers and headers.get("Range") == policy.LEGACY_HEADER_RANGE:
+            return self._complete_sec_header(url)
         return self._run(lambda: self._client.get_text(url, headers=headers), url)
+
+    # -- SEC-header completion (Remediation Ruling v1.0 §1) ----------------------------
+
+    def _complete_sec_header(self, url: str) -> str:
+        """Retrieve enough of *the same filing* to complete its SEC header.
+
+        Bounded progressive ranges, capped at ``policy.HEADER_COMPLETION_CAP_BYTES``. The
+        first window is byte-identical to the spine's own request, so a filing whose header
+        already fits in 4 KiB costs exactly what it did before.
+
+        This changes only HOW MANY BYTES are obtained from the frozen filing. It does not
+        select a different filing, use a different source, or interpret SIC -- the stop
+        condition is the closing ``</SEC-HEADER>`` tag, so every byte of the header block
+        reaches the spine's own parser and all interpretation stays there.
+        """
+        accession, _ = self._provenance(url)
+        parts: list[str] = []
+        consumed = 0
+        requests = 0
+        for end in policy.HEADER_COMPLETION_WINDOWS:
+            while consumed < end:
+                if requests >= policy.HEADER_COMPLETION_MAX_REQUESTS:
+                    self._mark_header(accession, policy.ACQ_HEADER_INCOMPLETE)
+                    return "".join(parts)
+                rng = f"bytes={consumed}-{end - 1}"
+                parts.append(self._run(
+                    partial(self._client.get_text, url, headers={"Range": rng}), url))
+                requests += 1
+                text = "".join(parts)
+                if policy.SEC_HEADER_CLOSE_TAG in text:
+                    self._mark_header(accession, policy.ACQ_HEADER_COMPLETE)
+                    return text
+
+                cap = self._recorder.last
+                served = len(cap.body) if cap else 0
+                if served == 0:
+                    # Nothing more to read: the document is exhausted, so the header is
+                    # complete and any absence of SIC is evidentiary.
+                    self._mark_header(accession, policy.ACQ_HEADER_COMPLETE)
+                    return text
+                consumed += served
+
+                # Prefer Content-Range's authoritative total over inferring EOF from a
+                # short read -- a server that caps range sizes is not at end-of-file, and
+                # treating it as such would silently truncate the header.
+                total = _total_from_content_range(cap.content_range if cap else None)
+                if total is not None and consumed >= total:
+                    self._mark_header(accession, policy.ACQ_HEADER_COMPLETE)
+                    return text
+        # Cap reached without closing the header: OUR failure, not the record's.
+        self._mark_header(accession, policy.ACQ_HEADER_INCOMPLETE)
+        return "".join(parts)
+
+    def _mark_header(self, accession: str | None, status: str) -> None:
+        if accession:
+            self.header_status[accession] = status
