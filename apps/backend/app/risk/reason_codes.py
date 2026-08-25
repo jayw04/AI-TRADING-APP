@@ -12,6 +12,11 @@ class ReasonCode(StrEnum):
     SHORT_NOT_ALLOWED = "SHORT_NOT_ALLOWED"
     POSITION_CAP_QTY = "POSITION_CAP_QTY"
     POSITION_CAP_NOTIONAL = "POSITION_CAP_NOTIONAL"
+    # B3a — the position-notional gate could not establish a trusted execution-price
+    # reference for an exposure-INCREASING order, so it refused rather than passing.
+    # Distinct from POSITION_CAP_NOTIONAL: nothing breached a cap, the cap could not be
+    # evaluated. Operator response differs (restore pricing vs. resize the order).
+    POSITION_CAP_UNPRICED = "POSITION_CAP_UNPRICED"
     GROSS_EXPOSURE = "GROSS_EXPOSURE"
     HALT_REACHED = "HALT_REACHED"
     RATE_LIMIT = "RATE_LIMIT"

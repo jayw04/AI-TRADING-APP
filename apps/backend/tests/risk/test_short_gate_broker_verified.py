@@ -69,7 +69,9 @@ async def _set_local_position(session_factory, qty: Decimal) -> None:
 def _req(**over) -> OrderRequest:
     base = dict(user_id=1, account_id=1, symbol_ticker="AMD", side=OrderSide.SELL,
                 qty=Decimal("7"), type=OrderType.MARKET, tif=TimeInForce.DAY,
-                source_type=OrderSourceType.MANUAL)
+                source_type=OrderSourceType.MANUAL,
+                # B3a: MARKET needs a trusted reference price.
+                reference_price=Decimal("100"))
     base.update(over)
     return OrderRequest(**base)
 

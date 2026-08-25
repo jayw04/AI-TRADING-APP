@@ -79,6 +79,9 @@ def _req(**ov) -> OrderRequest:
         type=OrderType.MARKET,
         tif=TimeInForce.DAY,
         source_type=OrderSourceType.MANUAL,
+        # B3a/ADR 0055: MARKET orders need a trusted reference price — the
+        # position-notional gate fails closed without one.
+        reference_price=Decimal("100"),
     )
     base.update(ov)
     return OrderRequest(**base)
