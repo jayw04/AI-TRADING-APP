@@ -170,13 +170,12 @@ are present under `s3://workbench-backups-219024422756/mdq_capture/{iex,sip}/202
 was performed as a chain:
 
 1. **Manifest → disk.** Each manifest's recorded sha256 was recomputed on the host and matched.
-2. **Disk → S3.** Each object's host MD5 matched its S3 ETag. These are single-part uploads, so the
-   ETag is the content MD5 — this is a content-identity check, not a size comparison.
+2. **Disk → S3.** Each object's host MD5 **exactly matched the ETag returned by S3** for that object.
+   This directly observed equality establishes host↔S3 content identity for these six objects. No
+   generic claim is made that every single-part S3 ETag is necessarily an MD5.
 
-⚠ Precision: S3 stores **no** SHA-256 checksum for these objects (`ChecksumSHA256` is null; only MD5
-ETags exist). The sha256 values above were therefore verified **on the host against the manifests**,
-and box↔S3 content identity was established **via MD5/ETag**. No claim is made that S3-side SHA-256 was
-independently verified, because S3 does not hold it.
+⚠ Precision: `ChecksumSHA256` was null for all six objects, so **no S3-side SHA-256 verification was
+available**; SHA-256 was verified **host-side against the manifests**.
 
 Volume comparison against a known-good reference day (2026-08-21) — IEX 515,579 / 5,733,580 / 1,467 and
 SIP 945,557 / 5,742,142 / 1,467 — places 2026-08-25 within 0.5 % on both feeds, consistent in shape and
