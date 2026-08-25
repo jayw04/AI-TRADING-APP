@@ -103,6 +103,46 @@ unambiguous and self-consistent · cooldown expired.
 each — `.env` rebuilt from scratch defaulting the scheduler and Alpaca startup to **false**, and
 `.deploy_src_sha` not being maintained by the provisioner.
 
+#### A3-PRE — build parameters, **pre-verified 2026-08-25 (read-only)**
+
+Three of the §8.1 gotchas were checked against the actual target rather than carried as warnings.
+**One of them would have hard-refused the build mid-cutover.**
+
+**1. ⛔ `ADR0043_IMPLEMENTATION_SHA` MUST be overridden.** `build-deploy-archive.sh:53` defaults
+`IMPL_SHA=ea6db6e…`. Evaluated against target `956e932`:
+
+```
+IMPL_SHA=38f40b4 (owner re-baseline, #535)   ancestry PASS   governed-path delta EMPTY   -> BUILD OK
+IMPL_SHA=ea6db6e (script default)            ancestry PASS   governed-path delta NON-EMPTY -> exit 3
+                                                  apps/backend/scripts/adr0043_canary_lib.py
+                                                  apps/backend/scripts/adr0043_churn_driver.py
+```
+
+⇒ export `ADR0043_IMPLEMENTATION_SHA=38f40b46906fc91497049924f7a62e7384d67653`. This matches
+`adr0043_implementation_commit` already recorded in the box's `DEPLOYED_BUILD_INFO.json`, so the
+cutover preserves the governed provenance rather than changing it.
+
+**2. Runtime flags — reproduce the live values, do not accept the provisioner defaults.** Measured in
+the running container; `provision-from-s3.sh:30-34` defaults the first two to `false`:
+
+| Variable | Live value | Provisioner default |
+|---|---|---|
+| `WORKBENCH_SCHEDULER_ENABLED` | **`true`** | `false` — box returns **disarmed** |
+| `WORKBENCH_ALPACA_STARTUP_ENABLED` | **`true`** | `false` |
+| `WORKBENCH_LOSS_CONTROL_MODE` | **`OFF`** | `OFF` ✅ |
+| `WORKBENCH_LOG_LEVEL` | **unset** — relies on `settings.log_level` default of INFO | — |
+
+⛔ Do **not** pass `LOSS_CONTROL_MODE=ENFORCE` — `provision-from-s3.sh:47` would classify the host as
+the ADR-0043 validation box and refuse.
+
+⚠ `WORKBENCH_LOG_LEVEL` being unset is a latent version of v0.5 §8.3: `ownership_unclaimed` is emitted
+at info and survives only on the framework default. Setting the deployed level to WARNING at any future
+point silently removes one of the five S6 diagnostics. Consider pinning it explicitly at cutover.
+
+**3. `.deploy_src_sha` currently agrees with the build marker** (both `0344337`) — the 08-23 manual
+repair held. The provisioner does not maintain it, so it must be updated again by hand to `956e932`
+after deploy, or `disc_mdq/ledger.py` will report a stale deployment identity.
+
 ### ✅ A4 — Archive the off-series draft — **MOOT / CLOSED 2026-08-25**
 
 Closed without action at custody time. The off-series underscore draft no longer exists in the working
