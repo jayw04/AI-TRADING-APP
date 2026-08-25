@@ -29,6 +29,7 @@ function occurrence(
     first_seen: "2026-08-14",
     last_seen: "2026-08-19",
     occurrence_count: 2,
+    on_watchlist: true,
     current_price: 130,
     current_price_as_of: "2026-08-20",
     current_price_source: "sharadar.sep",
@@ -100,6 +101,9 @@ function summary(): OppHistoryResponse {
     count: 1,
     items: [occurrence()],
     as_of: new Date().toISOString(),
+    latest_candidate_date: "2026-08-19",
+    current_count: 1,
+    historical_count: 0,
   };
 }
 
@@ -117,11 +121,13 @@ describe("OpportunityHistoryPage", () => {
     );
     expect(await screen.findByText("Opportunity History")).toBeTruthy();
     expect(screen.getByText("NVDA")).toBeTruthy();
-    expect(screen.getByText("MOM-CORE")).toBeTruthy();
+    expect(screen.getAllByText("MOM-CORE").length).toBeGreaterThan(0);
     expect(screen.getByText("$120.50")).toBeTruthy();
     expect(screen.getByText("$130.00")).toBeTruthy();
     expect(screen.getByText("weeks–months")).toBeTruthy();
     expect(screen.getByText("D1 D5 D10 D20")).toBeTruthy();
+    expect(screen.getAllByText("On watchlist").length).toBeGreaterThan(0);
+    expect(screen.getByText(/1 on watchlist · 0 historical/)).toBeTruthy();
     expect(screen.getByText("No longer OVERSOLD: RSI14 = 34.2.")).toBeTruthy();
     expect(
       screen.getAllByText("Frozen-rule display, not a sell or exit signal.")
@@ -140,6 +146,9 @@ describe("OpportunityHistoryPage", () => {
             occurrence(),
           ],
           as_of: new Date().toISOString(),
+          latest_candidate_date: "2026-08-19",
+          current_count: 1,
+          historical_count: 0,
         };
       }
       return summary();
@@ -164,7 +173,47 @@ describe("OpportunityHistoryPage", () => {
       </MemoryRouter>,
     );
     await screen.findByText("NVDA");
-    expect(screen.queryByRole("button", { name: /apply/i })).toBeNull();
+    expect(screen.queryByRole("button", { name: /apply to strategy/i })).toBeNull();
+  });
+
+  it("applies history filters without leaving summary view", async () => {
+    mocked.history.mockResolvedValue(summary());
+    render(
+      <MemoryRouter>
+        <OpportunityHistoryPage />
+      </MemoryRouter>,
+    );
+    await screen.findByText("NVDA");
+    fireEvent.change(screen.getByLabelText("Family"), {
+      target: { value: "GAP" },
+    });
+    fireEvent.change(screen.getByLabelText("From"), {
+      target: { value: "2026-08-14" },
+    });
+    fireEvent.change(screen.getByLabelText("To"), {
+      target: { value: "2026-08-20" },
+    });
+    fireEvent.change(screen.getByLabelText("Screen version"), {
+      target: { value: "v0.3.0" },
+    });
+    fireEvent.change(screen.getByLabelText("Presence"), {
+      target: { value: "historical" },
+    });
+    fireEvent.change(screen.getByLabelText("Symbol"), {
+      target: { value: "xyz" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Apply" }));
+    await waitFor(() => {
+      expect(mocked.history).toHaveBeenLastCalledWith({
+        symbol: "xyz",
+        family: "GAP",
+        from_date: "2026-08-14",
+        to_date: "2026-08-20",
+        screen_version: "v0.3.0",
+        presence: "historical",
+        view: "summary",
+      });
+    });
   });
 
   it("does not list Watch or Backtest Pending history rows", async () => {
@@ -176,14 +225,19 @@ describe("OpportunityHistoryPage", () => {
           symbol: "XYZ",
           family: "GAP",
           status_at_proposal: "Backtest Pending",
+          on_watchlist: false,
         }),
         occurrence({
           symbol: "AAPL",
           family: "OVERSOLD",
           status_at_proposal: "Watch",
+          on_watchlist: true,
         }),
       ],
       as_of: new Date().toISOString(),
+      latest_candidate_date: "2026-08-19",
+      current_count: 1,
+      historical_count: 1,
     });
     render(
       <MemoryRouter>

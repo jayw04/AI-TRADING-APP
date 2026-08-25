@@ -274,6 +274,7 @@ class OppHistoryOccurrence(BaseModel):
     first_seen: str
     last_seen: str
     occurrence_count: int = 1
+    on_watchlist: bool = False
     current_price: float | None = None
     current_price_as_of: str | None = None
     current_price_source: str | None = None
@@ -287,3 +288,6 @@ class OppHistoryResponse(BaseModel):
     count: int
     items: list[OppHistoryOccurrence]
     as_of: datetime
+    latest_candidate_date: str | None = None
+    current_count: int = 0
+    historical_count: int = 0
