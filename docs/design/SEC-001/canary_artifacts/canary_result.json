@@ -1,0 +1,53 @@
+{
+  "accession": "0000065984-14-000065",
+  "assertions": {
+    "A_hard_ceiling": true,
+    "B_far_below_entity": true,
+    "C_remainder_not_drained": true,
+    "D_incremental_digest_binds_consumed": true,
+    "E_explicit_classification": true,
+    "F_decode_ok": true,
+    "G_defect_f_condition_observed": true,
+    "H_sec_header_within_consumed": true,
+    "I_sic_present": true
+  },
+  "canary": "SEC001_V3_DEFECT_F",
+  "dependencies": {
+    "READ_NUM_BYTES": 65536,
+    "httpcore": "1.0.9",
+    "httpx": "0.28.1"
+  },
+  "elapsed_seconds": 0.121,
+  "error": null,
+  "implementation_commit": "517cab0fe28b03cc28d3929a932c6855e3967dc2",
+  "known_entity_bytes": 422424674,
+  "observed": {
+    "content_encoding": null,
+    "content_range": null,
+    "decode_error": null,
+    "decode_ok": true,
+    "http_status": 200,
+    "range_class": "200_FULL_RANGE_IGNORED",
+    "range_honored": false,
+    "request_accept_encoding": "identity",
+    "response_content_length": null,
+    "retained_body_bytes": 15707,
+    "retained_body_sha256": "c08f172ba7bb2c28d1ca762acf01d0534d2a62ebf60af9bc0f9c172a2cef6f4c",
+    "wire_bytes_consumed": 15707,
+    "wire_consumed_sha256": "c08f172ba7bb2c28d1ca762acf01d0534d2a62ebf60af9bc0f9c172a2cef6f4c",
+    "wire_truncated_at_ceiling": true
+  },
+  "policy": {
+    "CONSUMPTION_STOP_THRESHOLD_BYTES": 983040,
+    "MAX_UPSTREAM_CHUNK_BYTES": 65536,
+    "RESPONSE_CONSUMPTION_CEILING_BYTES": 1048576
+  },
+  "request": {
+    "Accept-Encoding": "identity",
+    "Range": "bytes=0-4095"
+  },
+  "sec_header_close_offset": 6195,
+  "url": "https://www.sec.gov/Archives/edgar/data/65984/000006598414000065/0000065984-14-000065.txt",
+  "verdict": "PASS",
+  "verdict_reason": "real ignored-Range 200 observed, classified explicitly, and actual wire consumption bounded within the governed ceiling"
+}
