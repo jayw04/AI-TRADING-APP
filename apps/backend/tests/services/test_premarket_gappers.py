@@ -37,6 +37,11 @@ def test_missing_directory_returns_empty_stale(monkeypatch):
         "count": 0,
         "gappers": [],
         "stale": True,
+        # A no-source payload still names its source honestly: explicit sentinels, deliberately
+        # not hash-shaped, so a §5.5 stamp built from them cannot look like a digest of a file
+        # that was never read.
+        "source_path": pg.NO_SOURCE_ARTIFACT,
+        "source_sha256": pg.NO_SOURCE_SHA256,
     }
 
 

@@ -2,9 +2,12 @@
 
 The gate accrues *forward* evidence (gate plan §0; ADR 0024): each trading day the
 ~09:25 ET premarket scan persists today's candidate set + the eligible field, and the
-~16:30 ET back-fill attaches each name's realized intraday outcome. Once ~40 days of
-records exist, ``premarket_verdict.run_gate_verdict`` reads them and returns a
-TRANSFERS / DOES-NOT-TRANSFER / INSUFFICIENT verdict.
+~16:30 ET back-fill attaches each name's realized intraday outcome. Once ~40 *contributing*
+days of records exist, ``premarket_verdict.run_gate_verdict`` reads them and returns a
+TRANSFERS / DOES-NOT-TRANSFER / INSUFFICIENT verdict — or INVALID-EVIDENCE, when the accrued
+records cannot identify the hypothesis at all. A record contributes only if it is same-day
+(not a republished stale snapshot) and formed a real comparison group
+(``candidate_count < eligible_count``); see ``premarket_verdict`` for both admission rules.
 
 Both jobs are read-only / advisory — no order path, no broker writes — and **fail-soft**:
 a bad day (no store, no gappers file, an Alpaca miss) is logged and skipped, never

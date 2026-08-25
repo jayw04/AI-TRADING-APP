@@ -11,6 +11,17 @@ v0 is an in-code registry (a DB table can replace it later without changing cons
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import Literal
+
+# Our ingestion contract for a source — distinct from the provider's publishing cadence.
+#   LIVE                 — a scheduled job ingests on the stated cadence; staleness is a FAULT.
+#   PAUSED_BY_GOVERNANCE — ingestion intentionally not scheduled pending a governed decision;
+#                          staleness is EXPECTED and must not be reported as an outage.
+#   UNEXPECTEDLY_STALE   — ingestion is meant to be running but has stopped; investigate.
+INGESTION_STATUS = Literal["LIVE", "PAUSED_BY_GOVERNANCE", "UNEXPECTEDLY_STALE"]
+INGESTION_STATUSES: frozenset[str] = frozenset(
+    ("LIVE", "PAUSED_BY_GOVERNANCE", "UNEXPECTEDLY_STALE")
+)
 
 
 @dataclass(frozen=True)
@@ -29,6 +40,28 @@ class DataSource:
     point_in_time_supported: bool
     contact_owner: str
     renewal_date: str | None           # ISO date, or None for month-to-month
+    # ``refresh_frequency`` above is the *provider's* publishing cadence. This is *our* ingestion
+    # state, and the two diverge: a source can publish daily while we deliberately hold a frozen
+    # corpus. Declaring it explicitly is the difference between a paused feed and a broken one.
+    # **Deliberately has no default.** Defaulting to LIVE would let a new source inherit an
+    # implicit "we ingest this daily" contract nobody wrote — exactly the provider-cadence-read-as-
+    # ingestion-contract ambiguity this field exists to remove. Every source must say what it is.
+    ingestion_status: INGESTION_STATUS
+    # Required for any non-LIVE status (enforced below): a paused feed has to say who paused it
+    # and what unpauses it, or the next reader cannot tell it from a broken one.
+    ingestion_status_note: str = ""
+
+    def __post_init__(self) -> None:
+        if self.ingestion_status not in INGESTION_STATUSES:
+            raise ValueError(
+                f"{self.source_name}: ingestion_status {self.ingestion_status!r} is not one of "
+                f"{sorted(INGESTION_STATUSES)}"
+            )
+        if self.ingestion_status != "LIVE" and not self.ingestion_status_note.strip():
+            raise ValueError(
+                f"{self.source_name}: ingestion_status {self.ingestion_status!r} requires an "
+                "ingestion_status_note explaining why, and what would change it"
+            )
 
     @property
     def customer_facing_allowed(self) -> bool:
@@ -55,6 +88,18 @@ QUIVER_GOVCONTRACTS = DataSource(
     point_in_time_supported=True,
     contact_owner="Jay Wang (GlobalComplyAI, LLC)",
     renewal_date=None,                 # month-to-month
+    ingestion_status="PAUSED_BY_GOVERNANCE",
+    ingestion_status_note=(
+        "Frozen research corpus, not a running feed. All 890,689 gov_contract_award rows landed "
+        "in a single backfill on 2026-07-06 (max event_date 2026-07-03); no scheduled job, cron, "
+        "or systemd timer ingests this source on the box, and none is expected to. GOVCONTRACT-001 "
+        "closed INTERIM 'Insufficient Evidence' (coverage-limited), and the agreed path is to "
+        "broaden small-cap coverage rather than relax gates — so ingestion stays paused until that "
+        "data decision is made. gov_contract_award is additionally a rejected reference-only event "
+        "label (ADR 0037 / check_reference_only_invariant.sh): it may be displayed as context but "
+        "never enters ranking, sizing, or the order path. A growing gap between event_date and "
+        "today is therefore EXPECTED for this source and is not an operational fault."
+    ),
 )
 
 _REGISTRY: dict[str, DataSource] = {ds.source_name: ds for ds in (QUIVER_GOVCONTRACTS,)}
