@@ -140,6 +140,14 @@ does not block this decision, and items 1–2 above are the authoritative pre-re
   not execute. This is intended safety behaviour, but it is a new refusal mode and it is only as good as
   cached-price availability. Strategies that do not pass `reference_price` — which today is all of them
   except `momentum_daily` and `momentum_portfolio` — depend entirely on bar-cache warmth.
+- **Negative — manual orders, discovered in CI 2026-08-25.** The REST order API accepts **no**
+  `reference_price` field, and a manual market order carries no limit price. The bar cache is therefore
+  a manual market order's *only* price source: if it is cold for that symbol, a manual BUY opening a
+  position is refused with `POSITION_CAP_UNPRICED`. This is a broader user-facing consequence than the
+  strategy case above, because a human clicking "buy at market" has no way to supply the missing input.
+  Production always wires the cache (`lifespan.py:225-239`), so the expected frequency is low, but the
+  remedy if it proves otherwise is a caller-side price on the manual path — the same deferred plumbing,
+  and it should be ruled on together rather than piecemeal.
 - **Negative.** Two sibling gates now treat "no price" oppositely. That divergence is deliberate and
   reasoned above, but it is a thing a future reader must be told rather than discover.
 - **Neutral.** Existing tests that submitted MARKET orders with no price source now need one. That

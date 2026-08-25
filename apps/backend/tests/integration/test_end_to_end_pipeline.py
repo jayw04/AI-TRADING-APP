@@ -91,11 +91,13 @@ async def _seed(factory: async_sessionmaker) -> None:
         await session.commit()
 
 
-@pytest_asyncio.fixture
-async def wired_app() -> AsyncIterator[tuple[AsyncClient, async_sessionmaker, EventBus]]:
-    """Build the real OrderRouter / RiskEngine / TradeUpdateConsumer /
-    PositionRecomputer wired against the production sessionmaker, and mount a
-    mock AlpacaAdapter. Yields (client, session_factory, bus)."""
+async def _build_wired_app(bar_price: str | None):
+    """Shared wiring for the pipeline fixtures.
+
+    ``bar_price=None`` models a COLD bar cache — the symbol has no bar. That is
+    the only difference between the two fixtures, so the cold-path test differs
+    from the happy path in exactly the variable under test.
+    """
     from app.config import get_settings
     from app.db import models  # noqa: F401
     from app.db.base import Base
@@ -118,7 +120,20 @@ async def wired_app() -> AsyncIterator[tuple[AsyncClient, async_sessionmaker, Ev
     mock_adapter.is_paper = True
     mock_adapter.submit_order.return_value = {"id": "alp-e2e-1", "status": "accepted"}
 
-    risk_engine = RiskEngine(factory)
+    # B3a/ADR 0055: production always constructs the RiskEngine WITH a bar cache
+    # (lifespan.py builds one unconditionally alongside it), and the
+    # position-notional gate now fails closed on an order it cannot price. A
+    # manual REST order carries no limit price and the API accepts no
+    # reference_price, so the cache is its ONLY price source — wiring one here
+    # makes this pipeline test mirror production instead of an unwired engine.
+    class _E2EBarCache:
+        def __init__(self, price: str | None) -> None:
+            self._price = price
+
+        async def get_latest_bar(self, symbol: str):
+            return None if self._price is None else {"c": self._price}
+
+    risk_engine = RiskEngine(factory, bar_cache=_E2EBarCache(bar_price))
     router = OrderRouter(mock_adapter, risk_engine, factory, bus)
     recomputer = PositionRecomputer(factory, bus)
     consumer = TradeUpdateConsumer(factory, bus, recomputer)
@@ -136,6 +151,57 @@ async def wired_app() -> AsyncIterator[tuple[AsyncClient, async_sessionmaker, Ev
         await engine.dispose()
         get_engine.cache_clear()
         get_sessionmaker.cache_clear()
+
+
+@pytest_asyncio.fixture
+async def wired_app() -> AsyncIterator[tuple[AsyncClient, async_sessionmaker, EventBus]]:
+    """The production-shaped pipeline: RiskEngine wired WITH a warm bar cache,
+    as `lifespan.py` always constructs it."""
+    async for item in _build_wired_app("12.00"):
+        yield item
+
+
+@pytest_asyncio.fixture
+async def wired_app_cold() -> AsyncIterator[tuple[AsyncClient, async_sessionmaker, EventBus]]:
+    """Same wiring, COLD cache: the bar cache has no bar for the symbol, so no
+    trusted reference price can be established for a manual MARKET order."""
+    async for item in _build_wired_app(None):
+        yield item
+
+
+@pytest.mark.integration
+async def test_cold_market_rest_order_is_refused_as_position_cap_unpriced(
+    wired_app_cold,
+) -> None:
+    """B3a / ADR 0055 — the refusal must be OPERATOR-DISTINCT, end to end.
+
+    A manual REST MARKET order carries no limit price, and the order API accepts
+    no ``reference_price``, so the bar cache is its ONLY price source. With a cold
+    cache the position-notional gate fails closed — that is the intended safety
+    behaviour, not a defect.
+
+    What this test protects is the *legibility* of that refusal.
+    ``POSITION_CAP_UNPRICED`` was created as a condition distinct from
+    ``POSITION_CAP_NOTIONAL`` precisely because the operator response differs:
+    restore pricing versus resize the order. A proof that showed only "the order
+    failed" would defeat the reason the code exists, so this asserts the specific
+    reason survives all the way into the operator-visible API response.
+    """
+    client, factory, bus = wired_app_cold
+
+    resp = await client.post(
+        "/api/v1/orders",
+        json={"symbol": "F", "side": "buy", "qty": "10", "type": "market", "tif": "day"},
+    )
+    assert resp.status_code == 200, resp.text
+    body = resp.json()
+
+    assert body["status"] == "rejected"
+    # The operator must be told WHICH condition fired, not merely that one did.
+    assert body["rejection_reason"] == "POSITION_CAP_UNPRICED", (
+        "the API response must name POSITION_CAP_UNPRICED; a generic failure "
+        f"hides the operator-actionable distinction. got: {body['rejection_reason']!r}"
+    )
 
 
 @pytest.mark.integration
