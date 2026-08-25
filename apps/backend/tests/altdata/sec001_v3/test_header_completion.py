@@ -17,6 +17,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import re
+
 import httpx
 import pytest
 
@@ -76,6 +78,16 @@ def doc(sic_at: int | None, close_at: int, total: int) -> bytes:
 
 
 # --- fixture 1: SIC beyond byte 4095 (the canary defect) ------------------------------
+
+
+def _content_range(range_header: str | None) -> dict[str, str]:
+    """Echo a spec-compliant Content-Range for the window that was requested."""
+    if not range_header:
+        return {}
+    m = re.fullmatch(r"bytes=(\d+)-(\d+)", range_header)
+    if not m:
+        return {}
+    return {"content-range": f"bytes {m.group(1)}-{m.group(2)}/999999999"}
 
 
 def test_sic_beyond_4095_is_recovered(tmp_path) -> None:
@@ -161,9 +173,11 @@ def test_override_never_fetches_the_whole_file(tmp_path) -> None:
     def handler(request: httpx.Request) -> httpx.Response:
         if "-index-headers.html" in str(request.url):
             return httpx.Response(404)
-        seen.append(request.headers.get("range"))
-        return httpx.Response(206, content=b"Y" * 4096,
-                              headers={"content-range": "bytes 0-4095/999999999"})
+        rng = request.headers.get("range")
+        seen.append(rng)
+        # Echo the granted window. The old fixture hardcoded bytes 0-4095, which
+        # misdescribed itself from the second progressive window onward.
+        return httpx.Response(206, content=b"Y" * 4096, headers=_content_range(rng))
 
     f = make(handler, tmp_path)
     with f:
@@ -177,8 +191,9 @@ def test_override_fires_only_for_the_legacy_range(tmp_path) -> None:
     calls: list[str | None] = []
 
     def handler(request: httpx.Request) -> httpx.Response:
-        calls.append(request.headers.get("range"))
-        return httpx.Response(206, content=b"nope")
+        rng = request.headers.get("range")
+        calls.append(rng)
+        return httpx.Response(206, content=b"nope", headers=_content_range(rng))
 
     f = make(handler, tmp_path)
     with f:

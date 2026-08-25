@@ -141,6 +141,42 @@ CLOSED under this status. It is OUR machinery failure, never historical missingn
 #: gzip fragments to the parser across three canaries.
 RANGED_ACCEPT_ENCODING: Final = "identity"
 
+# -- Defect F: bounded response consumption (ruling 7C) --------------------------------
+# Defect F: SEC answered every identity-encoded ranged request with 200 and the WHOLE
+# document. The old ceiling bounded only what the client ASKED for, never what a response
+# could DELIVER, so a 4 KiB request pulled 422 MB. These bound actual consumption.
+
+# Hard ceiling on bytes pulled from a single response stream. Chunk granularity means the
+# final chunk may cross the line, so the guarantee is "no further chunk is requested once
+# the ceiling is reached", not a byte-exact stop. wire_bytes_consumed records the truth.
+RESPONSE_CONSUMPTION_CEILING_BYTES: Final = HEADER_COMPLETION_CAP_BYTES  # 1 MiB
+
+# Maximum bytes the PINNED transport can pull from the socket in one chunk.
+# PROVED, not assumed: httpcore's HTTP/1.1 connection reads via
+#   data = self._network_stream.read(self.READ_NUM_BYTES, timeout=timeout)
+# with ``READ_NUM_BYTES = 64 * 1024`` (httpcore 1.0.9,
+# httpcore/_sync/http11.py:44). test_defect_f_bounded_transport asserts this
+# against the installed httpcore, so a version bump that changes it fails loudly
+# instead of silently widening the overshoot.
+MAX_UPSTREAM_CHUNK_BYTES: Final = 64 * 1024
+
+# Guard band: stop requesting chunks this far below the hard ceiling, so that even
+# a maximal final chunk cannot carry actual consumption above it.
+#   consumed <= (STOP - 1) + MAX_UPSTREAM_CHUNK_BYTES < RESPONSE_CONSUMPTION_CEILING_BYTES
+CONSUMPTION_STOP_THRESHOLD_BYTES: Final = (
+    RESPONSE_CONSUMPTION_CEILING_BYTES - MAX_UPSTREAM_CHUNK_BYTES
+)
+
+# Explicit ranged-response classification. There is no implicit third success state:
+# anything not classifiable here is refused.
+RANGE_CLASS_206_VALIDATED: Final = "206_VALIDATED"
+RANGE_CLASS_200_IGNORED: Final = "200_FULL_RANGE_IGNORED"
+RANGE_CLASS_UNRANGED: Final = "UNRANGED"
+
+# Refusal reasons -- fail closed, never a silent success.
+RANGE_REFUSAL_206_NO_CONTENT_RANGE: Final = "206_WITHOUT_CONTENT_RANGE"
+RANGE_REFUSAL_206_INCONSISTENT: Final = "206_CONTENT_RANGE_INCONSISTENT_WITH_REQUEST"
+
 #: Encodings that mean "no transformation was applied".
 IDENTITY_ENCODINGS: Final[frozenset[str | None]] = frozenset({None, "", "identity"})
 

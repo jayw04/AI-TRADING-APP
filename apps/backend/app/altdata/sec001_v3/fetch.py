@@ -98,6 +98,90 @@ def _total_from_content_range(value: str | None) -> int | None:
     return int(tail) if tail.isdigit() else None
 
 
+class ConsumptionCeilingExceeded(RuntimeError):
+    """More bytes were pulled from a response than the governed ceiling permits.
+
+    Defect F in one sentence: the acquisition path drained a 422 MB entity to answer
+    a decision that closed at byte 6,195. This is the backstop that makes a silent
+    return to that behaviour impossible.
+    """
+
+
+class RangeContractViolation(RuntimeError):
+    """A ranged response that cannot be classified is refused, never accepted.
+
+    Defect F was possible because an unexpected response shape (200 to a Range
+    request) had no representation at all -- it flowed through as if it were the
+    requested window. Every shape now either classifies or raises.
+    """
+
+
+def _int_or_none(value: str | None) -> int | None:
+    return int(value) if value is not None and value.isdigit() else None
+
+
+def _parse_range_request(value: str | None) -> tuple[int, int] | None:
+    """``bytes=A-B`` -> ``(A, B)``. Open-ended or malformed forms return None."""
+    if not value:
+        return None
+    m = re.fullmatch(r"bytes=(\d+)-(\d+)", value.strip())
+    return (int(m.group(1)), int(m.group(2))) if m else None
+
+
+def _parse_content_range(value: str | None) -> tuple[int, int] | None:
+    """``bytes A-B/T`` -> ``(A, B)``."""
+    if not value:
+        return None
+    m = re.match(r"bytes\s+(\d+)-(\d+)/", value.strip())
+    return (int(m.group(1)), int(m.group(2))) if m else None
+
+
+def _classify_range(
+    range_header: str | None, status: int, content_range: str | None
+) -> tuple[str, bool, str | None]:
+    """Classify a response against the request's Range intent. Fail closed.
+
+    Returns ``(range_class, range_honored, refusal_reason)``. A refusal reason is a
+    hard stop -- the caller raises rather than treating it as a third kind of success.
+    """
+    if not range_header:
+        return policy.RANGE_CLASS_UNRANGED, False, None
+    if status == 206:
+        if not content_range:
+            return (policy.RANGE_CLASS_206_VALIDATED, True,
+                    policy.RANGE_REFUSAL_206_NO_CONTENT_RANGE)
+        want = _parse_range_request(range_header)
+        got = _parse_content_range(content_range)
+        if want is None or got is None or got[0] != want[0] or got[1] > want[1]:
+            return (policy.RANGE_CLASS_206_VALIDATED, True,
+                    policy.RANGE_REFUSAL_206_INCONSISTENT)
+        return policy.RANGE_CLASS_206_VALIDATED, True, None
+    if status == 200:
+        # The Defect-F condition, now named rather than silent.
+        return policy.RANGE_CLASS_200_IGNORED, False, None
+    # Non-2xx with a Range header: status handling (retry/halt) owns this, not us.
+    return policy.RANGE_CLASS_UNRANGED, False, None
+
+
+def _consumption_stop_threshold(range_header: str | None) -> int:
+    """Bytes this response is permitted to have pulled from the socket.
+
+    A ranged request may consume at most its own requested end + 1, so an ignored
+    Range cannot cost more than the window that was asked for. Everything is
+    additionally capped by the governed ceiling.
+    """
+    want = _parse_range_request(range_header)
+    window = (
+        want[1] + 1 if want is not None else policy.RESPONSE_CONSUMPTION_CEILING_BYTES
+    )
+    # Never request a chunk once within one maximal upstream chunk of the hard
+    # ceiling, so the final chunk cannot carry consumption above it. For windows
+    # smaller than one chunk the first read is unavoidable and may exceed the
+    # WINDOW -- it can never exceed the governed HARD ceiling, which is what the
+    # ruling binds.
+    return min(window, policy.CONSUMPTION_STOP_THRESHOLD_BYTES)
+
+
 @dataclass
 class _Capture:
     status: int
@@ -112,6 +196,16 @@ class _Capture:
     request_accept_encoding: str | None
     decode_ok: bool
     decode_error: str | None
+    # -- Defect F / 4.2.3 successor evidence fields (additive) --
+    # wire_bytes_consumed counts bytes actually PULLED from response.stream. It is not
+    # bytes retained, decoded, or written -- those can all be small while the transport
+    # still drained a 422 MB entity, which is precisely Defect F.
+    wire_bytes_consumed: int = 0
+    wire_consumed_sha256: str = ""
+    response_content_length: int | None = None
+    range_class: str = ""
+    range_honored: bool = False
+    wire_truncated_at_ceiling: bool = False
 
 
 def _decode(raw: bytes, encoding: str | None) -> bytes:
@@ -158,10 +252,59 @@ class RecordingTransport(httpx.BaseTransport):
         sent_monotonic_ns = time.monotonic_ns()
         sent_utc = utc_now_iso()
         response = self._inner.handle_request(request)
-        # Iterate the stream rather than calling ``.read()``: ``read()`` would apply
-        # httpx's content decoder, and these must be the bytes as they arrived.
-        raw = b"".join(cast("Iterable[bytes]", response.stream))
+        range_header = request.headers.get("range")
+        content_range = response.headers.get("content-range")
+
+        # Classify BEFORE consuming, so the ceiling comes from the request's own
+        # intent and not from whatever the server decided to send.
+        range_class, range_honored, refusal = _classify_range(
+            range_header, response.status_code, content_range
+        )
+        if refusal is not None:
+            response.close()
+            raise RangeContractViolation(
+                f"{request.url}: {refusal} (Range={range_header!r}, "
+                f"Content-Range={content_range!r})"
+            )
+        stop_at = _consumption_stop_threshold(range_header)
+
+        # -- DEFECT F REPAIR --------------------------------------------------------
+        # Pull-bounded. Stop REQUESTING chunks once the ceiling is reached; the
+        # remainder of the entity is never pulled -- not for hashing, not for
+        # recording, not for anything. The former ``b"".join(response.stream)``
+        # drained the whole entity before any consumer saw a byte, which is how a
+        # 4 KiB request cost 422 MB.
+        #
+        # Chunk granularity means the final chunk may cross the ceiling, so the
+        # guarantee is "no further chunk is requested once the ceiling is reached",
+        # not a byte-exact stop. ``wire_bytes_consumed`` records what was actually
+        # pulled, so the evidence states the truth rather than the intent.
+        #
+        # Iterate rather than ``.read()``: ``read()`` would apply httpx's content
+        # decoder, and these must be the bytes as they arrived.
+        hasher = hashlib.sha256()
+        chunks: list[bytes] = []
+        consumed = 0
+        truncated = False
+        for chunk in cast("Iterable[bytes]", response.stream):
+            chunks.append(chunk)
+            consumed += len(chunk)
+            hasher.update(chunk)  # incremental: binds exactly the bytes pulled
+            if consumed >= stop_at:
+                truncated = True
+                break
         response.close()
+
+        # HARD BOUND, fail-closed. The guard band above should make this
+        # unreachable; it is asserted anyway so that a wrong MAX_UPSTREAM_CHUNK_BYTES
+        # (an httpcore change, a different transport) surfaces as a loud refusal
+        # rather than a quiet return to Defect-F behaviour.
+        if consumed > policy.RESPONSE_CONSUMPTION_CEILING_BYTES:
+            raise ConsumptionCeilingExceeded(
+                f"{request.url}: pulled {consumed} bytes, ceiling is "
+                f"{policy.RESPONSE_CONSUMPTION_CEILING_BYTES}"
+            )
+        raw = b"".join(chunks)
 
         encoding = response.headers.get("content-encoding")
         decode_ok, decode_error = True, None
@@ -187,6 +330,12 @@ class RecordingTransport(httpx.BaseTransport):
             request_accept_encoding=request.headers.get("accept-encoding"),
             decode_ok=decode_ok,
             decode_error=decode_error,
+            wire_bytes_consumed=consumed,
+            wire_consumed_sha256=hasher.hexdigest(),
+            response_content_length=_int_or_none(response.headers.get("content-length")),
+            range_class=range_class,
+            range_honored=range_honored,
+            wire_truncated_at_ceiling=truncated,
         )
         # Hand the caller a decoded, identity-encoded response so ``r.text`` is correct.
         headers = [

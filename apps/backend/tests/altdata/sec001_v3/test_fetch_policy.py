@@ -10,6 +10,8 @@ The tests that matter most here are not the happy paths. They are:
 
 from __future__ import annotations
 
+import re
+
 import httpx
 import pytest
 
@@ -41,6 +43,16 @@ def read_evidence(tmp_path) -> list[dict]:
 
 
 # --- frozen policy surface ------------------------------------------------------------
+
+
+def _content_range(range_header: str | None) -> dict[str, str]:
+    """Echo a spec-compliant Content-Range for the window that was requested."""
+    if not range_header:
+        return {}
+    m = re.fullmatch(r"bytes=(\d+)-(\d+)", range_header)
+    if not m:
+        return {}
+    return {"content-range": f"bytes {m.group(1)}-{m.group(2)}/999999999"}
 
 
 def test_frozen_policy_values() -> None:
@@ -319,8 +331,11 @@ def test_ranged_header_read_is_supported(tmp_path) -> None:
     seen: list[str | None] = []
 
     def handler(request: httpx.Request) -> httpx.Response:
-        seen.append(request.headers.get("range"))
-        return httpx.Response(206, text="SEC-HEADER")
+        rng = request.headers.get("range")
+        seen.append(rng)
+        # A real 206 MUST carry a Content-Range consistent with the request
+        # (RFC 9110 15.3.7); the transport now refuses one that does not.
+        return httpx.Response(206, text="SEC-HEADER", headers=_content_range(rng))
 
     f = make_fetcher(handler, tmp_path)
     with f:
