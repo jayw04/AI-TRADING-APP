@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { opportunitiesApi } from "@/api/opportunities";
 import type { OppHistoryCheckpoint, OppHistoryOccurrence } from "@/api/types";
+import { isPatternValidatedStatus } from "./backtestedDisplay";
 
 const OFFSET_CHECKPOINTS = ["D1", "D5", "D10", "D20"] as const;
 
@@ -65,12 +66,18 @@ export default function OpportunityHistoryPage() {
   const [selected, setSelected] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [hadUnfiltered, setHadUnfiltered] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
       const resp = await opportunitiesApi.history();
-      setRows(resp.items);
+      setHadUnfiltered(resp.items.length > 0);
+      setRows(
+        resp.items.filter((row) =>
+          isPatternValidatedStatus(row.status_at_proposal),
+        ),
+      );
       setError(null);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
@@ -92,7 +99,9 @@ export default function OpportunityHistoryPage() {
     setSelected(symbol);
     try {
       const resp = await opportunitiesApi.history({ symbol });
-      setTimeline(resp.items);
+      setTimeline(
+        resp.items.filter((row) => isPatternValidatedStatus(row.status_at_proposal)),
+      );
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     }
@@ -106,12 +115,14 @@ export default function OpportunityHistoryPage() {
             Opportunity History
           </h2>
           <p className="text-xs text-neutral-500">
-            Durable DISC-001 occurrences. Current return and D1/D5/D10/D20 are
-            live SEP on the proposal adjustment basis — not stored, not a
-            signal, and not a hold period. GAP later SEP prints are facts
-            without a mixed-basis return. “Why it left” re-evaluates the
-            frozen family rule on a later Sharadar/GAP print — frozen-rule
-            display, not a sell or exit signal.
+            Durable DISC-001 occurrences that have gone through backtest
+            (MOM-001 pattern-validated). Watch and Backtest Pending names are
+            not listed. Current return and D1/D5/D10/D20 are live SEP on the
+            proposal adjustment basis — not stored, not a signal, and not a
+            hold period. GAP later SEP prints are facts without a mixed-basis
+            return. “Why it left” re-evaluates the frozen family rule on a
+            later Sharadar/GAP print — frozen-rule display, not a sell or
+            exit signal.
           </p>
         </div>
         <div className="flex items-center gap-3">
@@ -141,8 +152,9 @@ export default function OpportunityHistoryPage() {
       <div className="overflow-x-auto rounded-lg border border-neutral-800 bg-neutral-900">
         {rows.length === 0 ? (
           <div className="py-8 text-center text-sm text-neutral-500">
-            No durable occurrences yet. They appear after the 16:20 ET snapshot
-            job ingests a CandidateSnapshot.
+            {hadUnfiltered
+              ? "No pattern-validated history rows. Watch and Backtest Pending names are not listed."
+              : "No durable occurrences yet. They appear after the 16:20 ET snapshot job ingests a CandidateSnapshot."}
           </div>
         ) : (
           <table className="w-full text-left text-sm">
