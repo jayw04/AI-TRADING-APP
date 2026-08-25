@@ -88,6 +88,25 @@ async def _seed(factory: async_sessionmaker) -> None:
                 created_at=datetime(2026, 8, 20, tzinfo=UTC),
             )
         )
+        session.add(
+            OpportunityOccurrence(
+                symbol="AAPL",
+                candidate_date="2026-08-14",
+                family="OVERSOLD",
+                horizon="1–10d",
+                status_at_proposal="Watch",
+                proposal_price=190.0,
+                proposal_price_source=PRICE_SOURCE_SEP,
+                adjustment_basis=PRICE_SOURCE_SEP,
+                screen_id=SCREEN_ID,
+                screen_version=SCREEN_VERSION,
+                snapshot_sha256="d" * 64,
+                snapshot_generated_at="2026-08-14T20:20:00+00:00",
+                reason_json='{"chips":[{"key":"rsi14","value":"28"}],"why":"old"}',
+                features_json=None,
+                created_at=datetime(2026, 8, 14, tzinfo=UTC),
+            )
+        )
         await session.commit()
 
 
@@ -240,3 +259,115 @@ async def test_why_left_is_read_time_frozen_rule_not_a_signal(
     assert item["why_left"]["state"] == STATE_NO_LONGER_MEETS
     assert item["screen_version"] == "v0.3.0"
 
+
+def _mute_read_time(monkeypatch) -> None:
+    monkeypatch.setattr(
+        "app.api.v1.opportunities.history_price_series",
+        lambda symbols, start, end=None: {},
+    )
+    monkeypatch.setattr(
+        "app.api.v1.opportunities.explain_history_why_left",
+        lambda items, sessions_by_symbol: {},
+    )
+
+
+async def test_on_watchlist_uses_latest_unfiltered_date(client_and_factory, monkeypatch) -> None:
+    client, _ = client_and_factory
+    _mute_read_time(monkeypatch)
+    resp = await client.get("/api/v1/opportunities/history")
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["latest_candidate_date"] == "2026-08-19"
+    assert body["current_count"] == 2
+    assert body["historical_count"] == 1
+    by_symbol = {item["symbol"]: item for item in body["items"]}
+    assert by_symbol["NVDA"]["on_watchlist"] is True
+    assert by_symbol["XYZ"]["on_watchlist"] is True
+    assert by_symbol["AAPL"]["on_watchlist"] is False
+
+
+async def test_date_range_does_not_redefine_current(client_and_factory, monkeypatch) -> None:
+    client, _ = client_and_factory
+    _mute_read_time(monkeypatch)
+    resp = await client.get(
+        "/api/v1/opportunities/history",
+        params={"to_date": "2026-08-14"},
+    )
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["latest_candidate_date"] == "2026-08-19"
+    nvda = next(item for item in body["items"] if item["symbol"] == "NVDA")
+    assert nvda["last_seen"] == "2026-08-14"
+    assert nvda["occurrence_count"] == 1
+    assert nvda["on_watchlist"] is True
+    assert {item["symbol"] for item in body["items"]} == {"NVDA", "AAPL"}
+
+
+async def test_presence_current_does_not_reclassify_window_tail(
+    client_and_factory, monkeypatch
+) -> None:
+    """A historical name that is last-in-window stays historical.
+
+    Latest ingested date is 2026-08-19. AAPL's only row is 2026-08-14, so it
+    is the tail of ``to_date=2026-08-14`` but must not become current when
+    ``presence=current`` is applied. NVDA remains current because it still
+    appears on the latest snapshot, not because it is last in the window.
+    """
+    client, _ = client_and_factory
+    _mute_read_time(monkeypatch)
+    resp = await client.get(
+        "/api/v1/opportunities/history",
+        params={"presence": "current", "to_date": "2026-08-14"},
+    )
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["latest_candidate_date"] == "2026-08-19"
+    symbols = [item["symbol"] for item in body["items"]]
+    assert "AAPL" not in symbols
+    assert symbols == ["NVDA"]
+    assert body["items"][0]["last_seen"] == "2026-08-14"
+    assert body["items"][0]["on_watchlist"] is True
+    assert body["current_count"] == 1
+    assert body["historical_count"] == 1
+
+
+async def test_presence_and_family_and_screen_version(client_and_factory, monkeypatch) -> None:
+    client, _ = client_and_factory
+    _mute_read_time(monkeypatch)
+    historical = await client.get(
+        "/api/v1/opportunities/history",
+        params={"presence": "historical"},
+    )
+    assert [item["symbol"] for item in historical.json()["items"]] == ["AAPL"]
+    assert historical.json()["current_count"] == 2
+    assert historical.json()["historical_count"] == 1
+
+    current = await client.get(
+        "/api/v1/opportunities/history",
+        params={"presence": "current", "family": "OVERSOLD"},
+    )
+    assert [item["symbol"] for item in current.json()["items"]] == ["NVDA"]
+    assert current.json()["current_count"] == 1
+    assert current.json()["historical_count"] == 1
+
+    version = await client.get(
+        "/api/v1/opportunities/history",
+        params={"screen_version": "v9.9.9"},
+    )
+    assert version.json()["items"] == []
+    assert version.json()["latest_candidate_date"] is None
+
+
+async def test_symbol_filter_can_stay_in_summary(client_and_factory, monkeypatch) -> None:
+    client, _ = client_and_factory
+    _mute_read_time(monkeypatch)
+    resp = await client.get(
+        "/api/v1/opportunities/history",
+        params={"symbol": "NVDA", "view": "summary"},
+    )
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["view"] == "summary"
+    assert len(body["items"]) == 1
+    assert body["items"][0]["symbol"] == "NVDA"
+    assert body["items"][0]["occurrence_count"] == 2

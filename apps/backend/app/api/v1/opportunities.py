@@ -149,34 +149,66 @@ async def get_opportunity_history(
     session: AsyncSession = Depends(get_session),
     symbol: str | None = Query(default=None),
     family: str | None = Query(default=None),
+    from_date: str | None = Query(default=None),
+    to_date: str | None = Query(default=None),
+    screen_version: str | None = Query(default=None),
+    presence: str = Query(default="all", pattern="^(all|current|historical)$"),
+    view: str | None = Query(default=None, pattern="^(summary|timeline)$"),
     limit: int = Query(default=200, ge=1, le=500),
 ) -> OppHistoryResponse:
     """Durable CandidateSnapshot occurrences. Prices, checkpoints, and why-left are read-time only."""
     _ = current_user
     now = datetime.now(UTC)
-    stmt = select(OpportunityOccurrence)
-    if symbol:
-        stmt = stmt.where(OpportunityOccurrence.symbol == symbol.strip().upper())
-    if family:
-        stmt = stmt.where(OpportunityOccurrence.family == family.strip())
-    stmt = stmt.order_by(
+    stmt = select(OpportunityOccurrence).order_by(
         OpportunityOccurrence.candidate_date.asc(),
         OpportunityOccurrence.family.asc(),
         OpportunityOccurrence.symbol.asc(),
     )
-    rows = list((await session.execute(stmt)).scalars().all())
+    all_rows = list((await session.execute(stmt)).scalars().all())
+    scoped = all_rows
+    if screen_version:
+        scoped = [row for row in scoped if row.screen_version == screen_version.strip()]
+    latest = max((row.candidate_date for row in scoped), default=None)
+    last_by_key: dict[tuple[str, str], str] = {}
+    for row in scoped:
+        key = (row.symbol, row.family)
+        prev = last_by_key.get(key)
+        if prev is None or row.candidate_date > prev:
+            last_by_key[key] = row.candidate_date
+
+    filtered = scoped
     if symbol:
-        items = _history_timeline(rows, limit=limit)
+        filtered = [row for row in filtered if row.symbol == symbol.strip().upper()]
+    if family:
+        filtered = [row for row in filtered if row.family == family.strip()]
+    if from_date:
+        filtered = [row for row in filtered if row.candidate_date >= from_date.strip()]
+    if to_date:
+        filtered = [row for row in filtered if row.candidate_date <= to_date.strip()]
+
+    if view == "timeline" or (view is None and symbol):
+        items = _history_timeline(filtered, limit=limit)
         view = "timeline"
     else:
-        items = _history_summaries(rows, limit=limit)
+        items = _history_summaries(filtered, limit=limit)
         view = "summary"
+    marked: list[OppHistoryOccurrence] = []
+    for item in items:
+        on_watchlist = last_by_key.get((item.symbol, item.family)) == latest
+        marked.append(item.model_copy(update={"on_watchlist": on_watchlist}))
+    current_count = sum(1 for item in marked if item.on_watchlist)
+    historical_count = sum(1 for item in marked if not item.on_watchlist)
+    if presence == "current":
+        marked = [item for item in marked if item.on_watchlist]
+    elif presence == "historical":
+        marked = [item for item in marked if not item.on_watchlist]
+
     series: dict[str, tuple[tuple[date, float], ...]] = {}
-    if items:
-        start = min(parse_iso_date(item.candidate_date) for item in items)
-        series = history_price_series([item.symbol for item in items], start=start)
+    if marked:
+        start = min(parse_iso_date(item.candidate_date) for item in marked)
+        series = history_price_series([item.symbol for item in marked], start=start)
     why_map = explain_history_why_left(
-        [(item.symbol, item.family, item.candidate_date) for item in items],
+        [(item.symbol, item.family, item.candidate_date) for item in marked],
         sessions_by_symbol=series,
     )
     enriched = [
@@ -185,9 +217,17 @@ async def get_opportunity_history(
             series.get(item.symbol, ()),
             why_map.get((item.symbol, item.family, item.candidate_date)),
         )
-        for item in items
+        for item in marked
     ]
-    return OppHistoryResponse(view=view, count=len(enriched), items=enriched, as_of=now)
+    return OppHistoryResponse(
+        view=view,
+        count=len(enriched),
+        items=enriched,
+        as_of=now,
+        latest_candidate_date=latest,
+        current_count=current_count,
+        historical_count=historical_count,
+    )
 
 
 def _history_summaries(
