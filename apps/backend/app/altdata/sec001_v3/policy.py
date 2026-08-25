@@ -167,6 +167,36 @@ CONSUMPTION_STOP_THRESHOLD_BYTES: Final = (
     RESPONSE_CONSUMPTION_CEILING_BYTES - MAX_UPSTREAM_CHUNK_BYTES
 )
 
+# -- Gate 5: evidence-preservation reserve (successor epoch prestart) ------------------
+# v1.4 died on ENOSPC *and then could not write its own stop record* -- RUNNER_STOPPED.json
+# was 0 bytes and the only account of the cause survived by accident in runner.log. This
+# reserve exists so that the system can always record WHY it stopped.
+#
+# It is an evidence-preservation reserve, not a disk alert. Normal acquisition may never
+# consume it: the check runs before EVERY artifact acquisition, not per unit, because one
+# identity can produce many artifacts (~84/unit measured) and a unit's own footprint is
+# not frozen.
+TERMINAL_RESERVE_BYTES: Final = 2 * 1024 * 1024 * 1024  # 2 GiB, physically preallocated
+
+# Worst-case footprint of the next artifact: the hard response ceiling plus one maximal
+# upstream chunk of overshoot.
+MAX_NEXT_ARTIFACT_FOOTPRINT: Final = (
+    RESPONSE_CONSUMPTION_CEILING_BYTES + MAX_UPSTREAM_CHUNK_BYTES
+)
+
+# Manifest append, observation/segment rows, evidence log lines and filesystem metadata
+# attributable to one artifact.
+METADATA_ALLOWANCE_BYTES: Final = 1024 * 1024  # 1 MiB
+
+# The frozen pre-artifact invariant. Acquisition may begin only while:
+#   free_bytes >= PREARTIFACT_FREE_REQUIRED_BYTES
+PREARTIFACT_FREE_REQUIRED_BYTES: Final = (
+    TERMINAL_RESERVE_BYTES + MAX_NEXT_ARTIFACT_FOOTPRINT + METADATA_ALLOWANCE_BYTES
+)
+
+# Name of the physically preallocated reserve file on the epoch volume.
+TERMINAL_RESERVE_FILENAME: Final = "TERMINAL_RESERVE.bin"
+
 # Explicit ranged-response classification. There is no implicit third success state:
 # anything not classifiable here is refused.
 RANGE_CLASS_206_VALIDATED: Final = "206_VALIDATED"

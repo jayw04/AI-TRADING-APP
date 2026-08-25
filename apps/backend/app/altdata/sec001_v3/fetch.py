@@ -33,6 +33,7 @@ import gzip
 import hashlib
 import random
 import re
+import shutil
 import time
 import zlib
 from collections.abc import Callable, Iterable
@@ -53,6 +54,30 @@ from app.altdata.sec001_v3.decision_bytes import (
     write_artifact,
 )
 from app.altdata.sec001_v3.evidence import EvidenceLog, SourceEvidence, sha256_hex, utc_now_iso
+
+
+class TerminalStorageReserve(BaseException):
+    """Free space reached the governed terminal reserve; acquisition stops.
+
+    Deliberately **not** an ``Exception``, for exactly the reason ``CrawlHalt`` is not:
+    the MR-002 spine wraps each filing in ``except Exception`` to stay fail-soft, and
+    would otherwise swallow this and keep acquiring straight into the evidence reserve.
+
+    Raised BEFORE the next artifact is acquired, never after a write has failed. ENOSPC
+    must never again be the mechanism that discovers a capacity problem -- in v1.4 it
+    killed the crawl and then killed the stop record.
+    """
+
+    def __init__(self, free: int, required: int, path: str) -> None:
+        super().__init__(
+            f"terminal storage reserve reached at {path}: free={free} < "
+            f"required={required} (reserve={policy.TERMINAL_RESERVE_BYTES} + "
+            f"artifact={policy.MAX_NEXT_ARTIFACT_FOOTPRINT} + "
+            f"metadata={policy.METADATA_ALLOWANCE_BYTES})"
+        )
+        self.free = free
+        self.required = required
+        self.path = path
 
 
 class CrawlHalt(BaseException):
@@ -578,6 +603,27 @@ class PolicyFetcher:
 
     # -- the spine's _Fetcher protocol -------------------------------------------------
 
+    def _require_storage_headroom(self) -> None:
+        """Refuse to BEGIN the next artifact unless the full reserve survives it.
+
+        Artifact granularity, not unit granularity: a unit produces many artifacts and
+        its own footprint is not frozen, so a unit-level check cannot prove the reserve
+        survives the unit.
+        """
+        if self._decision_dir is None:
+            return  # offline tests write no artifacts
+        # The decision directory is created lazily by the first artifact write, so
+        # measure the nearest existing ancestor. A capacity CHECK must never create
+        # directories as a side effect.
+        probe = self._decision_dir
+        while not probe.exists() and probe != probe.parent:
+            probe = probe.parent
+        free = shutil.disk_usage(probe).free
+        if free < policy.PREARTIFACT_FREE_REQUIRED_BYTES:
+            raise TerminalStorageReserve(
+                free, policy.PREARTIFACT_FREE_REQUIRED_BYTES, str(probe)
+            )
+
     def get_json(self, url: str) -> Any:
         payload = self._run(lambda: self._client.get_json(url), url)
         self._index_submissions(payload)
@@ -590,6 +636,9 @@ class PolicyFetcher:
         the exact ``Range: bytes=0-4095`` it hardcodes. Everything else passes through
         untouched.
         """
+        # Gate 5: both artifact paths below publish a decision artifact, so the
+        # pre-artifact storage invariant is asserted once, here, before either begins.
+        self._require_storage_headroom()
         if headers and headers.get("Range") == policy.LEGACY_HEADER_RANGE:
             return self._complete_sec_header(url)
         text = self._run(lambda: self._client.get_text(url, headers=headers), url)

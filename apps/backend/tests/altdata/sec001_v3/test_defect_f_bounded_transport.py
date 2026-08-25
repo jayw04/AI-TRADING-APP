@@ -318,3 +318,109 @@ def test_hard_ceiling_is_enforced_even_if_the_guard_band_is_wrong() -> None:
     transport = RecordingTransport(_StubTransport(200, {}, OneGiantChunk()))
     with pytest.raises(ConsumptionCeilingExceeded):
         _get(transport, "https://example.test/huge.txt", {"Range": "bytes=0-4095"})
+
+
+# ------------------------------------------- GATE 5: pre-artifact storage reserve guard
+
+
+def test_preartifact_invariant_arithmetic() -> None:
+    """The frozen invariant, stated once and asserted."""
+    assert policy.TERMINAL_RESERVE_BYTES == 2 * 1024 * 1024 * 1024
+    assert policy.MAX_NEXT_ARTIFACT_FOOTPRINT == (
+        policy.RESPONSE_CONSUMPTION_CEILING_BYTES + policy.MAX_UPSTREAM_CHUNK_BYTES
+    )
+    assert policy.PREARTIFACT_FREE_REQUIRED_BYTES == (
+        policy.TERMINAL_RESERVE_BYTES
+        + policy.MAX_NEXT_ARTIFACT_FOOTPRINT
+        + policy.METADATA_ALLOWANCE_BYTES
+    )
+    # The reserve must dominate: normal acquisition can never nibble it away.
+    assert policy.TERMINAL_RESERVE_BYTES > 1000 * policy.MAX_NEXT_ARTIFACT_FOOTPRINT
+
+
+def test_guard_is_NOT_an_Exception_so_the_spine_cannot_swallow_it() -> None:
+    """Same reasoning as CrawlHalt.
+
+    The MR-002 spine wraps each filing in ``except Exception`` to stay fail-soft. A guard
+    derived from Exception would be swallowed and acquisition would continue straight
+    into the evidence reserve.
+    """
+    from app.altdata.sec001_v3.fetch import TerminalStorageReserve
+
+    assert issubclass(TerminalStorageReserve, BaseException)
+    assert not issubclass(TerminalStorageReserve, Exception)
+
+
+def test_guard_trips_on_the_GOVERNED_RULE_not_on_filesystem_pressure(
+    tmp_path, monkeypatch
+) -> None:
+    """Refuses the next artifact while the filesystem still has ample ordinary space.
+
+    This is the point of the reserve: the stop is caused by the governed rule, not by
+    the disk actually filling up. ENOSPC must never again be the control mechanism.
+    """
+    import shutil as _shutil
+
+    from app.altdata.sec001_v3 import fetch as fetch_mod
+    from app.altdata.sec001_v3.fetch import TerminalStorageReserve
+
+    # Ample real space, but below the governed requirement.
+    ample_but_insufficient = policy.PREARTIFACT_FREE_REQUIRED_BYTES - 1
+    monkeypatch.setattr(
+        fetch_mod.shutil,
+        "disk_usage",
+        lambda p: _shutil._ntuple_diskusage(  # type: ignore[attr-defined]
+            10**15, 10**15 - ample_but_insufficient, ample_but_insufficient
+        ),
+    )
+
+    class _F:
+        _decision_dir = tmp_path
+
+    with pytest.raises(TerminalStorageReserve) as ei:
+        fetch_mod.PolicyFetcher._require_storage_headroom(_F())  # type: ignore[arg-type]
+
+    # Still ~2 GiB of genuinely free space at the moment of refusal.
+    assert ei.value.free >= policy.TERMINAL_RESERVE_BYTES
+    assert ei.value.required == policy.PREARTIFACT_FREE_REQUIRED_BYTES
+
+
+def test_guard_allows_acquisition_with_one_byte_of_headroom(tmp_path, monkeypatch) -> None:
+    import shutil as _shutil
+
+    from app.altdata.sec001_v3 import fetch as fetch_mod
+
+    ok = policy.PREARTIFACT_FREE_REQUIRED_BYTES
+    monkeypatch.setattr(
+        fetch_mod.shutil,
+        "disk_usage",
+        lambda p: _shutil._ntuple_diskusage(10**15, 10**15 - ok, ok),  # type: ignore[attr-defined]
+    )
+
+    class _F:
+        _decision_dir = tmp_path
+
+    fetch_mod.PolicyFetcher._require_storage_headroom(_F())  # type: ignore[arg-type]
+
+
+def test_guard_measures_nearest_existing_ancestor(tmp_path, monkeypatch) -> None:
+    """A capacity CHECK must not create directories as a side effect."""
+    import shutil as _shutil
+
+    from app.altdata.sec001_v3 import fetch as fetch_mod
+
+    missing = tmp_path / "not" / "yet" / "created"
+    seen: list = []
+
+    def _probe(p):
+        seen.append(p)
+        return _shutil._ntuple_diskusage(10**15, 0, 10**15)  # type: ignore[attr-defined]
+
+    monkeypatch.setattr(fetch_mod.shutil, "disk_usage", _probe)
+
+    class _F:
+        _decision_dir = missing
+
+    fetch_mod.PolicyFetcher._require_storage_headroom(_F())  # type: ignore[arg-type]
+    assert seen and seen[0].exists()
+    assert not missing.exists(), "the check must not create the directory"

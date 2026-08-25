@@ -15,9 +15,8 @@ and silently move the evaluation start date.
 
 from __future__ import annotations
 
-from pathlib import Path
-
 import re
+from pathlib import Path
 
 import httpx
 import pytest
