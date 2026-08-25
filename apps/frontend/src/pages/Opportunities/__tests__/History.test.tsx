@@ -14,10 +14,10 @@ function occurrence(
 ): OppHistoryOccurrence {
   return {
     symbol: "NVDA",
-    family: "OVERSOLD",
+    family: "MOM-CORE",
     candidate_date: "2026-08-19",
-    horizon: "1–10d",
-    status_at_proposal: "Watch",
+    horizon: "weeks–months",
+    status_at_proposal: "Source: MOM-001 · Pattern validated",
     proposal_price: 120.5,
     proposal_price_source: "sharadar.sep",
     adjustment_basis: "sharadar.sep",
@@ -117,10 +117,10 @@ describe("OpportunityHistoryPage", () => {
     );
     expect(await screen.findByText("Opportunity History")).toBeTruthy();
     expect(screen.getByText("NVDA")).toBeTruthy();
-    expect(screen.getByText("OVERSOLD")).toBeTruthy();
+    expect(screen.getByText("MOM-CORE")).toBeTruthy();
     expect(screen.getByText("$120.50")).toBeTruthy();
     expect(screen.getByText("$130.00")).toBeTruthy();
-    expect(screen.getByText("1–10d")).toBeTruthy();
+    expect(screen.getByText("weeks–months")).toBeTruthy();
     expect(screen.getByText("D1 D5 D10 D20")).toBeTruthy();
     expect(screen.getByText("No longer OVERSOLD: RSI14 = 34.2.")).toBeTruthy();
     expect(
@@ -165,5 +165,35 @@ describe("OpportunityHistoryPage", () => {
     );
     await screen.findByText("NVDA");
     expect(screen.queryByRole("button", { name: /apply/i })).toBeNull();
+  });
+
+  it("does not list Watch or Backtest Pending history rows", async () => {
+    mocked.history.mockResolvedValue({
+      view: "summary",
+      count: 2,
+      items: [
+        occurrence({
+          symbol: "XYZ",
+          family: "GAP",
+          status_at_proposal: "Backtest Pending",
+        }),
+        occurrence({
+          symbol: "AAPL",
+          family: "OVERSOLD",
+          status_at_proposal: "Watch",
+        }),
+      ],
+      as_of: new Date().toISOString(),
+    });
+    render(
+      <MemoryRouter>
+        <OpportunityHistoryPage />
+      </MemoryRouter>,
+    );
+    expect(
+      await screen.findByText(/No pattern-validated history rows/),
+    ).toBeTruthy();
+    expect(screen.queryByText("XYZ")).toBeNull();
+    expect(screen.queryByText("AAPL")).toBeNull();
   });
 });
