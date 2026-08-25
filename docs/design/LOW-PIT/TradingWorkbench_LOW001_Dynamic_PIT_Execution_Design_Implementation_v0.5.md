@@ -305,8 +305,55 @@ Minimum closure evidence should include:
 5. open or link a **platform-level position-accounting defect record** so this issue is not silently
    closed merely because LOW-001 is isolated.
 
-This is a review recommendation only. Until the owner rules, the standing gate remains **OPEN FOR
-ACTIVATION**.
+~~This is a review recommendation only. Until the owner rules, the standing gate remains **OPEN FOR
+ACTIVATION**.~~ **SUPERSEDED — the owner ruled on 2026-08-25. See §4.2.**
+
+### 4.2 ⚖ Owner ruling — **REPAIR** (2026-08-25, in review of PR #682)
+
+> **REPAIR. Do not accept the zero-reference behavior.** Repair `max_position_notional` so that a market
+> order uses a trusted, bounded current execution-price estimate, or **fails closed** when one cannot be
+> established. Cover **both** the `pos is None` case and the corrupted-existing-position case. Keep
+> Strategy 8 **IDLE** until that repair is proven, if the v1.0.3 cutover completes first.
+
+**Reasoning of record.** The decisive failure mode is not HON. For every market-order BUY **opening** a
+position, `pos` is `None`, `ref_price` becomes `0`, and the notional check passes trivially. Measurement
+established that this is not a corner case: five templates submit `OrderType.MARKET` and **no template
+passes a `limit_price` at all**, so the fallback is the normal path for every strategy-originated order
+on the platform. That is a **deterministic bypass of a stated pre-trade deny control**, and it is hard
+to reconcile with the binding *"risk gates are non-bypassable"* invariant.
+
+⛔ Explicitly **not** a basis for the ruling: that the completed 08-24 rebalance's largest order was
+$1,089 against a $25,000 cap. That is good evidence the 08-24 rebalance was benign and that immediate
+LOW-001 economic exposure is small; it is **not** a reason to accept the defect. The invariant must not
+depend on Account-6 position sizing remaining small.
+
+**Sequencing.** The activation-critical repair is the **risk-engine** half. The dual-writer accounting
+defect (§4.3) is tracked in **parallel and does not serialize in front of it** — once the risk engine
+stops consuming unreliable cost basis for the pre-trade notional check, the LOW-001 activation
+intersection is isolated even while the broader accounting-ownership cleanup remains open.
+
+**Gate condition — corrected.** Not "before the 2026-08-31 fire": the cutover leaves Strategy 8 IDLE and
+verifies no LOW-001 fire is scheduled. The condition is **before any Strategy-8 reactivation.**
+
+### 4.3 🐛 Mechanism retraction — the recomputer is not the defect
+
+The mechanism asserted by v0.3 §21.5 and carried into v0.4 and this document — that the recomputer
+*"overwrote `cost_basis` with the last fill instead of accumulating it"* — is **formally retracted**
+(measured 2026-08-25). `PositionRecomputer.recompute()` replays **all** fills in `filled_at` order and
+accumulates correctly; simulated on HON's own measured history it returns the **true** values exactly
+(`qty=11 · cost_basis=2468.29 · avg_entry=224.39`), and **no subset of that history reaches the observed
+row**.
+
+Keep three claims distinct:
+
+| Claim | Standing |
+|---|---|
+| The "overwrote instead of accumulated" mechanism is wrong | ✅ **PROVEN** |
+| Two authoritative writers to `qty`/`avg_entry_price`/`cost_basis` with contradictory documented ownership — `position_sync.py:155-171,251-255` writes all three from the broker payload while `positions.py`'s docstring assigns them to the recomputer | ✅ **PROVEN** |
+| HON specifically was corrupted **by** `position_sync.py` or **by** a restoration script | ⚠ **HYPOTHESIS** — circumstantial only (`231.589996` is a float artifact; the recomputer is `Decimal` throughout). No causal evidence; the row is now gone and it may be unexplainable |
+
+⇒ The defect **class** is contradictory writer ownership. Do not upgrade the HON attribution hypothesis
+to a finding, and do not carry the retracted wording forward.
 
 ⛔ Note it does **not** touch selection or sizing: LOW-001's equal-weight construction never reads cost
 basis. The blast radius is the notional **gate**, not the target book.
@@ -545,8 +592,9 @@ today                            PR S + S-R = MERGED, v1.0.3 deployment-unproven
 after the S8.6 rerun passes      v1.0.3 (PR S + S-R) = SAFE ROLLBACK BASELINE
 ```
 
-**Dynamic BUY remains PROHIBITED at minimum until that second line is true.** Passing S8.6 is
-necessary, not sufficient: G2/G3/G5/G6/G7 and the §4 activation gate remain independent blockers.
+**Dynamic BUY remains PROHIBITED.** Passing S8.6 is a *necessary prerequisite, not sufficient
+authority*: G2/G3/G5/G6/G7 and the §4 activation gate (now ruled **REPAIR**, §4.2) remain
+independent blockers, and final activation is a separate owner decision.
 
 ---
 
