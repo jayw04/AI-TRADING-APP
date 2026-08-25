@@ -1,0 +1,3 @@
+# Authority records: byte-exact custody, no EOL translation (CRLF preserved).
+SEC001_V3_AcquisitionDefect_F_IgnoredRangeUnboundedRetention_v1_0.md -text -diff
+TradingWorkbench_SEC001_V3_Design_Implementation_v0_4.md -text -diff
