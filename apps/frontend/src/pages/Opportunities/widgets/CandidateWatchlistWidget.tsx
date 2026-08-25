@@ -4,6 +4,10 @@ import type {
   OppWatchlistFamily,
   OppWatchlistItem,
 } from "@/api/types";
+import {
+  HIDDEN_UNBACKTESTED,
+  isPatternValidatedStatus,
+} from "../backtestedDisplay";
 
 type TabId = "ALL" | "OVERSOLD" | "MOMENTUM" | "GAP";
 
@@ -23,6 +27,10 @@ function statusClass(status: string): string {
 function fmtClose(v: number | null): string {
   if (v == null) return "—";
   return `$${v.toFixed(2)}`;
+}
+
+function listed(items: OppWatchlistItem[]): OppWatchlistItem[] {
+  return items.filter((row) => isPatternValidatedStatus(row.status));
 }
 
 function familyUnavailable(
@@ -47,55 +55,38 @@ function tabItems(
       .filter((f) => f && !f.available)
       .map((f) => f.operator_name);
     return {
-      items: watchlist.all_items,
+      items: listed(watchlist.all_items),
       unavailable: reasons.length
         ? `Hidden from All (unavailable): ${reasons.join(", ")}`
         : null,
-      emptyHint: "No names cleared the frozen gates today.",
+      emptyHint: "No pattern-validated names today.",
     };
   }
   if (tab === "OVERSOLD") {
-    const f = fam.OVERSOLD;
     return {
-      items: f?.available ? f.items : [],
+      items: [],
       unavailable: familyUnavailable(fam, ["OVERSOLD"]),
-      emptyHint: "No names cleared the frozen gates today.",
+      emptyHint: "Oversold is Watch only — not listed until backtested.",
     };
   }
   if (tab === "GAP") {
-    const f = fam.GAP;
     return {
-      items: f?.available ? f.items : [],
+      items: [],
       unavailable: familyUnavailable(fam, ["GAP"]),
-      emptyHint: "No gappers today.",
+      emptyHint: "Gap is Backtest Pending — not listed.",
     };
   }
-  const near = fam["MOM-NEAR"];
   const core = fam["MOM-CORE"];
-  const items = [
-    ...(near?.available ? near.items : []),
-    ...(core?.available ? core.items : []),
-  ];
+  const items = listed(core?.available ? core.items : []);
   return {
     items,
-    unavailable: familyUnavailable(fam, ["MOM-NEAR", "MOM-CORE"]),
-    emptyHint: "No names cleared the frozen gates today.",
+    unavailable: familyUnavailable(fam, ["MOM-CORE"]),
+    emptyHint: "No pattern-validated momentum names today.",
   };
 }
 
 function tabCount(tab: TabId, watchlist: OppCandidateWatchlistWidget): number {
-  if (tab === "ALL") return watchlist.all_count;
-  if (tab === "OVERSOLD") {
-    const f = watchlist.families.OVERSOLD;
-    return f?.available ? f.count : 0;
-  }
-  if (tab === "GAP") {
-    const f = watchlist.families.GAP;
-    return f?.available ? f.count : 0;
-  }
-  const near = watchlist.families["MOM-NEAR"];
-  const core = watchlist.families["MOM-CORE"];
-  return (near?.available ? near.count : 0) + (core?.available ? core.count : 0);
+  return tabItems(tab, watchlist).items.length;
 }
 
 export function CandidateWatchlistWidget({
@@ -214,7 +205,7 @@ export function CandidateWatchlistWidget({
       )}
 
       <div className="mt-2 text-[10px] text-neutral-600">
-        Candidates only. Does not enter the order path.
+        Candidates only. Does not enter the order path. {HIDDEN_UNBACKTESTED}
       </div>
     </div>
   );

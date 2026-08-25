@@ -7,6 +7,7 @@ import type {
   OppHistoryParams,
   OppHistoryPresence,
 } from "@/api/types";
+import { isPatternValidatedStatus } from "./backtestedDisplay";
 
 const FAMILIES = ["OVERSOLD", "MOM-NEAR", "MOM-CORE", "GAP"] as const;
 
@@ -44,6 +45,10 @@ function toHistoryParams(
     presence: filters.presence,
     ...extra,
   };
+}
+
+function listedRows(items: OppHistoryOccurrence[]): OppHistoryOccurrence[] {
+  return items.filter((row) => isPatternValidatedStatus(row.status_at_proposal));
 }
 
 const OFFSET_CHECKPOINTS = ["D1", "D5", "D10", "D20"] as const;
@@ -110,6 +115,7 @@ export default function OpportunityHistoryPage() {
   const [selected, setSelected] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [hadUnfiltered, setHadUnfiltered] = useState(false);
   const [latestDate, setLatestDate] = useState<string | null>(null);
   const [currentCount, setCurrentCount] = useState(0);
   const [historicalCount, setHistoricalCount] = useState(0);
@@ -122,10 +128,12 @@ export default function OpportunityHistoryPage() {
           view: applied.symbol.trim() ? "summary" : undefined,
         }),
       );
-      setRows(resp.items);
+      const listed = listedRows(resp.items);
+      setHadUnfiltered(resp.items.length > 0);
+      setRows(listed);
       setLatestDate(resp.latest_candidate_date);
-      setCurrentCount(resp.current_count);
-      setHistoricalCount(resp.historical_count);
+      setCurrentCount(listed.filter((row) => row.on_watchlist).length);
+      setHistoricalCount(listed.filter((row) => !row.on_watchlist).length);
       setError(null);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
@@ -152,7 +160,7 @@ export default function OpportunityHistoryPage() {
           { view: "timeline" },
         ),
       );
-      setTimeline(resp.items);
+      setTimeline(listedRows(resp.items));
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     }
@@ -172,9 +180,11 @@ export default function OpportunityHistoryPage() {
   };
 
   const sourceEmpty = latestDate == null && currentCount === 0 && historicalCount === 0;
-  const emptyMessage = sourceEmpty
-    ? "No durable occurrences yet. They appear after the 16:20 ET snapshot job ingests a CandidateSnapshot."
-    : "No occurrences match these filters.";
+  const emptyMessage = hadUnfiltered
+    ? "No pattern-validated history rows. Watch and Backtest Pending names are not listed."
+    : sourceEmpty
+      ? "No durable occurrences yet. They appear after the 16:20 ET snapshot job ingests a CandidateSnapshot."
+      : "No occurrences match these filters.";
 
   return (
     <div className="grid gap-4">
@@ -184,12 +194,14 @@ export default function OpportunityHistoryPage() {
             Opportunity History
           </h2>
           <p className="text-xs text-neutral-500">
-            Durable DISC-001 occurrences. Current return and D1/D5/D10/D20 are
-            live SEP on the proposal adjustment basis — not stored, not a
-            signal, and not a hold period. GAP later SEP prints are facts
-            without a mixed-basis return. “Why it left” re-evaluates the
-            frozen family rule on a later Sharadar/GAP print — frozen-rule
-            display, not a sell or exit signal.
+            Durable DISC-001 occurrences that have gone through backtest
+            (MOM-001 pattern-validated). Watch and Backtest Pending names are
+            not listed. Current return and D1/D5/D10/D20 are live SEP on the
+            proposal adjustment basis — not stored, not a signal, and not a
+            hold period. GAP later SEP prints are facts without a mixed-basis
+            return. “Why it left” re-evaluates the frozen family rule on a
+            later Sharadar/GAP print — frozen-rule display, not a sell or
+            exit signal.
           </p>
         </div>
         <div className="flex items-center gap-3">

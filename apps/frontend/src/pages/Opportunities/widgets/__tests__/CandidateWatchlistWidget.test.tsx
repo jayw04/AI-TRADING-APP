@@ -1,10 +1,10 @@
 import { describe, it, expect } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 import { CandidateWatchlistWidget } from "../CandidateWatchlistWidget";
-import type { OppCandidateWatchlistWidget } from "@/api/types";
+import type { OppCandidateWatchlistWidget, OppWatchlistItem } from "@/api/types";
 
-function sample(): OppCandidateWatchlistWidget {
-  const item = {
+function item(over: Partial<OppWatchlistItem> = {}): OppWatchlistItem {
+  return {
     symbol: "NVDA",
     family_ids: ["OVERSOLD"],
     horizon: "1–10d",
@@ -21,7 +21,24 @@ function sample(): OppCandidateWatchlistWidget {
     close: 120.5,
     market_cap: 3e12,
     adv20: 4e9,
+    ...over,
   };
+}
+
+function sample(): OppCandidateWatchlistWidget {
+  const oversold = item();
+  const gap = item({
+    symbol: "XYZ",
+    family_ids: ["GAP"],
+    horizon: "hours–1d",
+    status: "Backtest Pending",
+  });
+  const core = item({
+    symbol: "JNJ",
+    family_ids: ["MOM-CORE"],
+    horizon: "weeks–months",
+    status: "Source: MOM-001 · Pattern validated",
+  });
   return {
     as_of: new Date().toISOString(),
     as_of_session: "2026-08-18",
@@ -38,22 +55,53 @@ function sample(): OppCandidateWatchlistWidget {
         available: true,
         unavailable_reason: null,
         count: 1,
-        items: [item],
+        items: [oversold],
+      },
+      GAP: {
+        family_id: "GAP",
+        operator_name: "Gap",
+        horizon: "hours–1d",
+        available: true,
+        unavailable_reason: null,
+        count: 1,
+        items: [gap],
+      },
+      "MOM-CORE": {
+        family_id: "MOM-CORE",
+        operator_name: "Governed momentum",
+        horizon: "weeks–months",
+        available: true,
+        unavailable_reason: null,
+        count: 1,
+        items: [core],
       },
     },
-    all_items: [item],
-    all_count: 1,
+    all_items: [oversold, gap, core],
+    all_count: 3,
     stale: false,
   };
 }
 
 describe("CandidateWatchlistWidget", () => {
-  it("renders the watch-not-a-signal subtitle and a candidate row", () => {
+  it("lists only pattern-validated names", () => {
     render(<CandidateWatchlistWidget watchlist={sample()} />);
     expect(screen.getByText("Candidate Watchlist")).toBeTruthy();
     expect(screen.getByText(/Watch, not a signal/)).toBeTruthy();
-    expect(screen.getByText("NVDA")).toBeTruthy();
-    expect(screen.getByText("Watch")).toBeTruthy();
+    expect(screen.getByText("JNJ")).toBeTruthy();
+    expect(screen.queryByText("NVDA")).toBeNull();
+    expect(screen.queryByText("XYZ")).toBeNull();
+    expect(
+      screen.getByText(/Watch and Backtest Pending names are not listed/),
+    ).toBeTruthy();
+  });
+
+  it("does not list Oversold Watch names on the Oversold tab", () => {
+    render(<CandidateWatchlistWidget watchlist={sample()} />);
+    fireEvent.click(screen.getByRole("button", { name: /Oversold/i }));
+    expect(screen.queryByText("NVDA")).toBeNull();
+    expect(
+      screen.getByText(/Oversold is Watch only — not listed until backtested/),
+    ).toBeTruthy();
   });
 
   it("shows fail-closed copy when a family is unavailable", () => {
@@ -67,8 +115,6 @@ describe("CandidateWatchlistWidget", () => {
       count: 0,
       items: [],
     };
-    wl.all_items = [];
-    wl.all_count = 0;
     render(<CandidateWatchlistWidget watchlist={wl} />);
     fireEvent.click(screen.getByRole("button", { name: /Oversold/i }));
     expect(screen.getByText(/Oversold pullback unavailable/)).toBeTruthy();
