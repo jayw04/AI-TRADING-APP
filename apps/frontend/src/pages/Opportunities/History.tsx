@@ -1,8 +1,55 @@
 import { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { opportunitiesApi } from "@/api/opportunities";
-import type { OppHistoryCheckpoint, OppHistoryOccurrence } from "@/api/types";
+import type {
+  OppHistoryCheckpoint,
+  OppHistoryOccurrence,
+  OppHistoryParams,
+  OppHistoryPresence,
+} from "@/api/types";
 import { isPatternValidatedStatus } from "./backtestedDisplay";
+
+const FAMILIES = ["OVERSOLD", "MOM-NEAR", "MOM-CORE", "GAP"] as const;
+
+const FILTER_INPUT =
+  "rounded border border-neutral-800 bg-neutral-950 px-2 py-1 text-xs text-neutral-200";
+
+type HistoryFilters = {
+  symbol: string;
+  family: string;
+  fromDate: string;
+  toDate: string;
+  screenVersion: string;
+  presence: OppHistoryPresence;
+};
+
+const EMPTY_FILTERS: HistoryFilters = {
+  symbol: "",
+  family: "",
+  fromDate: "",
+  toDate: "",
+  screenVersion: "",
+  presence: "all",
+};
+
+function toHistoryParams(
+  filters: HistoryFilters,
+  extra: Partial<OppHistoryParams> = {},
+): OppHistoryParams {
+  return {
+    symbol: filters.symbol.trim() || undefined,
+    family: filters.family || undefined,
+    from_date: filters.fromDate || undefined,
+    to_date: filters.toDate || undefined,
+    screen_version: filters.screenVersion.trim() || undefined,
+    presence: filters.presence,
+    ...extra,
+  };
+}
+
+function listedRows(items: OppHistoryOccurrence[]): OppHistoryOccurrence[] {
+  return items.filter((row) => isPatternValidatedStatus(row.status_at_proposal));
+}
 
 const OFFSET_CHECKPOINTS = ["D1", "D5", "D10", "D20"] as const;
 
@@ -61,30 +108,39 @@ function CheckpointStrip({ row }: { row: OppHistoryOccurrence }) {
 }
 
 export default function OpportunityHistoryPage() {
+  const [draft, setDraft] = useState<HistoryFilters>(EMPTY_FILTERS);
+  const [applied, setApplied] = useState<HistoryFilters>(EMPTY_FILTERS);
   const [rows, setRows] = useState<OppHistoryOccurrence[]>([]);
   const [timeline, setTimeline] = useState<OppHistoryOccurrence[]>([]);
   const [selected, setSelected] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [hadUnfiltered, setHadUnfiltered] = useState(false);
+  const [latestDate, setLatestDate] = useState<string | null>(null);
+  const [currentCount, setCurrentCount] = useState(0);
+  const [historicalCount, setHistoricalCount] = useState(0);
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const resp = await opportunitiesApi.history();
-      setHadUnfiltered(resp.items.length > 0);
-      setRows(
-        resp.items.filter((row) =>
-          isPatternValidatedStatus(row.status_at_proposal),
-        ),
+      const resp = await opportunitiesApi.history(
+        toHistoryParams(applied, {
+          view: applied.symbol.trim() ? "summary" : undefined,
+        }),
       );
+      const listed = listedRows(resp.items);
+      setHadUnfiltered(resp.items.length > 0);
+      setRows(listed);
+      setLatestDate(resp.latest_candidate_date);
+      setCurrentCount(listed.filter((row) => row.on_watchlist).length);
+      setHistoricalCount(listed.filter((row) => !row.on_watchlist).length);
       setError(null);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [applied]);
 
   useEffect(() => {
     void load();
@@ -98,14 +154,37 @@ export default function OpportunityHistoryPage() {
     }
     setSelected(symbol);
     try {
-      const resp = await opportunitiesApi.history({ symbol });
-      setTimeline(
-        resp.items.filter((row) => isPatternValidatedStatus(row.status_at_proposal)),
+      const resp = await opportunitiesApi.history(
+        toHistoryParams(
+          { ...applied, symbol, presence: "all" },
+          { view: "timeline" },
+        ),
       );
+      setTimeline(listedRows(resp.items));
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     }
   };
+
+  const applyFilters = () => {
+    setSelected(null);
+    setTimeline([]);
+    setApplied({ ...draft });
+  };
+
+  const clearFilters = () => {
+    setDraft(EMPTY_FILTERS);
+    setSelected(null);
+    setTimeline([]);
+    setApplied(EMPTY_FILTERS);
+  };
+
+  const sourceEmpty = latestDate == null && currentCount === 0 && historicalCount === 0;
+  const emptyMessage = hadUnfiltered
+    ? "No pattern-validated history rows. Watch and Backtest Pending names are not listed."
+    : sourceEmpty
+      ? "No durable occurrences yet. They appear after the 16:20 ET snapshot job ingests a CandidateSnapshot."
+      : "No occurrences match these filters.";
 
   return (
     <div className="grid gap-4">
@@ -149,12 +228,108 @@ export default function OpportunityHistoryPage() {
         </div>
       )}
 
+      <form
+        className="grid gap-3 rounded-lg border border-neutral-800 bg-neutral-900 p-3"
+        onSubmit={(e) => {
+          e.preventDefault();
+          applyFilters();
+        }}
+      >
+        <div className="flex flex-wrap items-end gap-3">
+          <label className="grid gap-1 text-[10px] uppercase tracking-wide text-neutral-500">
+            Symbol
+            <input
+              className={FILTER_INPUT}
+              value={draft.symbol}
+              onChange={(e) => setDraft({ ...draft, symbol: e.target.value })}
+              placeholder="NVDA"
+            />
+          </label>
+          <label className="grid gap-1 text-[10px] uppercase tracking-wide text-neutral-500">
+            Family
+            <select
+              className={FILTER_INPUT}
+              value={draft.family}
+              onChange={(e) => setDraft({ ...draft, family: e.target.value })}
+            >
+              <option value="">All families</option>
+              {FAMILIES.map((family) => (
+                <option key={family} value={family}>
+                  {family}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="grid gap-1 text-[10px] uppercase tracking-wide text-neutral-500">
+            From
+            <input
+              type="date"
+              className={FILTER_INPUT}
+              value={draft.fromDate}
+              onChange={(e) => setDraft({ ...draft, fromDate: e.target.value })}
+            />
+          </label>
+          <label className="grid gap-1 text-[10px] uppercase tracking-wide text-neutral-500">
+            To
+            <input
+              type="date"
+              className={FILTER_INPUT}
+              value={draft.toDate}
+              onChange={(e) => setDraft({ ...draft, toDate: e.target.value })}
+            />
+          </label>
+          <label className="grid gap-1 text-[10px] uppercase tracking-wide text-neutral-500">
+            Screen version
+            <input
+              className={FILTER_INPUT}
+              value={draft.screenVersion}
+              onChange={(e) =>
+                setDraft({ ...draft, screenVersion: e.target.value })
+              }
+              placeholder="v0.3.0"
+            />
+          </label>
+          <label className="grid gap-1 text-[10px] uppercase tracking-wide text-neutral-500">
+            Presence
+            <select
+              className={FILTER_INPUT}
+              value={draft.presence}
+              onChange={(e) =>
+                setDraft({
+                  ...draft,
+                  presence: e.target.value as OppHistoryPresence,
+                })
+              }
+            >
+              <option value="all">All</option>
+              <option value="current">On watchlist</option>
+              <option value="historical">Historical only</option>
+            </select>
+          </label>
+          <button
+            type="submit"
+            className="rounded border border-neutral-800 bg-neutral-900 px-3 py-1 text-sm text-neutral-200 hover:bg-neutral-800"
+          >
+            Apply
+          </button>
+          <button
+            type="button"
+            onClick={clearFilters}
+            className="rounded border border-neutral-800 bg-neutral-900 px-3 py-1 text-sm text-neutral-200 hover:bg-neutral-800"
+          >
+            Clear
+          </button>
+        </div>
+        <p className="text-xs text-neutral-400">
+          {currentCount} on watchlist · {historicalCount} historical
+          {latestDate ? ` · latest ${latestDate}` : ""}
+        </p>
+      </form>
+
       <div className="overflow-x-auto rounded-lg border border-neutral-800 bg-neutral-900">
         {rows.length === 0 ? (
           <div className="py-8 text-center text-sm text-neutral-500">
-            {hadUnfiltered
-              ? "No pattern-validated history rows. Watch and Backtest Pending names are not listed."
-              : "No durable occurrences yet. They appear after the 16:20 ET snapshot job ingests a CandidateSnapshot."}
+            {emptyMessage}
           </div>
         ) : (
           <table className="w-full text-left text-sm">
@@ -162,6 +337,7 @@ export default function OpportunityHistoryPage() {
               <tr>
                 <th className="px-3 py-2 font-medium">Symbol</th>
                 <th className="px-3 py-2 font-medium">Family / horizon</th>
+                <th className="px-3 py-2 font-medium">Current state</th>
                 <th className="px-3 py-2 font-medium">Last seen</th>
                 <th className="px-3 py-2 font-medium">First seen</th>
                 <th className="px-3 py-2 font-medium">N</th>
@@ -196,6 +372,9 @@ export default function OpportunityHistoryPage() {
                       <div className="normal-case tracking-normal text-neutral-500">
                         {row.horizon}
                       </div>
+                    </td>
+                    <td className="px-3 py-2 text-xs text-neutral-300">
+                      {row.on_watchlist ? "On watchlist" : "Historical"}
                     </td>
                     <td className="px-3 py-2 font-mono text-xs text-neutral-300">
                       {row.last_seen}

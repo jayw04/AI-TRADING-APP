@@ -592,6 +592,7 @@ export interface OppHistoryOccurrence {
   first_seen: string;
   last_seen: string;
   occurrence_count: number;
+  on_watchlist: boolean;
   current_price: number | null;
   current_price_as_of: string | null;
   current_price_source: string | null;
@@ -605,6 +606,21 @@ export interface OppHistoryResponse {
   count: number;
   items: OppHistoryOccurrence[];
   as_of: string;
+  latest_candidate_date: string | null;
+  current_count: number;
+  historical_count: number;
+}
+
+export type OppHistoryPresence = "all" | "current" | "historical";
+
+export interface OppHistoryParams {
+  symbol?: string;
+  family?: string;
+  from_date?: string;
+  to_date?: string;
+  screen_version?: string;
+  presence?: OppHistoryPresence;
+  view?: "summary" | "timeline";
 }
 
 // ===== Agent (P3) =====
