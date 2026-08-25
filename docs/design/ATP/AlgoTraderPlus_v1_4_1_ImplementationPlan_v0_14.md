@@ -4,7 +4,7 @@
 |---|---|
 | Document version | **v0.14 (LOW-001 Dynamic-PIT cross-program integration boundary + state sync; still DRAFT)** |
 | Initial version date | 2026-08-22 |
-| **Last state sync** | **2026-08-24** — MDQ-001 capture non-event closed · 5-gate acquisition-readiness control · Program-Start Amendment A · **SEC-001 V3 acquisition state (§J)** |
+| **Last state sync** | **2026-08-25** — MDQ-001 capture **RECOVERED**; governed partition complete; producer identity continuous; corpus = 4 governed trading days |
 | Supersedes | **`AlgoTraderPlus_v1_4_1_ImplementationPlan_v0_13.md` and all earlier drafts. v0.13 and earlier are historical only; v0.14 is the sole current implementation-plan version.** |
 | Basis | `docs/Strategies/Strategy-proposals-v1_4_1-Algo-Trader-Plus-2026-08-15.md` + `docs/Strategies/AlgoTraderPlus_Data_Inventory_Report_v1_1_2026-08-17.md` + Strategy Author Data and Validation Brief v1.2 + owner rulings and sealed evidence through 2026-08-17 (P-2 v2 proof, collector validation disposition, account-7 P0 closure records) + `docs/design/MDQ-001_Registration_v1_0_DRAFT.md` **as merged to `main` with the signed §8 block and the ratified §8.1** (PR #634 = `63c0c52`) + the merge chain #634 → #636 (`be4235d`, feed-pinning guard CI-enforced) → #637 (`0273012`) + the governed deployment executed on `ec2-paper` on the night of 2026-08-17 **+ the governed state-sync and ruling records of 2026-08-18 → 2026-08-24**: the D0 admissibility adjudication and Program-Start Record v0.2 (+ Amendment A, `e488440`/#672) · the 2026-08-20 rulings · the discovery-ledger acceptance and CEE authorization/Observation Record 001 · the GAPPER G4 closure record · the SEC-001 V3 governing records under `docs/design/SEC-001/` (disposition ruling, store pre-ingestion freeze, universe-liquidity defect ruling, pre-crawl coverage freeze, canary-defect remediations A–E, execution-control addenda v1.4.1/v1.4.2) · the 2026-08-22 SEC-001 production conformance incident · the 2026-08-24 MDQ capture non-event record (`311863cb`/#679) and the 5-gate acquisition-readiness control (`363daa08`/#673) |
 | Repository | `github.com/jayw04/AI-TRADING-APP` |
@@ -14,6 +14,78 @@
 | Governance stance | Planning document only. Governed program artifacts, frozen designs, sealed verdicts, owner rulings, ADRs, and promotion gates control over this plan. **Research is instrumental, not the product: the platform objective is to produce robust, deployable, net-profitable strategies and measurable execution/risk improvements, not to maximize research volume.** |
 | Subscription ruling | **No second Algo Trader Plus subscription.** Workbench account 7 (`ALPACA_PAPER_6`, broker `PA3BGKRLH2AP`) is the sole entitled SIP acquisition identity. The **Phase-A acquisition collector is the sole authenticating component**; MDQ-001 **analysis/calculators** are offline read-only consumers of frozen partitions and receive no Alpaca credential. *(Precision fix at v0.5 — v0.4's blanket "MDQ-001 does not authenticate" contradicted §1.1/§3.1, where `identity.py` performs a pinned read-only `/v2/account` check.)* |
 | Out of scope | Reserve-strategy code before gates open · MR-002 work of any kind (**TERMINATED 2026-08-22 without an economic verdict**; the former HOLD no longer describes its state) · GAPPER Stage-0 **execution against a corpus that fails the §3.1 contract** (G4 CLOSED 2026-08-22; the remaining bar is data sufficiency, not sequencing) · Phase-B streaming implementation unless separately authorized · live-consumer cutover before the local-cache ADR · reopening rejected RNG/MOM variants without a **new economic mechanism** and new prospective registration · anything v1.4.1 §14 says not to start |
+
+---
+
+## State sync — 2026-08-25 *(applied in place per the ONE CURRENT PLAN rule; no new version)*
+
+**Headline: governed MDQ capture is RECOVERED. 2026-08-25 produced a complete governed partition on
+both feeds, and the producer identity is continuous across the recovery boundary.** Nothing in this
+sync changes research authority, K1–K6, D0, the review window, the holdouts, the DISC-001 gates, the
+DISC-MDQ hold, or the value-extraction priority order.
+
+### A. 2026-08-25 — RECOVERY CAPTURE / GOVERNED PARTITION COMPLETE *(record MERGED)*
+
+Record: `docs/design/MDQ-001_Capture_Recovery_2026-08-25.md`, **MERGED `5a48ee88` (#684)**, post-squash
+byte custody verified on `main` — 12,669 B, LF-only, sha256
+`e4c7e5d967dd3c4e1433f178166c585af5e619dc5e1244c1f72045e5b0b7f3d7`.
+
+⚖ Owner-ruled a **separate governed record, not a Program-Start §6 Amendment B**: 2026-08-25 is
+operational execution evidence and alters none of the §6 authorities. ⛔ It is **not** a replacement,
+substitute, or repair for 2026-08-24.
+
+| Stage | Result |
+|---|---|
+| Three-proof readiness chain | post-recreate preflight **READY 5/5** (`2026-08-24T23:50:03Z`) · near-slot preflight **READY 5/5** (`2026-08-25T13:15:00Z`) · **natural timer start**, `TriggeredBy=mdq-sample.timer` |
+| `mdq-sample.service` | `Result=success`, **395/395 scheduled slots**, 50 symbols × 2 feeds, 09:25:02→15:59:00 ET |
+| `mdq-eod.service` | `Result=success` — 16,338 IEX / 26,984 SIP 1-min bar rows |
+| `mdq-freeze.service` | `Result=success` — **freeze → verify → mirror**, 3 files per feed |
+| S3 custody | six objects verified: manifest sha256 recomputed host-side, then host MD5 == S3 ETag |
+| MDQ failure alerts | **0** for the day |
+
+### B. ⭐⭐ THE LOAD-BEARING FINDING — no credential-identity seam in the corpus
+
+The 08-23 runtime-environment loss was repaired by **restoring the existing registered acquisition
+credential, not by rotating it**: no new Alpaca key pair, no `identity.py` re-pin, no account reset.
+
+⇒ Both 2026-08-25 manifests stamp **`credential_fingerprint b56421a28128`** and
+**`account_number PA3BGKRLH2AP`**, identical in identity semantics to 08-19/20/21. A rotation would
+have failed `verify_identity()` closed and forced a governed re-pin of `identity.py` — one of the five
+approved collector blobs — **splitting the corpus mid-stream**. Any analysis spanning 08-19 → 08-25
+reads a single continuous producer identity.
+
+### C. 2026-08-24 disposition — UNCHANGED
+
+**Permanent NON-EVENT. Zero evidence. No backfill**, no denominator or evidence-window change, no
+retroactive evidence. Nothing in the 08-25 recovery reopens, softens, or repairs it.
+
+### D. Corpus state
+
+**4 governed trading days: 2026-08-19 (D0), 08-20, 08-21, 08-25** — both feeds, every partition frozen,
+verified and S3-mirrored. 2026-08-18 and 2026-08-24 remain non-events contributing zero evidence.
+
+### E. §H recovery sequence — DISCHARGED
+
+The 2026-08-24 §H sequence executed in order and is closed: credential restoration + backend recreate
+→ post-recreate preflight PASS → (no deployment of the preflight) → near-slot preflight PASS → natural
+timer start. The sampler was **not** hand-started at any point.
+
+### F. ⚠ Operational note — `activating` is not a hang, and not evidence either
+
+`mdq-sample.service` is a `oneshot` unit that runs **until close** (~6 h 34 m; `TimeoutStartSec=8h`), so
+`ActiveState=activating` is the **expected** state for most of a healthy session. Judge liveness by
+**governed byte growth, failure alerts, explicit failure signatures, and the terminal timestamp** —
+never by `ActiveState` alone. The converse holds equally: `activating` is not evidence of capture, and
+`mdq-freeze.service` exiting 0 means nothing on its own (08-24: `no partitions … nothing to freeze`).
+
+This is an **operational interpretation rule**. It weakens no failure gate and changes no admissibility
+criterion.
+
+### G. DISC-MDQ population hold — UNCHANGED
+
+The broad DISC-MDQ feature library remains **HELD** on the three-day census recorded at §F of the
+2026-08-24 sync. A fourth governed capture day adds corpus depth, not population breadth, and does not
+authorize the narrow MOM-CORE × MDQ observation.
 
 ---
 
