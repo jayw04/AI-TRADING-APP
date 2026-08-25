@@ -69,6 +69,8 @@ def _req() -> OrderRequest:
         type=OrderType.MARKET,
         tif=TimeInForce.DAY,
         source_type=OrderSourceType.MANUAL,
+        # B3a: MARKET needs a trusted reference price (gate fails closed without one).
+        reference_price=Decimal("100"),
     )
 
 

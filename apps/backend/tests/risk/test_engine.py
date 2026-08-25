@@ -94,7 +94,10 @@ def _req(**overrides) -> OrderRequest:
         qty=Decimal("10"),
         type=OrderType.MARKET,
         tif=TimeInForce.DAY,
-        source_type=OrderSourceType.MANUAL,
+        # B3a: MARKET orders now need a trusted reference price — the
+        # position-notional gate fails closed without one. These tests are
+        # not about pricing, so they carry one explicitly.
+        reference_price=Decimal("100"),
     )
     base.update(overrides)
     return OrderRequest(**base)

@@ -311,15 +311,47 @@ class RiskEngine:
                     legacy_decision=RiskDecision.REJECT, legacy_reasons=[ReasonCode.POSITION_CAP_QTY],
                     legacy_outcome="REFUSE", legacy_permits=False,
                 )
-            if limits.max_position_notional is not None:
-                # Use limit_price if supplied; else avg_entry_price of current
-                # position; else 0 (market orders pass notional check here and
-                # are picked up by gross exposure on the next position-sync).
-                ref_price = req.limit_price or (
-                    pos.avg_entry_price if pos else Decimal(0)
-                )
-                resulting_notional = resulting_qty * (ref_price or Decimal(0))
-                if resulting_notional > limits.max_position_notional:
+            # Does this order INCREASE the position? A SELL that flips a long into
+            # a larger short increases it; a SELL that merely trims does not.
+            increases_position = resulting_qty > abs(current_qty)
+
+            if limits.max_position_notional is not None and increases_position:
+                # B3a. This gate values the RESULTING position at a trusted
+                # execution-price estimate — the same source the gross-exposure
+                # gate already uses (`_reference_price`: limit price, else the
+                # caller's reference price, else the latest cached close).
+                #
+                # It previously used `limit_price or avg_entry_price or 0`, which
+                # failed open twice. `avg_entry_price` is HISTORICAL COST, not a
+                # current price, and a wrong stored value understated the result
+                # silently. Worse, `pos is None` — every market BUY opening a
+                # name — made ref_price 0, so the check passed trivially and
+                # unconditionally. Measured 2026-08-25: five strategy templates
+                # submit MARKET orders and none passes a limit price, so that was
+                # the normal path for strategy orders rather than an edge case.
+                # ADR 0040 had already moved the gross-exposure gate off the same
+                # zero-valuation defect; this gate was simply never moved with it.
+                #
+                # The `increases_position` guard above is load-bearing and is NOT
+                # a convenience. Valuing the RESULTING position at a current price
+                # instead of stale cost makes this gate bite far harder, and the
+                # first thing it would have bitten is exits: trimming 100 shares
+                # off an oversized 500-share holding leaves 400 still over the
+                # cap, so the reduction gets refused and the position is trapped
+                # above the limit — the 2026-07-13 failure mode exactly. ADR 0038
+                # already exempts reducing exits from the gross-exposure gate;
+                # this applies the same rule to the position cap it belongs to.
+                ref_price = await self._reference_price(req)
+                if ref_price is None:
+                    # No trusted price for an order that increases exposure. Fail
+                    # closed — passing it is the bypass this repair exists to
+                    # close (owner ruling, v0.5 §4.2).
+                    return await self._finalize_with_loss_control(
+                        session, req, reduction_cache,
+                        legacy_decision=RiskDecision.REJECT, legacy_reasons=[ReasonCode.POSITION_CAP_UNPRICED],
+                        legacy_outcome="REFUSE", legacy_permits=False,
+                    )
+                if resulting_qty * ref_price > limits.max_position_notional:
                     return await self._finalize_with_loss_control(
                         session, req, reduction_cache,
                         legacy_decision=RiskDecision.REJECT, legacy_reasons=[ReasonCode.POSITION_CAP_NOTIONAL],
@@ -644,24 +676,41 @@ class RiskEngine:
             market_open = market_open - timedelta(days=1)
         return market_open
 
-    async def _estimate_notional(self, req: OrderRequest) -> Decimal | None:
+    async def _reference_price(self, req: OrderRequest) -> Decimal | None:
+        """The per-share price this order should be valued at, or None when no
+        trusted source resolves.
+
+        One resolution order, shared by every gate that has to put a number on an
+        order before it fills, so two gates cannot disagree about what a share is
+        worth:
+
+            limit price          the price the order itself names
+            reference price      what the caller sized against (strategies pass this)
+            latest cached close  last resort
+            None                 no trusted source — the caller decides what that means
+
+        Historical cost (`avg_entry_price`) is deliberately NOT in this chain. It
+        answers "what did we pay", not "what is it worth now", and B3a exists
+        because the position-notional gate was treating the two as the same thing.
+        """
         if req.limit_price is not None:
-            return req.qty * req.limit_price
-        # Market orders carry no fill price up front. Prefer a caller-supplied
-        # reference price (the strategy passes the price it sized against); else
-        # fall back to the latest cached bar close. Pricing market orders is what
-        # makes the pending-BUY sum count them: without it a market BUY estimates
-        # to 0, and a burst each passes against the same settled snapshot and
-        # over-fills past the gross cap (the entry side of the 2026-07-07
-        # exit-trap; ADR 0040). None only when NO price source resolves (no bar
-        # cache / cold symbol) — the prior fail-open, now the rare exception
-        # rather than every market order.
+            return req.limit_price
         if req.reference_price is not None and req.reference_price > 0:
-            return req.qty * req.reference_price
+            return req.reference_price
         price = await self._latest_close(req.symbol_ticker)
         if price is not None and price > 0:
-            return req.qty * price
+            return price
         return None
+
+    async def _estimate_notional(self, req: OrderRequest) -> Decimal | None:
+        # Market orders carry no fill price up front. Pricing them is what makes
+        # the pending-BUY sum count them: without it a market BUY estimates to 0,
+        # and a burst each passes against the same settled snapshot and over-fills
+        # past the gross cap (the entry side of the 2026-07-07 exit-trap;
+        # ADR 0040). None only when NO price source resolves (no bar cache / cold
+        # symbol) — the rare exception rather than every market order.
+        price = await self._reference_price(req)
+        return None if price is None else req.qty * price
 
     async def _latest_close(self, symbol: str) -> Decimal | None:
         """Latest cached bar close for ``symbol`` via ``bar_cache``, or None when

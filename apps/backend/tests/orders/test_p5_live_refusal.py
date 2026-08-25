@@ -100,6 +100,9 @@ def _req(
         type=OrderType.MARKET,
         tif=TimeInForce.DAY,
         source_type=source_type,
+        # B3a/ADR 0055: MARKET orders need a trusted reference price — the
+        # position-notional gate fails closed without one.
+        reference_price=Decimal("100"),
         confirmation_text=confirmation_text,
     )
 

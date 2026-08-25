@@ -135,10 +135,19 @@ async def test_market_order_valued_via_reference_price(session_factory, seeded) 
 
 
 async def test_market_order_without_reference_has_no_notional(session_factory, seeded) -> None:
+    """ADR 0040 preserved at its own boundary: an unpriced MARKET order still
+    values to None, so it contributes 0 to the pending-aware gross aggregate.
+
+    ⚠ ADR 0055 supersedes the *order-level* consequence only: the evaluation as a
+    whole no longer passes, because the position-notional cap now fails closed on
+    an unpriced increasing order (POSITION_CAP_UNPRICED). The valuation contract
+    asserted here is unchanged — what changed is what a different gate does with it.
+    """
     eng = RiskEngine(session_factory)
     out = await eng.evaluate(_req(), trading_mode="paper")
-    assert out.passed
     assert out.estimated_notional is None
+    assert ReasonCode.GROSS_EXPOSURE not in out.reason_codes  # ADR 0040: contributes 0
+    assert ReasonCode.POSITION_CAP_UNPRICED in out.reason_codes  # ADR 0055
 
 
 async def test_reference_price_ignored_when_limit_present(session_factory, seeded) -> None:
@@ -150,6 +159,17 @@ async def test_reference_price_ignored_when_limit_present(session_factory, seede
     )
     assert out.passed
     assert out.estimated_notional == Decimal("2000")  # 10 * limit 200, not the ref
+
+
+async def _set_position_notional_cap(sf, value: Decimal) -> None:
+    """Raise the per-position notional cap so a test can isolate the GROSS gate."""
+    from sqlalchemy import select
+
+    async with sf() as session:
+        limits = (await session.execute(select(RiskLimits))).scalars().all()
+        for rl in limits:
+            rl.max_position_notional = value
+        await session.commit()
 
 
 # ---------- market-order valuation from the bar cache (ADR 0040) ----------
@@ -169,18 +189,28 @@ async def test_market_buy_over_cap_via_bar_cache_rejected(session_factory, seede
     cap is now rejected GROSS_EXPOSURE. Pre-fix it estimated to 0 and slipped
     through, over-filling the account (incident 2026-07-07; ADR 0040)."""
     eng = RiskEngine(session_factory, bar_cache=_StubBarCache(Decimal("2000")))
-    # 100 × 2000 = 200k > the 100k cap; qty 100 is within the 100-share qty cap.
+    # 100 × 2000 = 200k > the 100k gross cap; qty 100 is within the 100-share qty cap.
+    # ADR 0055: raise the per-position notional cap out of the way first, so this
+    # test keeps proving the GROSS gate rather than tripping the position cap.
+    await _set_position_notional_cap(session_factory, Decimal("100000000"))
     out = await eng.evaluate(_req(qty=Decimal("100")), trading_mode="paper")
     assert ReasonCode.GROSS_EXPOSURE in out.reason_codes
 
 
 async def test_bar_cache_cold_symbol_contributes_zero(session_factory, seeded) -> None:
-    """Fail-open preserved: when the bar cache has no bar for the symbol, a MARKET
-    order still estimates to None (contributes 0) rather than erroring (ADR 0040)."""
+    """Fail-open preserved *for gross exposure*: a cold symbol still estimates to
+    None and contributes 0 rather than erroring (ADR 0040).
+
+    ⚠ ADR 0055: the order itself is now refused by the position-notional cap
+    instead of passing. ADR 0040's aggregate behaviour is untouched — an unknown
+    component does not erase the known exposure — while a per-position cap that
+    treated the unknown as zero would have been vacuous, not merely degraded.
+    """
     eng = RiskEngine(session_factory, bar_cache=_StubBarCache(None))
     out = await eng.evaluate(_req(qty=Decimal("10")), trading_mode="paper")
-    assert out.passed
     assert out.estimated_notional is None
+    assert ReasonCode.GROSS_EXPOSURE not in out.reason_codes  # ADR 0040 preserved
+    assert ReasonCode.POSITION_CAP_UNPRICED in out.reason_codes  # ADR 0055
 
 
 # ---------- gross-exposure: in-flight orders count ----------
@@ -269,7 +299,11 @@ async def test_inflight_qty_for_other_symbol_does_not_block(session_factory, see
     """In-flight MSFT shares must not count against the AAPL per-position cap."""
     await _add_order(session_factory, symbol_id=2, qty="95", est_notional=None, tag="msft")
     eng = RiskEngine(session_factory)
-    out = await eng.evaluate(_req(qty=Decimal("10")), trading_mode="paper")
+    # ADR 0055: a reference price is required for the order to reach the assertion
+    # under test; without one the position cap fails closed before it is evaluated.
+    out = await eng.evaluate(
+        _req(qty=Decimal("10"), reference_price=Decimal("100")), trading_mode="paper"
+    )
     assert out.passed
 
 
