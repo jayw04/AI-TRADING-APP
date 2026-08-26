@@ -1,0 +1,47 @@
+{
+  "accessions": {
+    "0001193125-21-050735": {
+      "accession": "0001193125-21-050735",
+      "artifact_sha256": null,
+      "cik": 97210,
+      "detail": {
+        "document_size": 6229704,
+        "http_status": 200,
+        "index_body_sha256": "8e480cecc5c7753d30afea9aa0994b469fac75937a442fc7f76ddc3cfcc4d878",
+        "index_url": "https://www.sec.gov/Archives/edgar/data/97210/000119312521050735/0001193125-21-050735-index.html",
+        "locator_url": "https://www.sec.gov/Archives/edgar/data/97210/000119312521050735/d69963d10k.htm",
+        "primary_document": "d69963d10k.htm",
+        "response_bytes": 13987
+      },
+      "form": "10-K",
+      "history": [
+        {
+          "at": "2026-08-26T23:00:27.901194Z",
+          "index_url": "https://www.sec.gov/Archives/edgar/data/97210/000119312521050735/0001193125-21-050735-index.html",
+          "state": "LOCATOR_INTENT"
+        },
+        {
+          "at": "2026-08-26T23:00:27.905321Z",
+          "state": "LOCATOR_REQUEST_SENT"
+        },
+        {
+          "at": "2026-08-26T23:00:28.232821Z",
+          "http_status": 200,
+          "index_body_sha256": "8e480cecc5c7753d30afea9aa0994b469fac75937a442fc7f76ddc3cfcc4d878",
+          "response_bytes": 13987,
+          "state": "LOCATOR_RESPONSE_RECEIVED"
+        },
+        {
+          "at": "2026-08-26T23:00:28.236804Z",
+          "document_size": 6229704,
+          "index_body_sha256": "8e480cecc5c7753d30afea9aa0994b469fac75937a442fc7f76ddc3cfcc4d878",
+          "locator_url": "https://www.sec.gov/Archives/edgar/data/97210/000119312521050735/d69963d10k.htm",
+          "primary_document": "d69963d10k.htm",
+          "state": "LOCATOR_RESOLVED"
+        }
+      ],
+      "state": "LOCATOR_RESOLVED"
+    }
+  },
+  "updated_utc": "2026-08-26T23:00:28.236818Z"
+}
