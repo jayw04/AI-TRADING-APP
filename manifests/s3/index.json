@@ -90,6 +90,11 @@
       "artifact_id": "repo-docs-strategies",
       "manifest_path": "manifests/s3/objects/repo-docs-strategies.v1.json",
       "status": "active"
+    },
+    {
+      "artifact_id": "sec001-v3-successor-epoch-evidence",
+      "manifest_path": "manifests/s3/objects/sec001-v3-successor-epoch-evidence.v1.json",
+      "status": "active"
     }
   ]
 }

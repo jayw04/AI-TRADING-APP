@@ -227,12 +227,71 @@ Measurement tool identity: git blob `c877b3091f0018a8e82453b109437ad384560dee`, 
 `28f4182b2bfbade8dd056f03291ede905eb65bb36f87a8ec4e8a87477b15fb05` (worktree and blob digests
 compared, identical — no CRLF divergence).
 
+**S3 custody — complete.** Bucket `workbench-sec001-v3-research-219024422756`, prefix
+`sealed/epoch/SUCCESSOR_EPOCH_0_1167/2026-08-26/`. Manifest in Git at
+`manifests/s3/objects/sec001-v3-successor-epoch-evidence.v1.json` (package basis sha256
+`81e9fa5c2d11cfaa…`); the repository S3 manifest gate passes.
+
+| object | bytes | S3 VersionId | sha256 |
+|---|---|---|---|
+| `epoch_evidence.tar.gz` | 152,784,085 | `oF6TQj4..ivc5heZGX_n8.zz5q8EQtzw` | `a8d100c66425f3db…` |
+| `INVENTORY.json` | 17,561,542 | `G0RTcy6CZNjpGAeCnq9ZxFWl6yn8.h.l` | `c7946144d732ab4f…` |
+| `PACKAGE.json` | 455 | `BCtOCfD6ydKHblV6jwLrITpkdnTw8vQf` | `03d76428638a546b…` |
+| `measurement/segments_projection.json` | 83,066 | `DVAGTb8wL2z3peRI7ZyqtQjJDXaTTuiq` | `90d7d9f7b55482ea…` |
+| `measurement/identity_rows.json` | 47,150 | `eDDEskSPpRP8nqqTSxQGe9xgU0lhnxy8` | `82f317acb791cc94…` |
+| `measurement/sic_mapping.json` | 52,158 | `l1tVyhzqON6BUVWfpQY2QSeuAR9ICs0t` | `633dc4cfa4ee9e7f…` |
+| `measurement/coverage_result_v1.json` | 100,525 | `RuKV_lvSDT0JyaE7DGEVDqkWDf2KKtiZ` | `788755facfc2f205…` |
+
+The package covers **77,523 files / 1,682,515,377 uncompressed bytes** — the whole
+`crawl-successor` tree, the three frozen manifest artifacts, the executed implementation
+(`code2/apps`), the runner and its stdout log, and the Gate-6 canary result. `INVENTORY.json`
+carries path, size, sha256 and mtime for **every** member. Excluded and recorded as such: the 2 GiB
+`TERMINAL_RESERVE.bin` zero-fill, third-party site-packages (pinned instead by httpx 0.28.1 /
+httpcore 1.0.9 and `httpcore/__init__.py` sha256 `f644ff92…`), the superseded pre-Gate-6 payload
+tree, and transport encodings of files already included.
+
+⭐ **Separation of duties was preserved, not worked around.** The `sec001-v3-research-role` instance
+profile is denied `s3:*` on `sealed/*` and denied every retention/lock/delete action — *the builder
+may not declare its own output immutable*. The package was therefore **staged to `build/` by the
+host** and **promoted to `sealed/` by the owner principal**. Every object was verified twice: S3-side
+on PUT with `ChecksumAlgorithm=SHA256`, and by independent round-trip read-back.
+
+⚠ **The custody package inherits the F-1 limitation** and says so in the manifest: 177 of 76,821
+observations are not fully byte-reproducible, so **no claim of complete byte-level artifact custody**
+is made for those 177.
+
+**Bucket controls verified:** versioning `Enabled` · default encryption `AES256` with bucket keys ·
+all four public-access blocks `true` · Object Lock **enabled at the bucket** with **no default
+retention rule**, and none applied to these objects.
+
+⚠ **Owner decision, surfaced not taken:** once `vol-0c55ac93dc1736a80` is deleted these S3 objects
+are the **only** copy of the epoch evidence. Versioning protects against overwrite and delete-marker,
+but an admin principal can still delete a specific version. If any evidence class in this program
+warrants an Object Lock retention, this is it. **No retention was applied** — that is a deliberate
+non-action, since Object Lock materially restricts later administration and was not authorized.
+
+**Restorability — fresh-fetch, restore, and full re-verification: PASS.** Because the next step is
+deleting the source volume, the property that matters is that the package **reconstructs** the
+evidence, not merely that it is stored. Verified independently of the producing host: the sealed
+`epoch_evidence.tar.gz` and `INVENTORY.json` were fetched **by Version ID** with a fail-closed digest
+check, the archive was extracted, and **every** member was re-hashed against the inventory.
+
+```
+fetched by VersionId, digest fail-closed   epoch_evidence.tar.gz OK · INVENTORY.json OK
+verified                                   77,523 / 77,523 files   (158 s)
+missing 0    hash-mismatch 0    size-mismatch 0    unlisted extras 0
+RESTORABILITY VERDICT                      PASS — the sealed archive reconstructs the evidence exactly
+```
+
+The restored copy was then removed; the sealed S3 objects were not modified.
+
 **Remaining, in order:**
 
-1. Complete **S3 custody** of the successor-epoch evidence.
-2. **Fresh-fetch and verify** the load-bearing epoch / coverage / closeout artifacts.
-3. **Only after custody succeeds**, dispose of `vol-0c55ac93dc1736a80`.
-4. Handle `vol-04b5ad3065530d20e` separately as infrastructure cleanup.
+1. ✅ **S3 custody** of the successor-epoch evidence — complete and verified.
+2. ✅ **Fresh-fetch and verify** — see the restorability check below.
+3. **Only after custody succeeds**, dispose of `vol-0c55ac93dc1736a80` — **not done**, pending the
+   Object Lock decision above.
+4. Handle `vol-04b5ad3065530d20e` separately as infrastructure cleanup — **not done**.
 5. ⛔ **Do not start successor lineage acquisition.**
 6. Next research question: the bounded **pre-2002 FPI source-availability / satisfiability
    adjudication** (§6).

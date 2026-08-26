@@ -1,0 +1,77 @@
+{
+  "artifact_id": "sec001-v3-successor-epoch-evidence",
+  "bucket": "workbench-sec001-v3-research-219024422756",
+  "byte_length": 170628981,
+  "content_type": "application/gzip",
+  "created_at": "2026-08-26T00:00:00Z",
+  "notes": "SEC-001 V3 SUCCESSOR_EPOCH_0_1167 classification-crawl evidence, custodied after the epoch was ruled COMPLETE / INTEGRITY PASS and after the governed weekly-grid coverage measurement returned STOP / REDESIGN. Package covers 77,523 files / 1,682,515,377 uncompressed bytes from /opt/epoch on i-0407ca119eb85cdb1 (volume vol-0c55ac93dc1736a80): the full crawl-successor tree (75,151 decision-byte artifacts, source_evidence.jsonl 122,127 lines, source_decision_bytes.jsonl 76,821 lines, 1,146 per-CIK classification segment files, terminal ledger, EPOCH_COMPLETE.json), the three frozen manifest artifacts (CIK resolution 1f7d523b, frozen identity order e8445b0b, PIT-200 union d338e65f), the executed implementation tree code2/apps, the runner and its stdout log, and the Gate-6 canary result. INVENTORY.json carries per-file path/size/sha256/mtime for every member. Excluded: the 2 GiB TERMINAL_RESERVE.bin zero-fill, third-party site-packages (pinned instead by httpx 0.28.1 / httpcore 1.0.9 and httpcore/__init__.py sha256 f644ff92), the superseded pre-Gate-6 payload tree, and transport encodings of included files. The measurement/ members are the laptop-derived inputs and result of the governed coverage run. Staged to build/ by the sec001-v3-research-role instance profile, which is denied s3:* on sealed/* by design, then promoted to sealed/ by the owner principal. Every object S3-verified on PUT with ChecksumAlgorithm=SHA256 and independently round-trip verified. CARRIES THE F-1 LIMITATION: 177 of 76,821 observations are not fully byte-reproducible (accession-keyed artifact collision), so no claim of complete byte-level artifact custody is made for those 177.",
+  "object_key": "sealed/epoch/SUCCESSOR_EPOCH_0_1167/2026-08-26/",
+  "owner": "Engineering / Architecture",
+  "package_members": [
+    {
+      "byte_length": 455,
+      "name": "PACKAGE.json",
+      "object_key": "sealed/epoch/SUCCESSOR_EPOCH_0_1167/2026-08-26/PACKAGE.json",
+      "readback_verified_by_version_id": true,
+      "s3_version_id": "BCtOCfD6ydKHblV6jwLrITpkdnTw8vQf",
+      "sha256": "03d76428638a546b1028eb7197401648e605592f59e57b6436dfd3434bc59097"
+    },
+    {
+      "byte_length": 17561542,
+      "name": "INVENTORY.json",
+      "object_key": "sealed/epoch/SUCCESSOR_EPOCH_0_1167/2026-08-26/INVENTORY.json",
+      "readback_verified_by_version_id": true,
+      "s3_version_id": "G0RTcy6CZNjpGAeCnq9ZxFWl6yn8.h.l",
+      "sha256": "c7946144d732ab4f903200281a14e44185d344bb886ce0dd4ba4a9d6fe9b27ef"
+    },
+    {
+      "byte_length": 152784085,
+      "name": "epoch_evidence.tar.gz",
+      "object_key": "sealed/epoch/SUCCESSOR_EPOCH_0_1167/2026-08-26/epoch_evidence.tar.gz",
+      "readback_verified_by_version_id": true,
+      "s3_version_id": "oF6TQj4..ivc5heZGX_n8.zz5q8EQtzw",
+      "sha256": "a8d100c66425f3dbe9c2474c3f0fbe66d19f683ba3c348b4d98f2ca355d500c7"
+    },
+    {
+      "byte_length": 83066,
+      "name": "measurement/segments_projection.json",
+      "object_key": "sealed/epoch/SUCCESSOR_EPOCH_0_1167/2026-08-26/measurement/segments_projection.json",
+      "readback_verified_by_version_id": true,
+      "s3_version_id": "DVAGTb8wL2z3peRI7ZyqtQjJDXaTTuiq",
+      "sha256": "90d7d9f7b55482ea2b2fdbe338062db2ff48bd70795ace50e232d93c0410e97f"
+    },
+    {
+      "byte_length": 47150,
+      "name": "measurement/identity_rows.json",
+      "object_key": "sealed/epoch/SUCCESSOR_EPOCH_0_1167/2026-08-26/measurement/identity_rows.json",
+      "readback_verified_by_version_id": true,
+      "s3_version_id": "eDDEskSPpRP8nqqTSxQGe9xgU0lhnxy8",
+      "sha256": "82f317acb791cc94397473bc2f0b11f1ab44e1ae85f9b468e7a555acfdfeb29e"
+    },
+    {
+      "byte_length": 52158,
+      "name": "measurement/sic_mapping.json",
+      "object_key": "sealed/epoch/SUCCESSOR_EPOCH_0_1167/2026-08-26/measurement/sic_mapping.json",
+      "readback_verified_by_version_id": true,
+      "s3_version_id": "l1tVyhzqON6BUVWfpQY2QSeuAR9ICs0t",
+      "sha256": "633dc4cfa4ee9e7f893e65353ea8bf02f7b9bc1036a95df23a3af2e43e39bcb6"
+    },
+    {
+      "byte_length": 100525,
+      "name": "measurement/coverage_result_v1.json",
+      "object_key": "sealed/epoch/SUCCESSOR_EPOCH_0_1167/2026-08-26/measurement/coverage_result_v1.json",
+      "readback_verified_by_version_id": true,
+      "s3_version_id": "RuKV_lvSDT0JyaE7DGEVDqkWDf2KKtiZ",
+      "sha256": "788755facfc2f2056dcfb4b19db0a3e4a80a03ce3dfa2f47e963c2a78ee24988"
+    }
+  ],
+  "package_sha256_basis": "sha256 of the canonical JSON of package_members",
+  "producing_job_or_run": "sec001-v3-successor-epoch@i-0407ca119eb85cdb1",
+  "retention_class": "governed",
+  "s3_version_id": "PACKAGE",
+  "schema_or_format_version": "1.0",
+  "schema_version": "1.0",
+  "sensitivity": "internal",
+  "sha256": "81e9fa5c2d11cfaa6c025dbb4c3be7cb37e9706c6a9f4ca2e71a1c63044f210c",
+  "source_commit": "517cab0"
+}
