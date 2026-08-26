@@ -86,14 +86,15 @@ def test_with_no_evidence_nothing_is_qualified_and_acquisition_may_proceed():
     assert c.may_spend_next_request() == (True, "CONTINUE")
 
 
-def test_stop_becomes_invariant_once_enough_cells_are_PROVEN_unresolved():
+def test_stop_becomes_PROVISIONALLY_true_once_enough_cells_are_currently_qualified():
     g = grid(10, budget=2, permatickers_per_week=5, max_failing=1)
     links = [ClassIdentityLink(pt, cls_for(pt), wk(-1), wk(11), source()) for pt in range(5)]
     c = controller(g, links)
     assert c.stop_is_invariant() is False
 
-    # three securities proven lineage-stable in every week => 3 > budget of 2 => every week
-    # fails => both spans exceed max_failing=1
+    # three securities currently uniquely bound in every week => 3 > budget of 2 => every
+    # week fails => both spans exceed max_failing=1. NOTE "currently": this is not
+    # LINEAGE_STABLE and it is not permanent -- see the non-monotonicity counterexample.
     for pt in range(3):
         c.admit(
             [
@@ -105,7 +106,7 @@ def test_stop_becomes_invariant_once_enough_cells_are_PROVEN_unresolved():
     assert c.qualified_unresolved(wk(5)) == 3
     assert c.week_fails(wk(5)) is True
     assert c.stop_is_invariant() is True
-    assert c.may_spend_next_request() == (False, "G0A_STOP_INVARIANT_UNDER_OPTIMISTIC_CREDIT")
+    assert c.may_spend_next_request() == (False, "G0A_STOP_PROVISIONAL_UNDER_OPTIMISTIC_CREDIT")
 
 
 def test_stop_requires_EVERY_admissible_span_to_fail():
@@ -130,23 +131,72 @@ def test_stop_requires_EVERY_admissible_span_to_fail():
     assert c.stop_is_invariant() is False, "one surviving span means acquisition continues"
 
 
-def test_the_qualified_set_is_monotone_so_stopping_is_sound():
-    """Once a span fails it cannot be rescued: evidence only ever adds unresolved cells."""
-    g = grid(6, budget=0, permatickers_per_week=3, max_failing=0)
-    links = [ClassIdentityLink(pt, cls_for(pt), wk(-1), wk(7), source()) for pt in range(3)]
+def test_qualification_is_NOT_monotone_a_later_filing_can_UN_qualify_cells():
+    """The counterexample that withdrew the previous PASS.
+
+    The old test at this position gave every permanent security its own class tuple and CIK,
+    so a competing binding was impossible by construction -- it asserted a property it could
+    not falsify. Here one security is genuinely contested.
+    """
+    shared = cls_for(0)
+    g = GovernedGrid(
+        spans=(AdmissibleSpan("S", 6, 3, tuple(wk(i) for i in range(6))),),
+        excluded_low={wk(i): frozenset({999}) for i in range(6)},
+        weekly_unresolved_budget=0,
+    )
+    links = [ClassIdentityLink(999, shared, wk(-1), wk(7), source())]
     c = controller(g, links)
 
-    counts = []
-    for pt in range(3):
-        c.admit(
-            [
-                obs(500 + pt, wk(0), f"x{pt}", cls_for(pt)),
-                obs(500 + pt, wk(5), f"y{pt}", cls_for(pt)),
-            ]
-        )
-        counts.append(c.qualified_unresolved(wk(3)))
-    assert counts == sorted(counts), "qualified-unresolved must never shrink"
-    assert c.stop_is_invariant() is True
+    c.admit([obs(111111, wk(0), "a1", shared), obs(111111, wk(5), "a2", shared)])
+    before = c.report()["spans"][0]["failing_weeks"]
+    stop_before = c.stop_is_invariant()
+
+    # one FURTHER authorized filing reveals a second overlapping CIK for the same security
+    c.admit([obs(222222, wk(1), "b1", shared), obs(222222, wk(4), "b2", shared)])
+    after = c.report()["spans"][0]["failing_weeks"]
+    stop_after = c.stop_is_invariant()
+
+    assert after < before, "the qualified set SHRANK; qualification is not monotone"
+    assert (before, after) == (5, 2)
+    assert stop_before is True and stop_after is False, "STOP was declared, then retracted"
+
+
+def test_a_provisional_stop_would_have_refused_the_very_filing_that_retracts_it():
+    """Why the unsoundness matters: the gate refuses the request that fixes the answer."""
+    shared = cls_for(0)
+    g = GovernedGrid(
+        spans=(AdmissibleSpan("S", 6, 3, tuple(wk(i) for i in range(6))),),
+        excluded_low={wk(i): frozenset({999}) for i in range(6)},
+        weekly_unresolved_budget=0,
+    )
+    links = [ClassIdentityLink(999, shared, wk(-1), wk(7), source())]
+    c = controller(g, links)
+    c.admit([obs(111111, wk(0), "a1", shared), obs(111111, wk(5), "a2", shared)])
+
+    allowed, reason = c.may_spend_next_request()
+    assert allowed is False and reason == "G0A_STOP_PROVISIONAL_UNDER_OPTIMISTIC_CREDIT"
+
+
+def test_the_controller_declares_itself_non_authoritative():
+    c = controller(grid(6, budget=0, permatickers_per_week=1, max_failing=0), [])
+    rep = c.report()
+    assert rep["authoritative"] is False
+    assert "not monotone" in str(rep["hold_reason"])
+    assert "CIK_FILING_SPAN_BRACKETS_WEEK" in str(rep["hold_reason"])
+
+
+def test_stop_early_is_not_wired_into_the_acquisition_path():
+    """A non-authoritative gate must not be able to gate anything."""
+    import ast
+    import inspect
+
+    from app.altdata.sec001_v31 import acquire as acquire_mod
+
+    tree = ast.parse(inspect.getsource(acquire_mod))
+    names = {n.attr for n in ast.walk(tree) if isinstance(n, ast.Attribute)}
+    names |= {n.id for n in ast.walk(tree) if isinstance(n, ast.Name)}
+    assert "may_spend_next_request" not in names
+    assert "StopEarlyController" not in names
 
 
 def test_an_inadmissible_first_hop_qualifies_nothing():

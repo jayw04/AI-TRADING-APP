@@ -7,11 +7,37 @@ The sealed manifest does not authorize "download all 452 and then see what happe
     LINEAGE_STABLE excluded_low cells as permanently unresolved and treating EVERY
     unreviewed or unproven candidate as RESOLVED, every admissible >=20-year span fails O-2
 
-Two properties of that rule shape this module. It is **optimistic** — everything unproven is
-credited as resolved, so the unresolved set only ever grows as evidence arrives — and it is
-therefore **monotone**: once every admissible span fails, no later evidence can rescue one.
-That is what makes stopping safe rather than merely cheap, and it is why the controller can
-be consulted between requests instead of only at the end.
+⛔⛔ **THIS CONTROLLER IS NOT AUTHORITATIVE. Tranche stop-early is HOLD / UNSOUND.**
+
+An earlier revision of this docstring claimed the rule is **monotone** — that the
+qualified-unresolved set only grows, so once every admissible span fails no later evidence
+can rescue one. **That claim is false, and the binding layer proves it.** A permanent
+security with one covering CIK binding qualifies; a later *authorized* filing that reveals a
+second overlapping binding makes ``security_cik_binding_covers_week`` return ``COMPETING``,
+and the cell **un-qualifies**. Demonstrated: with partial evidence a span showed 5 failing
+weeks and STOP was declared, refusing the next request; one further authorized filing took it
+to 2 failing weeks and STOP retracted. The controller could therefore refuse to acquire the
+very document that removes the cells its STOP rested on — the opposite of the frozen rule
+that unreviewed candidates are credited RESOLVED.
+
+There is a second unsafe enlargement. ``LINEAGE_STABLE`` is the conjunction of **three**
+predicates — ``CIK_FILING_SPAN_BRACKETS_WEEK AND SECURITY_CIK_BINDING_COVERS_WEEK AND
+NO_COMPETING_SECURITY_CIK_BINDING`` — and the manifest says the cover-page tranche supplies
+evidence for the **middle term only**. ``_recompute`` promotes a successful coverage result
+straight into the stable set without consuming an independently qualified filing-span-bracket
+mask. Dropping a conjunct can only *enlarge* the qualified set, so the error runs in the
+unsafe direction: it makes STOP easier, not harder.
+
+Both must be fixed before any multi-accession tranche. A cell may only join the permanent
+unresolved set once **all three** conjuncts hold *and* the evidence scope capable of
+revealing a competitor for that security is closed — a per-security closure property, not a
+per-accession one. That closure predicate is deliberately **not frozen here**: proving what
+"all evidence capable of revealing a competitor" means must not accidentally settle for less
+than the full authorized scope.
+
+Until then ``may_spend_next_request`` is retained as a **non-authoritative** contract sketch.
+Nothing calls it in the acquisition path, and a one-accession canary cannot consult it
+because there is no next request.
 
 The controller is deliberately *injected* with the governed grid rather than reaching for it:
 the weekly grid, the ``excluded_low`` cell set and the admissible spans are sealed inputs
@@ -90,20 +116,25 @@ class StopEarlyController:
         bindings = build_security_cik_bindings(episodes, self.links, self.policy)
         self._qualified = {}
         for week, permatickers in self.grid.excluded_low.items():
+            # NOTE: named `covered`, not `stable` -- it is not LINEAGE_STABLE. The
+            # filing-span-bracket conjunct is not consumed here; see the module docstring.
             stable: set[int] = set()
             for pt in permatickers:
                 covered, _status = security_cik_binding_covers_week(
                     bindings, self.links, pt, week, self.policy
                 )
                 if covered:
-                    # LINEAGE_STABLE and excluded_low => permanently unresolved, and now
-                    # QUALIFIED as such by evidence rather than assumed.
                     stable.add(pt)
             self._qualified[week] = stable
 
     # ---- the optimistic test ----------------------------------------------------------
     def qualified_unresolved(self, week: datetime) -> int:
-        """Only cells PROVEN lineage-stable count. Everything unproven is credited resolved."""
+        """Cells currently covered by a unique binding.
+
+        ⛔ **Provisional, and NOT yet ``LINEAGE_STABLE``**: this consumes the middle and third
+        conjuncts only, omitting ``CIK_FILING_SPAN_BRACKETS_WEEK``, and a later filing can
+        remove a member by revealing a competing binding.
+        """
         return len(self._qualified.get(week, ()))
 
     def week_fails(self, week: datetime) -> bool:
@@ -114,22 +145,36 @@ class StopEarlyController:
         return failing > span.max_failing_weeks
 
     def stop_is_invariant(self) -> bool:
-        """True when EVERY admissible span already fails under the optimistic credit.
+        """True when EVERY admissible span currently fails under the optimistic credit.
 
-        Monotone: the qualified-unresolved set only grows as evidence arrives, so a span
-        that fails here cannot be rescued by a later observation. Stopping is therefore
-        sound, not merely economical.
+        ⛔ **"Currently", not "invariantly".** The name is retained for continuity with the
+        frozen vocabulary, but this result is **provisional**: it can flip back to False when
+        further authorized evidence reveals a competing binding. See the module docstring.
+        Do not treat a True here as a verdict, and do not gate acquisition on it until the
+        three-conjunct, closure-aware rule is implemented.
         """
         return bool(self.grid.spans) and all(self.span_fails_o2(s) for s in self.grid.spans)
 
     def may_spend_next_request(self) -> tuple[bool, str]:
-        """The pre-acquisition gate. Consulted BEFORE each request, never after."""
+        """⛔ NON-AUTHORITATIVE contract sketch. Not wired into the acquisition path.
+
+        The shape is right — consulted *before* a request so a verdict cannot be overrun —
+        but the underlying qualification is unsound (module docstring), so this must not gate
+        real acquisition. It is kept so the integration contract stays visible and testable
+        while the closure-aware rule is designed.
+        """
         if self.stop_is_invariant():
-            return False, "G0A_STOP_INVARIANT_UNDER_OPTIMISTIC_CREDIT"
+            return False, "G0A_STOP_PROVISIONAL_UNDER_OPTIMISTIC_CREDIT"
         return True, "CONTINUE"
 
     def report(self) -> dict[str, object]:
         return {
+            "authoritative": False,
+            "hold_reason": (
+                "qualification is not monotone (a later authorized filing can reveal a "
+                "competing binding and un-qualify cells) and omits the "
+                "CIK_FILING_SPAN_BRACKETS_WEEK conjunct"
+            ),
             "observations_admitted": len(self.observations),
             "spans": [
                 {

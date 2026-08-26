@@ -45,6 +45,9 @@ class AccessionState(StrEnum):
     """The durable lifecycle of one authorized accession."""
 
     AUTHORIZED = "AUTHORIZED"
+    LOCATOR_INTENT = "LOCATOR_INTENT"
+    LOCATOR_REQUEST_SENT = "LOCATOR_REQUEST_SENT"
+    LOCATOR_RESOLVED = "LOCATOR_RESOLVED"
     REQUEST_INTENT = "REQUEST_INTENT"
     REQUEST_SENT = "REQUEST_SENT"
     RESPONSE_RETAINED = "RESPONSE_RETAINED"
@@ -53,22 +56,39 @@ class AccessionState(StrEnum):
     SEALED = "SEALED"
 
 
-#: States from which nothing further is owed. Everything else, seen on restart, is an
-#: interrupted acquisition requiring adjudication.
+#: States from which nothing further is owed.
 TERMINAL_STATES: Final[frozenset[AccessionState]] = frozenset(
     {AccessionState.SEALED, AccessionState.EVIDENCE_UNAVAILABLE}
 )
 
-#: States that prove a request was already put on the wire. Re-requesting from any of these
-#: would spend the frozen document budget twice for one accession.
-REQUEST_MAY_HAVE_BEEN_SENT: Final[frozenset[AccessionState]] = frozenset(
+#: States a *completed* step leaves behind, from which work may legitimately continue.
+#: ``LOCATOR_RESOLVED`` is the load-bearing one: an accession screened out of the canary on
+#: document size has spent no document request, so it stays available rather than being
+#: consumed. Failing a screen is not the same as being used up.
+RESUMABLE_STATES: Final[frozenset[AccessionState]] = frozenset(
+    {AccessionState.AUTHORIZED, AccessionState.LOCATOR_RESOLVED}
+)
+
+#: Mid-flight states. A crash in any of these means a request may already have been put on
+#: the wire -- an index request for the locator pair, a document request for the rest -- so
+#: repeating it would spend a frozen budget twice for one accession.
+INTERRUPTED_STATES: Final[frozenset[AccessionState]] = frozenset(
     {
+        AccessionState.LOCATOR_INTENT,
+        AccessionState.LOCATOR_REQUEST_SENT,
         AccessionState.REQUEST_INTENT,
         AccessionState.REQUEST_SENT,
         AccessionState.RESPONSE_RETAINED,
         AccessionState.PARSED,
     }
 )
+
+# The three sets must partition the lifecycle: a state that belongs to none of them would
+# fall through every guard, which is precisely how the previous revision leaked a duplicate.
+assert set(AccessionState) == TERMINAL_STATES | RESUMABLE_STATES | INTERRUPTED_STATES
+assert not (TERMINAL_STATES & RESUMABLE_STATES)
+assert not (RESUMABLE_STATES & INTERRUPTED_STATES)
+assert not (TERMINAL_STATES & INTERRUPTED_STATES)
 
 
 class InterruptedAcquisition(RuntimeError):
@@ -95,6 +115,28 @@ def _fsync_dir(path: Path) -> None:
         pass
     finally:
         os.close(fd)
+
+
+def atomic_write_json(path: Path, payload: dict[str, Any]) -> None:
+    """Durably replace ``path`` with ``payload``.
+
+    temp -> write -> flush -> fsync -> close -> os.replace -> directory sync. Exported so
+    the request ledger uses exactly the primitive the journal does: an accounting record
+    written *before* a request goes on the wire is worth nothing if it can be lost by the
+    same failure the request survives.
+    """
+    path.parent.mkdir(parents=True, exist_ok=True)
+    fd, tmp = tempfile.mkstemp(dir=str(path.parent), suffix=".tmp")
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as fh:
+            fh.write(json.dumps(payload, indent=2, sort_keys=True))
+            fh.flush()
+            os.fsync(fh.fileno())
+        os.replace(tmp, path)
+        _fsync_dir(path.parent)
+    except BaseException:
+        Path(tmp).unlink(missing_ok=True)
+        raise
 
 
 @dataclass
@@ -146,25 +188,13 @@ class AcquisitionJournal:
 
     # ---- durable write ---------------------------------------------------------------
     def _flush(self) -> None:
-        payload = json.dumps(
+        atomic_write_json(
+            self.path,
             {
                 "accessions": {k: v.to_json() for k, v in self._records.items()},
                 "updated_utc": _utc_now(),
             },
-            indent=2,
-            sort_keys=True,
         )
-        fd, tmp = tempfile.mkstemp(dir=str(self.path.parent), suffix=".journal.tmp")
-        try:
-            with os.fdopen(fd, "w", encoding="utf-8") as fh:
-                fh.write(payload)
-                fh.flush()
-                os.fsync(fh.fileno())
-            os.replace(tmp, self.path)
-            _fsync_dir(self.path.parent)
-        except BaseException:
-            Path(tmp).unlink(missing_ok=True)
-            raise
 
     # ---- queries ---------------------------------------------------------------------
     def get(self, accession: str) -> AccessionRecord | None:
@@ -176,11 +206,7 @@ class AcquisitionJournal:
 
     def interrupted(self) -> list[AccessionRecord]:
         """Accessions found mid-flight. Neither retried nor treated as complete."""
-        return [
-            r
-            for r in self._records.values()
-            if r.state not in TERMINAL_STATES and r.state != AccessionState.AUTHORIZED
-        ]
+        return [r for r in self._records.values() if r.state in INTERRUPTED_STATES]
 
     def sealed(self) -> list[AccessionRecord]:
         return [r for r in self._records.values() if r.state is AccessionState.SEALED]
@@ -213,7 +239,7 @@ class AcquisitionJournal:
         state = self.state_of(accession)
         if state in TERMINAL_STATES:
             raise CustodyViolation(f"{accession} is already terminal in state {state.value}")
-        if state in REQUEST_MAY_HAVE_BEEN_SENT:
+        if state in INTERRUPTED_STATES:
             raise InterruptedAcquisition(
                 f"{accession} was left in {state.value}: a request may already have been sent "
                 "and its evidence may be incomplete. This is a HOLD for adjudication -- it is "
@@ -308,6 +334,7 @@ def reconcile(
         "sealed_but_artifact_missing_or_corrupt": [],
         "interrupted": [],
         "evidence_unavailable": [],
+        "locator_resolved_unspent": [],
     }
     for rec in journal._records.values():
         if rec.state is AccessionState.SEALED:
@@ -318,6 +345,8 @@ def reconcile(
             report[key].append(rec.accession)
         elif rec.state is AccessionState.EVIDENCE_UNAVAILABLE:
             report["evidence_unavailable"].append(rec.accession)
-        elif rec.state is not AccessionState.AUTHORIZED:
+        elif rec.state in INTERRUPTED_STATES:
             report["interrupted"].append(rec.accession)
+        elif rec.state is AccessionState.LOCATOR_RESOLVED:
+            report["locator_resolved_unspent"].append(rec.accession)
     return report

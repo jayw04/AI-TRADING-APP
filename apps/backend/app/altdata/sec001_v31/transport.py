@@ -34,7 +34,6 @@ between "request sent" and "evidence sealed", which is where exactly-once actual
 from __future__ import annotations
 
 import json
-import os
 import random
 import re
 import time
@@ -51,6 +50,7 @@ from app.altdata.sec001_v31.authority import (
     AcquisitionAuthority,
     NotAuthorized,
 )
+from app.altdata.sec001_v31.custody import atomic_write_json
 
 GZIP_MAGIC: Final = bytes((0x1F, 0x8B))
 IDENTITY_ENCODINGS: Final[frozenset[str | None]] = frozenset({None, "", "identity"})
@@ -116,24 +116,25 @@ class DurableLedger:
         return led
 
     def _flush(self) -> None:
-        self.path.parent.mkdir(parents=True, exist_ok=True)
-        tmp = self.path.with_suffix(self.path.suffix + ".tmp")
-        tmp.write_text(
-            json.dumps(
-                {
-                    "index_requests": self.index_requests,
-                    "document_requests": self.document_requests,
-                    "retries": self.retries,
-                    "acquired": sorted(self.acquired),
-                    "events": self.events,
-                    "updated_utc": _utc_now(),
-                },
-                indent=2,
-                sort_keys=True,
-            ),
-            encoding="utf-8",
+        """Durable, via the same primitive the accession journal uses.
+
+        Review finding: this previously wrote a temp file and ``os.replace``d it with no
+        ``fsync`` of either the file or its directory. ``charge_document`` is supposed to
+        account for a request *before* it goes on the wire, and an accounting record that
+        can be lost by the same host failure the request survives does not do that -- the
+        journal would show REQUEST_INTENT while the ledger forgot the spend.
+        """
+        atomic_write_json(
+            self.path,
+            {
+                "index_requests": self.index_requests,
+                "document_requests": self.document_requests,
+                "retries": self.retries,
+                "acquired": sorted(self.acquired),
+                "events": self.events,
+                "updated_utc": _utc_now(),
+            },
         )
-        os.replace(tmp, self.path)
 
     # ---- accounting -----------------------------------------------------------------
     def charge_document(self, url: str) -> None:
@@ -372,6 +373,66 @@ class BoundedFetcher:
                     attempts=attempt,
                     eof_reached=eof,
                     total_bytes=total,
+                )
+        return FetchOutcome(FETCH_UNAVAILABLE, attempts=self.retry_max_attempts)
+
+    def get_index(self, url: str) -> FetchOutcome:
+        """Fetch one SEC *index* document, charged against the index budget.
+
+        Same origin lock, halt latch, retry policy and bounded streaming as a document
+        fetch; only the budget differs. Locator resolution is an index operation and must
+        not be paid for out of the 1,200 document requests.
+        """
+        if self._halted:
+            raise CrawlHalt("fetcher is latched after a halt status; no further requests")
+        self.authority.require_origin(url)
+
+        for attempt in range(1, self.retry_max_attempts + 1):
+            self._throttle()
+            self.ledger.charge_index(url)
+            with self._client.stream("GET", url) as r:
+                status = r.status_code
+                if status in self.halt_statuses:
+                    self._halted = True
+                    raise CrawlHalt(f"EDGAR returned {status} for {url}")
+                if status in REDIRECT_STATUSES:
+                    return FetchOutcome(
+                        FETCH_UNAVAILABLE,
+                        http_status=status,
+                        attempts=attempt,
+                        reason="redirect_refused",
+                    )
+                if status in self.retry_statuses:
+                    if attempt == self.retry_max_attempts:
+                        return FetchOutcome(FETCH_UNAVAILABLE, http_status=status, attempts=attempt)
+                    self.ledger.charge_retry()
+                    delay = min(60.0, 2.0 ** (attempt - 1))
+                    self._sleep(delay * (1.0 + self._rng.uniform(-0.25, 0.25)))
+                    continue
+                if status != 200:
+                    return FetchOutcome(
+                        FETCH_UNAVAILABLE,
+                        http_status=status,
+                        attempts=attempt,
+                        reason="unexpected_status",
+                    )
+                buf = bytearray()
+                truncated = False
+                for chunk in r.iter_bytes(65536):
+                    take = self.stop_threshold - len(buf)
+                    if len(chunk) >= take:
+                        buf.extend(chunk[:take])
+                        truncated = True
+                        break
+                    buf.extend(chunk)
+                return FetchOutcome(
+                    FETCH_OK,
+                    body=bytes(buf),
+                    truncated=truncated,
+                    bytes_consumed=len(buf),
+                    http_status=status,
+                    attempts=attempt,
+                    eof_reached=not truncated,
                 )
         return FetchOutcome(FETCH_UNAVAILABLE, attempts=self.retry_max_attempts)
 

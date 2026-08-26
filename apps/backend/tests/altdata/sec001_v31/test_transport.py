@@ -273,3 +273,66 @@ def test_live_authorized_continuation_setting_is_zero():
     from app.altdata.sec001_v31.authority import LIVE_MAX_CONTINUATIONS
 
     assert LIVE_MAX_CONTINUATIONS == 0
+
+
+# ======================================================== ledger durability
+def test_ledger_writes_are_fsynced_like_the_journal(authority, tmp_path, monkeypatch):
+    """An accounting record written BEFORE a request goes on the wire is worth nothing if
+    the same host failure can lose it. The ledger must use the journal's durable primitive."""
+    import app.altdata.sec001_v31.custody as custody_mod
+
+    synced: list[str] = []
+    real_fsync = custody_mod.os.fsync
+
+    def watching(fd):
+        synced.append("fsync")
+        return real_fsync(fd)
+
+    monkeypatch.setattr(custody_mod.os, "fsync", watching)
+    led = DurableLedger.open(tmp_path / "l.json", authority)
+    synced.clear()
+    led.charge_document("https://www.sec.gov/x")
+    assert synced, "charge_document must fsync before the caller may issue the request"
+
+
+def test_ledger_uses_the_shared_atomic_primitive():
+    import ast
+    import inspect
+
+    from app.altdata.sec001_v31 import transport as t
+
+    src = inspect.getsource(DurableLedger._flush)
+    tree = ast.parse(src.lstrip())
+    called = {
+        n.func.id
+        for n in ast.walk(tree)
+        if isinstance(n, ast.Call) and isinstance(n.func, ast.Name)
+    }
+    assert "atomic_write_json" in called
+    assert hasattr(t, "atomic_write_json")
+
+
+def test_a_partially_written_ledger_never_replaces_the_good_one(authority, tmp_path, monkeypatch):
+    import app.altdata.sec001_v31.custody as custody_mod
+
+    p = tmp_path / "l.json"
+    led = DurableLedger.open(p, authority)
+    led.charge_document("https://www.sec.gov/a")
+    good = p.read_text(encoding="utf-8")
+
+    def boom(*a, **k):
+        raise OSError("crash during replace")
+
+    monkeypatch.setattr(custody_mod.os, "replace", boom)
+    with pytest.raises(OSError):
+        led.charge_document("https://www.sec.gov/b")
+
+    assert p.read_text(encoding="utf-8") == good, "the previous durable state must survive"
+    assert list(tmp_path.glob("*.tmp")) == [], "no temporary must be left behind"
+
+
+def test_index_charges_are_durable_and_survive_reopen(authority, tmp_path):
+    p = tmp_path / "l.json"
+    led = DurableLedger.open(p, authority)
+    led.charge_index("https://data.sec.gov/submissions/x.json")
+    assert DurableLedger.open(p, authority).index_requests == 29  # 28 from step 1 + 1

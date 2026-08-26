@@ -8,11 +8,13 @@ import pytest
 from app.altdata.sec001_v31 import cover_parser
 from app.altdata.sec001_v31.acquire import (
     ACQUIRED,
+    INCONSISTENT_CUSTODY_STATE,
     INDEX_COVER_CIK_MISMATCH,
     REFUSED_CUTOFF,
-    REFUSED_DUPLICATE,
+    REFUSED_EVIDENCE_UNAVAILABLE,
     REFUSED_FORM,
     REFUSED_NOT_IN_ENVELOPE,
+    REFUSED_SEALED,
     CoverAcquisition,
 )
 from app.altdata.sec001_v31.authority import NotAuthorized
@@ -171,18 +173,28 @@ def test_locator_repr_does_not_leak_the_filename(locator):
 
 
 # ===================================================== CIK-once, durable
-def test_duplicate_is_refused_and_survives_a_new_orchestrator(
+def test_a_second_acquisition_after_sealing_is_refused_precisely(
     authority, ledger, store, journal, authorized, locator
 ):
+    """CIK-once across a restart. The refusal now names WHY -- generic "duplicate" is gone,
+    because every case it covered is expressed by a more precise custody state."""
     calls: list[str] = []
     acq = build(authority, ledger, store, journal, doc_for(authorized), calls)
     assert acq.acquire(authorized, locator).status == ACQUIRED
 
-    # a NEW orchestrator over the SAME durable ledger, as a restart would produce
+    # a NEW orchestrator over the SAME durable stores, as a restart would produce
     acq2 = build(authority, ledger, store, journal, doc_for(authorized), calls)
     r = acq2.acquire(authorized, locator)
-    assert r.status == REFUSED_DUPLICATE
+    assert r.status == REFUSED_SEALED
     assert len(calls) == 1 and ledger.document_requests == 1
+
+
+def test_there_is_no_generic_duplicate_status(authority):
+    import app.altdata.sec001_v31.acquire as acquire_mod
+
+    assert not hasattr(acquire_mod, "REFUSED_DUPLICATE")
+    for r in acquire_mod.refusal_reasons():
+        assert r != "REFUSED_ALREADY_ACQUIRED"
 
 
 # ===================================================== multi-class + atomic custody
@@ -384,3 +396,129 @@ def test_a_successful_acquisition_reaches_SEALED_with_a_verified_digest(
     assert store.verify(
         authorized.cik, authorized.accession, authority.source_variant, rec.artifact_sha256
     )
+
+
+# ===================================================== journal-first reconciliation (P0)
+def test_ledger_acquired_plus_journal_PARSED_raises_rather_than_reporting_duplicate(
+    authority, ledger, store, journal, authorized, locator
+):
+    """The exact defect: a crash between mark_acquired() and sealing.
+
+    The old order consulted the legacy acquired-set first and returned REFUSED_DUPLICATE,
+    so the restarted call never reached guard_fresh() and an interrupted acquisition was
+    reported as an ordinary duplicate. Journal state is authoritative now.
+    """
+    from app.altdata.sec001_v31.custody import InterruptedAcquisition
+
+    # reconstruct the post-crash state exactly
+    journal.transition(
+        authorized.accession, authorized.cik, authorized.form, AccessionState.REQUEST_INTENT
+    )
+    journal.transition(
+        authorized.accession, authorized.cik, authorized.form, AccessionState.REQUEST_SENT
+    )
+    journal.transition(authorized.accession, authorized.cik, authorized.form, AccessionState.PARSED)
+    ledger.mark_acquired(authorized.cik, authorized.form, authorized.accession)
+    assert ledger.already_acquired(authorized.cik, authorized.form, authorized.accession)
+
+    calls: list[str] = []
+    acq = build(authority, ledger, store, journal, doc_for(authorized), calls)
+    before = ledger.document_requests
+
+    with pytest.raises(InterruptedAcquisition):
+        acq.acquire(authorized, locator)
+
+    assert calls == [], "zero new SEC requests"
+    assert ledger.document_requests == before
+
+
+@pytest.mark.parametrize(
+    "state",
+    [
+        AccessionState.LOCATOR_INTENT,
+        AccessionState.LOCATOR_REQUEST_SENT,
+        AccessionState.REQUEST_INTENT,
+        AccessionState.REQUEST_SENT,
+        AccessionState.RESPONSE_RETAINED,
+        AccessionState.PARSED,
+    ],
+)
+def test_every_mid_flight_state_raises_regardless_of_the_ledger(
+    authority, ledger, store, journal, authorized, locator, state
+):
+    from app.altdata.sec001_v31.custody import InterruptedAcquisition
+
+    journal.transition(authorized.accession, authorized.cik, authorized.form, state)
+    ledger.mark_acquired(authorized.cik, authorized.form, authorized.accession)
+    acq = build(authority, ledger, store, journal, doc_for(authorized))
+    with pytest.raises(InterruptedAcquisition):
+        acq.acquire(authorized, locator)
+
+
+def test_a_sealed_accession_is_refused_and_its_artifact_verified(
+    authority, ledger, store, journal, authorized, locator
+):
+    acq = build(authority, ledger, store, journal, doc_for(authorized))
+    assert acq.acquire(authorized, locator).accession_state == AccessionState.SEALED.value
+
+    again = build(authority, ledger, store, journal, doc_for(authorized))
+    r = again.acquire(authorized, locator)
+    assert r.status == REFUSED_SEALED
+    assert r.diagnostics["artifact_sha256"]
+
+
+def test_sealed_but_missing_artifact_is_INCONSISTENT_not_a_refetch(
+    authority, ledger, store, journal, authorized, locator
+):
+    acq = build(authority, ledger, store, journal, doc_for(authorized))
+    acq.acquire(authorized, locator)
+    store.path_for(authorized.cik, authorized.accession, authority.source_variant).unlink()
+
+    calls: list[str] = []
+    again = build(authority, ledger, store, journal, doc_for(authorized), calls)
+    r = again.acquire(authorized, locator)
+
+    assert r.status == INCONSISTENT_CUSTODY_STATE
+    assert r.diagnostics["reason"] == "sealed_but_artifact_missing_or_corrupt"
+    assert calls == [], "a broken invariant is adjudicated, never re-fetched"
+
+
+def test_untouched_journal_but_ledger_says_acquired_is_INCONSISTENT_not_duplicate(
+    authority, ledger, store, journal, authorized, locator
+):
+    """The two stores disagree about whether a request was ever made. Neither answer may
+    be acted on, so this is a HOLD rather than an ordinary duplicate refusal."""
+    ledger.mark_acquired(authorized.cik, authorized.form, authorized.accession)
+    assert journal.state_of(authorized.accession) is AccessionState.AUTHORIZED
+
+    calls: list[str] = []
+    acq = build(authority, ledger, store, journal, doc_for(authorized), calls)
+    r = acq.acquire(authorized, locator)
+
+    assert r.status == INCONSISTENT_CUSTODY_STATE
+    assert r.diagnostics["reason"] == "ledger_reports_acquired_but_journal_is_not_terminal"
+    assert calls == []
+
+
+def test_a_terminal_evidence_unavailable_accession_is_refused(
+    authority, ledger, store, journal, authorized, locator
+):
+    journal.transition(
+        authorized.accession, authorized.cik, authorized.form, AccessionState.EVIDENCE_UNAVAILABLE
+    )
+    calls: list[str] = []
+    acq = build(authority, ledger, store, journal, doc_for(authorized), calls)
+    r = acq.acquire(authorized, locator)
+    assert r.status == REFUSED_EVIDENCE_UNAVAILABLE and calls == []
+
+
+def test_locator_resolved_is_resumable_not_interrupted(
+    authority, ledger, store, journal, authorized, locator
+):
+    """A candidate screened out on size has spent no document request and stays available."""
+    journal.transition(
+        authorized.accession, authorized.cik, authorized.form, AccessionState.LOCATOR_RESOLVED
+    )
+    acq = build(authority, ledger, store, journal, doc_for(authorized))
+    r = acq.acquire(authorized, locator)
+    assert r.status == ACQUIRED and r.accession_state == AccessionState.SEALED.value

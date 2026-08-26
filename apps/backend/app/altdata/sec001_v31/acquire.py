@@ -37,6 +37,8 @@ from app.altdata.sec001_v31.authority import (
 )
 from app.altdata.sec001_v31.clock import accepted_at_utc
 from app.altdata.sec001_v31.custody import (
+    INTERRUPTED_STATES,
+    RESUMABLE_STATES,
     AccessionState,
     AcquisitionJournal,
     TransactionalEvidenceStore,
@@ -51,8 +53,13 @@ from app.altdata.sec001_v31.transport import FETCH_OK, BoundedFetcher, DurableLe
 
 REFUSED_FORM: Final = "REFUSED_NON_PERMITTED_FORM"
 REFUSED_CUTOFF: Final = "REFUSED_ACCEPTED_AFTER_CUTOFF"
-REFUSED_DUPLICATE: Final = "REFUSED_ALREADY_ACQUIRED"
 REFUSED_NOT_IN_ENVELOPE: Final = "REFUSED_NOT_IN_AUTHORIZED_ENVELOPE"
+REFUSED_SEALED: Final = "REFUSED_ALREADY_SEALED"
+REFUSED_EVIDENCE_UNAVAILABLE: Final = "REFUSED_TERMINAL_EVIDENCE_UNAVAILABLE"
+#: The journal has no record of an accession the legacy ledger calls acquired. The two
+#: stores disagree about whether a request was ever made, so neither answer may be acted
+#: on: this is a HOLD, never an ordinary duplicate refusal.
+INCONSISTENT_CUSTODY_STATE: Final = "INCONSISTENT_CUSTODY_STATE"
 ACQUIRED: Final = "ACQUIRED"
 
 #: The registrant CIK the cover page declares disagrees with the CIK on the index record.
@@ -63,11 +70,13 @@ INDEX_COVER_CIK_MISMATCH: Final = "INDEX_COVER_CIK_MISMATCH"
 
 __all__ = [
     "ACQUIRED",
+    "INCONSISTENT_CUSTODY_STATE",
     "INDEX_COVER_CIK_MISMATCH",
     "REFUSED_CUTOFF",
-    "REFUSED_DUPLICATE",
+    "REFUSED_EVIDENCE_UNAVAILABLE",
     "REFUSED_FORM",
     "REFUSED_NOT_IN_ENVELOPE",
+    "REFUSED_SEALED",
     "AcquisitionResult",
     "CoverAcquisition",
     "LocatorMismatch",
@@ -90,7 +99,14 @@ class AcquisitionResult:
 
 def refusal_reasons() -> tuple[str, ...]:
     """Every pre-network refusal, for documentation and adjudication."""
-    return (REFUSED_FORM, REFUSED_CUTOFF, REFUSED_NOT_IN_ENVELOPE, REFUSED_DUPLICATE)
+    return (
+        REFUSED_FORM,
+        REFUSED_CUTOFF,
+        REFUSED_NOT_IN_ENVELOPE,
+        REFUSED_SEALED,
+        REFUSED_EVIDENCE_UNAVAILABLE,
+        INCONSISTENT_CUSTODY_STATE,
+    )
 
 
 class CoverAcquisition:
@@ -135,16 +151,61 @@ class CoverAcquisition:
                 },
             )
 
-        if self.ledger.already_acquired(meta.cik, meta.form, meta.accession):
+        # ---- custody reconciliation: the JOURNAL is authoritative ---------------------
+        # Review finding (P0): this previously consulted the legacy acquired-set first, so a
+        # crash between mark_acquired() and sealing came back as REFUSED_DUPLICATE and never
+        # reached guard_fresh() -- an interrupted acquisition silently reported as an
+        # ordinary duplicate. Journal state is now decided first, and the ledger is only a
+        # cross-check.
+        state = self.journal.state_of(meta.accession)
+        ledger_says_acquired = self.ledger.already_acquired(meta.cik, meta.form, meta.accession)
+
+        if state is AccessionState.SEALED:
+            rec = self.journal.get(meta.accession)
+            digest = rec.artifact_sha256 if rec else None
+            verified = bool(digest) and self.store.verify(
+                meta.cik, meta.accession, a.source_variant, str(digest)
+            )
+            if not verified:
+                # Sealed, but the artifact is gone or altered: the invariant is broken and
+                # this is an adjudication, not a refetch.
+                return AcquisitionResult(
+                    INCONSISTENT_CUSTODY_STATE,
+                    diagnostics={
+                        "accession": meta.accession,
+                        "reason": "sealed_but_artifact_missing_or_corrupt",
+                        "artifact_sha256": digest,
+                    },
+                    accession_state=state.value,
+                )
             return AcquisitionResult(
-                REFUSED_DUPLICATE,
-                diagnostics={"accession": meta.accession},
-                accession_state=self.journal.state_of(meta.accession).value,
+                REFUSED_SEALED,
+                diagnostics={"accession": meta.accession, "artifact_sha256": digest},
+                accession_state=state.value,
             )
 
-        # Refuses a terminal accession, and raises InterruptedAcquisition for one left
-        # mid-flight -- neither silently retried nor silently treated as complete.
-        self.journal.guard_fresh(meta.accession)
+        if state is AccessionState.EVIDENCE_UNAVAILABLE:
+            return AcquisitionResult(
+                REFUSED_EVIDENCE_UNAVAILABLE,
+                diagnostics={"accession": meta.accession},
+                accession_state=state.value,
+            )
+
+        if state in INTERRUPTED_STATES:
+            # Raises rather than returns: a mid-flight accession is not a status a fail-soft
+            # caller may absorb.
+            self.journal.guard_fresh(meta.accession)
+
+        if state in RESUMABLE_STATES and ledger_says_acquired:
+            return AcquisitionResult(
+                INCONSISTENT_CUSTODY_STATE,
+                diagnostics={
+                    "accession": meta.accession,
+                    "reason": "ledger_reports_acquired_but_journal_is_not_terminal",
+                    "journal_state": state.value,
+                },
+                accession_state=state.value,
+            )
 
         # The bytes must belong to the filing they will be recorded as, by every component.
         locator.assert_matches(meta)
