@@ -184,7 +184,7 @@ That state is superseded.** The corrected status, carried here so a later reader
 |---|---|
 | SEC-001 V3-RC | **STOP / REDESIGN — classification coverage gate FAILED** before economics were run |
 | Coverage token `5b26ffa209a6a13a599a99fb28268b46be569cd2` | **SPENT / CONSUMED** — may never govern a successor run |
-| Successor candidate | **SEC-001 V3.1** — `docs/design/SEC-001 V3.1/TradingWorkbench_SEC001_V3_1_ClassificationLineage_Redesign_Design_Implementation_v1_2_FINAL.md` (v1.2 FINAL, 2026-08-26) |
+| Successor candidate | **SEC-001 V3.1** — governed separately; consult the SEC-001 track's governing records. ⛔ No document version is pinned here deliberately: a version-specific pointer goes stale the next time SEC-001 advances, which is the failure this correction exists to stop |
 | Authority + execution state | **Governed in a separate session.** WP0A / WP0A-Q-COVER authority and execution state are controlled **there**. ⛔ **This ATP plan creates no SEC-001 authority** and does not reproduce, sequence or adjudicate its work packages. ⚠ Do not restate SEC-001 gate status from this document — read the SEC-001 track's own records |
 
 ⛔ **This plan does not reproduce, sequence, or adjudicate any V3.1 work package.** §J's V3 narrative is
