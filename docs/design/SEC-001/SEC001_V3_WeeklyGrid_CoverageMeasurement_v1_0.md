@@ -33,6 +33,12 @@ is never used as a join key.
 | classification segments projection (from the epoch's 1,146 per-CIK segment files) | epoch host | 83,066 | `90d7d9f7b55482ea…` |
 | countersigned `sic_mapping` (110 rows, Jay Wang 2026-07-11) | `mr002_research.duckdb` | 52,158 | `633dc4cfa4ee9e7f…` |
 
+**Executable identity.** `apps/backend/scripts/sec001_v3_coverage_measure.py` —
+git blob `c877b3091f0018a8e82453b109437ad384560dee`, content
+**sha256 `28f4182b2bfbade8dd056f03291ede905eb65bb36f87a8ec4e8a87477b15fb05`**. Worktree and git-blob
+digests were compared and are identical, so no CRLF divergence exists for this artifact.
+Result artifact **sha256 `788755facfc2f2056dcfb4b19db0a3e4a80a03ce3dfa2f47e963c2a78ee24988`**.
+
 Supporting identities re-verified at read time: grid internal `grid_sha256`
 `baf0da7c20bed590…` (matches the value the PIT-200 union artifact records as its upstream);
 CIK-resolution artifact `1f7d523b9419301a…`; PIT-200 union `d338e65f9ece1ff7…`; full segments
@@ -322,6 +328,59 @@ against `sic_field_present_anywhere` True 75,372. The 98.1% observation-level SI
 "anywhere" acceptance rule.
 
 ---
+
+## 6a. Why no outstanding precondition can rescue this result — with the bound stated correctly
+
+Recorded because the closeout depends on it, and because the intuitive form of the argument is
+slightly wrong.
+
+**F-1 / Defect G cannot change the result.** It concerns byte custody of 177 observations whose
+decisions are recorded and whose outcomes agree. Repairing custody creates no new SIC observation,
+so it cannot move a single unresolved cell. Unconditional.
+
+**F-6 (header-only admissibility) cannot rescue the gate — but it is *not* monotone-decreasing.**
+Restricting acceptance to a SIC found inside `<SEC-HEADER>` removes observations, and the intuitive
+claim is that removing observations can only lower coverage. That is false in one specific way: if
+the latest SIC by close t comes from an outside-header observation whose code maps to an
+`excluded_low` row, deleting that observation lets an **earlier** segment govern, which may map to an
+approved row — turning an unresolved cell **resolved**. So a header-only recomputation could move
+some cells *up*.
+
+The conclusion survives anyway, with a hard ceiling instead of a monotonicity claim:
+
+* A cell unresolved for `C3_no_sic_accepted_by_close_t` can **never** become resolved by deleting
+  observations — nothing creates a SIC where none exists. That class (12,670 cells) is untouchable.
+* Therefore the **only** cells that could improve are the 5,224 `excluded_low` cells.
+* **Ceiling if every single one flipped:** coverage `92.801% + 2.095% = 94.896%`, qualifying
+  rebalances **834 of 1,247 (66.9%)** — measured directly, not estimated.
+
+`θ_window` requires **95% of rebalances**. The absolute best case for a header-only artifact is
+66.9%, short by **28.1 percentage points**, and it is unreachable besides. **The gate cannot be
+rescued by F-6, so regenerating a header-only classification artifact is not required to decide this
+candidate.** The measured 92.801% should be described as *not admissible-final* rather than as an
+upper bound, since the true header-only figure could sit on either side of it.
+
+## 6b. Feasibility signal for any successor — the 2000–2001 left edge may be structurally closed
+
+Bearing on whether a ≥20-year span starting in 2000 is attainable **at all**, independent of the
+lineage defect. 141 of the population's CIKs file the 20-F/40-F families; **122 of them have no
+acquired filing before 2002** (§6, source-vs-crawl unresolved). Their presence in the PIT-200 then:
+
+| year | mean such names per rebalance | max | rebalances already over the 10-name budget from this cause alone |
+|---|---|---|---|
+| 2000 | **8.1** | 11 | 4 of 47 |
+| 2001 | **6.1** | 7 | 0 of 48 |
+
+`θ_name` permits **10** unresolved names in total. In 2000 this one cause consumes a mean of 8.1 of
+that budget, leaving **1.9 names of headroom for every other cause combined**; in 2001 it leaves 3.9.
+⭐ **Lineage repair does nothing for these names** — they are foreign private issuers with a single
+CIK, not re-registered successors. If their pre-2002 filings genuinely do not exist in EDGAR
+electronically, a 2000-start span at `θ_name = 0.95` is foreclosed no matter how good the lineage
+work is, and the ≥20-year floor would then force the whole construction rather than the start date.
+
+⛔ This is a **feasibility** observation, not a proposal to move any threshold. It argues that the
+source-vs-crawl question in §6 should be settled **before** a successor freeze is authorized, not
+after — because it determines whether the successor's span requirement is satisfiable in principle.
 
 ## 7. What this measurement does **not** establish
 
