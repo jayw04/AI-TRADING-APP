@@ -185,8 +185,7 @@ That state is superseded.** The corrected status, carried here so a later reader
 | SEC-001 V3-RC | **STOP / REDESIGN — classification coverage gate FAILED** before economics were run |
 | Coverage token `5b26ffa209a6a13a599a99fb28268b46be569cd2` | **SPENT / CONSUMED** — may never govern a successor run |
 | Successor candidate | **SEC-001 V3.1** — `docs/design/SEC-001 V3.1/TradingWorkbench_SEC001_V3_1_ClassificationLineage_Redesign_Design_Implementation_v1_2_FINAL.md` (v1.2 FINAL, 2026-08-26) |
-| Implementation authority | **NONE.** The design authorizes nothing by itself; the only proposed first authority is **WP0A**, and it is **not yet granted** |
-| Execution ownership | **A separate session.** Its work packages WP0A–WP8, its gates 0a/0b–8, and its open design review are adjudicated there |
+| Authority + execution state | **Governed in a separate session.** WP0A / WP0A-Q-COVER authority and execution state are controlled **there**. ⛔ **This ATP plan creates no SEC-001 authority** and does not reproduce, sequence or adjudicate its work packages. ⚠ Do not restate SEC-001 gate status from this document — read the SEC-001 track's own records |
 
 ⛔ **This plan does not reproduce, sequence, or adjudicate any V3.1 work package.** §J's V3 narrative is
 retained below as historical evidence of what was true at the 2026-08-24 sync — editing it would
