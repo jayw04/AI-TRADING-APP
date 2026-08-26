@@ -4,9 +4,9 @@
 |---|---|
 | Document version | **v0.14 (LOW-001 Dynamic-PIT cross-program integration boundary + state sync; still DRAFT)** |
 | Initial version date | 2026-08-22 |
-| **Last state sync** | **2026-08-25** — MDQ-001 capture **RECOVERED**; governed partition complete; producer identity continuous; corpus = 4 governed trading days |
+| **Last state sync** | **2026-08-26** — 08-26 governed partition **COMPLETE + SEALED** (395/395, custody verified independently); corpus = **5 governed trading days**; **verdict reachability narrowed to K1+K3** (K5 foreclosed by signed §8.4, K2 hard deadline **2026-09-21**); SEC-001 §J superseded (V3-RC STOP, token SPENT, V3.1 successor) |
 | Supersedes | **`AlgoTraderPlus_v1_4_1_ImplementationPlan_v0_13.md` and all earlier drafts. v0.13 and earlier are historical only; v0.14 is the sole current implementation-plan version.** |
-| Basis | `docs/Strategies/Strategy-proposals-v1_4_1-Algo-Trader-Plus-2026-08-15.md` + `docs/Strategies/AlgoTraderPlus_Data_Inventory_Report_v1_1_2026-08-17.md` + Strategy Author Data and Validation Brief v1.2 + owner rulings and sealed evidence through 2026-08-17 (P-2 v2 proof, collector validation disposition, account-7 P0 closure records) + `docs/design/MDQ-001_Registration_v1_0_DRAFT.md` **as merged to `main` with the signed §8 block and the ratified §8.1** (PR #634 = `63c0c52`) + the merge chain #634 → #636 (`be4235d`, feed-pinning guard CI-enforced) → #637 (`0273012`) + the governed deployment executed on `ec2-paper` on the night of 2026-08-17 **+ the governed state-sync and ruling records of 2026-08-18 → 2026-08-25**: the D0 admissibility adjudication and Program-Start Record v0.2 (+ Amendment A, `e488440`/#672) · the 2026-08-20 rulings · the discovery-ledger acceptance and CEE authorization/Observation Record 001 · the GAPPER G4 closure record · the SEC-001 V3 governing records under `docs/design/SEC-001/` (disposition ruling, store pre-ingestion freeze, universe-liquidity defect ruling, pre-crawl coverage freeze, canary-defect remediations A–E, execution-control addenda v1.4.1/v1.4.2) · the 2026-08-22 SEC-001 production conformance incident · the 2026-08-24 MDQ capture non-event record (`311863cb`/#679) and the 5-gate acquisition-readiness control (`363daa08`/#673) · the 2026-08-25 MDQ capture recovery record (`5a48ee88`/#684) |
+| Basis | `docs/Strategies/Strategy-proposals-v1_4_1-Algo-Trader-Plus-2026-08-15.md` + `docs/Strategies/AlgoTraderPlus_Data_Inventory_Report_v1_1_2026-08-17.md` + Strategy Author Data and Validation Brief v1.2 + owner rulings and sealed evidence through 2026-08-17 (P-2 v2 proof, collector validation disposition, account-7 P0 closure records) + `docs/design/MDQ-001_Registration_v1_0_DRAFT.md` **as merged to `main` with the signed §8 block and the ratified §8.1** (PR #634 = `63c0c52`) + the merge chain #634 → #636 (`be4235d`, feed-pinning guard CI-enforced) → #637 (`0273012`) + the governed deployment executed on `ec2-paper` on the night of 2026-08-17 **+ the governed state-sync and ruling records of 2026-08-18 → 2026-08-26**: the D0 admissibility adjudication and Program-Start Record v0.2 (+ Amendment A, `e488440`/#672) · the 2026-08-20 rulings · the discovery-ledger acceptance and CEE authorization/Observation Record 001 · the GAPPER G4 closure record · the SEC-001 V3 governing records under `docs/design/SEC-001/` (disposition ruling, store pre-ingestion freeze, universe-liquidity defect ruling, pre-crawl coverage freeze, canary-defect remediations A–E, execution-control addenda v1.4.1/v1.4.2) · the 2026-08-22 SEC-001 production conformance incident · the 2026-08-24 MDQ capture non-event record (`311863cb`/#679) and the 5-gate acquisition-readiness control (`363daa08`/#673) · the 2026-08-25 MDQ capture recovery record (`5a48ee88`/#684) and its provenance addendum (`379eca63`/#689) · the 2026-08-26 state sync below, including the K5/`N_min` and §8.4 verdict-reachability closures read from `docs/design/MDQ-001_Registration_v1_0_DRAFT.md` |
 | Repository | `github.com/jayw04/AI-TRADING-APP` |
 | Scope | Sequence all v1.4.1 implementation work while preserving strategy/research gates **and convert Algo Trader Plus capabilities into measurable strategy, execution, and profitability improvements as quickly as governance permits.** Platform/data work may proceed where authorized; reserve-strategy code remains prohibited until its pre-registration gate opens. |
 | Related parallel workstream | **LOW-001 Dynamic PIT** — governed separately under `TradingWorkbench_LOW001_Dynamic_PIT_Execution_Design_Implementation_v0.5.md` *(v0.5 at 2026-08-23; v0.4 superseded)*. Shared neutral infrastructure is allowed; **the signal boundary is bidirectional** — DISC/Opportunity/MDQ signal coupling into LOW-001 is prohibited, **and** LOW-001 decision records/holdings/intents/orders are not Opportunity/DISC inputs (§1.4). |
@@ -14,6 +14,291 @@
 | Governance stance | Planning document only. Governed program artifacts, frozen designs, sealed verdicts, owner rulings, ADRs, and promotion gates control over this plan. **Research is instrumental, not the product: the platform objective is to produce robust, deployable, net-profitable strategies and measurable execution/risk improvements, not to maximize research volume.** |
 | Subscription ruling | **No second Algo Trader Plus subscription.** Workbench account 7 (`ALPACA_PAPER_6`, broker `PA3BGKRLH2AP`) is the sole entitled SIP acquisition identity. The **Phase-A acquisition collector is the sole authenticating component**; MDQ-001 **analysis/calculators** are offline read-only consumers of frozen partitions and receive no Alpaca credential. *(Precision fix at v0.5 — v0.4's blanket "MDQ-001 does not authenticate" contradicted §1.1/§3.1, where `identity.py` performs a pinned read-only `/v2/account` check.)* |
 | Out of scope | Reserve-strategy code before gates open · MR-002 work of any kind (**TERMINATED 2026-08-22 without an economic verdict**; the former HOLD no longer describes its state) · GAPPER Stage-0 **execution against a corpus that fails the §3.1 contract** (G4 CLOSED 2026-08-22; the remaining bar is data sufficiency, not sequencing) · Phase-B streaming implementation unless separately authorized · live-consumer cutover before the local-cache ADR · reopening rejected RNG/MOM variants without a **new economic mechanism** and new prospective registration · anything v1.4.1 §14 says not to start |
+
+---
+
+## State sync — 2026-08-26 *(applied in place per the ONE CURRENT PLAN rule; no new version)*
+
+**Headline: the 2026-08-26 governed partition is COMPLETE and SEALED on both feeds. The corpus is now
+five governed trading days.** Nothing in this sync changes research authority, K1–K6, D0, the review
+window, the holdouts, the DISC-001 gates, the DISC-MDQ hold, or the value-extraction priority order.
+⚠ Every state figure below is a **point-in-time reading**, stamped with when and how it was measured.
+
+### A. 2026-08-26 — GOVERNED PARTITION COMPLETE
+
+The three-proof readiness standard was met in full **before** the slot, and readiness is **not** capture
+evidence — the 2026-08-24 lesson, unchanged. The day earned evidence status only from its own terminal
+execution.
+
+| Proof | Evidence |
+|---|---|
+| 1. Early preflight | **READY 5/5**, `2026-08-26T12:04:01Z`, 81 minutes of margin before the slot |
+| 2. Near-slot preflight | **READY 5/5**, `2026-08-26T13:14:40Z`, 10 minutes before the slot |
+| 3. Natural timer start | `TriggeredBy=mdq-sample.timer`, `09:25:02 EDT`, PID 4081042. **Nothing hand-started** |
+
+Both preflights ran the governed control at its verified identity —
+`apps/backend/scripts/mdq_preflight_readiness.sh`, sha256
+`2ad345b83aa3c81d3ab5041614e8e6b0d8c647f83affe1d126207ba497b902ba`, matching the blob merged at
+`363daa08` (#673).
+
+**All three custody legs OBSERVED, not inferred:**
+
+| Leg | Result |
+|---|---|
+| `mdq-sample.service` | `Result=success`, `ExecMainStatus=0`, 09:25:02 → 15:59:00 EDT. ⭐ **`sampled 395 cycle(s) x 50 symbols x 2 feeds (395/395 scheduled slots)`** — a completeness proof, not merely a zero exit. Identity re-verified in-run at 09:25:04 (`PA3BGKRLH2AP`, `b56421a28128`) |
+| `mdq-eod.service` | `Result=success`, 16:30:00 → 16:30:04 EDT; wrote **16,149 iex** / **25,685 sip** 1-min bar rows; identity re-verified at 16:30:02 |
+| `mdq-freeze.service` | `Result=success`, 16:45:02 → 16:45:05 EDT, full sequence **frozen → verified → mirrored** on both feeds |
+
+`ALERTS_TODAY = 0` for the entire session. Line counts corroborate the log line independently:
+**19,750 rows per feed = 395 × 50**, both feeds identical.
+
+**Partition shape — 3 files per feed, byte-consistent with the reference days:**
+
+```
+iex/2026-08-26  bars/bars_1min.parquet 495,870 | quotes/samples.jsonl 5,733,616 | manifest.json 1,467
+sip/2026-08-26  bars/bars_1min.parquet 894,017 | quotes/samples.jsonl 5,742,972 | manifest.json 1,467
+```
+
+⭐ **S3 custody verified INDEPENDENTLY** — my own `s3 ls` / `head-object`, **not** the box's mirror log
+line. All **6** objects present under
+`s3://workbench-backups-219024422756/mdq_capture/{iex,sip}/2026-08-26/`, every `ContentLength` equal to
+the manifest byte count, and **every host MD5 equal to the returned ETag** (stated as *measured
+equality*; `PartsCount` is null and `ChecksumSHA256` is null, so no S3-side SHA-256 verification exists
+— SHA-256 was verified host-side against the manifests). Host sha256 for all four data files matches
+the manifest entry exactly.
+
+⭐ **The governance tuple is unchanged, so the corpus did not split:** `schema mdq-capture-manifest/1`,
+`collector_version mdq-collector/0.1.0`, `provider alpaca`,
+`entitlement algo_trader_plus (account-7 login)`, **`credential_fingerprint b56421a28128`**,
+**`account_number PA3BGKRLH2AP`**, `alpaca_py_version 0.44.0`,
+`capture_modes [rest_quote_sampler_v1, rest_eod_bars_v1]`, `universe_sha256
+a022e399e216f16328eaecd809126951f6658cb09351281fa02187a0a6faf563` (50 symbols).
+
+**Corpus: five governed trading days per feed — 2026-08-19, 08-20, 08-21, 08-25, 08-26.**
+Seven trading days have elapsed since D0; six captured; **2026-08-24 remains the sole loss** and stays
+closed as a non-event with zero evidence contribution. 08-22 and 08-23 were the weekend — there is no
+unexplained gap in the chain.
+
+### A.1 ⚠ PROVENANCE SEAM — the #690 backend rebuild landed BETWEEN the sampler and the EOD/freeze legs
+
+⚖ **Owner-classified 2026-08-26: a runtime seam with MDQ code continuity, NOT a corpus split. The
+partition is not reopened.** Recorded here as provenance because a later reader must not assume a
+homogeneous backend runtime across all three capture legs.
+
+**Measured timeline** (read from the box `2026-08-26T21:08:38Z`, not inferred):
+
+```
+19:59:00Z  sampler END      old container a743e000fdf7 / image 66d98489d70d
+20:23:02Z  image BUILT      new image ada7a5be76ba   <- carries #690 (5c5969e)
+20:23:48Z  container RECREATED  656428498ad0
+20:30:00Z  EOD              NEW container
+20:45:02Z  freeze           NEW container
+```
+
+**Why this does not split the corpus — proven, not asserted:**
+
+1. **#690 changed no MDQ implementation.** `5c5969e` touches `app/jobs/sqlite_backup.py` (new),
+   `app/lifespan.py`, `tests/jobs/test_sqlite_backup.py`, `docs/runbook/deployment.md`,
+   `docs/runbook/on-call.md`, `scripts/backup_db.sh` — backup-job / lifespan / runbook / test code only.
+2. ⭐ **MDQ code continuity proven by HASH, not by reading the PR diff.** All five governed blobs inside
+   the **running** container are byte-identical to `origin/main`:
+   `scripts/mdq_collector.py b5feb2a9…`, `capture/identity.py 588e258f…`, `capture/store.py 22c3405e…`,
+   `capture/collector.py e5e030a9…`, `capture/admissibility.py 5eb3c0b5…`.
+3. **The registered acquisition identity is unchanged** — both manifests carry
+   `credential_fingerprint b56421a28128` / `account_number PA3BGKRLH2AP` / `collector_version
+   mdq-collector/0.1.0` / `universe_sha256 a022e399…`, and the terminal custody chain succeeded.
+4. ✅ **The acquisition environment SURVIVED this rebuild**, unlike 2026-08-23: `/opt/workbench/.env`
+   is byte-stable at **1,160 B, md5 `3871d041a651336aad40bbf176e8f1c4`, mtime 08-25 16:40:21 EDT**.
+
+#### 🚨 A.1.1 THE SEAM EXPOSED A LIVE SELF-REPORT DEFECT — state this precisely
+
+⛔⛔ **`.deploy_src_sha` remaining `07a9233` is NOT continuity evidence here — it is the defect.**
+The rebuild moved the runtime **without updating either identity file**:
+
+| Source | Declares | Reality |
+|---|---|---|
+| `/opt/workbench/app/.deploy_src_sha` | `07a92330…`, mtime **2026-08-25 21:25:19 EDT** | untouched by the 08-26 rebuild |
+| `DEPLOYED_BUILD_INFO.json` | `deployed_repository_commit 07a92330…`, `built_at_utc` **`2026-08-26T01:19:05Z`** | actual image built **`2026-08-26T20:23:02Z`**, image `ada7a5be76ba` |
+
+⇒ **The box is running code that its own identity declaration does not describe.** Any statement of the
+form "the pin still reads `07a9233`, therefore the runtime is unchanged" is **invalid** — that inference
+is exactly what this seam falsifies.
+
+⭐⭐ **This is the runtime-self-report repair track demonstrating its own necessity in production, on
+the same day it was authorized.** The repair is not a hygiene improvement; the deployment self-report is
+*currently inaccurate*, and it failed silently. Its three-source design (embedded build commit ·
+independently derived runtime artifact digest · deploy-written manifest, all three agreeing, fail-closed
+on missing source or mismatch) would have caught this at the moment of divergence.
+
+⚠ Carry forward with [[gotcha-redeploy-starves-capture-disk]] and the 2026-08-25 lesson: **a deployment
+SHA is a point-in-time reading, not a property of the box** — and now, additionally, **a stale pin can
+read as “unchanged” while the runtime has already moved.** Always stamp *when and how* it was measured,
+and never treat pin-stability as runtime-stability.
+
+### B. Owner freeze — first condition DISCHARGED
+
+The 2026-08-26 freeze (no backend restart, deployment, `.env` rewrite, image replacement, or LOW-001
+proof execution) was scoped **until the 08-26 governed partition is SEALED**. Section A discharges that
+condition. ⛔ It does **not** by itself authorize any mutation — see section C, and note that the
+runtime-self-report repair track *reopens for authorization*, it does not self-authorize.
+
+**Freeze predicates held throughout, verified at 12:04Z and 13:14:40Z:** `.deploy_src_sha` =
+`07a92330108390f8d5299e36b411150c08b9160c` (unchanged; **trails** Git `main@379eca6` — `379eca63`/#689
+is a child of `07a9233`) · `/opt/workbench/.env` 1,160 B, md5 `3871d041a651336aad40bbf176e8f1c4`,
+mtime unmoved · backend container `a743e000fdf7` created `2026-08-26T01:23:08Z` and **not restarted** ·
+image `66d98489d70d`.
+
+**Builder-cache prune — CLOSED PASS** (`02:07:37Z → 02:08:31Z`). Authorized mutation was
+`docker builder prune -f` **only**; reclaimed **18,383,093,760 B**, avail
+`22,413,398,016 → 40,796,491,776 B`. Images 10→10, containers 5→5, backend not restarted,
+`.deploy_src_sha` unchanged, `.env` byte-stable, capture root untouched. A **capacity-maintenance act**,
+not a deployment.
+⭐ The durable lesson is qualitative: measure reclaimable cache and free bytes **every time**; never
+predict reclaimed capacity from a prior event — this run reclaimed roughly 6× the earlier precedent.
+⛔ Remaining reclaimable **image** space stays NO ACTION under separate authority.
+
+### C. LOW-001 Run 2 — HOLD, and the gate is CONJUNCTIVE
+
+The 2026-08-26 Run-2 window (09:35–10:00 ET) **closed unused**. Nothing was run and nothing was staged.
+Strategy 8 remains **IDLE**; Dynamic PIT is **CLOSED**; B3a is deployed with its production proof
+**unclosed**; #687 remains **HOLD**.
+
+⚖ **Owner ruling, 2026-08-26 — sealing the 08-26 partition does NOT release Run 2.** Two conditions are
+controlling and **both** must hold: (1) the partition completes its terminal sampler count, EOD write,
+freeze→verify→mirror and custody verification — **now satisfied**; and (2) the activation-proof
+no-transition window opens only after the **runtime self-report repair is deployed and its three-source
+identity is proven** — **not satisfied**.
+
+⭐ **Why (2) cannot be satisfied by reading the box:** on 2026-08-25 the three-leg reconciliation
+returned legs 1 and 2 (`.deploy_src_sha`, `DEPLOYED_BUILD_INFO.json`) but **leg 3 — the LOW-001
+template — does not self-report a version at all.** It was *silent*, and silence is not confirmation.
+Three-source identity therefore requires the repair to land first; it is not an observation waiting to
+be made.
+
+### D. SEC-001 — §J status correction *(bookkeeping only; the program is governed elsewhere)*
+
+⚠ **§J below describes SEC-001 V3 as an ACTIVE full crawl with coverage freeze `5b26ffa2…` UNSPENT.
+That state is superseded.** The corrected status, carried here so a later reader is not misled:
+
+| Item | Corrected state |
+|---|---|
+| SEC-001 V3-RC | **STOP / REDESIGN — classification coverage gate FAILED** before economics were run |
+| Coverage token `5b26ffa209a6a13a599a99fb28268b46be569cd2` | **SPENT / CONSUMED** — may never govern a successor run |
+| Successor candidate | **SEC-001 V3.1** — governed separately; consult the SEC-001 track's governing records. ⛔ No document version is pinned here deliberately: a version-specific pointer goes stale the next time SEC-001 advances, which is the failure this correction exists to stop |
+| Authority + execution state | **Governed in a separate session.** WP0A / WP0A-Q-COVER authority and execution state are controlled **there**. ⛔ **This ATP plan creates no SEC-001 authority** and does not reproduce, sequence or adjudicate its work packages. ⚠ Do not restate SEC-001 gate status from this document — read the SEC-001 track's own records |
+
+⛔ **This plan does not reproduce, sequence, or adjudicate any V3.1 work package.** §J's V3 narrative is
+retained below as historical evidence of what was true at the 2026-08-24 sync — editing it would
+destroy the record of the transition. Read it only through this correction.
+
+⭐ **The one finding worth carrying across the boundary**, because it is a general lesson about
+sequencing research spend rather than a SEC-001 detail: **the largest defect class was not the binding
+constraint.** Lineage gaps were 60.2% of unresolved cells, but repairing them perfectly still left the
+terminal window short of the coverage threshold, because a different and smaller class was actually
+binding. ⇒ Rank remediation work by *what forecloses the verdict*, not by *what produces the most error
+cells*. This applies directly to §E below.
+
+### E. ⭐⭐ VERDICT REACHABILITY — the GO floor now rests on K1 and K3
+
+Two section-7 questions from the open task list were closed against the **governed registration**, and
+the answers materially narrow the verdict path. This is the §4.11 verdict-reachability concern made
+concrete, and it is the single most consequential item in this sync.
+
+- **K5 `N_min` = 50 is frozen** — registration §8 sign-off (`K5 minimum fills N_min: [X] 50`), §157
+  confirms signing freezes the floor, §8.4.3 re-affirms it unchanged. The residual word *proposed*
+  inside the signed checkbox is drafting residue, not an open choice.
+- **K5 discrimination signed 2026-08-20 at §8.4** — **K5 as frozen cannot return FAIL** (no-quote fills
+  are excluded from *both* numerator and denominator, so the ratio approaches 100% by construction), and
+  **§8.4.2 item 4: a non-discriminating K5 PASS does not count toward the GO floor.** The PASS is
+  preserved on the record; only its contribution is qualified.
+
+The ratified floor is **≥2 of K1–K6 both evaluable AND PASS**. What can actually earn it:
+
+| Path | Current character | What can still change it |
+|---|---|---|
+| **K1** | **P0 load-bearing engineering** | Build the calculator/evaluator |
+| **K3** | **P0 load-bearing engineering** | Build the calculator/evaluator |
+| **K2 / G10** | **Owner-controlled expiring option** | Decide **and** implement Phase B early enough for 20 consecutive sessions |
+| **K4 / Stage 0** | **Data-sufficiency-constrained expiring option** | Obtain a conforming dataset **and** reach a Stage-0 execution in-window |
+| **K5** | **Reporting only** — cannot contribute | Nothing; foreclosed by signed §8.4 |
+| **K6** | **Event-contingent option** | A qualifying occurrence must naturally enter the corpus |
+
+⚖ **Owner ruling 2026-08-26 — K2 and K4 are NOT equivalent levers.** K2/G10 is opened by *decision*;
+K4 is bound by a *data-sufficiency contract*. **The ≥250 trustworthy PIT event-day requirement may not
+be waived to rescue MDQ evaluability.** The owner may prioritize work that could make Stage 0 feasible;
+"open K4" is not an available instruction.
+
+⭐ **Precise statement of the consequence** (owner-worded; the earlier absolute phrasing overstated it):
+
+> Under the current state, if either K1 or K3 fails or is NOT EVALUABLE, GO becomes unreachable **unless
+> at least one presently non-contributing path first becomes legitimately contributing in-window** — K2
+> through a timely G10/Phase-B run, K4 through a conforming Stage-0 execution, or K6 through a naturally
+> captured qualifying occurrence. **No such path may be created retroactively after its evidentiary
+> window closes.**
+
+#### E.1 The K2 calendar — a hard, computed deadline
+
+K2 requires **20 consecutive sessions**. The frozen review date is Sunday **2026-10-18**, so the last
+usable session is Friday **2026-10-16**. There are **exactly 20 NYSE sessions from Monday 2026-09-21
+through Friday 2026-10-16**, with no NYSE holiday inside the interval (Labor Day 09-07 falls before it;
+NYSE trades Columbus Day 10-12). Verified by computation, not assumed.
+
+⇒ **2026-09-21 is the absolute latest K2 measurement-start date.** It carries **zero** implementation or
+qualification slack, so it is **not** the decision date. A distinct **G10 owner-decision deadline
+belongs in early-to-mid September**, separate from the hard 09-21 measurement deadline.
+
+#### E.2 ⚠ Open question that must be ruled BEFORE G10 is decided
+
+Any 20-session window ending 10-16 necessarily overlaps the period holdout: **9 of the 20 sessions fall
+inside 2026-10-06 … 10-17.** The overlap is unavoidable, because the holdout is the tail of the review
+window.
+
+Reading the registration, this appears to be a **non-conflict**: Ruling 4 defines the predicate as
+`exploratory_access_allowed`, and the §8.1 quarantine language is scoped to **discovery / exploration**.
+Verdict computation of a frozen K criterion is not exploratory access.
+
+⛔ **But the distinction is load-bearing and easy to invert.** If K2 measurement were treated as an
+exploratory read, only 11 sessions would remain usable, **K2 would be structurally impossible**, the G10
+lever would already be dead, and the 09-21 deadline would be moot. This deserves one explicit sentence
+of ruling now, rather than being discovered in October by whoever runs the calculator.
+
+#### E.3 Planning priority that follows
+
+**P0: build the K1/K3 machinery.** In parallel: force the G10 owner decision onto the calendar well
+before 2026-09-21, and measure whether K4's data gap has any realistic path to closure. Everything else
+sits behind those, because those are the items capable of foreclosing the October verdict before October
+arrives.
+
+⚠ **The calculators do not exist.** Verified against `origin/main@379eca6`:
+`app/research/capture/admissibility.py` is present — it is what adjudicated D0 — but **no K-value
+calculator module exists anywhere under `apps/backend/app/`**. K1 and K3 are therefore not merely the
+largest remaining item but the **load-bearing** one, and they should be built first within it.
+
+⚠ Also confirmed absent from `origin/main`: the box wrapper `/opt/workbench/mdq/mdq_run.sh` and the
+three systemd units (`mdq-sample`, `mdq-eod`, `mdq-freeze`). These enforce the universe hash pin, the
+free-space floor and the slot grid, and **none of them is in Git.** Owner direction stands: fold them
+into the next ops-governance change, not a standalone PR.
+
+### F. Open task list published for owner review *(new)*
+
+`docs/design/ATP/ATP_MDQ001_OpenTaskList_2026-08-26.md` — a **task list only**: subordinate and
+non-governing. Not a plan, not a governing record, and conveying no authority. It enumerates what
+remains in the ATP / MDQ-001 scope so the direction can be confirmed before work resumes, and it
+explicitly excludes SEC-001 V3.1.
+
+### G. ⭐ Custody trap hit and avoided during this sync — record it, do not repeat it
+
+The working copy of this plan in the `research/mr002-validation2-lineage` checkout was **untracked and
+stale**: 293,399 B against the governed `origin/main` blob's **297,683 B / sha256
+`7b2f1fd82e558d2f86eebd6f453ba35eb3b53dc1b7942afb1010940b16ce6185`** — it was missing the entire
+2026-08-25 state sync. Sections H, I and J were first read from that stale copy.
+
+⇒ This sync was cut from a **fresh `origin/main` worktree**, and the file was byte-verified against the
+governed blob before editing. ⛔ **Never edit, hash, or quote this plan from the MR-002 research
+checkout.** The same branch also carries pre-D0 `mdq_collector.py` and a pre-review
+`mdq_preflight_readiness.sh` as untracked shadows of governed files.
+
+---
 
 ---
 
