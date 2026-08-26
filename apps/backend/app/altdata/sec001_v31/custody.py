@@ -51,6 +51,7 @@ class AccessionState(StrEnum):
     LOCATOR_RESOLVED = "LOCATOR_RESOLVED"
     LOCATOR_SCHEMA_UNSUPPORTED = "LOCATOR_SCHEMA_UNSUPPORTED"
     LOCATOR_NO_PRIMARY_DOCUMENT = "LOCATOR_NO_PRIMARY_DOCUMENT"
+    DOCUMENT_RANGE_INTEGRITY_FAILURE = "DOCUMENT_RANGE_INTEGRITY_FAILURE"
     REQUEST_INTENT = "REQUEST_INTENT"
     REQUEST_SENT = "REQUEST_SENT"
     RESPONSE_RETAINED = "RESPONSE_RETAINED"
@@ -77,6 +78,11 @@ RESUMABLE_STATES: Final[frozenset[AccessionState]] = frozenset(
         # it must not strand the accession. Its response digest is retained.
         AccessionState.LOCATOR_SCHEMA_UNSUPPORTED,
         AccessionState.LOCATOR_NO_PRIMARY_DOCUMENT,
+        # A received response whose facts were durably captured BEFORE adjudication, and
+        # which proves the server broke the range contract. Determinate, not a crash --
+        # PROSPECTIVE only: it does not reclassify canary attempt #1, whose response facts
+        # were never captured and which therefore remains genuinely interrupted.
+        AccessionState.DOCUMENT_RANGE_INTEGRITY_FAILURE,
     }
 )
 

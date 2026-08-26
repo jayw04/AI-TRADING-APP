@@ -522,3 +522,76 @@ def test_locator_resolved_is_resumable_not_interrupted(
     acq = build(authority, ledger, store, journal, doc_for(authorized))
     r = acq.acquire(authorized, locator)
     assert r.status == ACQUIRED and r.accession_state == AccessionState.SEALED.value
+
+
+# ===================================================== attempt namespacing
+def test_attempt_two_never_writes_into_attempt_ones_record(
+    authority, ledger, store, journal, authorized, locator
+):
+    """A later attempt is a new transport epoch, not a rewrite. Every journal write in the
+    acquire path -- including the FAILURE paths -- must land in the attempt's namespace."""
+    acc = authorized.accession
+    # attempt 1 left mid-flight, exactly as the real canary did
+    journal.transition(acc, authorized.cik, authorized.form, AccessionState.REQUEST_INTENT)
+    journal.transition(acc, authorized.cik, authorized.form, AccessionState.REQUEST_SENT)
+    before = list(journal.get(acc).history)
+
+    # attempt 2 runs and FAILS to bind (ticker-only cover page) -> a failure-path write
+    acq2 = CoverAcquisition(
+        authority,
+        make_fetcher(
+            authority,
+            ledger,
+            lambda r: ranged_response(doc_for(authorized, [("GOOGL", "", "", "c-a")]), r),
+        ),
+        store,
+        ledger,
+        journal,
+        attempt=2,
+    )
+    r = acq2.acquire(authorized, locator)
+    assert r.accession_state == AccessionState.EVIDENCE_UNAVAILABLE.value
+
+    assert journal.get(acc).history == before, "attempt 1's record must be untouched"
+    assert journal.state_of(acc) is AccessionState.REQUEST_SENT
+    key2 = f"{acc}#attempt2"
+    assert journal.get(key2) is not None
+    assert journal.state_of(key2) is AccessionState.EVIDENCE_UNAVAILABLE
+
+
+def test_attempt_one_keeps_the_bare_accession_key(authority, ledger, store, journal, authorized):
+    acq = CoverAcquisition(authority, None, store, ledger, journal, attempt=1)
+    assert acq.journal_key(authorized.accession) == authorized.accession
+    acq2 = CoverAcquisition(authority, None, store, ledger, journal, attempt=2)
+    assert acq2.journal_key(authorized.accession) == f"{authorized.accession}#attempt2"
+
+
+def test_a_range_integrity_failure_is_determinate_and_resumable(
+    authority, ledger, store, journal, authorized, locator
+):
+    """Prospective: the response facts are captured before the raise, so this is a
+    determinate transport fact rather than an ambiguous crash."""
+    from app.altdata.sec001_v31.custody import INTERRUPTED_STATES, RESUMABLE_STATES
+
+    body = doc_for(authorized)
+    calls = {"n": 0}
+
+    def handler(r: httpx.Request) -> httpx.Response:
+        calls["n"] += 1
+        if calls["n"] == 1:
+            return httpx.Response(
+                206,
+                content=b"x" * 983_040,
+                headers={"Content-Range": f"bytes 0-983039/{983_040 * 4}"},
+            )
+        return httpx.Response(200, content=body)
+
+    acq = CoverAcquisition(
+        authority, make_fetcher(authority, ledger, handler), store, ledger, journal, attempt=2
+    )
+    r = acq.acquire(authorized, locator)
+
+    assert r.accession_state == AccessionState.DOCUMENT_RANGE_INTEGRITY_FAILURE.value
+    st = journal.state_of(f"{authorized.accession}#attempt2")
+    assert st in RESUMABLE_STATES and st not in INTERRUPTED_STATES
+    assert list(store.root.glob("*.json")) == []

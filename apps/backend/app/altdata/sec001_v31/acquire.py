@@ -49,7 +49,12 @@ from app.altdata.sec001_v31.layers import (
     Observation,
     TransportLocator,
 )
-from app.altdata.sec001_v31.transport import FETCH_OK, BoundedFetcher, DurableLedger
+from app.altdata.sec001_v31.transport import (
+    FETCH_OK,
+    BoundedFetcher,
+    DurableLedger,
+    RangeIntegrityError,
+)
 
 REFUSED_FORM: Final = "REFUSED_NON_PERMITTED_FORM"
 REFUSED_CUTOFF: Final = "REFUSED_ACCEPTED_AFTER_CUTOFF"
@@ -122,14 +127,30 @@ class CoverAcquisition:
         store: TransactionalEvidenceStore,
         ledger: DurableLedger,
         journal: AcquisitionJournal,
+        attempt: int = 1,
     ) -> None:
         self.authority = authority
         self.fetcher = fetcher
         self.store = store
         self.ledger = ledger
         self.journal = journal
+        self.attempt = attempt
 
-    def acquire(self, meta: FilingMetadata, locator: TransportLocator) -> AcquisitionResult:
+    def journal_key(self, accession: str) -> str:
+        """Attempts occupy separate journal namespaces.
+
+        A later attempt is a new transport epoch, never a rewrite of an earlier one: attempt
+        #1's record stays exactly as evidence left it, including a state it can no longer
+        leave. Attempt #1 keeps the bare accession so existing custody reads are unchanged.
+        """
+        return accession if self.attempt == 1 else f"{accession}#attempt{self.attempt}"
+
+    def acquire(
+        self,
+        meta: FilingMetadata,
+        locator: TransportLocator,
+        declared_size: int | None = None,
+    ) -> AcquisitionResult:
         a = self.authority
 
         # ---- preflight: governed state only, before any request ----------------------
@@ -157,11 +178,12 @@ class CoverAcquisition:
         # reached guard_fresh() -- an interrupted acquisition silently reported as an
         # ordinary duplicate. Journal state is now decided first, and the ledger is only a
         # cross-check.
-        state = self.journal.state_of(meta.accession)
+        jkey = self.journal_key(meta.accession)
+        state = self.journal.state_of(jkey)
         ledger_says_acquired = self.ledger.already_acquired(meta.cik, meta.form, meta.accession)
 
         if state is AccessionState.SEALED:
-            rec = self.journal.get(meta.accession)
+            rec = self.journal.get(jkey)
             digest = rec.artifact_sha256 if rec else None
             verified = bool(digest) and self.store.verify(
                 meta.cik, meta.accession, a.source_variant, str(digest)
@@ -194,7 +216,7 @@ class CoverAcquisition:
         if state in INTERRUPTED_STATES:
             # Raises rather than returns: a mid-flight accession is not a status a fail-soft
             # caller may absorb.
-            self.journal.guard_fresh(meta.accession)
+            self.journal.guard_fresh(jkey)
 
         if state in RESUMABLE_STATES and ledger_says_acquired:
             return AcquisitionResult(
@@ -212,28 +234,57 @@ class CoverAcquisition:
         a.require_canonical_url(meta.cik, meta.accession, locator.primary_document, locator.url)
 
         # ---- intent is durable BEFORE the request ------------------------------------
+        attempt_id = f"CANARY_ATTEMPT_{self.attempt}"
         self.journal.transition(
-            meta.accession, meta.cik, meta.form, AccessionState.REQUEST_INTENT, url=locator.url
+            jkey,
+            meta.cik,
+            meta.form,
+            AccessionState.REQUEST_INTENT,
+            url=locator.url,
+            attempt=self.attempt,
         )
         before = self.ledger.document_requests
         try:
             outcome = self.fetcher.get_document_complete(
-                locator.url, max_continuations=self.max_continuations
+                locator.url,
+                max_continuations=self.max_continuations,
+                declared_size=declared_size,
+                attempt_id=attempt_id,
+            )
+        except RangeIntegrityError as exc:
+            spent = self.ledger.document_requests - before
+            # The response facts were durably recorded before this raised, so the failure is
+            # a determinate transport fact rather than an ambiguous crash.
+            self.journal.transition(
+                jkey,
+                meta.cik,
+                meta.form,
+                AccessionState.DOCUMENT_RANGE_INTEGRITY_FAILURE,
+                reason="RANGE_INTEGRITY",
+                detail=str(exc)[:400],
+                document_requests_spent=spent,
+            )
+            return AcquisitionResult(
+                ACQUIRED,
+                parse_status=cover_parser.STATUS_EVIDENCE_UNAVAILABLE,
+                diagnostics={"reason": "RANGE_INTEGRITY", "detail": str(exc)[:400]},
+                document_requests_spent=spent,
+                accession_state=AccessionState.DOCUMENT_RANGE_INTEGRITY_FAILURE.value,
             )
         finally:
             spent = self.ledger.document_requests - before
-            self.journal.transition(
-                meta.accession,
-                meta.cik,
-                meta.form,
-                AccessionState.REQUEST_SENT,
-                document_requests_spent=spent,
-            )
+        self.journal.transition(
+            jkey,
+            meta.cik,
+            meta.form,
+            AccessionState.REQUEST_SENT,
+            document_requests_spent=spent,
+        )
         self.ledger.mark_acquired(meta.cik, meta.form, meta.accession)
 
         if outcome.status != FETCH_OK:
             self.journal.transition(
-                meta.accession,
+                jkey,
                 meta.cik,
                 meta.form,
                 AccessionState.EVIDENCE_UNAVAILABLE,
@@ -247,9 +298,7 @@ class CoverAcquisition:
                 accession_state=AccessionState.EVIDENCE_UNAVAILABLE.value,
             )
 
-        self.journal.transition(
-            meta.accession, meta.cik, meta.form, AccessionState.RESPONSE_RETAINED
-        )
+        self.journal.transition(jkey, meta.cik, meta.form, AccessionState.RESPONSE_RETAINED)
 
         # The parser receives bytes only. The locator is not in scope here.
         parsed = cover_parser.parse_cover_identity(
@@ -259,7 +308,7 @@ class CoverAcquisition:
             bytes_consumed=outcome.bytes_consumed,
         )
         self.journal.transition(
-            meta.accession, meta.cik, meta.form, AccessionState.PARSED, parse_status=parsed.status
+            jkey, meta.cik, meta.form, AccessionState.PARSED, parse_status=parsed.status
         )
 
         result = AcquisitionResult(
@@ -272,7 +321,7 @@ class CoverAcquisition:
 
         if not parsed.is_bound:
             self.journal.transition(
-                meta.accession,
+                jkey,
                 meta.cik,
                 meta.form,
                 AccessionState.EVIDENCE_UNAVAILABLE,
@@ -296,7 +345,7 @@ class CoverAcquisition:
                 }
             )
             self.journal.transition(
-                meta.accession,
+                jkey,
                 meta.cik,
                 meta.form,
                 AccessionState.EVIDENCE_UNAVAILABLE,
@@ -329,7 +378,7 @@ class CoverAcquisition:
             obs_ids,
             provenance,
         )
-        self.journal.seal(meta.accession, digest)
+        self.journal.seal(jkey, digest)
 
         result.observations = observations
         result.artifact_identities = [

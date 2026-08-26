@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import hashlib
+
 import httpx
 import pytest
 
@@ -470,3 +472,143 @@ def test_a_single_window_document_needs_no_continuation(authority, ledger):
     )
     assert out.eof_reached and out.continuations == 0 and len(seen) == 1
     assert out.body == body
+
+
+# ================================================================
+# RANGE-IGNORED 200 -- the path attempt #1 discovered the hard way
+# ================================================================
+def _streaming_200(body: bytes, chunk: int = 8192, *, pulled: dict | None = None, clen=True):
+    """A server that receives a Range header and answers 200 with the WHOLE body,
+    streamed in small chunks. This is what SEC actually did."""
+
+    def source():
+        for i in range(0, len(body), chunk):
+            if pulled is not None:
+                pulled["n"] = pulled.get("n", 0) + 1
+            yield body[i : i + chunk]
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        assert "Range" in request.headers, "the Range header must still be sent"
+        headers = {"Content-Length": str(len(body))} if clen else {}
+        return httpx.Response(200, content=source(), headers=headers)
+
+    return handler
+
+
+def test_a_range_ignored_200_streams_the_whole_document_to_exact_eof(authority, ledger):
+    """The canary case: 6.2 MB delivered as ONE 200 response. It must reach EOF and produce
+    the exact document, without .content and without truncating at one window."""
+    total = 6_229_704  # the real canary's declared size
+    body = _doc(total)
+    pulled: dict = {}
+    out = make_fetcher(
+        authority, ledger, _streaming_200(body, pulled=pulled, clen=False)
+    ).get_document_complete(URL, max_continuations=7, declared_size=total)
+
+    assert out.disposition == "RANGE_IGNORED_200_START0"
+    assert out.eof_reached is True and out.truncated is False
+    assert out.bytes_consumed == total
+    assert out.body == body, "the assembled bytes must be the exact document"
+    assert out.retained_sha256 == hashlib.sha256(body).hexdigest()
+    assert out.continuations == 0, "no continuation follows a range-ignored 200"
+    assert ledger.document_requests == 1, "one response carried the whole body"
+    assert pulled["n"] > 700, "streamed incrementally, not materialised"
+
+
+def test_a_range_ignored_200_one_byte_over_the_ceiling_is_rejected(authority, ledger):
+    """Directly tests the safety argument, not a constant."""
+    from app.altdata.sec001_v31.authority import MAX_DOCUMENT_BYTES
+
+    body = _doc(MAX_DOCUMENT_BYTES + 1)
+    out = make_fetcher(authority, ledger, _streaming_200(body, clen=False)).get_document_complete(
+        URL, max_continuations=7
+    )
+    assert out.eof_reached is False, "over the ceiling can never be EOF"
+    assert out.truncated is True
+    assert out.bytes_consumed == MAX_DOCUMENT_BYTES, "stopped exactly at the frozen ceiling"
+
+
+def test_a_declared_content_length_at_or_above_the_ceiling_is_refused_before_the_body(
+    authority, ledger
+):
+    from app.altdata.sec001_v31.authority import MAX_DOCUMENT_BYTES
+
+    body = _doc(MAX_DOCUMENT_BYTES + 5_000)
+    pulled: dict = {}
+    out = make_fetcher(
+        authority, ledger, _streaming_200(body, pulled=pulled, clen=True)
+    ).get_document_complete(URL, max_continuations=7)
+
+    assert out.status == FETCH_UNAVAILABLE
+    assert out.reason == "content_length_at_or_above_aggregate_ceiling"
+    assert pulled.get("n", 0) == 0, "the body must not be read at all"
+
+
+def test_a_size_disagreeing_with_the_locator_fails_closed(authority, ledger):
+    """EOF alone is not enough: the bytes must be the document the locator declared."""
+    body = _doc(500_000)
+    with pytest.raises(RangeIntegrityError, match="the locator declares"):
+        make_fetcher(authority, ledger, _streaming_200(body, clen=False)).get_document_complete(
+            URL, max_continuations=7, declared_size=500_001
+        )
+
+
+def test_a_fifty_megabyte_body_still_stops_at_the_ceiling(authority, ledger):
+    """Defect F: an enormous body is bounded, never materialised."""
+    from app.altdata.sec001_v31.authority import MAX_DOCUMENT_BYTES
+
+    body = _doc(50 * 1024 * 1024)
+    pulled: dict = {}
+    out = make_fetcher(
+        authority, ledger, _streaming_200(body, chunk=65536, pulled=pulled, clen=False)
+    ).get_document_complete(URL, max_continuations=7)
+    assert out.bytes_consumed == MAX_DOCUMENT_BYTES and out.eof_reached is False
+    assert pulled["n"] * 65536 < len(body), "must not have drained the whole body"
+
+
+# ================================================================
+# response observability -- recorded BEFORE adjudication
+# ================================================================
+def test_response_facts_are_durable_before_a_validation_can_raise(authority, tmp_path):
+    """Attempt #1 lost window 1's HTTP status. That must not recur."""
+    led = DurableLedger.open(tmp_path / "l.json", authority)
+    calls = {"n": 0}
+    body = _doc(3_000_000)
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        calls["n"] += 1
+        if calls["n"] == 1:
+            return httpx.Response(
+                206,
+                content=body[:983_040],
+                headers={"Content-Range": f"bytes 0-983039/{len(body)}"},
+            )
+        return httpx.Response(200, content=body)
+
+    with pytest.raises(RangeIntegrityError):
+        make_fetcher(authority, led, handler).get_document_complete(
+            URL, max_continuations=7, attempt_id="ATTEMPT_TEST"
+        )
+
+    reopened = DurableLedger.open(tmp_path / "l.json", authority)
+    responses = [e for e in reopened.events if e["kind"] == "response"]
+    statuses = [e.get("http_status") for e in responses if e.get("phase") == "headers"]
+    assert statuses == [206, 200], f"both window statuses must survive the raise: {statuses}"
+
+    w1 = [e for e in responses if e.get("window_number") == 1 and e.get("phase") == "body"]
+    assert w1 and w1[0]["retained_bytes"] == 983_040
+    assert len(w1[0]["retained_sha256"]) == 64
+    dispositions = [e.get("disposition") for e in responses if e.get("disposition")]
+    assert "RANGE_HONORED_206" in dispositions
+    assert "INVALID_200_CONTINUATION" in dispositions
+
+
+def test_a_206_records_its_content_range_verbatim(authority, tmp_path):
+    led = DurableLedger.open(tmp_path / "l.json", authority)
+    body = _doc(400_000)
+    make_fetcher(authority, led, _server(body)).get_document_complete(
+        URL, max_continuations=7, attempt_id="A2"
+    )
+    hdr = [e for e in led.events if e.get("phase") == "headers"]
+    assert hdr and hdr[0]["content_range_raw"] == f"bytes 0-399999/{len(body)}"
+    assert hdr[0]["attempt_id"] == "A2" and hdr[0]["window_number"] == 1

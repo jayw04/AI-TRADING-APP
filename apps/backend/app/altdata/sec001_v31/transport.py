@@ -33,6 +33,7 @@ between "request sent" and "evidence sealed", which is where exactly-once actual
 
 from __future__ import annotations
 
+import hashlib
 import json
 import random
 import re
@@ -67,6 +68,12 @@ class BudgetExceeded(RuntimeError):
 
 class AcquisitionEncodingError(RuntimeError):
     """An encoded representation reached, or would have reached, the parser (Defect E)."""
+
+
+#: What a response actually turned out to be. Recorded before it is adjudicated.
+RANGE_HONORED_206: Final = "RANGE_HONORED_206"
+RANGE_IGNORED_200_START0: Final = "RANGE_IGNORED_200_START0"
+INVALID_200_CONTINUATION: Final = "INVALID_200_CONTINUATION"
 
 
 class RangeIntegrityError(RuntimeError):
@@ -155,6 +162,17 @@ class DurableLedger:
         )
         self._flush()
 
+    def record_response(self, **facts: Any) -> None:
+        """Durably record what a response WAS, before anything adjudicates it.
+
+        Attempt #1 lost window 1's HTTP status because the ledger recorded only that a
+        request had been sent. The ordering here is deliberate and is the point of the
+        method: response fact recorded -> validation -> state transition. A validation that
+        raises can no longer erase the evidence of what it raised about.
+        """
+        self.events.append({"kind": "response", "at": _utc_now(), **facts})
+        self._flush()
+
     def charge_retry(self) -> None:
         if self.retries >= self.max_total_retries:
             raise BudgetExceeded(f"max_total_retries={self.max_total_retries} reached")
@@ -187,6 +205,9 @@ class FetchOutcome:
     continuations: int = 0
     reason: str | None = None
     content_type: str | None = None
+    disposition: str | None = None
+    content_length: int | None = None
+    retained_sha256: str | None = None
     """The declared ``Content-Type``, retained prospectively.
 
     Added after the locator-discovery record could not state one: the outcome simply did not
@@ -257,15 +278,39 @@ class BoundedFetcher:
         return int(m.group(1)), int(m.group(2)), total
 
     def get_document(
-        self, url: str, *, window_bytes: int | None = None, start: int = 0
+        self,
+        url: str,
+        *,
+        window_bytes: int | None = None,
+        start: int = 0,
+        aggregate_ceiling: int | None = None,
+        attempt_id: str = "-",
+        window_number: int = 1,
     ) -> FetchOutcome:
-        """Fetch one bounded document window from a frozen SEC origin. GET only."""
+        """One bounded document read, on one of two prospectively frozen paths.
+
+        **Range honored (206).** The response is a window: at most ``window_bytes``, its
+        ``Content-Range`` start must equal the requested start, and continuation may follow.
+
+        **Range ignored (200 at start 0).** The server declined to partition the document, so
+        this single response has to carry the whole body. It is bounded-streamed to the
+        *aggregate* ceiling rather than truncated at one window -- the ceiling the size census
+        already approved. Defect F is untouched: still incremental, still bounded, still no
+        ``.content`` and no materialise-then-slice. A 50 MB body stops at the ceiling.
+
+        **Range ignored at start > 0.** That body is the document's prefix again. Appending it
+        would assemble a corrupt document. Fail closed, always.
+        """
         if self._halted:
             raise CrawlHalt("fetcher is latched after a halt status; no further requests")
         self.authority.require_origin(url)
 
-        limit = min(window_bytes or self.stop_threshold, self.stop_threshold)
-        headers = {"Range": f"bytes={start}-{start + limit - 1}", "Accept-Encoding": "identity"}
+        window = min(window_bytes or self.stop_threshold, self.stop_threshold)
+        ceiling = aggregate_ceiling or self.stop_threshold
+        headers = {
+            "Range": f"bytes={start}-{start + window - 1}",
+            "Accept-Encoding": "identity",
+        }
         target = url
         redirects = 0
 
@@ -274,6 +319,26 @@ class BoundedFetcher:
             self.ledger.charge_document(target)
             with self._client.stream("GET", target, headers=headers) as r:
                 status = r.status_code
+                cr_raw = r.headers.get("content-range")
+                clen = r.headers.get("content-length")
+                enc = (r.headers.get("content-encoding") or "").strip().lower() or None
+                cr_start, cr_end, total = self._content_range(cr_raw)
+
+                # ---- record the response BEFORE anything can adjudicate it ------------
+                self.ledger.record_response(
+                    attempt_id=attempt_id,
+                    window_number=window_number,
+                    url=target,
+                    requested_start=start,
+                    requested_end=start + window - 1,
+                    http_status=status,
+                    content_range_raw=cr_raw,
+                    content_length=int(clen) if clen and clen.isdigit() else None,
+                    content_type=r.headers.get("content-type"),
+                    content_encoding=enc,
+                    phase="headers",
+                )
+
                 if status in self.halt_statuses:
                     self._halted = True
                     raise CrawlHalt(f"EDGAR returned {status} for {target}")
@@ -317,31 +382,57 @@ class BoundedFetcher:
                         reason="unexpected_status",
                     )
 
-                enc = (r.headers.get("content-encoding") or "").strip().lower() or None
                 if enc not in IDENTITY_ENCODINGS:
                     raise AcquisitionEncodingError(
                         f"ranged request answered with content-encoding {enc!r}; range offsets "
                         "would refer to the compressed representation (Defect E)"
                     )
 
-                cr_start, cr_end, total = self._content_range(r.headers.get("content-range"))
-
-                # A 200 means Range was ignored: the body is the document from byte 0. That
-                # is fine for the first window and fatal for a continuation, which would
-                # otherwise append a second copy of the prefix as though it were the tail.
+                # ---- which of the two frozen paths is this? --------------------------
                 if status == 200 and start > 0:
+                    self.ledger.record_response(
+                        attempt_id=attempt_id,
+                        window_number=window_number,
+                        disposition=INVALID_200_CONTINUATION,
+                        phase="disposition",
+                    )
                     raise RangeIntegrityError(
                         f"continuation requested start={start} but the server ignored Range and "
                         "returned 200 from byte 0; the window cannot be appended"
                     )
+
                 if status == 206:
+                    disposition = RANGE_HONORED_206
+                    cap = window
                     if cr_start is None:
                         raise RangeIntegrityError("206 response without a parsable Content-Range")
                     if cr_start != start:
                         raise RangeIntegrityError(
                             f"206 returned start={cr_start}, requested start={start}"
                         )
+                else:
+                    disposition = RANGE_IGNORED_200_START0
+                    cap = ceiling
+                    declared = int(clen) if clen and clen.isdigit() else None
+                    if declared is not None and declared >= ceiling:
+                        # Refuse BEFORE reading a body we already know cannot qualify.
+                        self.ledger.record_response(
+                            attempt_id=attempt_id,
+                            window_number=window_number,
+                            disposition=disposition,
+                            content_length=declared,
+                            phase="refused_content_length_at_or_above_ceiling",
+                        )
+                        return FetchOutcome(
+                            FETCH_UNAVAILABLE,
+                            http_status=status,
+                            attempts=attempt,
+                            reason="content_length_at_or_above_aggregate_ceiling",
+                            disposition=disposition,
+                            content_length=declared,
+                        )
 
+                # ---- bounded stream. No .content, no .read(), no slice-after-the-fact.
                 buf = bytearray()
                 truncated = False
                 for chunk in r.iter_bytes(65536):
@@ -349,14 +440,32 @@ class BoundedFetcher:
                         raise AcquisitionEncodingError(
                             "parser-facing body begins with gzip magic (Defect E)"
                         )
-                    take = limit - len(buf)
+                    take = cap - len(buf)
                     if len(chunk) >= take:
                         buf.extend(chunk[:take])
                         truncated = True
                         break
                     buf.extend(chunk)
 
-                assert len(buf) <= self.ceiling, "hard byte ceiling breached"
+                assert len(buf) <= cap
+                digest = hashlib.sha256(buf).hexdigest()
+
+                if total is not None and cr_end is not None:
+                    eof = cr_end + 1 >= total
+                else:
+                    eof = not truncated
+                    total = start + len(buf) if eof else None
+
+                self.ledger.record_response(
+                    attempt_id=attempt_id,
+                    window_number=window_number,
+                    disposition=disposition,
+                    retained_bytes=len(buf),
+                    retained_sha256=digest,
+                    truncated=truncated,
+                    eof_reached=eof,
+                    phase="body",
+                )
 
                 if status == 206 and cr_end is not None and not truncated:
                     expected = cr_end - (cr_start or 0) + 1
@@ -365,12 +474,6 @@ class BoundedFetcher:
                             f"206 body length {len(buf)} disagrees with its own Content-Range "
                             f"({cr_start}-{cr_end}), which declares {expected}"
                         )
-
-                if total is not None and cr_end is not None:
-                    eof = cr_end + 1 >= total
-                else:
-                    eof = not truncated
-                    total = start + len(buf) if eof else None
 
                 return FetchOutcome(
                     FETCH_OK,
@@ -382,6 +485,9 @@ class BoundedFetcher:
                     eof_reached=eof,
                     total_bytes=total,
                     content_type=r.headers.get("content-type"),
+                    disposition=disposition,
+                    content_length=int(clen) if clen and clen.isdigit() else None,
+                    retained_sha256=digest,
                 )
         return FetchOutcome(FETCH_UNAVAILABLE, attempts=self.retry_max_attempts)
 
@@ -447,44 +553,50 @@ class BoundedFetcher:
         return FetchOutcome(FETCH_UNAVAILABLE, attempts=self.retry_max_attempts)
 
     def get_document_complete(
-        self, url: str, *, max_continuations: int = 0, max_cumulative_bytes: int | None = None
+        self,
+        url: str,
+        *,
+        max_continuations: int = 0,
+        max_cumulative_bytes: int | None = None,
+        declared_size: int | None = None,
+        attempt_id: str = "-",
     ) -> FetchOutcome:
-        """Read successive bounded windows until EOF, or fail closed.
+        """Acquire one complete document on whichever frozen path the server chooses.
 
-        ``authority.LIVE_MAX_CONTINUATIONS`` is the only live-authorized setting; it was
-        frozen at 7 on a size-blind census rather than chosen after a canary failed. Every
-        window is a separate **document request** against the sealed 1,200 cap, so a document
-        needing eight windows costs eight requests -- the aggregate budget is a distinct
-        constraint from this per-document ceiling and must be projected before bulk work.
+        If the first response is a Range-ignored 200 it already carries the whole body, so no
+        continuation follows. If it is a 206, contiguous windows continue up to the frozen
+        window count -- the ninth is refused before its request, not left to a byte budget.
 
-        The window count, not the byte budget, is the ceiling: the ninth window is refused
-        before its request rather than being allowed to fail on bytes.
+        ``declared_size`` is the locator's authoritative size. On success the retained byte
+        count must equal it exactly; a disagreement fails closed rather than being accepted.
         """
+        ceiling = max_cumulative_bytes or (max_continuations + 1) * self.stop_threshold
         max_windows = max_continuations + 1
-        budget = max_cumulative_bytes or max_windows * self.stop_threshold
         body = bytearray()
         offset = 0
         windows = 0
         last: FetchOutcome | None = None
 
         while True:
-            # The ninth window is refused HERE, before its request is issued -- not after,
-            # and never by letting the byte budget happen to run out.
             if windows >= max_windows:
                 break
-            window = min(self.stop_threshold, budget - len(body))
+            window = min(self.stop_threshold, ceiling - len(body))
             if window <= 0:
                 break
 
-            out = self.get_document(url, window_bytes=window, start=offset)
+            out = self.get_document(
+                url,
+                window_bytes=window,
+                start=offset,
+                aggregate_ceiling=ceiling,
+                attempt_id=attempt_id,
+                window_number=windows + 1,
+            )
             windows += 1
             last = out
             if out.status != FETCH_OK:
                 return out
 
-            # Contiguous and non-overlapping: each window must begin exactly where the last
-            # ended. `get_document` already refuses a 206 whose Content-Range start differs
-            # from the requested start, so this asserts the assembly, not the response.
             if len(body) != offset:
                 raise RangeIntegrityError(
                     f"assembly is not contiguous: {len(body)} bytes held but next offset is "
@@ -494,11 +606,14 @@ class BoundedFetcher:
             offset += out.bytes_consumed
 
             if out.eof_reached:
-                # EOF is proven, so the assembled length must equal the stated total.
                 if out.total_bytes is not None and len(body) != out.total_bytes:
                     raise RangeIntegrityError(
                         f"assembled {len(body)} bytes but the server states the document is "
                         f"{out.total_bytes}"
+                    )
+                if declared_size is not None and len(body) != declared_size:
+                    raise RangeIntegrityError(
+                        f"assembled {len(body)} bytes but the locator declares {declared_size}"
                     )
                 return FetchOutcome(
                     FETCH_OK,
@@ -511,8 +626,14 @@ class BoundedFetcher:
                     total_bytes=out.total_bytes,
                     continuations=windows - 1,
                     content_type=out.content_type,
+                    disposition=out.disposition,
+                    content_length=out.content_length,
+                    retained_sha256=hashlib.sha256(body).hexdigest(),
                 )
-            if out.bytes_consumed == 0:
+
+            # A Range-ignored 200 carries the whole document or nothing; there is no window
+            # two to ask for, so a truncated one is simply over the ceiling.
+            if out.disposition == RANGE_IGNORED_200_START0 or out.bytes_consumed == 0:
                 break
 
         return FetchOutcome(
@@ -526,4 +647,6 @@ class BoundedFetcher:
             total_bytes=last.total_bytes if last else None,
             continuations=max(0, windows - 1),
             content_type=last.content_type if last else None,
+            disposition=last.disposition if last else None,
+            retained_sha256=hashlib.sha256(body).hexdigest(),
         )
