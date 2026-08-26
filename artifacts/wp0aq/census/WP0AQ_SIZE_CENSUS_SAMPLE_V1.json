@@ -1,0 +1,305 @@
+{
+  "artifact": "SEC001_V3_1_WP0AQ_SIZE_CENSUS_SAMPLE_V1",
+  "authority": "WP0A-Q-SIZE-CENSUS (owner) -- index-only, no document requests",
+  "by_form": {
+    "10-K": 16,
+    "10-K/A": 1,
+    "10-Q": 20,
+    "10-Q/A": 1,
+    "20-F": 1,
+    "20-F/A": 1
+  },
+  "envelope_sha256": "f10c1ad17589e5a8bec044d7aa5c1df2e0f752c37c6e75b9ed80ba044eece515",
+  "frozen_before_first_request": true,
+  "manifest_sha256": "3a30ad0296aa945f6b7a68c2bf578e47c69f75267670c2e3d0e72d4473339724",
+  "quotas": {
+    "10-K": 16,
+    "10-Q": 20,
+    "other": 4
+  },
+  "sample": [
+    {
+      "accepted_at": "2025-02-05T01:41:40.000Z",
+      "accession": "0001652044-25-000014",
+      "cik": 1652044,
+      "form": "10-K",
+      "selection_rank": "02282c44f235bda96f0b584bcf0544735b7a7bb39306a82697c6d5ee09233bc5"
+    },
+    {
+      "accepted_at": "2022-02-22T22:02:07.000Z",
+      "accession": "0000882835-22-000012",
+      "cik": 882835,
+      "form": "10-K",
+      "selection_rank": "0253abc28c57ee2facd814348cf28e9b41eb6bbeedd2e6ff3dfda8b7b50a0f0d"
+    },
+    {
+      "accepted_at": "2026-02-27T22:15:43.000Z",
+      "accession": "0001140361-26-007174",
+      "cik": 1849635,
+      "form": "10-K",
+      "selection_rank": "046550926204a3ff427f3c0c6fc95c57db108c50687ff8a093ae7db634d4b0c4"
+    },
+    {
+      "accepted_at": "2022-02-16T16:28:53.000Z",
+      "accession": "0001418091-22-000029",
+      "cik": 1418091,
+      "form": "10-K",
+      "selection_rank": "0859b6a0ef839925d33c90568da23f8cd443d69cb5a35b812df44dbe1919b2c3"
+    },
+    {
+      "accepted_at": "2023-02-22T22:59:27.000Z",
+      "accession": "0001415404-23-000005",
+      "cik": 1415404,
+      "form": "10-K",
+      "selection_rank": "0d4dce4281651e682f2b5b92bc4db31a9ccae9b1eca4ce9d934b75688fcb9d24"
+    },
+    {
+      "accepted_at": "2023-02-27T21:48:06.000Z",
+      "accession": "0000882835-23-000016",
+      "cik": 882835,
+      "form": "10-K",
+      "selection_rank": "0ec9409230419739bef50265c5aff6d6b8d171bce2393318d35152fe3809b64b"
+    },
+    {
+      "accepted_at": "2021-02-09T17:04:57.000Z",
+      "accession": "0001466258-21-000027",
+      "cik": 1466258,
+      "form": "10-K",
+      "selection_rank": "0f74f04537ca860632733ffed6f126abfe2b28058eb55882aee7ec086f2ba9bf"
+    },
+    {
+      "accepted_at": "2025-02-21T21:04:47.000Z",
+      "accession": "0001671933-25-000029",
+      "cik": 1671933,
+      "form": "10-K",
+      "selection_rank": "109ca635cf3ed3c7e118b8e5db003c534e8f905be71357c05d64f07492497291"
+    },
+    {
+      "accepted_at": "2024-02-15T22:04:49.000Z",
+      "accession": "0001671933-24-000014",
+      "cik": 1671933,
+      "form": "10-K",
+      "selection_rank": "10f3cda90ffb122e7354f61e474598bb3598e9f60eba277612e7aa6078d4f98c"
+    },
+    {
+      "accepted_at": "2026-02-12T21:13:00.000Z",
+      "accession": "0001506293-26-000021",
+      "cik": 1506293,
+      "form": "10-K",
+      "selection_rank": "12531ca7a0eef1cb9397c2b3114c4c39b188406b4433f49f1dbf45d32131cc51"
+    },
+    {
+      "accepted_at": "2024-01-25T21:02:51.000Z",
+      "accession": "0001133421-24-000006",
+      "cik": 1133421,
+      "form": "10-K",
+      "selection_rank": "13249d5ec8b02c6c852ec0311856bee74341e54eff71adb37a0806f04fc351a9"
+    },
+    {
+      "accepted_at": "2026-02-05T20:20:45.000Z",
+      "accession": "0001628280-26-005731",
+      "cik": 1466258,
+      "form": "10-K",
+      "selection_rank": "160c7d84d928de1404a1c45162e7fae97b961cd7864ca7da81a9fb4c20c832de"
+    },
+    {
+      "accepted_at": "2023-02-03T02:23:45.000Z",
+      "accession": "0001652044-23-000016",
+      "cik": 1652044,
+      "form": "10-K",
+      "selection_rank": "165e4d2069f31bebe136ce04f017143bb98ec3a4a6a9dc117905c50b00cf4739"
+    },
+    {
+      "accepted_at": "2026-01-29T00:13:46.000Z",
+      "accession": "0001628280-26-003942",
+      "cik": 1326801,
+      "form": "10-K",
+      "selection_rank": "1779b64274b82a71c092bbbf05d59f13c1dd95b1cb51091923cd2d8fda311e8a"
+    },
+    {
+      "accepted_at": "2026-02-26T17:11:49.000Z",
+      "accession": "0000097745-26-000018",
+      "cik": 97745,
+      "form": "10-K",
+      "selection_rank": "2057f669a13b7f3e84f3b0512de67b8ceb0db95f322245159c49fbae94e85d91"
+    },
+    {
+      "accepted_at": "2021-02-22T13:59:47.000Z",
+      "accession": "0000882835-21-000011",
+      "cik": 882835,
+      "form": "10-K",
+      "selection_rank": "2463e565a986b347db057f0430babae5b261171b08074ae7b88d457d0cfe889c"
+    },
+    {
+      "accepted_at": "2024-07-22T21:41:46.000Z",
+      "accession": "0000313616-24-000186",
+      "cik": 313616,
+      "form": "10-Q",
+      "selection_rank": "01665d7903cb10c8ec056201e4dea2a764d4ecccfbdb765a4bde9d3882a5bba6"
+    },
+    {
+      "accepted_at": "2025-07-23T23:44:01.000Z",
+      "accession": "0001652044-25-000062",
+      "cik": 1652044,
+      "form": "10-Q",
+      "selection_rank": "02d57163c9f5950abd3fc3a50ab668a26f5ab3d5570de4abe663406b61d1090f"
+    },
+    {
+      "accepted_at": "2022-05-06T18:57:27.000Z",
+      "accession": "0001193125-22-143504",
+      "cik": 97210,
+      "form": "10-Q",
+      "selection_rank": "03572a215c9e83257154d937fa1ec76451cb655f9f792cf523d594b046fe8a5a"
+    },
+    {
+      "accepted_at": "2021-04-21T22:11:53.000Z",
+      "accession": "0000313616-21-000059",
+      "cik": 313616,
+      "form": "10-Q",
+      "selection_rank": "04b503ce2f6c6001cb901f3c2dbac8f4370bee295f9240a2de4dc2b1d60f0518"
+    },
+    {
+      "accepted_at": "2025-04-22T20:02:49.000Z",
+      "accession": "0001133421-25-000023",
+      "cik": 1133421,
+      "form": "10-Q",
+      "selection_rank": "0594f0d71fd1c167c05acdee19644b4d9ae9b10720bf9b3105e2e6252b557b05"
+    },
+    {
+      "accepted_at": "2026-05-01T21:21:43.000Z",
+      "accession": "0000882835-26-000019",
+      "cik": 882835,
+      "form": "10-Q",
+      "selection_rank": "07084cedc4a2ace42521ad3dc0dbbda1d881587bbf6e1f29294d506be3e0a2b1"
+    },
+    {
+      "accepted_at": "2021-08-09T20:22:55.000Z",
+      "accession": "0001564590-21-042669",
+      "cik": 1671933,
+      "form": "10-Q",
+      "selection_rank": "082a8575ffa7ca5fafd5bc6ea92ee18914f1b4ff8b42ac9c534bbabb7849bc4f"
+    },
+    {
+      "accepted_at": "2025-08-11T20:52:30.000Z",
+      "accession": "0000950170-25-106627",
+      "cik": 1780312,
+      "form": "10-Q",
+      "selection_rank": "08db46b3010d1e475c4146aefabc3477b7e7279e517b76b5b017d7f0daa68944"
+    },
+    {
+      "accepted_at": "2024-08-01T21:23:48.000Z",
+      "accession": "0000882835-24-000037",
+      "cik": 882835,
+      "form": "10-Q",
+      "selection_rank": "094c5425d14229afa825c3015b73ff0514637f19e15670a74e45ceadd09e32c4"
+    },
+    {
+      "accepted_at": "2021-05-14T20:04:40.000Z",
+      "accession": "0001193125-21-161989",
+      "cik": 1751008,
+      "form": "10-Q",
+      "selection_rank": "0b7328a6f5c939a9df7c2c44739fd9034451fb847280851a13e517c074a6f63a"
+    },
+    {
+      "accepted_at": "2025-07-21T22:39:11.000Z",
+      "accession": "0000313616-25-000153",
+      "cik": 313616,
+      "form": "10-Q",
+      "selection_rank": "0c4f54fedd148d22162f970c7061edb52c8e46db4788c75f726de907aa771f46"
+    },
+    {
+      "accepted_at": "2021-04-27T21:48:31.000Z",
+      "accession": "0001506293-21-000094",
+      "cik": 1506293,
+      "form": "10-Q",
+      "selection_rank": "0e0892887f9f966521dc9439d5f615247000d99454f632d06ffe7cb06a9d14b0"
+    },
+    {
+      "accepted_at": "2021-07-29T21:57:21.000Z",
+      "accession": "0001506293-21-000186",
+      "cik": 1506293,
+      "form": "10-Q",
+      "selection_rank": "0f70375abae0621e4b98fc43717dfcf33d649cf3fdd452c6ed6ecb33bb8d04b6"
+    },
+    {
+      "accepted_at": "2025-05-07T20:11:23.000Z",
+      "accession": "0001628280-25-023168",
+      "cik": 1635327,
+      "form": "10-Q",
+      "selection_rank": "102ec27872bd7d87d13defe6118600817cf15841d3a4aabf1c6f78c64943c74f"
+    },
+    {
+      "accepted_at": "2023-11-22T21:54:21.000Z",
+      "accession": "0001193125-23-282305",
+      "cik": 1849635,
+      "form": "10-Q",
+      "selection_rank": "1056468db8d1b9b97b2716108db801781274fe7bd8a969e762494ca657c3a77d"
+    },
+    {
+      "accepted_at": "2026-05-06T20:12:58.000Z",
+      "accession": "0001635327-26-000045",
+      "cik": 1635327,
+      "form": "10-Q",
+      "selection_rank": "1183c6c9389e51dc187ffac44d69ea0ae141db1742830c1fb36b89827f5af232"
+    },
+    {
+      "accepted_at": "2026-08-05T21:01:18.000Z",
+      "accession": "0001751008-26-000059",
+      "cik": 1751008,
+      "form": "10-Q",
+      "selection_rank": "15129904979aa694c097a65171fee23603091317c5843e32cb233c7b9ae0929a"
+    },
+    {
+      "accepted_at": "2022-05-16T20:40:07.000Z",
+      "accession": "0000950170-22-010115",
+      "cik": 1780312,
+      "form": "10-Q",
+      "selection_rank": "1581cd7a4f6c7dda7e4b3bc5a5595ad1b4e70498c48e6e8e80afd278388ee7dc"
+    },
+    {
+      "accepted_at": "2024-10-30T23:54:51.000Z",
+      "accession": "0001326801-24-000081",
+      "cik": 1326801,
+      "form": "10-Q",
+      "selection_rank": "17b0c3720b7c6cb209b4a6a351a6d3daab60ec080a59dbd355d5b45e3eff4ff8"
+    },
+    {
+      "accepted_at": "2024-05-08T10:02:02.000Z",
+      "accession": "0001558370-24-007171",
+      "cik": 1415404,
+      "form": "10-Q",
+      "selection_rank": "19a618e8a6e2848c9bc86307bffa5d9394a816e51bb7657f870ecadd650d2039"
+    },
+    {
+      "accepted_at": "2024-04-03T01:47:59.000Z",
+      "accession": "0001140361-24-017385",
+      "cik": 1849635,
+      "form": "10-K/A",
+      "selection_rank": "157895389aa1ae521a9bf1d2916983d25e4f23d8d7c912a8ddf5da01d7cca22a"
+    },
+    {
+      "accepted_at": "2025-09-12T21:14:23.000Z",
+      "accession": "0000950170-25-114605",
+      "cik": 1780312,
+      "form": "10-Q/A",
+      "selection_rank": "84834ca4a944a711336a99d8f6982981bb6a32991e7d9e3ccb7d8720b600e14a"
+    },
+    {
+      "accepted_at": "2024-03-15T10:09:54.000Z",
+      "accession": "0001193125-24-068527",
+      "cik": 1329099,
+      "form": "20-F",
+      "selection_rank": "0373257b5ca8b62e2f3117a568f966bb32b8c26cf23dbfe2a2a39006b6177771"
+    },
+    {
+      "accepted_at": "2026-05-22T20:01:31.000Z",
+      "accession": "0001104659-26-065681",
+      "cik": 1513845,
+      "form": "20-F/A",
+      "selection_rank": "7a612bd2739a6b56ba7988f8672de59a975624820ec6969457feb81ed51a9ab8"
+    }
+  ],
+  "sample_size": 40,
+  "selection_rule": "within each form, order the non-bracket Envelope-B candidates by sha256(accession) and take the first N. Size-blind and deterministic: re-derivable from the hash-verified authority alone.",
+  "selection_sha256": "2b6839e36be1234dab67d8c191b1b250440b953c8b56ec259b6206c49b8b66ed"
+}

@@ -1,0 +1,240 @@
+{
+  "ambiguous_primary_row_finding": "0000950170-22-010115 carries TWO rows typed 10-Q -- asts-20220331.htm and asts-ast_spacemobile_q1_2022.pdf. The filer submitted an HTML and a PDF of the same report, both declared 10-Q. The parser refused to choose, which is the intended fail-closed behaviour; a first-match rule would silently have picked one. Rate in this sample: 1/40 (2.5%). Resolving it is an owner ruling, not a parser heuristic.",
+  "artifact": "SEC001_V3_1_WP0AQ_SIZE_CENSUS_REPORT_V1",
+  "authority": "WP0A-Q-SIZE-CENSUS (owner) -- index-only, no document requests",
+  "bands": {
+    "1966080_to_3932160": {
+      "count": 16,
+      "share_pct": 41.0
+    },
+    "3932160_to_7864320": {
+      "count": 3,
+      "share_pct": 7.7
+    },
+    "983040_to_1966080": {
+      "count": 15,
+      "share_pct": 38.5
+    },
+    "gt_7864320": {
+      "count": 0,
+      "share_pct": 0.0
+    },
+    "lt_983040": {
+      "count": 5,
+      "share_pct": 12.8
+    }
+  },
+  "determinate_failures": [
+    {
+      "accession": "0000950170-22-010115",
+      "form": "10-Q",
+      "reason": "RESOLVER_SCHEMA_UNSUPPORTED",
+      "state": "LOCATOR_SCHEMA_UNSUPPORTED"
+    }
+  ],
+  "distribution": {
+    "10-K": {
+      "max": 4505635,
+      "median": 2769029,
+      "min": 1538387,
+      "n": 16,
+      "p75": 3053361,
+      "p90": 3719161
+    },
+    "10-K/A": {
+      "max": 865873,
+      "median": 865873,
+      "min": 865873,
+      "n": 1,
+      "p75": 865873,
+      "p90": 865873
+    },
+    "10-Q": {
+      "max": 3152468,
+      "median": 1571036,
+      "min": 695637,
+      "n": 19,
+      "p75": 2024777,
+      "p90": 2473796
+    },
+    "10-Q/A": {
+      "max": 88005,
+      "median": 88005,
+      "min": 88005,
+      "n": 1,
+      "p75": 88005,
+      "p90": 88005
+    },
+    "20-F": {
+      "max": 6021251,
+      "median": 6021251,
+      "min": 6021251,
+      "n": 1,
+      "p75": 6021251,
+      "p90": 6021251
+    },
+    "20-F/A": {
+      "max": 73486,
+      "median": 73486,
+      "min": 73486,
+      "n": 1,
+      "p75": 73486,
+      "p90": 73486
+    },
+    "ALL": {
+      "max": 6021251,
+      "median": 1927070,
+      "min": 73486,
+      "n": 39,
+      "p75": 2855454,
+      "p90": 3169549
+    }
+  },
+  "extra_diagnostic_canary": {
+    "accession": "0001193125-21-050735",
+    "document_size": 6229704,
+    "form": "10-K",
+    "note": "not in the frozen sample; retained as an extra data point"
+  },
+  "manifest_sha256": "3a30ad0296aa945f6b7a68c2bf578e47c69f75267670c2e3d0e72d4473339724",
+  "modeled_eligibility": {
+    "max_continuations_0": {
+      "admissible": 5,
+      "by_form": {
+        "10-K": {
+          "admissible": 0,
+          "of": 16
+        },
+        "10-K/A": {
+          "admissible": 1,
+          "of": 1
+        },
+        "10-Q": {
+          "admissible": 2,
+          "of": 19
+        },
+        "10-Q/A": {
+          "admissible": 1,
+          "of": 1
+        },
+        "20-F": {
+          "admissible": 0,
+          "of": 1
+        },
+        "20-F/A": {
+          "admissible": 1,
+          "of": 1
+        }
+      },
+      "cumulative_cap_bytes": 983040,
+      "of": 39,
+      "share_pct": 12.8
+    },
+    "max_continuations_1": {
+      "admissible": 20,
+      "by_form": {
+        "10-K": {
+          "admissible": 3,
+          "of": 16
+        },
+        "10-K/A": {
+          "admissible": 1,
+          "of": 1
+        },
+        "10-Q": {
+          "admissible": 14,
+          "of": 19
+        },
+        "10-Q/A": {
+          "admissible": 1,
+          "of": 1
+        },
+        "20-F": {
+          "admissible": 0,
+          "of": 1
+        },
+        "20-F/A": {
+          "admissible": 1,
+          "of": 1
+        }
+      },
+      "cumulative_cap_bytes": 1966080,
+      "of": 39,
+      "share_pct": 51.3
+    },
+    "max_continuations_3": {
+      "admissible": 36,
+      "by_form": {
+        "10-K": {
+          "admissible": 14,
+          "of": 16
+        },
+        "10-K/A": {
+          "admissible": 1,
+          "of": 1
+        },
+        "10-Q": {
+          "admissible": 19,
+          "of": 19
+        },
+        "10-Q/A": {
+          "admissible": 1,
+          "of": 1
+        },
+        "20-F": {
+          "admissible": 0,
+          "of": 1
+        },
+        "20-F/A": {
+          "admissible": 1,
+          "of": 1
+        }
+      },
+      "cumulative_cap_bytes": 3932160,
+      "of": 39,
+      "share_pct": 92.3
+    },
+    "max_continuations_7": {
+      "admissible": 39,
+      "by_form": {
+        "10-K": {
+          "admissible": 16,
+          "of": 16
+        },
+        "10-K/A": {
+          "admissible": 1,
+          "of": 1
+        },
+        "10-Q": {
+          "admissible": 19,
+          "of": 19
+        },
+        "10-Q/A": {
+          "admissible": 1,
+          "of": 1
+        },
+        "20-F": {
+          "admissible": 1,
+          "of": 1
+        },
+        "20-F/A": {
+          "admissible": 1,
+          "of": 1
+        }
+      },
+      "cumulative_cap_bytes": 7864320,
+      "of": 39,
+      "share_pct": 100.0
+    }
+  },
+  "modeling_note": "strict size < (C+1)*983,040, matching the live screen's strictness. MODELED ONLY -- live policy remains max_continuations = 0.",
+  "requests": {
+    "document_requests": 0,
+    "index_after": 71,
+    "note": "41 index requests for 40 accessions: 40 resolutions + 1 transient retry"
+  },
+  "resolved": 39,
+  "sample_artifact_sha256": "01d6abbda91d18a10a7d9f7d75d05a19fb2eacb7a0fadbb65b6dcc3c53d1c5e3",
+  "sampled": 40,
+  "window_bytes": 983040
+}
