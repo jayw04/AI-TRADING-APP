@@ -451,28 +451,55 @@ class BoundedFetcher:
     ) -> FetchOutcome:
         """Read successive bounded windows until EOF, or fail closed.
 
-        ⚠ Continuation is opt-in and off by default; ``authority.LIVE_MAX_CONTINUATIONS`` is
-        the only live-authorized setting. Every continuation is a further document request
-        against the sealed cap, so a nonzero policy must be frozen prospectively rather than
-        chosen after seeing which real filings exceed the first window.
+        ``authority.LIVE_MAX_CONTINUATIONS`` is the only live-authorized setting; it was
+        frozen at 7 on a size-blind census rather than chosen after a canary failed. Every
+        window is a separate **document request** against the sealed 1,200 cap, so a document
+        needing eight windows costs eight requests -- the aggregate budget is a distinct
+        constraint from this per-document ceiling and must be projected before bulk work.
+
+        The window count, not the byte budget, is the ceiling: the ninth window is refused
+        before its request rather than being allowed to fail on bytes.
         """
-        budget = max_cumulative_bytes or self.stop_threshold
+        max_windows = max_continuations + 1
+        budget = max_cumulative_bytes or max_windows * self.stop_threshold
         body = bytearray()
         offset = 0
-        used = 0
+        windows = 0
         last: FetchOutcome | None = None
 
         while True:
+            # The ninth window is refused HERE, before its request is issued -- not after,
+            # and never by letting the byte budget happen to run out.
+            if windows >= max_windows:
+                break
             window = min(self.stop_threshold, budget - len(body))
             if window <= 0:
                 break
+
             out = self.get_document(url, window_bytes=window, start=offset)
+            windows += 1
             last = out
             if out.status != FETCH_OK:
                 return out
+
+            # Contiguous and non-overlapping: each window must begin exactly where the last
+            # ended. `get_document` already refuses a 206 whose Content-Range start differs
+            # from the requested start, so this asserts the assembly, not the response.
+            if len(body) != offset:
+                raise RangeIntegrityError(
+                    f"assembly is not contiguous: {len(body)} bytes held but next offset is "
+                    f"{offset}"
+                )
             body.extend(out.body)
             offset += out.bytes_consumed
+
             if out.eof_reached:
+                # EOF is proven, so the assembled length must equal the stated total.
+                if out.total_bytes is not None and len(body) != out.total_bytes:
+                    raise RangeIntegrityError(
+                        f"assembled {len(body)} bytes but the server states the document is "
+                        f"{out.total_bytes}"
+                    )
                 return FetchOutcome(
                     FETCH_OK,
                     body=bytes(body),
@@ -482,11 +509,11 @@ class BoundedFetcher:
                     attempts=out.attempts,
                     eof_reached=True,
                     total_bytes=out.total_bytes,
-                    continuations=used,
+                    continuations=windows - 1,
+                    content_type=out.content_type,
                 )
-            if out.bytes_consumed == 0 or used >= max_continuations:
+            if out.bytes_consumed == 0:
                 break
-            used += 1
 
         return FetchOutcome(
             FETCH_OK,
@@ -497,5 +524,6 @@ class BoundedFetcher:
             attempts=last.attempts if last else 0,
             eof_reached=False,
             total_bytes=last.total_bytes if last else None,
-            continuations=used,
+            continuations=max(0, windows - 1),
+            content_type=last.content_type if last else None,
         )

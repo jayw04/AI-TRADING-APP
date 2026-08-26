@@ -22,6 +22,7 @@ from app.altdata.sec001_v31.filing_detail import (
     EXPECTED_HEADERS,
     NO_PRIMARY_ROW,
     SCHEMA_UNSUPPORTED,
+    SEQ1_TYPE_MISMATCH,
     FilingDetailError,
     extract_document_table,
     parse_primary_document,
@@ -95,7 +96,8 @@ def test_the_data_files_table_is_out_of_scope(real_page):
     for sidecar in ("EX-101.SCH", "EX-101.DEF", "EX-101.LAB", "EX-101.PRE", "XML"):
         with pytest.raises(FilingDetailError) as e:
             parse_primary_document(real_page, sidecar)
-        assert e.value.reason == NO_PRIMARY_ROW
+        # sequence 1 exists and is the 8-K, so this is a determinate type mismatch
+        assert e.value.reason == SEQ1_TYPE_MISMATCH
     table = extract_document_table(real_page)
     assert "EX-101.SCH" not in table
 
@@ -215,11 +217,56 @@ def test_a_changed_header_row_fails_closed():
     assert e.value.reason == SCHEMA_UNSUPPORTED
 
 
-def test_two_rows_of_the_same_form_fail_closed_rather_than_picking_one():
-    page = _table([("1", "10-K", "a.htm", "10-K", "100"), ("2", "10-K", "b.htm", "10-K", "200")])
+# ============================================================ the frozen Seq==1 rule
+def test_a_courtesy_copy_at_sequence_two_is_not_ambiguity_seq_one_wins():
+    """The exact shape the census found: HTML at Seq 1, a PDF of the same report at Seq 2,
+    both declared 10-Q. Under Type-alone this was ambiguous and a first-match rule could
+    have taken the PDF."""
+    page = _table(
+        [
+            ("1", "10-Q", "asts-20220331.htm", "10-Q", "2224929"),
+            ("2", "COURTESY COPY", "asts-ast_spacemobile_q1_2022.pdf", "10-Q", "1500000"),
+        ]
+    )
+    p = parse_primary_document(page, "10-Q")
+    assert p.seq == "1"
+    assert p.document == "asts-20220331.htm"
+    assert p.size == 2_224_929
+    assert not p.document.endswith(".pdf")
+
+
+def test_the_rule_does_not_prefer_html_nor_reject_pdf():
+    """Seq 1 is STRUCTURAL. A PDF at sequence 1 is the primary document."""
+    page = _table([("1", "10-K", "report.pdf", "10-K", "4000")])
+    assert parse_primary_document(page, "10-K").document == "report.pdf"
+
+
+def test_description_text_is_never_consulted():
+    page = _table([("1", "COURTESY COPY", "a.htm", "10-K", "4000")])
+    assert parse_primary_document(page, "10-K").document == "a.htm"
+
+
+def test_two_rows_claiming_sequence_one_fail_closed():
+    page = _table([("1", "10-K", "a.htm", "10-K", "100"), ("1", "10-K", "b.htm", "10-K", "200")])
     with pytest.raises(FilingDetailError) as e:
         parse_primary_document(page, "10-K")
     assert e.value.reason == AMBIGUOUS_PRIMARY_ROW
+
+
+def test_a_missing_sequence_one_fails_closed():
+    page = _table([("2", "10-K", "a.htm", "10-K", "100")])
+    with pytest.raises(FilingDetailError) as e:
+        parse_primary_document(page, "10-K")
+    assert e.value.reason == NO_PRIMARY_ROW
+
+
+def test_a_sequence_one_type_mismatch_never_falls_back_to_sequence_two():
+    page = _table(
+        [("1", "EX-99.1", "ex.htm", "EX-99.1", "100"), ("2", "10-K", "real.htm", "10-K", "200")]
+    )
+    with pytest.raises(FilingDetailError) as e:
+        parse_primary_document(page, "10-K")
+    assert e.value.reason == SEQ1_TYPE_MISMATCH
 
 
 @pytest.mark.parametrize("size", ["", "0", "not-a-number", "-5", "1,234"])

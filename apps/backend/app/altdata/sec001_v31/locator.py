@@ -65,6 +65,7 @@ from app.altdata.sec001_v31.authority import (
 from app.altdata.sec001_v31.custody import AccessionState, AcquisitionJournal
 from app.altdata.sec001_v31.filing_detail import (
     NO_PRIMARY_ROW,
+    SEQ1_TYPE_MISMATCH,
     FilingDetailError,
     parse_primary_document,
 )
@@ -247,7 +248,9 @@ class LocatorResolver:
         try:
             primary = parse_primary_document(outcome.body, form)
         except FilingDetailError as exc:
-            no_row = exc.reason == NO_PRIMARY_ROW
+            # A sequence-1 row of the wrong type is still "no primary document of the
+            # sealed form" -- determinate, and explicitly not a reason to try sequence 2.
+            no_row = exc.reason in (NO_PRIMARY_ROW, SEQ1_TYPE_MISMATCH)
             raise self._determinate(
                 accession,
                 cik,

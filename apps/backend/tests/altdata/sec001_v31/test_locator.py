@@ -36,13 +36,14 @@ def index_body(accession: str, items: list[dict]) -> bytes:
     bare filename. Tests that need the genuine article use ``test_filing_detail``.
     """
     rows = ""
-    for it in items:
+    for n, it in enumerate(items, 1):
         name = it.get("name", "")
         doc = f'<a href="/ix?doc=/Archives/x/{name}">{name}</a> &nbsp;&nbsp;<span>iXBRL</span>'
         size = "" if it.get("size") is None else it.get("size")
+        seq = it.get("seq", str(n))  # sequence 1 is the primary document
         rows += (
             "<tr>"
-            f"<td>{it.get('seq', '1')}</td><td>{it.get('type', '')}</td>"
+            f"<td>{seq}</td><td>{it.get('type', '')}</td>"
             f"<td>{doc}</td><td>{it.get('type', '')}</td><td>{size}</td>"
             "</tr>"
         )
@@ -129,7 +130,8 @@ def test_a_page_for_a_different_accession_fails_closed(authority, ledger, journa
     assert e.value.reason == RESOLVER_ACCESSION_MISMATCH
 
 
-def test_no_item_typed_as_the_form_fails_closed(authority, ledger, journal, target):
+def test_a_sequence_one_row_of_the_wrong_type_fails_closed(authority, ledger, journal, target):
+    """Determinate form mismatch -- and explicitly NOT a licence to look at sequence 2."""
     cik, _form, accession, _ = target
     body = index_body(accession, [{"name": "ex31.htm", "type": "EX-31.1", "size": 9}])
     with pytest.raises(LocatorResolutionError) as e:
@@ -137,11 +139,33 @@ def test_no_item_typed_as_the_form_fails_closed(authority, ledger, journal, targ
     assert e.value.reason == RESOLVER_NO_PRIMARY_DOCUMENT
 
 
-def test_two_items_typed_as_the_form_fail_closed_rather_than_picking_one(
+def test_a_courtesy_copy_at_sequence_two_does_not_create_ambiguity(
     authority, ledger, journal, target
 ):
+    """The ASTS shape: an HTML report at Seq 1 and a PDF of the same report at Seq 2, BOTH
+    declared as the form. Under the frozen rule Seq 1 wins deterministically."""
     cik, form, accession, _ = target
-    body = index_body(accession, [primary(form, "a.htm"), primary(form, "b.htm")])
+    body = index_body(
+        accession,
+        [
+            {"name": "asts-20220331.htm", "type": form, "size": 2_224_929},
+            {"name": "asts-courtesy.pdf", "type": form, "size": 1_500_000},
+        ],
+    )
+    r = resolver(authority, ledger, journal, body).resolve(cik, accession)
+    assert r.primary_document == "asts-20220331.htm"
+    assert r.document_size == 2_224_929
+
+
+def test_two_rows_claiming_sequence_one_fail_closed(authority, ledger, journal, target):
+    cik, form, accession, _ = target
+    body = index_body(
+        accession,
+        [
+            {"name": "a.htm", "type": form, "size": 100, "seq": "1"},
+            {"name": "b.htm", "type": form, "size": 200, "seq": "1"},
+        ],
+    )
     with pytest.raises(LocatorResolutionError) as e:
         resolver(authority, ledger, journal, body).resolve(cik, accession)
     assert e.value.reason == RESOLVER_SCHEMA_UNSUPPORTED

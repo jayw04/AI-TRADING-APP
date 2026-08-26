@@ -10,12 +10,12 @@ A is *not* an authority here, it only supplies the exclusion list. Note that the
 of B's own array **is** one of the 19, so an unfiltered "first entry" rule would have picked
 the scarcest possible candidate.
 
-**Screen on size before spending a document request.** EOF-only admission,
-``LIVE_MAX_CONTINUATIONS = 0`` and a 983,040-byte stop threshold together mean a document at
-or above that size can never reach EOF, so it is predetermined to return
-``EVIDENCE_UNAVAILABLE``. Discovering that by spending the request would consume the
-accession to learn something the transport bound already implied. Equality is excluded too:
-at exactly the threshold the bounded reader fills its window and reports truncation.
+**Screen on size before spending a document request.** EOF-only admission and a finite
+window count together mean a document at or above the aggregate ceiling can never reach EOF,
+so it is predetermined to return ``EVIDENCE_UNAVAILABLE``. Discovering that by spending the
+requests would consume the accession to learn something the transport bound already implied.
+Equality is excluded too: at exactly the ceiling the reader fills its last window and reports
+truncation.
 
 A candidate that fails the screen is **not** consumed. It has spent an index request and
 holds a resolved locator, and it stays available for a future authority that permits
@@ -32,11 +32,16 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Final
 
-from app.altdata.sec001_v31.authority import AcquisitionAuthority
+from app.altdata.sec001_v31.authority import (
+    MAX_DOCUMENT_BYTES,
+    AcquisitionAuthority,
+)
 
-#: Strict. A document at or above the stop threshold cannot reach EOF under the frozen
-#: transport bound, so it is ineligible before any request is made.
-CANARY_MAX_DOCUMENT_BYTES: Final = 983_040
+#: Strict, and derived rather than typed: a document at or above the aggregate ceiling
+#: cannot reach EOF within the frozen window count, so it is ineligible before any request is
+#: made. Under the owner's C=7 ruling this is 8 x 983,040. The per-read bound is unchanged --
+#: what the census bought was more bounded reads, not bigger ones.
+CANARY_MAX_DOCUMENT_BYTES: Final = MAX_DOCUMENT_BYTES
 
 ELIGIBLE: Final = "CANARY_ELIGIBLE"
 INELIGIBLE_TOO_LARGE: Final = "CANARY_INELIGIBLE_DOCUMENT_AT_OR_ABOVE_BOUND"

@@ -46,10 +46,22 @@ ENVELOPE_PATH: Final = Path("artifacts/wp0aq/WP0AQ_COVER_ENVELOPE_V1.json")
 STEP1_INDEX_REQUESTS_SPENT: Final = 28
 STEP1_DOCUMENT_REQUESTS_SPENT: Final = 0
 
-#: Live-authorized continuation policy. The owner ruled that any nonzero value must be
-#: prospectively frozen *before* request #1, never chosen after seeing which real filings
-#: exceed the first window.
-LIVE_MAX_CONTINUATIONS: Final = 0
+#: One bounded read. This is the Defect-F control and it is NOT relaxed: every individual
+#: response is still capped here, exactly as the sealed manifest specifies.
+READ_WINDOW_BYTES: Final = 983_040
+
+#: Live-authorized continuation policy, frozen by the owner on the WP0A-Q size census.
+#:
+#: Chosen prospectively from a size-blind 40-accession sample, not tuned until a failed canary
+#: passed: at C=0 only 12.8% of the resolved sample was admissible and **not one of sixteen
+#: 10-Ks**; C=3 reached 92.3%; C=7 is the smallest measured policy admitting 100%, and nothing
+#: in the sample needed a ninth window. The per-response bound above is unchanged, so what
+#: grows is the number of *bounded* reads, never the size of any one of them.
+LIVE_MAX_CONTINUATIONS: Final = 7
+
+#: One initial read plus the continuations. The aggregate ceiling for one document.
+MAX_WINDOWS: Final = LIVE_MAX_CONTINUATIONS + 1
+MAX_DOCUMENT_BYTES: Final = MAX_WINDOWS * READ_WINDOW_BYTES  # 7,864,320
 
 
 class AuthorityError(RuntimeError):
@@ -191,6 +203,7 @@ class AcquisitionAuthority:
         if len(keys) != len(rows):
             raise AuthorityError("envelope contains duplicate authorized keys")
 
+        acq_probe = man["acquisition"]
         # The bracket set comes out of the SAME verified read as everything else.
         brackets = frozenset(
             row["accession"] for row in sel.get("pre_window_boundary_accessions", [])
@@ -207,6 +220,13 @@ class AcquisitionAuthority:
                 raise AuthorityError(
                     f"boundary accessions absent from the envelope: {sorted(unknown)}"
                 )
+
+        if int(acq_probe["consumption_stop_threshold_bytes"]) != READ_WINDOW_BYTES:
+            raise AuthorityError(
+                "the manifest's consumption stop threshold "
+                f"({acq_probe['consumption_stop_threshold_bytes']}) is not the frozen read "
+                f"window ({READ_WINDOW_BYTES}); the continuation policy is derived from it"
+            )
 
         acq = man["acquisition"]
         domains = tuple(acq["domains"])

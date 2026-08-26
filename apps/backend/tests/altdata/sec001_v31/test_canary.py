@@ -102,18 +102,28 @@ def test_envelope_B_remains_the_sole_authority(authority):
 
 
 # ============================================================ the size screen
-def test_the_threshold_is_the_frozen_transport_bound():
-    assert CANARY_MAX_DOCUMENT_BYTES == 983_040
+def test_the_threshold_is_the_frozen_aggregate_bound():
+    """C=7 was frozen on the census: 8 windows of 983,040. The PER-READ bound is unchanged."""
+    from app.altdata.sec001_v31.authority import (
+        LIVE_MAX_CONTINUATIONS,
+        MAX_WINDOWS,
+        READ_WINDOW_BYTES,
+    )
+
+    assert READ_WINDOW_BYTES == 983_040, "the Defect-F per-response bound must not move"
+    assert LIVE_MAX_CONTINUATIONS == 7
+    assert MAX_WINDOWS == 8
+    assert CANARY_MAX_DOCUMENT_BYTES == 8 * 983_040 == 7_864_320
 
 
-@pytest.mark.parametrize("size", [1, 100_000, 983_039])
+@pytest.mark.parametrize("size", [1, 100_000, 983_039, 6_229_704, 7_864_319])
 def test_a_document_below_the_bound_is_eligible(size):
     assert screen(size) == (True, ELIGIBLE)
 
 
-@pytest.mark.parametrize("size", [983_040, 983_041, 5_000_000])
+@pytest.mark.parametrize("size", [7_864_320, 7_864_321, 20_000_000])
 def test_a_document_at_or_above_the_bound_is_ineligible(size):
-    """At the bound the reader fills its window and reports truncation, so equality is out."""
+    """At the ceiling the reader fills its last window and reports truncation."""
     ok, reason = screen(size)
     assert ok is False and reason == INELIGIBLE_TOO_LARGE
 
@@ -141,7 +151,7 @@ def test_screening_out_a_candidate_spends_no_document_request(
         "<tr><th>Seq</th><th>Description</th><th>Document</th><th>Type</th><th>Size</th></tr>"
         f"<tr><td>1</td><td>{form}</td>"
         f'<td><a href="/ix?doc=/x/big.htm">big.htm</a></td>'
-        f"<td>{form}</td><td>4000000</td></tr>"
+        f"<td>{form}</td><td>9000000</td></tr>"
         "</table></body></html>"
     ).encode()
 

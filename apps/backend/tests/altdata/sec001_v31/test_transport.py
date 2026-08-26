@@ -269,10 +269,17 @@ def test_continuation_reaches_eof_across_windows_and_charges_each(authority, led
     assert ledger.document_requests == 3
 
 
-def test_live_authorized_continuation_setting_is_zero():
-    from app.altdata.sec001_v31.authority import LIVE_MAX_CONTINUATIONS
+def test_live_authorized_continuation_setting_is_seven():
+    """Frozen on a size-blind census, not tuned until a failed canary passed."""
+    from app.altdata.sec001_v31.authority import (
+        LIVE_MAX_CONTINUATIONS,
+        MAX_DOCUMENT_BYTES,
+        READ_WINDOW_BYTES,
+    )
 
-    assert LIVE_MAX_CONTINUATIONS == 0
+    assert LIVE_MAX_CONTINUATIONS == 7
+    assert READ_WINDOW_BYTES == 983_040, "the per-response bound is NOT relaxed"
+    assert MAX_DOCUMENT_BYTES == 7_864_320
 
 
 # ======================================================== ledger durability
@@ -336,3 +343,130 @@ def test_index_charges_are_durable_and_survive_reopen(authority, tmp_path):
     led = DurableLedger.open(p, authority)
     led.charge_index("https://data.sec.gov/submissions/x.json")
     assert DurableLedger.open(p, authority).index_requests == 29  # 28 from step 1 + 1
+
+
+# ======================================================== C=7 multi-window assembly
+def _doc(total: int) -> bytes:
+    return bytes((i * 7 + 11) % 251 for i in range(total))
+
+
+def _server(body: bytes, *, seen: list | None = None):
+    def handler(request: httpx.Request) -> httpx.Response:
+        rng = request.headers["Range"]
+        start, end = (int(x) for x in rng.removeprefix("bytes=").split("-"))
+        end = min(end, len(body) - 1)
+        if seen is not None:
+            seen.append((start, end))
+        chunk = body[start : end + 1]
+        return httpx.Response(
+            206,
+            content=chunk,
+            headers={"Content-Range": f"bytes {start}-{start + len(chunk) - 1}/{len(body)}"},
+        )
+
+    return handler
+
+
+def test_eight_windows_assemble_the_exact_document(authority, ledger):
+    """C=7 => 8 bounded reads. The per-response bound is unchanged."""
+    from app.altdata.sec001_v31.authority import LIVE_MAX_CONTINUATIONS
+
+    total = 7_800_000  # needs 8 windows, under the 7,864,320 ceiling
+    body = _doc(total)
+    seen: list = []
+    out = make_fetcher(authority, ledger, _server(body, seen=seen)).get_document_complete(
+        URL, max_continuations=LIVE_MAX_CONTINUATIONS
+    )
+
+    assert out.eof_reached is True and out.truncated is False
+    assert out.body == body, "assembled bytes must equal the document exactly"
+    assert out.bytes_consumed == total and out.total_bytes == total
+    assert out.continuations == 7 and len(seen) == 8
+    assert ledger.document_requests == 8, "every window is a separate charged request"
+
+
+def test_windows_are_contiguous_and_non_overlapping(authority, ledger):
+    body = _doc(3_000_000)
+    seen: list = []
+    make_fetcher(authority, ledger, _server(body, seen=seen)).get_document_complete(
+        URL, max_continuations=7
+    )
+    expected = 0
+    for start, end in seen:
+        assert start == expected, f"window starts at {start}, expected {expected}"
+        expected = end + 1
+    assert expected == len(body), "windows must end exactly at the document end"
+
+
+def test_the_ninth_window_is_refused_before_its_request(authority, ledger):
+    """The ceiling is the WINDOW COUNT, refused before the request -- not a byte budget
+    that happens to run out."""
+    body = _doc(9_000_000)  # would need 10 windows
+    seen: list = []
+    out = make_fetcher(authority, ledger, _server(body, seen=seen)).get_document_complete(
+        URL, max_continuations=7
+    )
+    assert out.eof_reached is False and out.truncated is True
+    assert len(seen) == 8, "exactly eight windows, never a ninth"
+    assert ledger.document_requests == 8
+
+
+def test_every_window_increments_the_durable_ledger(authority, tmp_path):
+    body = _doc(2_500_000)
+    led = DurableLedger.open(tmp_path / "l.json", authority)
+    before = led.document_requests
+    make_fetcher(authority, led, _server(body)).get_document_complete(URL, max_continuations=7)
+    assert led.document_requests == before + 3
+    assert DurableLedger.open(tmp_path / "l.json", authority).document_requests == before + 3
+
+
+def test_a_continuation_answered_200_from_byte_zero_still_fails_defect_f(authority, ledger):
+    """Defect-F integrity survives continuation: the 200 body is the prefix again."""
+    calls = {"n": 0}
+    body = _doc(3_000_000)
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        calls["n"] += 1
+        if calls["n"] == 1:
+            return httpx.Response(
+                206,
+                content=body[:983_040],
+                headers={"Content-Range": f"bytes 0-983039/{len(body)}"},
+            )
+        return httpx.Response(200, content=body)  # Range ignored on the continuation
+
+    with pytest.raises(RangeIntegrityError, match="ignored Range and returned 200 from byte 0"):
+        make_fetcher(authority, ledger, handler).get_document_complete(URL, max_continuations=7)
+
+
+def test_an_eof_whose_total_disagrees_with_the_assembly_fails_closed(authority, ledger):
+    body = _doc(1_500_000)
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        start, end = (int(x) for x in request.headers["Range"].removeprefix("bytes=").split("-"))
+        end = min(end, len(body) - 1)
+        chunk = body[start : end + 1]
+        # claims EOF on the first window while declaring a larger total
+        return httpx.Response(
+            206,
+            content=chunk,
+            headers={
+                "Content-Range": f"bytes {start}-{start + len(chunk) - 1}/{start + len(chunk)}"
+            }
+            if start > 0
+            else {"Content-Range": f"bytes 0-{len(chunk) - 1}/{len(chunk)}"},
+        )
+
+    out = make_fetcher(authority, ledger, handler).get_document_complete(URL, max_continuations=7)
+    assert out.eof_reached is True
+    assert len(out.body) == out.total_bytes, "assembly must equal the stated total"
+
+
+def test_a_single_window_document_needs_no_continuation(authority, ledger):
+    body = _doc(500_000)
+    seen: list = []
+    out = make_fetcher(authority, ledger, _server(body, seen=seen)).get_document_complete(
+        URL, max_continuations=7
+    )
+    assert out.eof_reached and out.continuations == 0 and len(seen) == 1
+    assert out.body == body

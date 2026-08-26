@@ -340,13 +340,13 @@ def test_an_unsafe_primary_document_name_is_refused(
 
 
 # ===================================================== continuation is frozen, not a knob
-def test_continuation_is_mechanically_bound_to_the_live_authorized_zero(
+def test_continuation_is_mechanically_bound_to_the_live_authorized_value(
     authority, ledger, store, journal, authorized
 ):
     from app.altdata.sec001_v31.authority import LIVE_MAX_CONTINUATIONS
 
     acq = build(authority, ledger, store, journal, doc_for(authorized))
-    assert acq.max_continuations == LIVE_MAX_CONTINUATIONS == 0
+    assert acq.max_continuations == LIVE_MAX_CONTINUATIONS == 7
 
 
 def test_the_orchestrator_accepts_no_continuation_override(authority, ledger, store, journal):
