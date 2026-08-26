@@ -1,0 +1,31 @@
+{
+  "_artifact_identity": "0000097210/0001193125-21-050735/PRIMARY_DOCUMENT_COVER",
+  "committed_utc": "2026-08-26T23:53:16.520867Z",
+  "observation_ids": [
+    "1c62a0e7e72e6a5aab82355cffe09c20"
+  ],
+  "observations": [
+    {
+      "accepted_at": "2021-02-22T21:04:39.000Z",
+      "accession": "0001193125-21-050735",
+      "cik": 97210,
+      "form": "10-K",
+      "security_12b_title": "Common Stock",
+      "security_exchange_name": "Nasdaq Stock Market LLC",
+      "trading_symbol": "TER"
+    }
+  ],
+  "provenance": {
+    "attempts": 1,
+    "body_sha256": "b9c400ddffab7f93234ce140affe732c39e57e4931ef34ace7edf14d7cff727e",
+    "bytes_consumed": 6229704,
+    "continuations": 0,
+    "document_requests_spent": 1,
+    "envelope_sha256": "f10c1ad17589e5a8bec044d7aa5c1df2e0f752c37c6e75b9ed80ba044eece515",
+    "eof_reached": true,
+    "http_status": 200,
+    "manifest_sha256": "3a30ad0296aa945f6b7a68c2bf578e47c69f75267670c2e3d0e72d4473339724",
+    "selection_sha256": "2b6839e36be1234dab67d8c191b1b250440b953c8b56ec259b6206c49b8b66ed",
+    "total_bytes": 6229704
+  }
+}

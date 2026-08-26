@@ -1,6 +1,8 @@
 {
-  "acquired": [],
-  "document_requests": 2,
+  "acquired": [
+    "0000097210|10-K|0001193125-21-050735"
+  ],
+  "document_requests": 3,
   "events": [
     {
       "kind": "index",
@@ -271,9 +273,42 @@
       "n": 2,
       "sent_utc": "2026-08-26T23:26:22.078851Z",
       "url": "https://www.sec.gov/Archives/edgar/data/97210/000119312521050735/d69963d10k.htm"
+    },
+    {
+      "kind": "document",
+      "n": 3,
+      "sent_utc": "2026-08-26T23:53:15.616279Z",
+      "url": "https://www.sec.gov/Archives/edgar/data/97210/000119312521050735/d69963d10k.htm"
+    },
+    {
+      "at": "2026-08-26T23:53:16.013567Z",
+      "attempt_id": "CANARY_ATTEMPT_2",
+      "content_encoding": null,
+      "content_length": null,
+      "content_range_raw": null,
+      "content_type": "text/html",
+      "http_status": 200,
+      "kind": "response",
+      "phase": "headers",
+      "requested_end": 983039,
+      "requested_start": 0,
+      "url": "https://www.sec.gov/Archives/edgar/data/97210/000119312521050735/d69963d10k.htm",
+      "window_number": 1
+    },
+    {
+      "at": "2026-08-26T23:53:16.466784Z",
+      "attempt_id": "CANARY_ATTEMPT_2",
+      "disposition": "RANGE_IGNORED_200_START0",
+      "eof_reached": true,
+      "kind": "response",
+      "phase": "body",
+      "retained_bytes": 6229704,
+      "retained_sha256": "b9c400ddffab7f93234ce140affe732c39e57e4931ef34ace7edf14d7cff727e",
+      "truncated": false,
+      "window_number": 1
     }
   ],
   "index_requests": 71,
   "retries": 1,
-  "updated_utc": "2026-08-26T23:26:22.078869Z"
+  "updated_utc": "2026-08-26T23:53:16.488501Z"
 }

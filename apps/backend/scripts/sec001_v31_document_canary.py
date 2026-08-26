@@ -33,7 +33,7 @@ from app.altdata.sec001_v31.custody import (
     reconcile,
 )
 from app.altdata.sec001_v31.layers import FilingMetadata
-from app.altdata.sec001_v31.locator import LocatorResolver
+from app.altdata.sec001_v31.locator import replay_from_journal
 from app.altdata.sec001_v31.transport import BoundedFetcher, DurableLedger
 
 REPO = Path(__file__).resolve().parents[3]
@@ -41,6 +41,7 @@ STATE = REPO / "artifacts" / "wp0aq" / "state"
 USER_AGENT = "TradingWorkbench SEC001-V3 (GlobalComplyAI, LLC) jay.w0416@gmail.com"
 
 CIK, FORM, ACCESSION = 97210, "10-K", "0001193125-21-050735"
+ATTEMPT = 2  # attempt 1 halted on an ignored Range; its record is immutable
 
 
 def main() -> int:
@@ -48,7 +49,7 @@ def main() -> int:
     key = authority.require_authorized_accession(ACCESSION)
     assert key[0] == CIK and key[1] == FORM, key
     meta = FilingMetadata(cik=CIK, form=FORM, accession=ACCESSION, accepted_at=key[3])
-    print(f"authorized target: {CIK} / {FORM} / {ACCESSION}")
+    print(f"authorized target: {CIK} / {FORM} / {ACCESSION}   ATTEMPT {ATTEMPT}")
 
     ledger = DurableLedger.open(STATE / "request_ledger.json", authority)
     journal = AcquisitionJournal(STATE / "acquisition_journal.json")
@@ -58,8 +59,9 @@ def main() -> int:
 
     fetcher = BoundedFetcher(authority, ledger, user_agent=USER_AGENT)
     try:
-        # The locator is already LOCATOR_RESOLVED -- this replays it, spending no request.
-        resolved = LocatorResolver(authority, fetcher, journal).resolve(CIK, ACCESSION)
+        # Attempt #1's document states moved the record past LOCATOR_RESOLVED, so replay
+        # the retained locator facts directly. No request; canonical URL re-verified.
+        resolved = replay_from_journal(authority, journal, CIK, ACCESSION)
         assert ledger.index_requests == idx_before, "the locator must be replayed, not re-fetched"
         print(
             f"locator replayed (0 index requests): {resolved.primary_document} "
@@ -75,9 +77,9 @@ def main() -> int:
             print("REFUSING: ineligible under the frozen screen", file=sys.stderr)
             return 2
 
-        result = CoverAcquisition(authority, fetcher, store, ledger, journal).acquire(
-            meta, resolved.transport_locator()
-        )
+        result = CoverAcquisition(
+            authority, fetcher, store, ledger, journal, attempt=ATTEMPT
+        ).acquire(meta, resolved.transport_locator(), declared_size=resolved.document_size)
     finally:
         fetcher.close()
         print(
@@ -112,7 +114,9 @@ def main() -> int:
         p = store.path_for(CIK, ACCESSION, authority.source_variant)
         print(f"    artifact sha256    {hashlib.sha256(p.read_bytes()).hexdigest()}")
 
-    print(f"\n  journal   {journal.state_of(ACCESSION).value}")
+    print(
+        f"\n  journal   {journal.state_of(f'{ACCESSION}#attempt{ATTEMPT}' if ATTEMPT > 1 else ACCESSION).value}"
+    )
     print(f"  reconcile {reconcile(journal, store, authority.source_variant)}")
     print(f"  remaining document budget  {1200 - ledger.document_requests}")
     print("\nSTOP -- no second document.")

@@ -365,3 +365,52 @@ def test_the_old_directory_listing_representation_is_now_rejected(
     with pytest.raises(LocatorResolutionError):
         resolver(authority, ledger, journal, directory_listing_json).resolve(cik, accession)
     assert journal.state_of(accession) in DETERMINATE
+
+
+# ============================================================ replay after a document attempt
+def test_a_document_attempt_moves_the_state_past_LOCATOR_RESOLVED(
+    authority, ledger, journal, target
+):
+    """Why replay_from_journal exists: the locator and the document share one record, so a
+    document attempt makes resolve() unable to replay a locator that is still perfectly
+    valid."""
+    from app.altdata.sec001_v31.locator import replay_from_journal
+
+    cik, form, accession, _ = target
+    r1 = resolver(authority, ledger, journal, index_body(accession, [primary(form)])).resolve(
+        cik, accession
+    )
+    # a document attempt begins and is interrupted, exactly as canary attempt #1 was
+    journal.transition(accession, cik, form, AccessionState.REQUEST_INTENT)
+    journal.transition(accession, cik, form, AccessionState.REQUEST_SENT)
+
+    calls: list[str] = []
+    with pytest.raises(InterruptedAcquisition):
+        resolver(authority, ledger, journal, b"", calls).resolve(cik, accession)
+    assert calls == []
+
+    replayed = replay_from_journal(authority, journal, cik, accession)
+    assert replayed == r1, "the locator evidence predates the document attempt and still holds"
+    assert calls == [], "replay must issue no request"
+
+
+def test_replay_fails_closed_on_incomplete_retained_detail(authority, journal, target):
+    from app.altdata.sec001_v31.locator import replay_from_journal
+
+    cik, form, accession, _ = target
+    journal.transition(accession, cik, form, AccessionState.REQUEST_SENT)
+    with pytest.raises(LocatorResolutionError, match="incomplete"):
+        replay_from_journal(authority, journal, cik, accession)
+
+
+def test_replay_reverifies_the_canonical_url(authority, ledger, journal, target):
+    from app.altdata.sec001_v31.locator import replay_from_journal
+
+    cik, form, accession, _ = target
+    resolver(authority, ledger, journal, index_body(accession, [primary(form)])).resolve(
+        cik, accession
+    )
+    rec = journal.get(accession)
+    rec.detail["locator_url"] = "https://www.sec.gov/Archives/edgar/data/1/2/elsewhere.htm"
+    with pytest.raises(NotAuthorized, match="not the canonical archive URL"):
+        replay_from_journal(authority, journal, cik, accession)

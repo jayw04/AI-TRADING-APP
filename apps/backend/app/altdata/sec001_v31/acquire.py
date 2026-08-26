@@ -240,6 +240,7 @@ class CoverAcquisition:
             meta.cik,
             meta.form,
             AccessionState.REQUEST_INTENT,
+            accession=meta.accession,
             url=locator.url,
             attempt=self.attempt,
         )
@@ -260,6 +261,7 @@ class CoverAcquisition:
                 meta.cik,
                 meta.form,
                 AccessionState.DOCUMENT_RANGE_INTEGRITY_FAILURE,
+                accession=meta.accession,
                 reason="RANGE_INTEGRITY",
                 detail=str(exc)[:400],
                 document_requests_spent=spent,
@@ -278,6 +280,7 @@ class CoverAcquisition:
             meta.cik,
             meta.form,
             AccessionState.REQUEST_SENT,
+            accession=meta.accession,
             document_requests_spent=spent,
         )
         self.ledger.mark_acquired(meta.cik, meta.form, meta.accession)
@@ -288,6 +291,7 @@ class CoverAcquisition:
                 meta.cik,
                 meta.form,
                 AccessionState.EVIDENCE_UNAVAILABLE,
+                accession=meta.accession,
                 reason=outcome.reason,
             )
             return AcquisitionResult(
@@ -298,7 +302,13 @@ class CoverAcquisition:
                 accession_state=AccessionState.EVIDENCE_UNAVAILABLE.value,
             )
 
-        self.journal.transition(jkey, meta.cik, meta.form, AccessionState.RESPONSE_RETAINED)
+        self.journal.transition(
+            jkey,
+            meta.cik,
+            meta.form,
+            AccessionState.RESPONSE_RETAINED,
+            accession=meta.accession,
+        )
 
         # The parser receives bytes only. The locator is not in scope here.
         parsed = cover_parser.parse_cover_identity(
@@ -308,7 +318,12 @@ class CoverAcquisition:
             bytes_consumed=outcome.bytes_consumed,
         )
         self.journal.transition(
-            jkey, meta.cik, meta.form, AccessionState.PARSED, parse_status=parsed.status
+            jkey,
+            meta.cik,
+            meta.form,
+            AccessionState.PARSED,
+            accession=meta.accession,
+            parse_status=parsed.status,
         )
 
         result = AcquisitionResult(
@@ -325,6 +340,7 @@ class CoverAcquisition:
                 meta.cik,
                 meta.form,
                 AccessionState.EVIDENCE_UNAVAILABLE,
+                accession=meta.accession,
                 parse_status=parsed.status,
             )
             result.accession_state = AccessionState.EVIDENCE_UNAVAILABLE.value
@@ -349,6 +365,7 @@ class CoverAcquisition:
                 meta.cik,
                 meta.form,
                 AccessionState.EVIDENCE_UNAVAILABLE,
+                accession=meta.accession,
                 reason=INDEX_COVER_CIK_MISMATCH,
             )
             result.accession_state = AccessionState.EVIDENCE_UNAVAILABLE.value

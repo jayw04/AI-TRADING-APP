@@ -214,3 +214,53 @@ def test_reconcile_separates_interrupted_from_unavailable(tmp_path):
     report = reconcile(j, store, "V")
     assert report["interrupted"] == ["acc-a"]
     assert report["evidence_unavailable"] == ["acc-b"]
+
+
+# ============================================ journal key vs real accession
+def test_the_record_keeps_the_REAL_accession_not_the_attempt_key(tmp_path):
+    """Anything deriving an evidence path from a record must use the real accession.
+
+    When attempts were first namespaced the record stored the attempt key in its accession
+    field, so reconcile() looked for the artifact under '<acc>#attempt2' and reported a
+    perfectly good sealed artifact as MISSING -- the invariant alarm firing falsely, which
+    is worse than no alarm.
+    """
+    j = AcquisitionJournal(tmp_path / "j.json")
+    key = f"{ACC}#attempt2"
+    j.transition(key, CIK, "10-K", AccessionState.REQUEST_INTENT, accession=ACC)
+    rec = j.get(key)
+    assert rec is not None
+    assert rec.accession == ACC, "the record must carry the real accession"
+    assert j.get(ACC) is None, "and must not collide with attempt 1's record"
+
+
+def test_reconcile_finds_an_artifact_sealed_under_an_attempt_key(tmp_path):
+    store = TransactionalEvidenceStore(tmp_path / "ev")
+    j = AcquisitionJournal(tmp_path / "j.json")
+    key = f"{ACC}#attempt2"
+
+    _p, digest = store.publish_accession_set(CIK, ACC, "V", [{"x": 1}], ["o1"], {})
+    j.transition(key, CIK, "10-K", AccessionState.REQUEST_INTENT, accession=ACC)
+    j.seal(key, digest)
+
+    report = reconcile(j, store, "V")
+    assert report["sealed_and_verified"] == [ACC]
+    assert report["sealed_but_artifact_missing_or_corrupt"] == []
+
+
+def test_seal_preserves_the_real_accession(tmp_path):
+    j = AcquisitionJournal(tmp_path / "j.json")
+    key = f"{ACC}#attempt3"
+    j.transition(key, CIK, "10-K", AccessionState.PARSED, accession=ACC)
+    j.seal(key, "a" * 64)
+    assert j.get(key).accession == ACC
+    assert j.get(key).state is AccessionState.SEALED
+
+
+def test_attempt_one_records_are_unaffected_by_a_later_attempt(tmp_path):
+    j = AcquisitionJournal(tmp_path / "j.json")
+    j.transition(ACC, CIK, "10-K", AccessionState.REQUEST_SENT)
+    before = list(j.get(ACC).history)
+    j.transition(f"{ACC}#attempt2", CIK, "10-K", AccessionState.SEALED, accession=ACC)
+    assert j.get(ACC).history == before
+    assert j.state_of(ACC) is AccessionState.REQUEST_SENT

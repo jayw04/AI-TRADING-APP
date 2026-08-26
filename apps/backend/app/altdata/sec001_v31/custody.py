@@ -235,12 +235,26 @@ class AcquisitionJournal:
 
     # ---- transitions -----------------------------------------------------------------
     def transition(
-        self, accession: str, cik: int, form: str, state: AccessionState, **detail: Any
+        self,
+        key: str,
+        cik: int,
+        form: str,
+        state: AccessionState,
+        *,
+        accession: str | None = None,
+        **detail: Any,
     ) -> AccessionRecord:
-        rec = self._records.get(accession)
+        """``key`` addresses the record; ``accession`` is the real SEC accession.
+
+        They differ once attempts are namespaced (``<accession>#attemptN``). Keeping them
+        distinct matters: anything that derives an evidence path from the record -- notably
+        ``reconcile`` -- must use the real accession, or a perfectly good sealed artifact
+        reads as missing and the invariant alarm fires falsely.
+        """
+        rec = self._records.get(key)
         if rec is None:
-            rec = AccessionRecord(accession=accession, cik=cik, form=form, state=state)
-            self._records[accession] = rec
+            rec = AccessionRecord(accession=accession or key, cik=cik, form=form, state=state)
+            self._records[key] = rec
         else:
             rec.state = state
         rec.history.append({"state": state.value, "at": _utc_now(), **detail})
@@ -249,11 +263,16 @@ class AcquisitionJournal:
         self._flush()
         return rec
 
-    def seal(self, accession: str, artifact_sha256: str) -> AccessionRecord:
-        rec = self._records[accession]
+    def seal(self, key: str, artifact_sha256: str) -> AccessionRecord:
+        rec = self._records[key]
         rec.artifact_sha256 = artifact_sha256
         return self.transition(
-            accession, rec.cik, rec.form, AccessionState.SEALED, artifact_sha256=artifact_sha256
+            key,
+            rec.cik,
+            rec.form,
+            AccessionState.SEALED,
+            accession=rec.accession,
+            artifact_sha256=artifact_sha256,
         )
 
     def guard_fresh(self, accession: str) -> None:

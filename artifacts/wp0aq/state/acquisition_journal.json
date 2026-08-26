@@ -766,6 +766,49 @@
       ],
       "state": "REQUEST_SENT"
     },
+    "0001193125-21-050735#attempt2": {
+      "accession": "0001193125-21-050735",
+      "artifact_sha256": "a24fd1d70f24f835945d6f682ab906397872e476546de284ddef8e9da832f3cc",
+      "cik": 97210,
+      "detail": {
+        "artifact_sha256": "a24fd1d70f24f835945d6f682ab906397872e476546de284ddef8e9da832f3cc",
+        "attempt": 2,
+        "document_requests_spent": 1,
+        "field_repair_note": "the accession field was written with the attempt key by a bug in the first namespaced attempt; state, history and artifact digest are unchanged",
+        "journal_key": "0001193125-21-050735#attempt2",
+        "parse_status": "BOUND",
+        "url": "https://www.sec.gov/Archives/edgar/data/97210/000119312521050735/d69963d10k.htm"
+      },
+      "form": "10-K",
+      "history": [
+        {
+          "at": "2026-08-26T23:53:15.609163Z",
+          "attempt": 2,
+          "state": "REQUEST_INTENT",
+          "url": "https://www.sec.gov/Archives/edgar/data/97210/000119312521050735/d69963d10k.htm"
+        },
+        {
+          "at": "2026-08-26T23:53:16.481652Z",
+          "document_requests_spent": 1,
+          "state": "REQUEST_SENT"
+        },
+        {
+          "at": "2026-08-26T23:53:16.493824Z",
+          "state": "RESPONSE_RETAINED"
+        },
+        {
+          "at": "2026-08-26T23:53:16.512637Z",
+          "parse_status": "BOUND",
+          "state": "PARSED"
+        },
+        {
+          "artifact_sha256": "a24fd1d70f24f835945d6f682ab906397872e476546de284ddef8e9da832f3cc",
+          "at": "2026-08-26T23:53:16.525045Z",
+          "state": "SEALED"
+        }
+      ],
+      "state": "SEALED"
+    },
     "0001193125-21-161989": {
       "accession": "0001193125-21-161989",
       "artifact_sha256": null,
@@ -1733,5 +1776,5 @@
       "state": "LOCATOR_RESOLVED"
     }
   },
-  "updated_utc": "2026-08-26T23:26:22.258183Z"
+  "updated_utc": "2026-08-26T23:53:16.525084Z"
 }

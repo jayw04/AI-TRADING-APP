@@ -301,3 +301,56 @@ class LocatorResolver:
             url=locator_url,
             index_body_sha256=digest,
         )
+
+
+def replay_from_journal(
+    authority: AcquisitionAuthority,
+    journal: AcquisitionJournal,
+    cik: int,
+    accession: str,
+    journal_key: str | None = None,
+) -> ResolvedLocator:
+    """Reconstruct an already-resolved locator from retained journal detail. NO request.
+
+    ``resolve()`` replays only while the record still *reads* ``LOCATOR_RESOLVED``, and a
+    document attempt on the same accession moves that state onward -- attempt #1 left the
+    record at ``REQUEST_SENT``, so its perfectly valid locator became unreplayable even
+    though every fact was still retained. The locator's evidence predates the document
+    attempt and remains valid; only the state cursor moved.
+
+    Fails closed if any retained fact is missing, and re-verifies that the retained URL is
+    still the canonical derivation, so stale or tampered detail cannot be replayed into a
+    request.
+    """
+    key = authority.require_authorized_accession(accession)
+    if key[0] != cik:
+        raise NotAuthorized(f"accession {accession} is authorized under CIK {key[0]}, not {cik}")
+    _cik, form, _acc, accepted_at = key
+
+    rec = journal.get(journal_key or accession)
+    if rec is None:
+        raise LocatorResolutionError(
+            RESOLVER_SCHEMA_UNSUPPORTED, f"no journal record for {accession}"
+        )
+    d = rec.detail
+    required = ("primary_document", "document_size", "locator_url", "index_body_sha256")
+    missing = [k for k in required if not d.get(k)]
+    if missing:
+        raise LocatorResolutionError(
+            RESOLVER_SCHEMA_UNSUPPORTED,
+            f"retained locator detail is incomplete: missing {missing}",
+        )
+
+    authority.require_canonical_url(
+        cik, accession, str(d["primary_document"]), str(d["locator_url"])
+    )
+    return ResolvedLocator(
+        cik=cik,
+        accession=accession,
+        form=form,
+        accepted_at=accepted_at,
+        primary_document=str(d["primary_document"]),
+        document_size=int(d["document_size"]),
+        url=str(d["locator_url"]),
+        index_body_sha256=str(d["index_body_sha256"]),
+    )
