@@ -1,6 +1,6 @@
 {
   "acquired": [],
-  "document_requests": 0,
+  "document_requests": 2,
   "events": [
     {
       "kind": "index",
@@ -259,9 +259,21 @@
       "n": 71,
       "sent_utc": "2026-08-26T23:09:28.046158Z",
       "url": "https://www.sec.gov/Archives/edgar/data/1513845/000110465926065681/0001104659-26-065681-index.html"
+    },
+    {
+      "kind": "document",
+      "n": 1,
+      "sent_utc": "2026-08-26T23:26:21.431801Z",
+      "url": "https://www.sec.gov/Archives/edgar/data/97210/000119312521050735/d69963d10k.htm"
+    },
+    {
+      "kind": "document",
+      "n": 2,
+      "sent_utc": "2026-08-26T23:26:22.078851Z",
+      "url": "https://www.sec.gov/Archives/edgar/data/97210/000119312521050735/d69963d10k.htm"
     }
   ],
   "index_requests": 71,
   "retries": 1,
-  "updated_utc": "2026-08-26T23:09:28.046180Z"
+  "updated_utc": "2026-08-26T23:26:22.078869Z"
 }
