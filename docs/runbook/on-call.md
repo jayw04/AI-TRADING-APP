@@ -266,9 +266,15 @@ that bypassed the app, or a backfill bug.)
 **Check:** logs for `daily_backup_complete` / `daily_backup_failed`;
 `workbench_background_job_last_run_seconds{job="daily_backup"}`.
 
-**Fix:** run by hand: `docker compose exec backend bash scripts/backup_db.sh`.
-If the manual run fails, check disk (`df -h`). If manual works but the schedule
-doesn't, check the scheduler via `/healthz`.
+**Fix:** run by hand inside the backend container (Python backup; the image has
+neither ``bash`` nor the ``sqlite3`` CLI):
+
+```bash
+docker compose exec backend python -c 'from app.jobs.sqlite_backup import run_sqlite_backup; print(run_sqlite_backup())'
+```
+
+If the manual run fails, check disk (`df -h`) and that `/app/data/workbench.sqlite`
+exists. If manual works but the schedule doesn't, check the scheduler via `/healthz`.
 
 ## "Disk is filling up"
 

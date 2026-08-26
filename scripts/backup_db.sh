@@ -1,5 +1,9 @@
 #!/bin/bash
-# Daily SQLite backup (P5 §8.5).
+# Daily SQLite backup (P5 §8.5) — operator CLI helper.
+#
+# The scheduled 02:00 ET job is Python ``app.jobs.sqlite_backup`` (the backend
+# image has neither bash nor the sqlite3 CLI). This script is for hosts that
+# do have the CLI (laptop, rescue shell).
 #
 # Uses SQLite's `.backup` command — atomic and WAL-aware, so it produces a
 # consistent snapshot regardless of in-flight transactions (a plain `cp` of a
@@ -7,8 +11,6 @@
 #
 # Output:    data/backups/workbench-YYYY-MM-DD.sqlite
 # Retention: WORKBENCH_BACKUP_RETENTION_DAYS (default 30); older files pruned.
-#
-# Run on a schedule (the lifespan registers a 02:00 cron job) or by hand.
 
 set -e
 
