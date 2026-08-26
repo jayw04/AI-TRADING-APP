@@ -1,0 +1,244 @@
+{
+  "alternative_envelope_A": {
+    "deficiency": "A's earliest observation is 2021-02-09; it therefore cannot establish the security->CIK binding for the 2021-02-08 first week of the 26.4-year terminal window. That deficiency would be caused by the envelope choice, not by the underlying evidence.",
+    "status": "RETAINED as derivation / diagnostic alternative \u2014 NOT acquisition authority",
+    "total_eligible_accessions": 433
+  },
+  "artifact": "SEC001_V3_1_WP0AQ_COVER_ENVELOPE_SELECTION_V1",
+  "authority": "WP0A-Q-COVER, owner 2026-08-26, sub-authority of WP0A only",
+  "binding_predicate_reminder": "LINEAGE_STABLE = CIK_FILING_SPAN_BRACKETS_WEEK AND SECURITY_CIK_BINDING_COVERS_WEEK AND NO_COMPETING_SECURITY_CIK_BINDING; exact accepted timestamps; the cover-page tranche supplies evidence for the middle term ONLY",
+  "budget_at_selection": {
+    "cover_page_observations": 0,
+    "document_request_cap": 1200,
+    "document_requests_per_filing_available": 2.65,
+    "document_requests_used": 0,
+    "index_request_cap": 200,
+    "index_requests_used": 28,
+    "index_retries": 0,
+    "security_cik_bindings": 0
+  },
+  "cik_once_note": "GOOG and GOOGL share CIK 1652044; acquired once, projected to both",
+  "derivation_tool": {
+    "path": "apps/backend/scripts/sec001_v31_wp0aq_envelope.py",
+    "sha256": "1688e82e1e074f1fa3a680cfdf220389ab610af6ec0c701abc4989a06a9487ac"
+  },
+  "envelope_artifact": {
+    "derived_at_utc": "2026-08-26T16:26:05.821242Z",
+    "immutability": "CREATE-ONCE; preserved byte-identical by this selection",
+    "path": "artifacts/wp0aq/WP0AQ_COVER_ENVELOPE_V1.json",
+    "sha256": "f10c1ad17589e5a8bec044d7aa5c1df2e0f752c37c6e75b9ed80ba044eece515"
+  },
+  "hold_state": {
+    "document_acquisition": "UNSTARTED at the moment of selection; remains HELD",
+    "not_authorized": [
+      "WP0B / FPI",
+      "WP1 lineage reconstruction",
+      "WP2 population/order",
+      "classification / SIC acquisition",
+      "state-seeding acquisition",
+      "coverage token creation or spend",
+      "economics",
+      "runtime"
+    ],
+    "parser_execution_against_documents": "HELD",
+    "release_condition": "cover-page parser / acquisition harness implemented and reviewed"
+  },
+  "next_checkpoint_preconditions": [
+    "retained schema is exactly the seven frozen fields",
+    "extra-field emission fails closed",
+    "SIC extraction/access impossible, not merely unused",
+    "no return/price/P&L imports or output",
+    "bounded 1048576-byte streaming with the 983040-byte stop threshold",
+    "ignored-Range-200 behavior",
+    "403 latch",
+    "retry and request accounting",
+    "CIK/accession acquired once",
+    "class-tuple fixtures including GOOG + GOOGL same CIK / different class",
+    "ticker-only fixture must resolve DISPUTED, not PASS",
+    "primaryDocument filename content cannot influence identity",
+    "no artifact overwrite"
+  ],
+  "parent_manifest": {
+    "design_commit": "741445fd7830b27ede675def54c789435c256658",
+    "design_document": "docs/design/SEC-001 V3.1/..._v1_4_FINAL.md",
+    "frozen_utc": "2026-08-26T16:11:22Z",
+    "path": "manifests/wp0aq/WP0AQ_COVER_PREACQUISITION_MANIFEST_V1.json",
+    "sha256": "3a30ad0296aa945f6b7a68c2bf578e47c69f75267670c2e3d0e72d4473339724"
+  },
+  "population_securities": 23,
+  "pre_window_admission_scope": "Pre-window periodic filings in Envelope B are admitted solely as left-boundary security->CIK observations supporting inward-bounded bindings for weeks in the manifest's already-frozen union window. They create no earlier target cells and constitute no Gate-3 classification state seeding. They may not establish SIC state, sector state, return state, or any pre-period classification state.",
+  "pre_window_boundary_accessions": [
+    {
+      "accepted_at": "2020-02-27T11:07:54.000Z",
+      "accession": "0001635327-20-000014",
+      "cik": 1635327,
+      "form": "40-F"
+    },
+    {
+      "accepted_at": "2020-03-13T21:21:43.000Z",
+      "accession": "0001193125-20-073092",
+      "cik": 1329099,
+      "form": "20-F"
+    },
+    {
+      "accepted_at": "2020-04-02T20:07:52.000Z",
+      "accession": "0001558370-20-003563",
+      "cik": 1513845,
+      "form": "20-F/A"
+    },
+    {
+      "accepted_at": "2020-10-21T22:15:23.000Z",
+      "accession": "0000313616-20-000142",
+      "cik": 313616,
+      "form": "10-Q"
+    },
+    {
+      "accepted_at": "2020-10-28T20:24:44.000Z",
+      "accession": "0001466258-20-000231",
+      "cik": 1466258,
+      "form": "10-Q"
+    },
+    {
+      "accepted_at": "2020-10-30T14:34:57.000Z",
+      "accession": "0000097745-20-000051",
+      "cik": 97745,
+      "form": "10-Q"
+    },
+    {
+      "accepted_at": "2020-10-30T16:17:59.000Z",
+      "accession": "0001418091-20-000202",
+      "cik": 1418091,
+      "form": "10-Q"
+    },
+    {
+      "accepted_at": "2020-11-02T19:38:16.000Z",
+      "accession": "0001193125-20-283796",
+      "cik": 97210,
+      "form": "10-Q"
+    },
+    {
+      "accepted_at": "2020-11-04T19:55:13.000Z",
+      "accession": "0000882835-20-000033",
+      "cik": 882835,
+      "form": "10-Q"
+    },
+    {
+      "accepted_at": "2020-11-05T01:55:35.000Z",
+      "accession": "0001415404-20-000033",
+      "cik": 1415404,
+      "form": "10-Q"
+    },
+    {
+      "accepted_at": "2020-11-05T23:20:08.000Z",
+      "accession": "0001564590-20-051533",
+      "cik": 1671933,
+      "form": "10-Q"
+    },
+    {
+      "accepted_at": "2020-11-12T23:37:40.000Z",
+      "accession": "0001213900-20-036663",
+      "cik": 1780312,
+      "form": "10-Q"
+    },
+    {
+      "accepted_at": "2020-11-16T21:52:52.000Z",
+      "accession": "0001564590-20-054203",
+      "cik": 1811414,
+      "form": "10-Q"
+    },
+    {
+      "accepted_at": "2020-12-04T01:31:10.000Z",
+      "accession": "0001585521-20-000299",
+      "cik": 1585521,
+      "form": "10-Q"
+    },
+    {
+      "accepted_at": "2021-01-28T02:13:48.000Z",
+      "accession": "0001326801-21-000014",
+      "cik": 1326801,
+      "form": "10-K"
+    },
+    {
+      "accepted_at": "2021-01-28T11:36:59.000Z",
+      "accession": "0001133421-21-000006",
+      "cik": 1133421,
+      "form": "10-K"
+    },
+    {
+      "accepted_at": "2021-02-03T01:12:25.000Z",
+      "accession": "0001652044-21-000010",
+      "cik": 1652044,
+      "form": "10-K"
+    },
+    {
+      "accepted_at": "2021-02-04T22:57:32.000Z",
+      "accession": "0001506293-21-000025",
+      "cik": 1506293,
+      "form": "10-K"
+    },
+    {
+      "accepted_at": "2021-02-05T01:51:20.000Z",
+      "accession": "0001564590-21-004377",
+      "cik": 1564408,
+      "form": "10-K"
+    }
+  ],
+  "pre_window_boundary_observations_added_vs_A": 19,
+  "primary_document_locator_constraint": "primaryDocument is a TRANSPORT LOCATOR ONLY. The complete value may be used transiently to form an authorized SEC request and for nothing else. A ticker-like substring in the filename must never become a security matching key, evidence that a filing belongs to one class rather than another, a retained cover observation field, part of the security-class binding, or a substitute for TradingSymbol + Security12bTitle + exchange read from the filing itself. Do not parse a ticker out of the filename. Ticker equality alone remains insufficient at every hop.",
+  "record_type": "ENVELOPE_SELECTION",
+  "ruled_at_utc": "2026-08-26T19:42:39.352404Z",
+  "ruled_by": "owner",
+  "selected_earliest_accepted_utc": "2020-02-27T15:07:54Z",
+  "selected_envelope": "B",
+  "selected_filings_by_form": {
+    "10-K": 107,
+    "10-K/A": 11,
+    "10-Q": 317,
+    "10-Q/A": 1,
+    "20-F": 13,
+    "20-F/A": 2,
+    "40-F": 1
+  },
+  "selected_latest_accepted_utc": "2026-08-11T00:42:31Z",
+  "selected_total_eligible_accessions": 452,
+  "selection_reason": "O-9 inward bounding combined with the all-admissible-span stop rule. Absent independent boundary evidence an episode may begin no earlier than the first authoritative filing observation tying the CIK to the security and may end no later than the last; unsupported edges remain gaps. B is the smallest envelope that gives the adjudication a fair chance to resolve every admissible terminal span without manufacturing coverage or creating an avoidable HOLD. The decisive 20-year window beginning in 2022 does not make A sufficient: a STOP must survive optimistic treatment across ALL admissible >=20-year spans, which is why the earlier single-window K=13 reasoning was corrected. Cost reinforces but does not decide: +19 documents / ~4.4%, inside the prospectively stated 350-480 planning band.",
+  "structurally_unbracketed_candidates": [
+    {
+      "cik": 1751008,
+      "disposition": "DISPUTED where no earlier periodic declaration exists",
+      "first_eligible_accepted_utc": "2021-05-14T20:04:40.000Z"
+    },
+    {
+      "cik": 1717115,
+      "disposition": "DISPUTED where no earlier periodic declaration exists",
+      "first_eligible_accepted_utc": "2024-08-06T20:05:30.000Z"
+    },
+    {
+      "cik": 1849635,
+      "disposition": "DISPUTED where no earlier periodic declaration exists",
+      "first_eligible_accepted_utc": "2021-11-22T22:13:07.000Z"
+    }
+  ],
+  "structurally_unbracketed_note": "B does not pretend to fix these. Fail-closed inward bounding is expected to produce exactly this asymmetry.",
+  "terminal_outcomes": [
+    "G0A_STOP_FROZEN_CLASSES_FORECLOSE_COVERAGE",
+    "G0A_PASS (returns to owner checkpoint; does NOT start WP0B)",
+    "G0A_HOLD_SECURITY_CIK_BINDING_EVIDENCE_INCOMPLETE"
+  ],
+  "textual_wrinkle_resolved": "Design v1.5 section 24.6 describes the binding region as 2022-2026 while explaining why the Inline-XBRL phase-in does not impair the authorization; the pre-request sealed manifest had already frozen the corrected terminal-window union back to 2021-02-08. This record resolves the tension by scoping the admission of pre-window filings. The sealed manifest is NOT edited and is NOT retroactively expanded.",
+  "unchanged_after_first_response": {
+    "authority_change": "none \u2014 WP0A-Q-COVER, sub-authority of WP0A only",
+    "cutoff_change": "none \u2014 2026-08-26T16:11:22Z",
+    "deferred_forms_still_deferred": [
+      "8-K",
+      "8-A12B",
+      "Form 25",
+      "6-K",
+      "registration statements",
+      "all other forms"
+    ],
+    "permitted_form_change": "none \u2014 10-K, 10-K/A, 10-Q, 10-Q/A, 20-F, 20-F/A, 40-F, 40-F/A",
+    "population_change": "none \u2014 23 securities / 22 unique CIKs as frozen"
+  },
+  "unique_ciks": 22
+}

@@ -94,3 +94,10 @@ apps/backend/scripts/mr002_host_decommissioning_sweep.py text eol=lf
 # the 2026-08-24 arrival gate a rebuild (5 of 6 blobs rejected).
 apps/backend/app/altdata/sec001_v3/** -text
 apps/backend/tests/altdata/sec001_v3/** -text
+
+# SEC-001 V3.1 WP0A-Q cover-page acquisition -- same byte-custody requirement as V3 above.
+# WP0AQ_COVER_ENVELOPE_V1.json is CREATE-ONCE and its sha256 IS the governance identity
+# recorded in the selection record and in the memory state; CRLF normalisation would make
+# the worktree copy and the object store disagree (worktree f10c1ad1 vs normalised f833217d).
+artifacts/wp0aq/** -text
+apps/backend/scripts/sec001_v31_wp0aq_envelope.py -text
