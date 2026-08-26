@@ -4,7 +4,7 @@
 |---|---|
 | Document version | **v1.0 — Phase 1.1 product/ops closeout** |
 | Date | 2026-08-26 |
-| Status | Phase 1 **CLOSED**. Phase 1.1 Slices 1–3 **CLOSED**. Phase 1.1 History filters **CLOSED**. SQLite backup inclusion **CONFIRMED** (one-shot 2026-08-26; nightly job fix `#690`, not yet on the live pin). 90-day JSON prune **FUTURE NATURAL PROOF** (~2026-11-12). **Not a strategy pre-registration. Not an authorization to trade or influence LOW-001.** |
+| Status | Phase 1.1 **product functionality COMPLETE**. Backup **inclusion** CONFIRMED (one-shot). Scheduled-backup **mechanism** not yet deployed (`#690` after close). 90-day JSON prune **FUTURE NATURAL PROOF**. **Not a strategy pre-registration. Not an authorization to trade or influence LOW-001.** |
 | Supersedes | `docs/design/Opportunity Page/TradingWorkbench_Opportunity_Page_Watchlist_Design_v0_11.md` for **current implementation/design state**. v0.11 remains the Slice-3 closeout pin; v0.9 remains the Slice-2 deployed-state pin; v0.8 remains the Slice-1 deployed-state pin; v0.7 remains the Slice-1 contract pin. |
 | Parent freeze | `docs/Strategies/TradingWorkbench_Opportunity_Page_Watchlist_Design_v0_3.md` — still the product/display contract that produced the Phase-1 freeze. Later revisions add history, MDQ boundary, and implementation contract; they do **not** reopen families, thresholds, screen identity, or research authority. |
 | Parent plan | `docs/design/ATP/AlgoTraderPlus_v1_4_1_ImplementationPlan_v0_14.md` (current; supersedes v0.13). On conflict, the parent/governed artifact controls. |
@@ -16,8 +16,20 @@ No new research authority and no strategy behavior change. Frozen admission cond
 
 ## Change summary — v1.0 Phase 1.1 closeout (2026-08-26)
 
+Owner ruling 2026-08-26 (RTH): do nothing during RTH. Do not rebuild backend. Do not start strategy 8. Do not move host pin `07a9233` unless there is a separate reason. **Backup inclusion** and **scheduled-backup mechanism deployment** are different claims.
+
+| Item | State |
+|---|---|
+| Phase 1.1 product functionality | **COMPLETE** |
+| History filters | **CLOSED / live** |
+| SQLite backup inclusion | **CONFIRMED** (WAL-safe one-shot 2026-08-26; not a scheduled-job proof) |
+| `#690` scheduled backup repair | **READY — deploy after close** (scoped overlay/sidecar; pin stays `07a9233` unless the owner chooses a pin move) |
+| v1.0 design | **WRITTEN / `#691` open** (docs-only clock; need not wait for the first scheduled backup unless v1.0 is later amended to record the repair as **deployed**) |
+| 90-day prune survival | **FUTURE NATURAL PROOF** (~2026-11-12) |
+| Strategy 8 | **IDLE / untouched** |
+
 1. **§6.3 History filters / listing polish is CLOSED.** PR **#669** squash `e7f56c3` (date-range, family, symbol, screen-version, `presence` ∈ `{all,current,historical}`; `on_watchlist` from the **latest ingested candidate date**, optionally scoped by `screen_version`; `view=summary` with a symbol stays summary; row click uses `view=timeline`). PR **#681** squash `e58ee77` lists Watchlist/History only when status starts with `Source: MOM-001` (`isPatternValidatedStatus`) — **display-only**; admission unchanged. Owner display constraint 2026-08-25.
-2. **§6.4 SQLite backup inclusion is CONFIRMED on the live DB.** Ordinary nightly `daily_backup` was **not** writing files. Root cause: `run_daily_backup()` used `Path(__file__).parents[3] / "scripts" / "backup_db.sh"` (IndexError at `/app/app/lifespan.py`), the backend image has neither `bash` nor the `sqlite3` CLI, and repo-root `scripts/backup_db.sh` is not in the image. WAL-safe one-shot on 2026-08-26T16:09Z (no backend restart, Range Trader websocket preserved): `/app/data/backups/workbench-2026-08-26.sqlite` (27 MiB) contains `opportunity_occurrence` **100** rows, `candidate_date` **2026-08-14 → 2026-08-21**, matching live. `healthz` stayed `ok`. Nightly-job code fix is PR **#690**; it is **not** on live pin `07a9233` until an **after-close** backend rebuild. Do not rebuild backend during RTH.
+2. **§6.4 SQLite backup *inclusion* is CONFIRMED; scheduled-backup *mechanism* is not yet deployed.** Ordinary nightly `daily_backup` was **not** writing files. Root cause: `run_daily_backup()` used `Path(__file__).parents[3] / "scripts" / "backup_db.sh"` (IndexError at `/app/app/lifespan.py`), the backend image has neither `bash` nor the `sqlite3` CLI, and repo-root `scripts/backup_db.sh` is not in the image. WAL-safe one-shot on 2026-08-26T16:09Z (no backend restart, Range Trader websocket preserved): `/app/data/backups/workbench-2026-08-26.sqlite` (27 MiB) contains `opportunity_occurrence` **100** rows, `candidate_date` **2026-08-14 → 2026-08-21**, matching live. `healthz` stayed `ok`. That proves **inclusion**. It does **not** prove the 02:00 ET job. Code fix is PR **#690**. After NYSE close: merge `#690` after walk-away, rebuild/restart **backend only**, keep pin `07a9233`, record `#690` via scoped overlay/sidecar. Post-rebuild prove `healthz=ok`, scheduler armed, Range Trader registration intact, no unexpected order/rebalance from restart, `daily_backup` registered for 02:00 ET, shared-root free space acceptable. After that night’s 02:00 ET run, verify a **new dated file created by the scheduled job** (not another one-shot) and `daily_backup_complete`, then re-prove `opportunity_occurrence` count/range against live. That closes the **repair deployment**.
 3. **90-day JSON prune remains FUTURE NATURAL PROOF.** `SNAPSHOT_RETENTION_DAYS = 90` in `apps/backend/app/research/disc001/spec.py`. Earliest snapshots are `2026-08-14`, so the first natural prune is ~**2026-11-12**. Do not invent a prune. Do not claim CLOSED. Durable `opportunity_occurrence` rows must survive JSON prune.
 4. **Three identities must not be collapsed** (updated 2026-08-26; do not use the v0.11 Slice-3 table as live state):
 
@@ -302,7 +314,8 @@ Shipped as PR **#669** / `e7f56c3` (filters) and PR **#681** / `e58ee77` (MOM-00
 
 ### 6.4 Operational watches
 
-- **SQLite backup includes `opportunity_occurrence` — CONFIRMED 2026-08-26.** One-shot WAL snapshot `/app/data/backups/workbench-2026-08-26.sqlite` has 100 rows, `2026-08-14` → `2026-08-21`, matching live. Nightly `daily_backup` was failing (Docker path + missing `sqlite3` CLI); code fix is PR **#690**. Apply that fix with an **after-close** backend rebuild; do not rebuild during RTH. Until that rebuild, the 2026-08-26 file is the inclusion proof, not a healthy 02:00 ET job.
+- **SQLite backup *inclusion* — CONFIRMED 2026-08-26.** One-shot WAL snapshot `/app/data/backups/workbench-2026-08-26.sqlite` has 100 rows, `2026-08-14` → `2026-08-21`, matching live. This is inclusion proof only.
+- **Scheduled-backup *mechanism* — READY, not deployed.** Nightly `daily_backup` was failing (Docker path + missing `sqlite3` CLI). Code fix is PR **#690**. Deploy after close (backend-only rebuild; pin stays `07a9233`; scoped sidecar). Repair is closed only after the **scheduled** 02:00 ET file exists and `daily_backup_complete` is logged, then count/range re-proved against live. Do not rebuild during RTH.
 - **First real 90-day JSON prune — FUTURE NATURAL PROOF.** `SNAPSHOT_RETENTION_DAYS = 90`. Earliest snapshot date `2026-08-14` → first natural fire ~**2026-11-12**. Must not delete durable history. Not a code slice today. Do not invent a prune. Do not claim CLOSED.
 - Keep the post-overlay shared-root capacity check (Docker + MDQ share `/`). 2026-08-26: 58G size, ~38G free, 34%.
 - Do not manually fire `disc001_watchlist_snapshot` unless the owner wants a non-natural run.
