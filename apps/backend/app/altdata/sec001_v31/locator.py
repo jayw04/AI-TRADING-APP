@@ -25,6 +25,17 @@ counted request against a frozen budget: a crash after the index request but bef
 result is persisted must be visible on restart, not silently repeated. Re-resolving an
 accession already at ``LOCATOR_RESOLVED`` replays the stored result and issues no request.
 
+**A determinate failure is not a crash.** An earlier revision recorded
+``LOCATOR_REQUEST_SENT`` in a ``finally`` and raised on every failure, so a request that
+*completed* and then failed to parse was indistinguishable from an interruption: the
+accession was left looking mid-flight and became a HOLD. That is how schema discovery would
+have stranded the very accession it was run on. A completed response now records
+``LOCATOR_RESPONSE_RECEIVED`` with its status, length and digest, and a determinate parse
+outcome lands in ``LOCATOR_SCHEMA_UNSUPPORTED`` / ``LOCATOR_NO_PRIMARY_DOCUMENT`` — resumable
+states that keep the accession unspent. Only a genuine interruption, where no response
+outcome was durably recorded, may remain ``LOCATOR_REQUEST_SENT``. A determinate verdict is
+replayed on a later call rather than re-requested, so it also stays exactly-once.
+
 **Size is authoritative or the resolution fails.** The canary rule needs the document's real
 size *before* any document request, and the per-accession filing index is the representation
 that carries it. If a chosen representation cannot supply both an authoritative filename and
@@ -49,6 +60,7 @@ from app.altdata.sec001_v31.layers import TransportLocator
 from app.altdata.sec001_v31.transport import FETCH_OK, BoundedFetcher
 
 RESOLVED: Final = "LOCATOR_RESOLVED"
+RESOLVER_SCHEMA_UNSUPPORTED: Final = "RESOLVER_SCHEMA_UNSUPPORTED"
 RESOLVER_INDEX_UNAVAILABLE: Final = "RESOLVER_INDEX_UNAVAILABLE"
 RESOLVER_ACCESSION_MISMATCH: Final = "RESOLVER_ACCESSION_MISMATCH"
 RESOLVER_NO_PRIMARY_DOCUMENT: Final = "RESOLVER_NO_PRIMARY_DOCUMENT"
@@ -108,6 +120,14 @@ def _select_primary(items: list[dict[str, Any]], form: str) -> dict[str, Any]:
     return matches[0]
 
 
+_DETERMINATE_FAILURES: Final = frozenset(
+    {
+        AccessionState.LOCATOR_SCHEMA_UNSUPPORTED,
+        AccessionState.LOCATOR_NO_PRIMARY_DOCUMENT,
+    }
+)
+
+
 class LocatorResolver:
     """Resolve and authenticate one authorized accession's primary document."""
 
@@ -121,6 +141,26 @@ class LocatorResolver:
         self.fetcher = fetcher
         self.journal = journal
 
+    def _determinate(
+        self,
+        accession: str,
+        cik: int,
+        form: str,
+        state: AccessionState,
+        reason: str,
+        detail: str,
+        digest: str,
+    ) -> LocatorResolutionError:
+        """Record a determinate outcome and return the error to raise.
+
+        The accession lands in a resumable state carrying the reason and the response
+        digest, so it is neither stranded nor silently retried.
+        """
+        self.journal.transition(
+            accession, cik, form, state, reason=reason, detail=detail, index_body_sha256=digest
+        )
+        return LocatorResolutionError(reason, detail)
+
     def resolve(self, cik: int, accession: str) -> ResolvedLocator:
         a = self.authority
         key = a.require_authorized_accession(accession)
@@ -130,8 +170,14 @@ class LocatorResolver:
             )
         _cik, form, _acc, accepted_at = key
 
-        # Replay a completed resolution rather than spending another index request.
+        # Replay a determinate verdict rather than spending another index request.
         rec = self.journal.get(accession)
+        if rec is not None and rec.state in _DETERMINATE_FAILURES:
+            raise LocatorResolutionError(
+                str(rec.detail.get("reason", RESOLVER_SCHEMA_UNSUPPORTED)),
+                f"replayed determinate outcome {rec.state.value} "
+                f"(response sha256 {rec.detail.get('index_body_sha256')}); no new request issued",
+            )
         if rec is not None and rec.state is AccessionState.LOCATOR_RESOLVED:
             d = rec.detail
             return ResolvedLocator(
@@ -148,50 +194,106 @@ class LocatorResolver:
 
         url = index_url(a, cik, accession)
         self.journal.transition(accession, cik, form, AccessionState.LOCATOR_INTENT, index_url=url)
-        try:
-            outcome = self.fetcher.get_index(url)
-        finally:
-            self.journal.transition(accession, cik, form, AccessionState.LOCATOR_REQUEST_SENT)
-
-        if outcome.status != FETCH_OK:
-            raise LocatorResolutionError(
-                RESOLVER_INDEX_UNAVAILABLE, f"http {outcome.http_status} ({outcome.reason})"
-            )
+        # LOCATOR_REQUEST_SENT means exactly "in flight, no outcome recorded". It is set
+        # before the call and superseded the moment an outcome is known.
+        self.journal.transition(accession, cik, form, AccessionState.LOCATOR_REQUEST_SENT)
+        outcome = self.fetcher.get_index(url)
 
         digest = hashlib.sha256(outcome.body).hexdigest()
+        self.journal.transition(
+            accession,
+            cik,
+            form,
+            AccessionState.LOCATOR_RESPONSE_RECEIVED,
+            http_status=outcome.http_status,
+            response_bytes=outcome.bytes_consumed,
+            index_body_sha256=digest,
+        )
+
+        if outcome.status != FETCH_OK:
+            raise self._determinate(
+                accession,
+                cik,
+                form,
+                AccessionState.LOCATOR_SCHEMA_UNSUPPORTED,
+                RESOLVER_INDEX_UNAVAILABLE,
+                f"http {outcome.http_status} ({outcome.reason})",
+                digest,
+            )
         doc = json.loads(outcome.body.decode("utf-8"))
         directory = doc.get("directory") or {}
 
         # The response must be the index of THIS accession, not merely a valid index.
         stated = str(directory.get("name", ""))
         if accession.replace("-", "") not in stated.replace("-", ""):
-            raise LocatorResolutionError(
-                RESOLVER_ACCESSION_MISMATCH, f"index directory {stated!r} is not {accession}"
+            raise self._determinate(
+                accession,
+                cik,
+                form,
+                AccessionState.LOCATOR_SCHEMA_UNSUPPORTED,
+                RESOLVER_ACCESSION_MISMATCH,
+                f"index directory {stated!r} is not {accession}",
+                digest,
             )
 
-        item = _select_primary(list(directory.get("item") or []), form)
+        try:
+            item = _select_primary(list(directory.get("item") or []), form)
+        except LocatorResolutionError as exc:
+            state = (
+                AccessionState.LOCATOR_NO_PRIMARY_DOCUMENT
+                if exc.reason == RESOLVER_NO_PRIMARY_DOCUMENT
+                else AccessionState.LOCATOR_SCHEMA_UNSUPPORTED
+            )
+            raise self._determinate(
+                accession, cik, form, state, exc.reason, str(exc), digest
+            ) from exc
 
         raw_size: object = item.get("size")
         if raw_size is None or raw_size == "" or raw_size == 0:
-            raise LocatorResolutionError(
+            raise self._determinate(
+                accession,
+                cik,
+                form,
+                AccessionState.LOCATOR_SCHEMA_UNSUPPORTED,
                 RESOLVER_SIZE_UNAVAILABLE,
                 "the index gave no authoritative size for the primary document",
+                digest,
             )
         if not isinstance(raw_size, (int, str)):
-            raise LocatorResolutionError(
-                RESOLVER_SIZE_UNAVAILABLE, f"unusable size type {type(raw_size).__name__}"
+            raise self._determinate(
+                accession,
+                cik,
+                form,
+                AccessionState.LOCATOR_SCHEMA_UNSUPPORTED,
+                RESOLVER_SIZE_UNAVAILABLE,
+                f"unusable size type {type(raw_size).__name__}",
+                digest,
             )
         try:
             size = int(raw_size)
         except (TypeError, ValueError) as exc:
-            raise LocatorResolutionError(
-                RESOLVER_SIZE_UNAVAILABLE, f"unparsable size {raw_size!r}"
+            raise self._determinate(
+                accession,
+                cik,
+                form,
+                AccessionState.LOCATOR_SCHEMA_UNSUPPORTED,
+                RESOLVER_SIZE_UNAVAILABLE,
+                f"unparsable size {raw_size!r}",
+                digest,
             ) from exc
 
         try:
             name = require_safe_document_name(str(item.get("name", "")))
         except NotAuthorized as exc:
-            raise LocatorResolutionError(RESOLVER_UNSAFE_DOCUMENT_NAME, str(exc)) from exc
+            raise self._determinate(
+                accession,
+                cik,
+                form,
+                AccessionState.LOCATOR_SCHEMA_UNSUPPORTED,
+                RESOLVER_UNSAFE_DOCUMENT_NAME,
+                str(exc),
+                digest,
+            ) from exc
 
         locator_url = a.archive_url(cik, accession, name)
         # The raw index body is not retained; only these facts and its digest.

@@ -47,7 +47,10 @@ class AccessionState(StrEnum):
     AUTHORIZED = "AUTHORIZED"
     LOCATOR_INTENT = "LOCATOR_INTENT"
     LOCATOR_REQUEST_SENT = "LOCATOR_REQUEST_SENT"
+    LOCATOR_RESPONSE_RECEIVED = "LOCATOR_RESPONSE_RECEIVED"
     LOCATOR_RESOLVED = "LOCATOR_RESOLVED"
+    LOCATOR_SCHEMA_UNSUPPORTED = "LOCATOR_SCHEMA_UNSUPPORTED"
+    LOCATOR_NO_PRIMARY_DOCUMENT = "LOCATOR_NO_PRIMARY_DOCUMENT"
     REQUEST_INTENT = "REQUEST_INTENT"
     REQUEST_SENT = "REQUEST_SENT"
     RESPONSE_RETAINED = "RESPONSE_RETAINED"
@@ -66,7 +69,15 @@ TERMINAL_STATES: Final[frozenset[AccessionState]] = frozenset(
 #: document size has spent no document request, so it stays available rather than being
 #: consumed. Failing a screen is not the same as being used up.
 RESUMABLE_STATES: Final[frozenset[AccessionState]] = frozenset(
-    {AccessionState.AUTHORIZED, AccessionState.LOCATOR_RESOLVED}
+    {
+        AccessionState.AUTHORIZED,
+        AccessionState.LOCATOR_RESOLVED,
+        # Determinate parse outcomes. The request completed and we know exactly what came
+        # back; that is a fact about the representation, not an ambiguous interruption, so
+        # it must not strand the accession. Its response digest is retained.
+        AccessionState.LOCATOR_SCHEMA_UNSUPPORTED,
+        AccessionState.LOCATOR_NO_PRIMARY_DOCUMENT,
+    }
 )
 
 #: Mid-flight states. A crash in any of these means a request may already have been put on
@@ -75,7 +86,12 @@ RESUMABLE_STATES: Final[frozenset[AccessionState]] = frozenset(
 INTERRUPTED_STATES: Final[frozenset[AccessionState]] = frozenset(
     {
         AccessionState.LOCATOR_INTENT,
+        # Genuinely in flight: no response outcome was durably recorded.
         AccessionState.LOCATOR_REQUEST_SENT,
+        # A response arrived and its status/length/digest are recorded, but the parse
+        # outcome is not. Distinguishable from a bare in-flight crash, still adjudicable:
+        # the body was not retained, so completing it would need another counted request.
+        AccessionState.LOCATOR_RESPONSE_RECEIVED,
         AccessionState.REQUEST_INTENT,
         AccessionState.REQUEST_SENT,
         AccessionState.RESPONSE_RETAINED,

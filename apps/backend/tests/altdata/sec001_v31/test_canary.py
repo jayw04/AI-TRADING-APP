@@ -11,65 +11,96 @@ from app.altdata.sec001_v31.canary import (
     ELIGIBLE,
     INELIGIBLE_SIZE_UNKNOWN,
     INELIGIBLE_TOO_LARGE,
-    bracket_accessions,
     candidate_order,
     first_candidate,
+    is_out_of_population,
     screen,
 )
-from tests.altdata.sec001_v31.conftest import REPO_ROOT
 
 
-def test_the_19_bracket_accessions_come_from_the_sealed_selection_record():
-    brackets = bracket_accessions(REPO_ROOT)
-    assert len(brackets) == 19
+def test_the_19_bracket_accessions_come_from_the_hash_verified_authority(authority):
+    assert len(authority.bracket_accessions) == 19
 
 
-def test_envelope_Bs_own_first_entry_IS_a_bracket_and_is_therefore_excluded():
+def test_canary_module_reads_no_file(authority):
+    """Review finding: re-reading the envelope/selection after verification was a TOCTOU
+    hole -- a local edit could shrink the bracket list and promote a scarce boundary filing
+    into the canary slot, which require_authorized() cannot catch."""
+    import ast
+    import inspect
+
+    from app.altdata.sec001_v31 import canary as canary_mod
+
+    tree = ast.parse(inspect.getsource(canary_mod))
+    called = {
+        n.func.attr
+        for n in ast.walk(tree)
+        if isinstance(n, ast.Call) and isinstance(n.func, ast.Attribute)
+    }
+    called |= {
+        n.func.id
+        for n in ast.walk(tree)
+        if isinstance(n, ast.Call) and isinstance(n.func, ast.Name)
+    }
+    for forbidden in ("open", "read_text", "read_bytes", "loads", "load"):
+        assert forbidden not in called, f"canary.py must not read files: {forbidden}"
+
+
+def test_selection_is_driven_by_verified_ordered_keys(authority):
+    assert len(authority.ordered_keys) == 452
+    assert authority.ordered_keys[0][2] in authority.bracket_accessions
+    assert len({k[2] for k in authority.ordered_keys}) == 452
+
+
+def test_out_of_population_detection_for_schema_discovery(authority):
+    """Discovery must target an accession outside Envelope B entirely."""
+    assert is_out_of_population(authority, "0000000000-00-000000") is True
+    for k in list(authority.ordered_keys)[:5]:
+        assert is_out_of_population(authority, k[2]) is False
+
+
+def test_envelope_Bs_own_first_entry_IS_a_bracket_and_is_therefore_excluded(authority):
     """The reason the rule exists: an unfiltered 'first entry' picks the scarcest candidate."""
-    env = json.loads(
-        (REPO_ROOT / "artifacts/wp0aq/WP0AQ_COVER_ENVELOPE_V1.json").read_text(encoding="utf-8")
-    )
-    first_raw = env["acquisition_keys_envelope_B"][0]
-    assert first_raw["accession"] in bracket_accessions(REPO_ROOT)
-    assert first_raw["accession"] == "0001193125-20-283796"
-    assert first_raw["cik"] == 97210 and first_raw["accepted_at"].startswith("2020-11-02")
+    cik, _form, accession, accepted = authority.ordered_keys[0]
+    assert accession in authority.bracket_accessions
+    assert accession == "0001193125-20-283796"
+    assert cik == 97210 and accepted.startswith("2020-11-02")
 
 
 def test_candidate_set_is_envelope_B_minus_exactly_the_19_brackets(authority):
-    order = candidate_order(authority, REPO_ROOT)
+    order = candidate_order(authority)
     assert len(order) == 452 - 19 == 433
-    brackets = bracket_accessions(REPO_ROOT)
+    brackets = authority.bracket_accessions
     assert not any(c.accession in brackets for c in order)
 
 
 def test_order_is_envelope_B_key_order_preserved_not_re_sorted(authority):
-    order = candidate_order(authority, REPO_ROOT)
+    order = candidate_order(authority)
     positions = [c.position for c in order]
     assert positions == sorted(positions), "B's own order must be preserved"
     assert positions[0] == 1, "position 0 is the excluded bracket, so selection advances to 1"
 
 
 def test_the_first_candidate_is_deterministic_and_not_a_bracket(authority):
-    c = first_candidate(authority, REPO_ROOT)
-    assert c.accession not in bracket_accessions(REPO_ROOT)
+    c = first_candidate(authority)
+    assert c.accession not in authority.bracket_accessions
     assert (c.cik, c.form, c.accession) == (97210, "10-K", "0001193125-21-050735")
     assert c.accepted_at == "2021-02-22T21:04:39.000Z"
 
 
 def test_every_candidate_is_still_authorized_under_envelope_B(authority):
-    for c in candidate_order(authority, REPO_ROOT):
+    for c in candidate_order(authority):
         assert authority.is_authorized(c.cik, c.form, c.accession, c.accepted_at)
 
 
-def test_envelope_A_is_not_used_as_authority(authority):
-    """A is only an exclusion input; B remains the sole acquisition authority."""
-    env = json.loads(
-        (REPO_ROOT / "artifacts/wp0aq/WP0AQ_COVER_ENVELOPE_V1.json").read_text(encoding="utf-8")
-    )
-    a_keys = {r["accession"] for r in env["acquisition_keys_envelope_A"]}
-    order = {c.accession for c in candidate_order(authority, REPO_ROOT)}
-    assert order == a_keys, "B minus its 19 bracket additions is exactly A, by construction"
-    assert len(authority.authorized_keys) == 452, "but authority is still all of B"
+def test_envelope_B_remains_the_sole_authority(authority):
+    """The bracket list is an exclusion filter for canary selection, not an authority change."""
+    order = {c.accession for c in candidate_order(authority)}
+    assert len(order) == 433
+    assert len(authority.authorized_keys) == 452, "authority is still all of B"
+    for acc in authority.bracket_accessions:
+        assert acc not in order
+        assert any(k[2] == acc for k in authority.ordered_keys), "still authorized, just not canary"
 
 
 # ============================================================ the size screen

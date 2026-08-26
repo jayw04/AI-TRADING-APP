@@ -23,15 +23,14 @@ continuation.
 
 The ordering rule is frozen here rather than chosen later: **Envelope B's own key order,
 with the 19 bracket accessions removed, first retained entry**. No tuple re-sorting, no
-selection informed by anything observed afterwards.
+selection informed by anything observed afterwards. Both inputs come from the hash-verified
+authority object; this module reads no file.
 """
 
 from __future__ import annotations
 
-import json
 from dataclasses import dataclass
-from pathlib import Path
-from typing import Any, Final
+from typing import Final
 
 from app.altdata.sec001_v31.authority import AcquisitionAuthority
 
@@ -53,50 +52,36 @@ class CanaryCandidate:
     accepted_at: str
 
 
-def _envelope(repo_root: Path) -> dict[str, Any]:
-    from app.altdata.sec001_v31.authority import ENVELOPE_PATH
+def candidate_order(authority: AcquisitionAuthority) -> list[CanaryCandidate]:
+    """Envelope B's own key order, minus the 19 brackets. Frozen before any lookup.
 
-    return json.loads((repo_root / ENVELOPE_PATH).read_text(encoding="utf-8"))
-
-
-def bracket_accessions(repo_root: Path) -> frozenset[str]:
-    """The exact 19 pre-window boundary accessions, from the sealed selection record."""
-    from app.altdata.sec001_v31.authority import SELECTION_PATH
-
-    sel = json.loads((repo_root / SELECTION_PATH).read_text(encoding="utf-8"))
-    rows = sel["pre_window_boundary_accessions"]
-    return frozenset(r["accession"] for r in rows)
-
-
-def candidate_order(authority: AcquisitionAuthority, repo_root: Path) -> list[CanaryCandidate]:
-    """Envelope B's own key order, minus the 19 brackets. Frozen before any lookup."""
-    env = _envelope(repo_root)
-    if env["manifest_sha256"] != authority.manifest_sha256:
-        raise RuntimeError("envelope does not descend from the loaded authority's manifest")
-    excluded = bracket_accessions(repo_root)
-
-    out: list[CanaryCandidate] = []
-    for i, r in enumerate(env["acquisition_keys_envelope_B"]):
-        if r["accession"] in excluded:
-            continue
-        authority.require_authorized(r["cik"], r["form"], r["accession"], r["accepted_at"])
-        out.append(
-            CanaryCandidate(
-                position=i,
-                cik=int(r["cik"]),
-                form=r["form"],
-                accession=r["accession"],
-                accepted_at=r["accepted_at"],
-            )
-        )
-    return out
+    Reads **only** hash-verified in-memory authority data. The previous revision re-read the
+    envelope and selection files from disk after the authority had verified them, which left
+    a window in which a local edit could change the bracket list and promote a scarce
+    boundary filing into the canary slot.
+    """
+    excluded = authority.bracket_accessions
+    return [
+        CanaryCandidate(position=i, cik=cik, form=form, accession=accession, accepted_at=accepted)
+        for i, (cik, form, accession, accepted) in enumerate(authority.ordered_keys)
+        if accession not in excluded
+    ]
 
 
-def first_candidate(authority: AcquisitionAuthority, repo_root: Path) -> CanaryCandidate:
-    order = candidate_order(authority, repo_root)
+def first_candidate(authority: AcquisitionAuthority) -> CanaryCandidate:
+    order = candidate_order(authority)
     if not order:
         raise RuntimeError("no non-bracket candidate exists in Envelope B")
     return order[0]
+
+
+def is_out_of_population(authority: AcquisitionAuthority, accession: str) -> bool:
+    """True when an accession is outside Envelope B entirely.
+
+    Schema-discovery work must target one of these, so that nothing in the canary set --
+    candidate or bracket -- can be touched by it.
+    """
+    return all(k[2] != accession for k in authority.ordered_keys)
 
 
 def screen(document_size: int | None) -> tuple[bool, str]:

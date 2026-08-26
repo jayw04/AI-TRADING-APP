@@ -194,3 +194,130 @@ def test_the_resolved_locator_authenticates_against_its_own_metadata(
     loc = res.transport_locator()
     loc.assert_matches(meta)
     authority.require_canonical_url(cik, accession, loc.primary_document, loc.url)
+
+
+# ============================================================ determinate != crash
+DETERMINATE = (
+    AccessionState.LOCATOR_SCHEMA_UNSUPPORTED,
+    AccessionState.LOCATOR_NO_PRIMARY_DOCUMENT,
+)
+
+
+def test_a_completed_response_that_fails_to_parse_does_NOT_look_like_a_crash(
+    authority, ledger, journal, target
+):
+    """The defect this closes: every failure used to leave LOCATOR_REQUEST_SENT, so a
+    determinate schema mismatch was indistinguishable from an interruption and stranded the
+    accession. That is how schema discovery would have consumed the very filing it ran on."""
+    cik, _form, accession, _ = target
+    body = index_body(accession, [{"name": "x.htm", "type": "SOMETHING-ELSE", "size": 10}])
+
+    with pytest.raises(LocatorResolutionError):
+        resolver(authority, ledger, journal, body).resolve(cik, accession)
+
+    state = journal.state_of(accession)
+    assert state is AccessionState.LOCATOR_NO_PRIMARY_DOCUMENT
+    assert state is not AccessionState.LOCATOR_REQUEST_SENT
+    from app.altdata.sec001_v31.custody import INTERRUPTED_STATES, RESUMABLE_STATES
+
+    assert state in RESUMABLE_STATES and state not in INTERRUPTED_STATES
+
+
+def test_the_response_digest_is_retained_on_a_determinate_failure(
+    authority, ledger, journal, target
+):
+    cik, _form, accession, _ = target
+    body = index_body(accession, [{"name": "x.htm", "type": "OTHER", "size": 10}])
+    with pytest.raises(LocatorResolutionError):
+        resolver(authority, ledger, journal, body).resolve(cik, accession)
+
+    rec = journal.get(accession)
+    assert rec is not None
+    assert rec.detail["index_body_sha256"] == hashlib.sha256(body).hexdigest()
+    assert rec.detail["reason"] == RESOLVER_NO_PRIMARY_DOCUMENT
+    # the response outcome was recorded on the way through
+    states = [h["state"] for h in rec.history]
+    assert "LOCATOR_RESPONSE_RECEIVED" in states
+
+
+def test_a_determinate_verdict_is_replayed_without_a_second_request(
+    authority, ledger, journal, target
+):
+    """Not stranded, but not silently re-requested either: exactly-once still holds."""
+    cik, _form, accession, _ = target
+    body = index_body(accession, [{"name": "x.htm", "type": "OTHER", "size": 10}])
+    calls: list[str] = []
+    r = resolver(authority, ledger, journal, body, calls)
+
+    with pytest.raises(LocatorResolutionError):
+        r.resolve(cik, accession)
+    with pytest.raises(LocatorResolutionError, match="replayed determinate outcome"):
+        r.resolve(cik, accession)
+
+    assert len(calls) == 1, "the second call must not spend another index request"
+    assert ledger.index_requests == 29  # 28 from step 1 + exactly 1
+
+
+@pytest.mark.parametrize(
+    "items,expected_state",
+    [
+        (
+            [{"name": "x.htm", "type": "OTHER", "size": 10}],
+            AccessionState.LOCATOR_NO_PRIMARY_DOCUMENT,
+        ),
+        ([], AccessionState.LOCATOR_NO_PRIMARY_DOCUMENT),
+    ],
+)
+def test_missing_primary_document_is_its_own_determinate_state(
+    authority, ledger, journal, target, items, expected_state
+):
+    cik, _form, accession, _ = target
+    with pytest.raises(LocatorResolutionError):
+        resolver(authority, ledger, journal, index_body(accession, items)).resolve(cik, accession)
+    assert journal.state_of(accession) is expected_state
+
+
+def test_an_http_failure_is_also_determinate_not_stranding(authority, ledger, journal, target):
+    cik, _form, accession, _ = target
+    with pytest.raises(LocatorResolutionError):
+        resolver(authority, ledger, journal, b"", status=404).resolve(cik, accession)
+    assert journal.state_of(accession) is AccessionState.LOCATOR_SCHEMA_UNSUPPORTED
+
+
+def test_only_a_genuine_interruption_remains_REQUEST_SENT(authority, ledger, journal, target):
+    """A crash with no recorded outcome is the ONLY thing that may look in-flight."""
+    cik, form, accession, _ = target
+
+    def exploding(_r: httpx.Request) -> httpx.Response:
+        raise httpx.ConnectError("simulated interruption")
+
+    from tests.altdata.sec001_v31.conftest import make_fetcher
+
+    r = LocatorResolver(authority, make_fetcher(authority, ledger, exploding), journal)
+    with pytest.raises(httpx.HTTPError):
+        r.resolve(cik, accession)
+    assert journal.state_of(accession) is AccessionState.LOCATOR_REQUEST_SENT
+    from app.altdata.sec001_v31.custody import INTERRUPTED_STATES
+
+    assert journal.state_of(accession) in INTERRUPTED_STATES
+
+
+def test_the_schema_assumption_is_now_explicit_and_unverified(authority, ledger, journal, target):
+    """⚠ The type==form model is NOT yet grounded in a real SEC representation.
+
+    It is retained only so the resolver has a shape; the governed fixture from
+    WP0A-Q-LOCATOR-DISCOVERY replaces it. Until then a real page is expected to land in
+    LOCATOR_SCHEMA_UNSUPPORTED / LOCATOR_NO_PRIMARY_DOCUMENT -- which, post-fix, costs one
+    index request and strands nothing.
+    """
+    cik, _form, accession, _ = target
+    directory_listing_shape = index_body(
+        accession,
+        [
+            {"name": "0001193125-21-050735-index.htm", "type": "text.gif", "size": "1234"},
+            {"name": "d112233d10k.htm", "type": "", "size": "5551234"},
+        ],
+    )
+    with pytest.raises(LocatorResolutionError):
+        resolver(authority, ledger, journal, directory_listing_shape).resolve(cik, accession)
+    assert journal.state_of(accession) in DETERMINATE

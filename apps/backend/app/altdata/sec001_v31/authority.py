@@ -108,6 +108,22 @@ class AcquisitionAuthority:
     stop_threshold_bytes: int
     retained_field_schema: tuple[str, ...]
     authorized_keys: frozenset[AuthorizedKey]
+    ordered_keys: tuple[AuthorizedKey, ...] = ()
+    """Envelope-B key order, preserved from the verified artifact.
+
+    ``authorized_keys`` is a set and therefore has no order; anything that must be
+    deterministic -- canary selection above all -- reads this instead. Both are derived
+    inside the hash-verified load, so no consumer needs to re-read the envelope.
+    """
+    bracket_accessions: frozenset[str] = frozenset()
+    """The 19 pre-window boundary accessions, from the hash-verified selection record.
+
+    Bound here for the same reason (review finding): ``canary.py`` previously re-read the
+    selection file straight off disk *after* the authority had verified it, so a local edit
+    between load and use could shrink the bracket list and promote a scarce bracket filing
+    into the canary slot. ``require_authorized`` cannot catch that, because a bracket
+    accession is perfectly authorized under Envelope B -- it violates only the canary rule.
+    """
     source_variant: str = "PRIMARY_DOCUMENT_COVER"
     _by_accession: Any = field(default=None, repr=False, compare=False)
 
@@ -159,6 +175,7 @@ class AcquisitionAuthority:
         cutoff = datetime.fromisoformat(man["WP0A_Q_EVIDENCE_CUTOFF_UTC"].replace("Z", "+00:00"))
 
         keys: set[AuthorizedKey] = set()
+        ordered: list[AuthorizedKey] = []
         by_accession: dict[str, AuthorizedKey] = {}
         for r in rows:
             if set(r) != {"cik", "form", "accession", "accepted_at"}:
@@ -169,9 +186,27 @@ class AcquisitionAuthority:
                 raise AuthorityError(f"envelope contains a post-cutoff filing {r['accession']}")
             k: AuthorizedKey = (int(r["cik"]), r["form"], r["accession"], r["accepted_at"])
             keys.add(k)
+            ordered.append(k)
             by_accession[r["accession"]] = k
         if len(keys) != len(rows):
             raise AuthorityError("envelope contains duplicate authorized keys")
+
+        # The bracket set comes out of the SAME verified read as everything else.
+        brackets = frozenset(
+            row["accession"] for row in sel.get("pre_window_boundary_accessions", [])
+        )
+        if chosen == "B":
+            n_a = len(env.get("acquisition_keys_envelope_A", []))
+            if len(brackets) != len(rows) - n_a:
+                raise AuthorityError(
+                    f"selection record lists {len(brackets)} boundary accessions but Envelope B "
+                    f"exceeds Envelope A by {len(rows) - n_a}"
+                )
+            unknown = brackets - set(by_accession)
+            if unknown:
+                raise AuthorityError(
+                    f"boundary accessions absent from the envelope: {sorted(unknown)}"
+                )
 
         acq = man["acquisition"]
         domains = tuple(acq["domains"])
@@ -198,6 +233,8 @@ class AcquisitionAuthority:
             stop_threshold_bytes=int(acq["consumption_stop_threshold_bytes"]),
             retained_field_schema=tuple(man["retained_field_schema"]),
             authorized_keys=frozenset(keys),
+            ordered_keys=tuple(ordered),
+            bracket_accessions=brackets,
             _by_accession=MappingProxyType(by_accession),
         )
 
