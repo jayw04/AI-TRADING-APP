@@ -3,7 +3,8 @@
 | Field | Value |
 |---|---|
 | Date | 2026-07-08 |
-| Status | Accepted (2026-07-08) |
+| Status | Accepted (2026-07-08) · **Partially superseded by ADR 0055 (2026-08-25)** |
+| Partially superseded by | **ADR 0055** — the *order-level* fail-open below is superseded for `max_position_notional` **only**. The gross-exposure behaviour recorded here (an unpriced MARKET order contributes 0 to the pending-aware aggregate) is **preserved unchanged**. |
 | Phase | Cross-phase (risk engine; P5 §5 gross-exposure gate; CAP-014 pending-aware exposure) |
 | Related | 0002 (single OrderRouter), **0038** (reducing exits exempt from the gross gate), **0039** (cooldown exemption), CAP-014 (pending-aware exposure, incident 2026-06-22) |
 
@@ -51,6 +52,13 @@ The LIVE buying-power gate already prices market orders from the latest cached b
   `RiskEngine(session_factory)` with no bar cache, so a market order still estimates to `None` exactly as
   before; only production (bar cache wired) gains the valuation. Tests that exercise the new path inject a
   stub bar cache.
+> ⚠ **Scoped amendment (ADR 0055, 2026-08-25).** The "degrade, don't halt" choice below is
+> preserved for the gross-exposure aggregate and **superseded for `max_position_notional`**:
+> an unpriced order that *increases* a position is now rejected `POSITION_CAP_UNPRICED`, because
+> treating an unknown price as zero makes a per-position cap vacuous rather than merely degraded.
+> Reducing orders stay exempt (ADR 0038). This ADR's own principle — *an order the engine cannot
+> price is an order the gate cannot restrain* — is what ADR 0055 finishes applying.
+
 - **Degrade, don't halt.** Not fully fail-closed — a cold-cache symbol still contributes 0 — but strictly
   better than "every market order contributes 0," and it avoids the harsh alternative of rejecting every
   market order on a cache miss (which would stop legitimate paper trading).

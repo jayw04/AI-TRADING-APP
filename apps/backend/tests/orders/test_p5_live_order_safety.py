@@ -92,6 +92,8 @@ def _req(*, account_id, source_type=OrderSourceType.MANUAL, source_id=None,
         side=side, qty=qty, type=OrderType.MARKET,
         tif=TimeInForce.DAY, source_type=source_type, source_id=source_id,
         confirmation_text=confirmation_text,
+        # B3a/ADR 0055: MARKET needs a trusted reference price.
+        reference_price=Decimal("100"),
     )
 
 
