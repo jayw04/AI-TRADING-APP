@@ -59,32 +59,18 @@ logger = structlog.get_logger(__name__)
 
 
 async def run_daily_backup() -> None:
-    """Run scripts/backup_db.sh (P5 §8.5) — daily SQLite backup.
+    """WAL-aware daily SQLite backup (P5 §8.5).
 
-    The script path defaults to ``<repo-root>/scripts/backup_db.sh`` (resolved
-    relative to this file) and is overridable via ``WORKBENCH_BACKUP_SCRIPT``
-    for non-standard deployments. Failures are logged, never raised — a missed
-    backup must not take down the scheduler."""
-    import os
-
-    default_script = Path(__file__).resolve().parents[3] / "scripts" / "backup_db.sh"
-    script = os.environ.get("WORKBENCH_BACKUP_SCRIPT", str(default_script))
+    Uses Python ``sqlite3.Connection.backup`` so the job works in the backend
+    image (no ``sqlite3`` CLI, no ``bash``, and ``Path(__file__).parents[3]``
+    is ``IndexError`` at ``/app/app/lifespan.py``). Failures are logged, never
+    raised — a missed backup must not take down the scheduler.
+    """
     try:
-        proc = await asyncio.create_subprocess_exec(
-            "bash",
-            script,
-            stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.PIPE,
-        )
-        stdout, stderr = await proc.communicate()
-        if proc.returncode != 0:
-            logger.error(
-                "daily_backup_failed",
-                returncode=proc.returncode,
-                stderr=stderr.decode(errors="replace").strip(),
-            )
-        else:
-            logger.info("daily_backup_complete", detail=stdout.decode(errors="replace").strip())
+        from app.jobs.sqlite_backup import run_sqlite_backup
+
+        result = await asyncio.to_thread(run_sqlite_backup)
+        logger.info("daily_backup_complete", **result)
     except Exception:
         logger.exception("daily_backup_exception")
 
@@ -728,7 +714,8 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 
             # 10d. Daily SQLite backup (P5 §8.5). 02:00 in the scheduler's
             # timezone (America/New_York). 30-day retention is enforced inside
-            # the script. max_instances=1 + coalesce so a slow/long backup can't
+            # app.jobs.sqlite_backup (Python sqlite3.backup; no sqlite3 CLI).
+            # max_instances=1 + coalesce so a slow/long backup can't
             # stack up behind itself.
             from apscheduler.triggers.cron import CronTrigger
 

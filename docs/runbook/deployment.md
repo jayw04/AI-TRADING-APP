@@ -155,7 +155,7 @@ Daily backups run at 02:00 (scheduler timezone). After a day:
 
 ```bash
 ls -la data/backups/        # expect workbench-YYYY-MM-DD.sqlite per day
-docker compose exec backend bash scripts/backup_db.sh   # run on demand
+docker compose exec backend python -c 'from app.jobs.sqlite_backup import run_sqlite_backup; print(run_sqlite_backup())'
 docker compose exec backend python scripts/verify_audit_integrity.py
 # expect: "Verified N rows; 0 errors."
 ```
