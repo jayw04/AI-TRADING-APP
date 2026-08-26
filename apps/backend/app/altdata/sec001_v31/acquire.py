@@ -1,21 +1,26 @@
-"""WP0A-Q cover-page acquisition orchestration, bound to the frozen authority.
+"""WP0A-Q cover-page acquisition: authority-bound, crash-safe, exactly-once.
 
-Every refusal that can be decided from governed state is decided **before a byte is
-requested**. The decisive one is new (review finding P0): a filing must be *exactly* one of
-the authorized ``(cik, form, accession, accepted_at)`` tuples in the selected envelope. Form
-and cutoff checks remain, but they are now consequences of the authority rather than
-caller-supplied values — the authority is loaded from hash-verified artifacts and its
-``permitted_forms`` and ``cutoff_utc`` come out of the sealed manifest.
+Every refusal decidable from governed state is decided **before a byte is requested**: the
+filing must be exactly one of the authorized ``(cik, form, accession, accepted_at)`` tuples
+in the selected envelope, its form must be permitted, and its acceptance must be at or
+before the frozen cutoff. All three come out of hash-verified artifacts, not from caller
+arguments.
 
-The transport locator is **authenticated** against the filing metadata before use, and the
-URL is preferably built by the authority from governed identifiers. Its *filename* still
-cannot reach identity; its *filing identity* must match, or the bytes could belong to a
-different accession than the record they will be stamped with.
+**Transaction ordering.** Intent is journalled *before* the request rather than success
+after it, so neither crash window can produce a wrong answer: a failure before the response
+leaves ``REQUEST_INTENT``/``REQUEST_SENT`` (an interrupted acquisition, adjudicated, never
+silently retried against a frozen cap), and a failure before custody leaves ``PARSED`` — not
+"acquired and complete". The accession reaches ``SEALED`` only after its evidence has been
+atomically published *and* re-read and digest-verified.
 
-One accession may legitimately support several observations when the document declares
-several security classes. That is one acquisition and several observations, never several
-acquisitions — and the whole set is committed atomically, so a filing's classes are never
-partially retained.
+**Continuation is not a live knob.** ``LIVE_MAX_CONTINUATIONS`` is the frozen setting and is
+read directly; the orchestrator takes no override. Mock transport tests exercise nonzero
+continuation against ``BoundedFetcher`` directly, which is where that machinery belongs
+until the owner freezes a nonzero policy prospectively.
+
+The locator's *filename* still cannot reach identity, but its *filing identity* is now fully
+authenticated: the URL must be byte-identical to the authority's canonical derivation for
+this CIK, accession and document basename.
 """
 
 from __future__ import annotations
@@ -25,20 +30,24 @@ from dataclasses import dataclass, field
 from typing import Any, Final
 
 from app.altdata.sec001_v31 import cover_parser
-from app.altdata.sec001_v31.authority import AcquisitionAuthority, NotAuthorized
+from app.altdata.sec001_v31.authority import (
+    LIVE_MAX_CONTINUATIONS,
+    AcquisitionAuthority,
+    NotAuthorized,
+)
 from app.altdata.sec001_v31.clock import accepted_at_utc
+from app.altdata.sec001_v31.custody import (
+    AccessionState,
+    AcquisitionJournal,
+    TransactionalEvidenceStore,
+)
 from app.altdata.sec001_v31.layers import (
     FilingMetadata,
     LocatorMismatch,
     Observation,
     TransportLocator,
 )
-from app.altdata.sec001_v31.transport import (
-    FETCH_OK,
-    BoundedFetcher,
-    CreateOnceStore,
-    DurableLedger,
-)
+from app.altdata.sec001_v31.transport import FETCH_OK, BoundedFetcher, DurableLedger
 
 REFUSED_FORM: Final = "REFUSED_NON_PERMITTED_FORM"
 REFUSED_CUTOFF: Final = "REFUSED_ACCEPTED_AFTER_CUTOFF"
@@ -49,8 +58,7 @@ ACQUIRED: Final = "ACQUIRED"
 #: The registrant CIK the cover page declares disagrees with the CIK on the index record.
 #: A FILING/OBSERVATION identity conflict, deliberately NOT the competing-binding conjunct:
 #: an index CIK is acquisition metadata and is not itself an admissible security->CIK
-#: binding, so calling it a competing binding would let filing metadata masquerade as
-#: identity evidence. The genuine conjunct lives in ``bindings.py``.
+#: binding. The genuine conjunct lives in ``bindings.py``.
 INDEX_COVER_CIK_MISMATCH: Final = "INDEX_COVER_CIK_MISMATCH"
 
 __all__ = [
@@ -77,6 +85,7 @@ class AcquisitionResult:
     artifact_identities: list[str] = field(default_factory=list)
     diagnostics: dict[str, Any] = field(default_factory=dict)
     document_requests_spent: int = 0
+    accession_state: str | None = None
 
 
 def refusal_reasons() -> tuple[str, ...]:
@@ -87,20 +96,22 @@ def refusal_reasons() -> tuple[str, ...]:
 class CoverAcquisition:
     """Acquire cover-page identity evidence for authorized filings only."""
 
+    #: Frozen, not configurable. The live-authorized continuation policy is zero.
+    max_continuations: Final = LIVE_MAX_CONTINUATIONS
+
     def __init__(
         self,
         authority: AcquisitionAuthority,
         fetcher: BoundedFetcher,
-        store: CreateOnceStore,
+        store: TransactionalEvidenceStore,
         ledger: DurableLedger,
-        *,
-        max_continuations: int = 0,
+        journal: AcquisitionJournal,
     ) -> None:
         self.authority = authority
         self.fetcher = fetcher
         self.store = store
         self.ledger = ledger
-        self.max_continuations = max_continuations
+        self.journal = journal
 
     def acquire(self, meta: FilingMetadata, locator: TransportLocator) -> AcquisitionResult:
         a = self.authority
@@ -124,29 +135,60 @@ class CoverAcquisition:
                 },
             )
 
-        # CIK-once, durable across restarts.
         if self.ledger.already_acquired(meta.cik, meta.form, meta.accession):
-            return AcquisitionResult(REFUSED_DUPLICATE, diagnostics={"accession": meta.accession})
+            return AcquisitionResult(
+                REFUSED_DUPLICATE,
+                diagnostics={"accession": meta.accession},
+                accession_state=self.journal.state_of(meta.accession).value,
+            )
 
-        # The bytes must belong to the filing they will be recorded as.
+        # Refuses a terminal accession, and raises InterruptedAcquisition for one left
+        # mid-flight -- neither silently retried nor silently treated as complete.
+        self.journal.guard_fresh(meta.accession)
+
+        # The bytes must belong to the filing they will be recorded as, by every component.
         locator.assert_matches(meta)
-        a.require_origin(locator.url)
+        a.require_canonical_url(meta.cik, meta.accession, locator.primary_document, locator.url)
 
-        # ---- acquisition -------------------------------------------------------------
-        before = self.ledger.document_requests
-        outcome = self.fetcher.get_document_complete(
-            locator.url, max_continuations=self.max_continuations
+        # ---- intent is durable BEFORE the request ------------------------------------
+        self.journal.transition(
+            meta.accession, meta.cik, meta.form, AccessionState.REQUEST_INTENT, url=locator.url
         )
-        spent = self.ledger.document_requests - before
+        before = self.ledger.document_requests
+        try:
+            outcome = self.fetcher.get_document_complete(
+                locator.url, max_continuations=self.max_continuations
+            )
+        finally:
+            spent = self.ledger.document_requests - before
+            self.journal.transition(
+                meta.accession,
+                meta.cik,
+                meta.form,
+                AccessionState.REQUEST_SENT,
+                document_requests_spent=spent,
+            )
         self.ledger.mark_acquired(meta.cik, meta.form, meta.accession)
 
         if outcome.status != FETCH_OK:
+            self.journal.transition(
+                meta.accession,
+                meta.cik,
+                meta.form,
+                AccessionState.EVIDENCE_UNAVAILABLE,
+                reason=outcome.reason,
+            )
             return AcquisitionResult(
                 ACQUIRED,
                 parse_status=cover_parser.STATUS_EVIDENCE_UNAVAILABLE,
                 diagnostics={"http_status": outcome.http_status, "reason": outcome.reason},
                 document_requests_spent=spent,
+                accession_state=AccessionState.EVIDENCE_UNAVAILABLE.value,
             )
+
+        self.journal.transition(
+            meta.accession, meta.cik, meta.form, AccessionState.RESPONSE_RETAINED
+        )
 
         # The parser receives bytes only. The locator is not in scope here.
         parsed = cover_parser.parse_cover_identity(
@@ -155,14 +197,27 @@ class CoverAcquisition:
             truncated=outcome.truncated,
             bytes_consumed=outcome.bytes_consumed,
         )
+        self.journal.transition(
+            meta.accession, meta.cik, meta.form, AccessionState.PARSED, parse_status=parsed.status
+        )
 
         result = AcquisitionResult(
             ACQUIRED,
             parse_status=parsed.status,
             diagnostics=dict(parsed.diagnostics),
             document_requests_spent=spent,
+            accession_state=AccessionState.PARSED.value,
         )
+
         if not parsed.is_bound:
+            self.journal.transition(
+                meta.accession,
+                meta.cik,
+                meta.form,
+                AccessionState.EVIDENCE_UNAVAILABLE,
+                parse_status=parsed.status,
+            )
+            result.accession_state = AccessionState.EVIDENCE_UNAVAILABLE.value
             return result
 
         if parsed.cik != meta.cik:
@@ -179,6 +234,14 @@ class CoverAcquisition:
                     ),
                 }
             )
+            self.journal.transition(
+                meta.accession,
+                meta.cik,
+                meta.form,
+                AccessionState.EVIDENCE_UNAVAILABLE,
+                reason=INDEX_COVER_CIK_MISMATCH,
+            )
+            result.accession_state = AccessionState.EVIDENCE_UNAVAILABLE.value
             return result
 
         observations = [Observation.build(meta, ev) for ev in parsed.class_tuples]
@@ -196,8 +259,8 @@ class CoverAcquisition:
             "selection_sha256": a.selection_sha256,
             "document_requests_spent": spent,
         }
-        # One atomic commit for the whole accession: a filing's classes are never partial.
-        self.store.put_accession_set(
+        # Atomic publication, then verification, and only then SEALED.
+        _path, digest = self.store.publish_accession_set(
             meta.cik,
             meta.accession,
             a.source_variant,
@@ -205,9 +268,12 @@ class CoverAcquisition:
             obs_ids,
             provenance,
         )
+        self.journal.seal(meta.accession, digest)
+
         result.observations = observations
         result.artifact_identities = [
-            CreateOnceStore.identity(meta.cik, meta.accession, a.source_variant, oid)
+            TransactionalEvidenceStore.identity(meta.cik, meta.accession, a.source_variant, oid)
             for oid in obs_ids
         ]
+        result.accession_state = AccessionState.SEALED.value
         return result

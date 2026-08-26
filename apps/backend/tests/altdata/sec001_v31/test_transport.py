@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-import json
-
 import httpx
 import pytest
 
@@ -14,8 +12,6 @@ from app.altdata.sec001_v31.transport import (
     AcquisitionEncodingError,
     BudgetExceeded,
     CrawlHalt,
-    CreateOnceStore,
-    CreateOnceViolation,
     DurableLedger,
     RangeIntegrityError,
 )
@@ -277,37 +273,3 @@ def test_live_authorized_continuation_setting_is_zero():
     from app.altdata.sec001_v31.authority import LIVE_MAX_CONTINUATIONS
 
     assert LIVE_MAX_CONTINUATIONS == 0
-
-
-# ======================================================== atomic accession custody
-def test_accession_set_is_committed_atomically_as_one_object(store):
-    recs = [
-        {"accession": "a", "trading_symbol": "GOOG"},
-        {"accession": "a", "trading_symbol": "GOOGL"},
-    ]
-    p = store.put_accession_set(1652044, "0001652044-26-000070", "V", recs, ["o1", "o2"], {"b": 1})
-    doc = json.loads(p.read_text(encoding="utf-8"))
-    assert len(doc["observations"]) == 2 and doc["observation_ids"] == ["o1", "o2"]
-    assert doc["_artifact_identity"] == "0001652044/0001652044-26-000070/V"
-    assert doc["provenance"] == {"b": 1}
-
-
-def test_a_partial_class_set_cannot_exist(store):
-    """One object per accession, so there is no state with Class A retained and Class C lost."""
-    store.put_accession_set(1652044, "acc-1", "V", [{"x": 1}, {"x": 2}], ["o1", "o2"], {})
-    assert len(list(store.root.glob("*.json"))) == 1
-
-
-def test_overwrite_is_refused_atomically(store):
-    store.put_accession_set(1652044, "acc-1", "V", [{"x": 1}], ["o1"], {})
-    with pytest.raises(CreateOnceViolation):
-        store.put_accession_set(1652044, "acc-1", "V", [{"x": 2}], ["o2"], {})
-    doc = json.loads(store.path_for(1652044, "acc-1", "V").read_text(encoding="utf-8"))
-    assert doc["observations"] == [{"x": 1}], "original evidence must be untouched"
-
-
-def test_create_once_survives_a_fresh_store_over_the_same_root(tmp_path):
-    root = tmp_path / "ev"
-    CreateOnceStore(root).put_accession_set(1, "acc", "V", [{"x": 1}], ["o"], {})
-    with pytest.raises(CreateOnceViolation):
-        CreateOnceStore(root).put_accession_set(1, "acc", "V", [{"x": 1}], ["o"], {})

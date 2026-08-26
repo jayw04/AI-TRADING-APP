@@ -24,9 +24,11 @@ called: there is no point at which the whole document exists in memory and is th
 ``KeyboardInterrupt`` does: the surrounding code is fail-soft and an ``except Exception``
 would swallow the halt and issue another request to a host that has just blocked us.
 
-**Accounting and CIK-once survive process restart.** ``DurableLedger`` persists counts, the
+**Accounting survives process restart.** ``DurableLedger`` persists counts, the
 acquired-key set and actual-send timestamps, seeded from the step-1 custody record so a
-restart cannot silently turn 28/200 index requests back into 0/200.
+restart cannot silently turn 28/200 index requests back into 0/200. Per-accession lifecycle
+and evidence publication live in ``custody`` -- counters alone cannot describe the states
+between "request sent" and "evidence sealed", which is where exactly-once actually breaks.
 """
 
 from __future__ import annotations
@@ -69,10 +71,6 @@ class AcquisitionEncodingError(RuntimeError):
 
 class RangeIntegrityError(RuntimeError):
     """A ranged response cannot be trusted to be the window that was requested."""
-
-
-class CreateOnceViolation(RuntimeError):
-    """An artifact identity already exists. Evidence is never overwritten."""
 
 
 def _utc_now() -> str:
@@ -430,68 +428,3 @@ class BoundedFetcher:
             total_bytes=last.total_bytes if last else None,
             continuations=used,
         )
-
-
-class CreateOnceStore:
-    """Atomic, immutable, **accession-level** evidence custody.
-
-    Two review findings shaped this. ``exists()`` followed by ``write_text()`` is not atomic
-    CREATE-ONCE under concurrency or interruption, so creation now uses ``O_CREAT | O_EXCL``
-    and the filesystem adjudicates the race. And writing observations one at a time meant a
-    crash between a registrant's Class A and Class C could leave a *persistent partial class
-    set* — the storage-layer twin of the truncation defect. An accession's whole observation
-    set is therefore committed as a single object: there is no state in which some of a
-    filing's classes are retained and the rest are lost.
-
-    The seven-field observation schema is unchanged. Non-semantic decision provenance —
-    parser-body SHA-256, byte count, EOF/range proof, request-event identity — is retained
-    beside it, never inside it.
-    """
-
-    def __init__(self, root: Path) -> None:
-        self.root = root
-        self.root.mkdir(parents=True, exist_ok=True)
-
-    @staticmethod
-    def identity(cik: int, accession: str, source_variant: str, observation_id: str) -> str:
-        return f"{cik:010d}/{accession}/{source_variant}/{observation_id}"
-
-    @staticmethod
-    def accession_identity(cik: int, accession: str, source_variant: str) -> str:
-        return f"{cik:010d}/{accession}/{source_variant}"
-
-    def path_for(self, cik: int, accession: str, source_variant: str) -> Path:
-        return self.root / f"{cik:010d}-{accession}-{source_variant}.json"
-
-    def put_accession_set(
-        self,
-        cik: int,
-        accession: str,
-        source_variant: str,
-        records: list[dict[str, Any]],
-        observation_ids: list[str],
-        provenance: dict[str, Any],
-    ) -> Path:
-        """Commit every observation for one accession as a single atomic object."""
-        p = self.path_for(cik, accession, source_variant)
-        payload = json.dumps(
-            {
-                "_artifact_identity": self.accession_identity(cik, accession, source_variant),
-                "observation_ids": observation_ids,
-                "observations": records,
-                "provenance": provenance,
-                "committed_utc": _utc_now(),
-            },
-            indent=2,
-            sort_keys=True,
-        )
-        try:
-            fd = os.open(p, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o644)
-        except FileExistsError as exc:
-            raise CreateOnceViolation(
-                f"artifact identity already exists: "
-                f"{self.accession_identity(cik, accession, source_variant)}"
-            ) from exc
-        with os.fdopen(fd, "w", encoding="utf-8") as fh:
-            fh.write(payload)
-        return p

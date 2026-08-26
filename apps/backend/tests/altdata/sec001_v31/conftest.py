@@ -13,7 +13,8 @@ import httpx
 import pytest
 
 from app.altdata.sec001_v31.authority import AcquisitionAuthority
-from app.altdata.sec001_v31.transport import BoundedFetcher, CreateOnceStore, DurableLedger
+from app.altdata.sec001_v31.custody import AcquisitionJournal, TransactionalEvidenceStore
+from app.altdata.sec001_v31.transport import BoundedFetcher, DurableLedger
 
 REPO_ROOT = Path(__file__).resolve().parents[5]
 USER_AGENT = "TradingWorkbench SEC001-V3 (GlobalComplyAI, LLC) jay.w0416@gmail.com"
@@ -36,8 +37,13 @@ def ledger(tmp_path: Path, authority: AcquisitionAuthority) -> DurableLedger:
 
 
 @pytest.fixture
-def store(tmp_path: Path) -> CreateOnceStore:
-    return CreateOnceStore(tmp_path / "evidence")
+def store(tmp_path: Path) -> TransactionalEvidenceStore:
+    return TransactionalEvidenceStore(tmp_path / "evidence")
+
+
+@pytest.fixture
+def journal(tmp_path: Path) -> AcquisitionJournal:
+    return AcquisitionJournal(tmp_path / "journal.json")
 
 
 def make_fetcher(authority, ledger, handler, *, max_redirects: int = 0) -> BoundedFetcher:
@@ -66,5 +72,7 @@ def ranged_response(body: bytes, request: httpx.Request, *, total: int | None = 
     )
 
 
-def read_committed(store: CreateOnceStore, cik: int, accession: str, variant: str) -> dict:
+def read_committed(
+    store: TransactionalEvidenceStore, cik: int, accession: str, variant: str
+) -> dict:
     return json.loads(store.path_for(cik, accession, variant).read_text(encoding="utf-8"))

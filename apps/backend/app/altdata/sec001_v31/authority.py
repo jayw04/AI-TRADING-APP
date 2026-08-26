@@ -57,7 +57,24 @@ class AuthorityError(RuntimeError):
 
 
 class NotAuthorized(RuntimeError):
-    """A filing is not in the frozen authorized set."""
+    """A filing is not in the frozen authorized set, or a URL is not the canonical one."""
+
+
+#: A primary-document name must be a plain basename. Anything that could redirect the
+#: request to another path -- separators, traversal, a query or a fragment -- is refused.
+_UNSAFE_DOCUMENT_CHARS: Final = ("/", "\\", "?", "#", ":")
+
+
+def require_safe_document_name(name: str) -> str:
+    """Constrain a primary-document name to a basename in the accession's own directory."""
+    if not name or name in (".", ".."):
+        raise NotAuthorized(f"primary document name {name!r} is not a file name")
+    if any(c in name for c in _UNSAFE_DOCUMENT_CHARS) or ".." in name:
+        raise NotAuthorized(
+            f"primary document name {name!r} is not a plain basename; path separators, "
+            "traversal, query and fragment are all refused"
+        )
+    return name
 
 
 AuthorizedKey = tuple[int, str, str, str]  # (cik, form, accession, accepted_at)
@@ -206,14 +223,22 @@ class AcquisitionAuthority:
             )
 
     def archive_url(self, cik: int, accession: str, primary_document: str) -> str:
-        """Build the canonical EDGAR archive URL from *governed* identifiers.
+        """Build the CANONICAL EDGAR archive URL from *governed* identifiers.
 
-        The URL is derived here rather than accepted from a caller, so the bytes fetched
-        cannot belong to a different accession than the metadata they will be stamped with.
+        Derived here rather than accepted from a caller, and authenticated on every
+        component: the accession must be in the envelope, the supplied CIK must be the one
+        the envelope associates with that accession, and the document name must be a plain
+        basename. Checking merely that the accession appears *somewhere* in a URL was not
+        enough -- it admitted a path under the wrong registrant, and it admitted traversal.
         """
-        self.require_authorized_accession(accession)
+        key = self.require_authorized_accession(accession)
+        if key[0] != cik:
+            raise NotAuthorized(
+                f"accession {accession} is authorized under CIK {key[0]}, not {cik}"
+            )
+        doc = require_safe_document_name(primary_document)
         nodash = accession.replace("-", "")
-        url = f"https://www.sec.gov/Archives/edgar/data/{cik}/{nodash}/{primary_document}"
+        url = f"https://www.sec.gov/Archives/edgar/data/{cik}/{nodash}/{doc}"
         self.require_origin(url)
         return url
 
@@ -222,3 +247,14 @@ class AcquisitionAuthority:
         if k is None:
             raise NotAuthorized(f"accession {accession} is not in the authorized envelope")
         return k
+
+    def require_canonical_url(
+        self, cik: int, accession: str, primary_document: str, url: str
+    ) -> None:
+        """The locator URL must be byte-identical to the canonical derivation."""
+        canonical = self.archive_url(cik, accession, primary_document)
+        if url != canonical:
+            raise NotAuthorized(
+                "locator URL is not the canonical archive URL for this filing; "
+                f"given {url!r}, canonical {canonical!r}"
+            )
