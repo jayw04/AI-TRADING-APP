@@ -22,9 +22,16 @@ than by review vigilance:
 
 The separation is enforced, not merely documented. ``Observation.build`` accepts a
 ``FilingMetadata`` and a ``SecurityClassEvidence`` and has no parameter of type
-``TransportLocator``; ``SecurityClassEvidence`` carries a ``source`` that only the parser
+``TransportLocator``; ``SecurityClassEvidence`` must state a ``source`` that only the parser
 sets, and ``build`` rejects any other provenance. There is consequently no expression that
 promotes a locator into an observation.
+
+**Filename content must not reach identity; filing identity must be authenticated.** These
+are different requirements, and an earlier revision conflated them — it forbade the
+orchestrator from reading *any* locator field, which meant the locator's own filing identity
+was never compared against the metadata. Metadata for authorized accession A could then be
+paired with a URL for accession B of the same registrant, and the observation would be
+stamped A while carrying B's bytes. ``TransportLocator.assert_matches`` closes that.
 """
 
 from __future__ import annotations
@@ -47,24 +54,8 @@ class ProvenanceViolation(RuntimeError):
     """Security-class evidence reached an observation without cover-page provenance."""
 
 
-@dataclass(frozen=True)
-class TransportLocator:
-    """Where to fetch bytes from. **Never** an identity source.
-
-    ``primary_document`` is retained here and nowhere else, deliberately: it is needed to
-    build the request URL and is useless — indeed forbidden — for anything past that.
-    """
-
-    cik: int
-    accession: str
-    primary_document: str
-    url: str
-
-    def __repr__(self) -> str:
-        # The filename is symbol-bearing. Keep it out of logs and tracebacks.
-        return (
-            f"TransportLocator(cik={self.cik}, accession={self.accession!r}, document=<redacted>)"
-        )
+class LocatorMismatch(RuntimeError):
+    """A locator does not identify the same filing as the metadata it accompanies."""
 
 
 @dataclass(frozen=True)
@@ -75,6 +66,37 @@ class FilingMetadata:
     form: str
     accession: str
     accepted_at: str
+
+
+@dataclass(frozen=True)
+class TransportLocator:
+    """Where to fetch bytes from. **Never** an identity source.
+
+    ``primary_document`` is retained here and nowhere else, deliberately: it is needed to
+    build the request URL and is useless — indeed forbidden — for anything past that.
+    ``cik`` and ``accession`` exist to be *authenticated* against the metadata.
+    """
+
+    cik: int
+    accession: str
+    primary_document: str
+    url: str
+
+    def assert_matches(self, meta: FilingMetadata) -> None:
+        """The bytes fetched must belong to the filing they will be recorded as."""
+        if self.cik != meta.cik or self.accession != meta.accession:
+            raise LocatorMismatch(
+                f"locator identifies (cik={self.cik}, accession={self.accession}) but the "
+                f"metadata is (cik={meta.cik}, accession={meta.accession})"
+            )
+        if self.accession.replace("-", "") not in self.url.replace("-", ""):
+            raise LocatorMismatch(f"locator URL does not contain accession {self.accession}")
+
+    def __repr__(self) -> str:
+        # The filename is symbol-bearing. Keep it out of logs and tracebacks.
+        return (
+            f"TransportLocator(cik={self.cik}, accession={self.accession!r}, document=<redacted>)"
+        )
 
 
 @dataclass(frozen=True)
@@ -91,7 +113,14 @@ class SecurityClassEvidence:
     security_12b_title: str
     security_exchange_name: str
     context_ref: str
-    source: str = PARSED_FROM_COVER
+    source: str
+    """Provenance. **No default, deliberately** (review finding P1).
+
+    While this defaulted to ``PARSED_FROM_COVER``, any caller could construct evidence and
+    receive accepted provenance without the parser ever running — the provenance check in
+    ``Observation.build`` was then guarding nothing. Requiring it to be stated makes
+    fabrication an explicit act rather than an omission.
+    """
 
 
 @dataclass(frozen=True)

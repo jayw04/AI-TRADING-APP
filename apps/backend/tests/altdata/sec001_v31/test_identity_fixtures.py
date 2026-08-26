@@ -18,6 +18,7 @@ from app.altdata.sec001_v31.concepts import (
     RETAINED_FIELD_SCHEMA,
 )
 from app.altdata.sec001_v31.layers import (
+    PARSED_FROM_COVER,
     FilingMetadata,
     IdentityScopeViolation,
     Observation,
@@ -50,7 +51,9 @@ def test_ticker_only_evidence_is_disputed_never_binding():
 
 def test_ticker_only_cannot_be_forced_into_an_observation():
     with pytest.raises(IdentityScopeViolation):
-        Observation.build(META, SecurityClassEvidence("GOOGL", "", "", "c-classA"))
+        Observation.build(
+            META, SecurityClassEvidence("GOOGL", "", "", "c-classA", source=PARSED_FROM_COVER)
+        )
 
 
 # ------------------------------------------- case 2: one CIK, two independent classes
@@ -272,3 +275,91 @@ def test_eof_is_a_required_keyword():
 def test_empty_prefix_without_eof_is_evidence_unavailable():
     r = cover_parser.parse_cover_identity(b"<html><body>" + b"x" * 5000, eof_reached=False)
     assert r.status == cover_parser.STATUS_EVIDENCE_UNAVAILABLE
+
+
+# ==========================================================================
+# REVIEW FIX — duplicate facts must fail closed, never silently overwrite
+# ==========================================================================
+def test_two_different_entity_ciks_in_the_SAME_context_fail_closed():
+    """Previously `setdefault` let the first CIK win and the second vanish."""
+    doc = (
+        b'<html xmlns:ix="http://www.xbrl.org/2013/inlineXBRL"><body>'
+        b'<ix:nonNumeric name="dei:EntityCentralIndexKey" contextRef="c-entity">0001652044</ix:nonNumeric>'
+        b'<ix:nonNumeric name="dei:EntityCentralIndexKey" contextRef="c-entity">0000320193</ix:nonNumeric>'
+        b'<ix:nonNumeric name="dei:Security12bTitle" contextRef="c1">Class A</ix:nonNumeric>'
+        b'<ix:nonNumeric name="dei:TradingSymbol" contextRef="c1">GOOGL</ix:nonNumeric>'
+        b'<ix:nonNumeric name="dei:SecurityExchangeName" contextRef="c1">Nasdaq</ix:nonNumeric>'
+        b"</body></html>"
+    )
+    r = parse(doc)
+    assert r.status == cover_parser.STATUS_FAIL_MULTIPLE_CIK
+    assert r.class_tuples == []
+
+
+@pytest.mark.parametrize(
+    "concept,a,b",
+    [
+        ("dei:TradingSymbol", "GOOG", "GOOGL"),
+        ("dei:Security12bTitle", "Class A Common Stock", "Class C Capital Stock"),
+        ("dei:SecurityExchangeName", "Nasdaq", "NYSE"),
+    ],
+)
+def test_two_different_values_for_one_concept_in_one_context_fail_closed(concept, a, b):
+    """Previously plain assignment let the second value overwrite the first."""
+    parts = [
+        b'<html xmlns:ix="http://www.xbrl.org/2013/inlineXBRL"><body>',
+        b'<ix:nonNumeric name="dei:EntityCentralIndexKey" contextRef="e">0001652044</ix:nonNumeric>',
+    ]
+    for c, v in (
+        ("dei:Security12bTitle", "Class A"),
+        ("dei:TradingSymbol", "GOOGL"),
+        ("dei:SecurityExchangeName", "Nasdaq"),
+    ):
+        if c != concept:
+            parts.append(f'<ix:nonNumeric name="{c}" contextRef="c1">{v}</ix:nonNumeric>'.encode())
+    parts.append(f'<ix:nonNumeric name="{concept}" contextRef="c1">{a}</ix:nonNumeric>'.encode())
+    parts.append(f'<ix:nonNumeric name="{concept}" contextRef="c1">{b}</ix:nonNumeric>'.encode())
+    parts.append(b"</body></html>")
+
+    r = parse(b"".join(parts))
+    assert r.status == cover_parser.STATUS_FAIL_COMPETING_CLASS
+    assert r.diagnostics["reason"] == "conflicting_facts_in_one_context"
+    assert r.class_tuples == []
+
+
+def test_identical_repeated_facts_deduplicate_harmlessly():
+    """Inline XBRL repeats the same fact legitimately; only DISTINCT values contradict."""
+    doc = (
+        b'<html xmlns:ix="http://www.xbrl.org/2013/inlineXBRL"><body>'
+        b'<ix:nonNumeric name="dei:EntityCentralIndexKey" contextRef="e">0001652044</ix:nonNumeric>'
+        b'<ix:nonNumeric name="dei:EntityCentralIndexKey" contextRef="e2">0001652044</ix:nonNumeric>'
+        b'<ix:nonNumeric name="dei:Security12bTitle" contextRef="c1">Class A</ix:nonNumeric>'
+        b'<ix:nonNumeric name="dei:Security12bTitle" contextRef="c1">Class A</ix:nonNumeric>'
+        b'<ix:nonNumeric name="dei:TradingSymbol" contextRef="c1">GOOGL</ix:nonNumeric>'
+        b'<ix:nonNumeric name="dei:SecurityExchangeName" contextRef="c1">Nasdaq</ix:nonNumeric>'
+        b"</body></html>"
+    )
+    r = parse(doc)
+    assert r.is_bound and len(r.class_tuples) == 1
+    assert r.class_tuples[0].trading_symbol == "GOOGL"
+
+
+# ==========================================================================
+# REVIEW FIX — provenance has no accepting default
+# ==========================================================================
+def test_security_class_evidence_requires_an_explicit_source():
+    with pytest.raises(TypeError):
+        SecurityClassEvidence("GOOG", "Class C", "Nasdaq", "c1")  # type: ignore[call-arg]
+
+
+def test_parser_is_the_only_producer_of_cover_provenance():
+    """Structural: PARSED_FROM_COVER is written in exactly one production module."""
+    import pathlib
+
+    pkg = pathlib.Path(cover_parser.__file__).parent
+    producers = [
+        f.name
+        for f in pkg.glob("*.py")
+        if "source=PARSED_FROM_COVER" in f.read_text(encoding="utf-8")
+    ]
+    assert producers == ["cover_parser.py"], producers

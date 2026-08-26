@@ -51,7 +51,7 @@ from dataclasses import dataclass, field
 from typing import Final
 
 from app.altdata.sec001_v31.concepts import CLASS_TUPLE_FIELDS, COVER_IDENTITY_CONCEPTS
-from app.altdata.sec001_v31.layers import SecurityClassEvidence
+from app.altdata.sec001_v31.layers import PARSED_FROM_COVER, SecurityClassEvidence
 
 # Opening tags of Inline-XBRL facts. Attributes only -- content is deliberately NOT captured.
 _FACT_OPEN: Final = re.compile(rb"<ix:(nonNumeric|nonFraction)\b([^>]*)>", re.IGNORECASE)
@@ -88,13 +88,21 @@ def _clean(raw: bytes) -> str:
     return _WS.sub(" ", html.unescape(_TAG.sub(b"", raw).decode("utf-8", "replace"))).strip()
 
 
-def _scan(buf: bytes) -> tuple[dict[str, dict[str, str]], dict[str, str], int]:
-    """Return (context -> {field: value}, entity-level {field: value}, last fact end offset).
+def _scan(buf: bytes) -> tuple[dict[str, dict[str, set[str]]], dict[str, set[str]], int]:
+    """Return (context -> {field: distinct values}, entity-level {field: values}, last offset).
 
     Only concepts in the allowlist have their content read.
+
+    Values are accumulated as **sets of distinct values**, not overwritten. The previous
+    implementation used ``setdefault`` for the CIK and plain assignment for class fields, so
+    a second, contradictory ``EntityCentralIndexKey`` in the same context silently lost to
+    the first, and two differing ``TradingSymbol`` facts in one context overwrote each other.
+    A contradiction must fail closed, never disappear. Identical repeated facts are normal
+    in Inline XBRL and deduplicate harmlessly; two *distinct* values for one
+    (context, concept) is a contradiction.
     """
-    by_context: dict[str, dict[str, str]] = {}
-    entity: dict[str, str] = {}
+    by_context: dict[str, dict[str, set[str]]] = {}
+    entity: dict[str, set[str]] = {}
     last_end = 0
 
     for m in _FACT_OPEN.finditer(buf):
@@ -125,9 +133,9 @@ def _scan(buf: bytes) -> tuple[dict[str, dict[str, str]], dict[str, str], int]:
         ctx = ctx_b.decode("ascii", "replace") if ctx_b else ""
 
         if field_name == "cik":
-            entity.setdefault(ctx or "_", value)
+            entity.setdefault(ctx or "_", set()).add(value)
         else:
-            by_context.setdefault(ctx, {})[field_name] = value
+            by_context.setdefault(ctx, {}).setdefault(field_name, set()).add(value)
 
     return by_context, entity, last_end
 
@@ -178,8 +186,10 @@ def parse_cover_identity(
             {**diag, "reason": "eof_claimed_but_read_reports_truncation"},
         )
 
-    cik_values = {v for v in entity.values() if v}
-    if len({re.sub(r"\D", "", v).lstrip("0") for v in cik_values}) > 1:
+    # Distinct CIK values ACROSS contexts and WITHIN any single context both count.
+    cik_values = {v for values in entity.values() for v in values if v}
+    normalised = {re.sub(r"\D", "", v).lstrip("0") for v in cik_values}
+    if len(normalised) > 1:
         return ParseResult(
             STATUS_FAIL_MULTIPLE_CIK, None, [], {**diag, "reason": "multiple_entity_cik"}
         )
@@ -189,24 +199,48 @@ def parse_cover_identity(
 
     if not cik_values:
         return ParseResult(STATUS_FAIL_NO_CIK, None, [], diag)
-    cik = int(re.sub(r"\D", "", next(iter(cik_values))))
+    cik = int(next(iter(normalised)))
+
+    # A single context declaring two different symbols, titles or exchanges is a
+    # contradiction within one effective instant. Fail closed rather than pick a winner.
+    for ctx, fields in sorted(by_context.items()):
+        conflicting = sorted(f for f, values in fields.items() if len({v for v in values if v}) > 1)
+        if conflicting:
+            return ParseResult(
+                STATUS_FAIL_COMPETING_CLASS,
+                cik,
+                [],
+                {
+                    **diag,
+                    "reason": "conflicting_facts_in_one_context",
+                    "context": ctx,
+                    "fields": conflicting,
+                },
+            )
 
     complete: list[SecurityClassEvidence] = []
     partial = 0
     symbol_only = 0
-    for ctx, fields in sorted(by_context.items()):
-        if all(fields.get(f) for f in CLASS_TUPLE_FIELDS):
+    for ctx, ctx_fields in sorted(by_context.items()):
+        # Exactly one distinct value per concept survives the contradiction check above.
+        flat: dict[str, str] = {}
+        for field_name, values in ctx_fields.items():
+            present = sorted(v for v in values if v)
+            if present:
+                flat[field_name] = present[0]
+        if all(flat.get(f) for f in CLASS_TUPLE_FIELDS):
             complete.append(
                 SecurityClassEvidence(
-                    trading_symbol=fields["trading_symbol"],
-                    security_12b_title=fields["security_12b_title"],
-                    security_exchange_name=fields["security_exchange_name"],
+                    trading_symbol=flat["trading_symbol"],
+                    security_12b_title=flat["security_12b_title"],
+                    security_exchange_name=flat["security_exchange_name"],
                     context_ref=ctx,
+                    source=PARSED_FROM_COVER,
                 )
             )
         else:
             partial += 1
-            if fields.get("trading_symbol") and not fields.get("security_12b_title"):
+            if flat.get("trading_symbol") and not flat.get("security_12b_title"):
                 symbol_only += 1
     diag["complete_class_tuples"] = len(complete)
     diag["partial_contexts"] = partial

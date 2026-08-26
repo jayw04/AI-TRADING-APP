@@ -101,3 +101,9 @@ apps/backend/tests/altdata/sec001_v3/** -text
 # the worktree copy and the object store disagree (worktree f10c1ad1 vs normalised f833217d).
 artifacts/wp0aq/** -text
 apps/backend/scripts/sec001_v31_wp0aq_envelope.py -text
+
+# The sealed WP0A-Q manifest is hash-verified at runtime by the acquisition authority
+# loader, so its worktree bytes must equal its blob bytes in every checkout. Without this
+# a fresh clone on a core.autocrlf=true machine materialises it CRLF and it hashes to
+# 19dc1e3a instead of the governed 3a30ad02, and the authority fails closed.
+manifests/wp0aq/** -text

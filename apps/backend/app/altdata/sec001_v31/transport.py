@@ -1,42 +1,58 @@
-"""Bounded, accounted, fail-closed transport for the WP0A-Q cover-page tranche.
+"""Bounded, accounted, origin-locked, fail-closed transport for the WP0A-Q tranche.
 
-Carries forward the Defect-E/F controls the V3 crawl paid for, with the request-cap
-accounting WP0A-Q adds on top.
+Carries forward the Defect-E/F controls the V3 crawl paid for, plus the request-integrity
+controls the harness review found missing.
 
-**Bounded streaming, never materialise-then-slice.** A ranged request is issued, but a
-server that ignores ``Range`` and answers ``200`` with the whole document is the normal
-case, not an error — so the response is *streamed* and consumption stops at the frozen
-threshold. ``httpx``'s ``.content`` / ``.read()`` are never called: there is no point at
-which the whole document exists in memory and is then trimmed. Reaching the threshold
-without the required fields is ``EVIDENCE_UNAVAILABLE``, never a partial PASS.
+**Origin is enforced, redirects are not automatic.** The fetcher previously accepted an
+arbitrary URL and ran an ``httpx.Client`` with ``follow_redirects=True``. That broke two
+frozen controls at once: the authorized-domain scope, and exact request accounting — one
+``charge_document()`` could become several real HTTP requests. Now every URL is checked
+against the manifest's origins before the request, redirects are **off**, and a 3xx is
+refused unless redirect following has been explicitly enabled, in which case each hop is
+origin-validated and separately charged.
+
+**Range responses are validated, not trusted.** Parsing only ``(end, total)`` was not
+enough. A 206 must return the *start* that was asked for, and its body length must agree
+with its own ``Content-Range``. Crucially, when a continuation asks for ``start > 0`` and
+the server ignores ``Range`` and replies ``200``, the body is the document *prefix* again —
+appending it as the next window would assemble a corrupt document. That fails closed.
+
+**Bounded streaming, never materialise-then-slice.** ``.content`` / ``.read()`` are never
+called: there is no point at which the whole document exists in memory and is then trimmed.
 
 **403 latches globally.** ``CrawlHalt`` derives from ``BaseException`` for the same reason
-``KeyboardInterrupt`` does: the surrounding code is fail-soft by design and an
-``except Exception`` would swallow the halt and issue another request to a host that has
-just blocked us. The latch is also sticky on the fetcher, so even ``except BaseException``
-somewhere cannot produce a second request.
+``KeyboardInterrupt`` does: the surrounding code is fail-soft and an ``except Exception``
+would swallow the halt and issue another request to a host that has just blocked us.
 
-**Ranged requests force ``Accept-Encoding: identity``.** With a content-encoding applied,
-range offsets refer to the *compressed* representation, which is what fed gzip fragments to
-the V3 parser across three canaries. A parser-facing body beginning with the gzip magic is
-an acquisition failure, never historical absence.
+**Accounting and CIK-once survive process restart.** ``DurableLedger`` persists counts, the
+acquired-key set and actual-send timestamps, seeded from the step-1 custody record so a
+restart cannot silently turn 28/200 index requests back into 0/200.
 """
 
 from __future__ import annotations
 
-import hashlib
 import json
+import os
 import random
 import re
 import time
 from dataclasses import dataclass, field
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, Final
 
 import httpx
 
+from app.altdata.sec001_v31.authority import (
+    STEP1_DOCUMENT_REQUESTS_SPENT,
+    STEP1_INDEX_REQUESTS_SPENT,
+    AcquisitionAuthority,
+    NotAuthorized,
+)
+
 GZIP_MAGIC: Final = bytes((0x1F, 0x8B))
 IDENTITY_ENCODINGS: Final[frozenset[str | None]] = frozenset({None, "", "identity"})
+REDIRECT_STATUSES: Final[frozenset[int]] = frozenset({301, 302, 303, 307, 308})
 
 
 class CrawlHalt(BaseException):
@@ -51,36 +67,112 @@ class AcquisitionEncodingError(RuntimeError):
     """An encoded representation reached, or would have reached, the parser (Defect E)."""
 
 
+class RangeIntegrityError(RuntimeError):
+    """A ranged response cannot be trusted to be the window that was requested."""
+
+
 class CreateOnceViolation(RuntimeError):
     """An artifact identity already exists. Evidence is never overwritten."""
 
 
-@dataclass
-class RequestLedger:
-    """Exact request accounting against the sealed caps."""
+def _utc_now() -> str:
+    return datetime.now(UTC).isoformat().replace("+00:00", "Z")
 
+
+@dataclass
+class DurableLedger:
+    """Request accounting and CIK-once state that survives a process restart.
+
+    Seeded from step-1 custody: the envelope derivation already spent 28 index requests, and
+    a fresh process must not reset that. Every state change is flushed atomically, so an
+    interrupted run resumes with the requests it actually made already counted.
+    """
+
+    path: Path
     max_index_requests: int
     max_document_requests: int
     max_total_retries: int
-    index_requests: int = 0
-    document_requests: int = 0
+    index_requests: int = STEP1_INDEX_REQUESTS_SPENT
+    document_requests: int = STEP1_DOCUMENT_REQUESTS_SPENT
     retries: int = 0
+    acquired: set[str] = field(default_factory=set)
     events: list[dict[str, Any]] = field(default_factory=list)
 
-    def charge_document(self) -> None:
+    @classmethod
+    def open(cls, path: Path, authority: AcquisitionAuthority) -> DurableLedger:
+        led = cls(
+            path=path,
+            max_index_requests=authority.max_index_requests,
+            max_document_requests=authority.max_document_requests,
+            max_total_retries=authority.max_total_retries,
+        )
+        if path.exists():
+            state = json.loads(path.read_text(encoding="utf-8"))
+            led.index_requests = int(state["index_requests"])
+            led.document_requests = int(state["document_requests"])
+            led.retries = int(state["retries"])
+            led.acquired = set(state.get("acquired", []))
+            led.events = list(state.get("events", []))
+        else:
+            led._flush()
+        return led
+
+    def _flush(self) -> None:
+        self.path.parent.mkdir(parents=True, exist_ok=True)
+        tmp = self.path.with_suffix(self.path.suffix + ".tmp")
+        tmp.write_text(
+            json.dumps(
+                {
+                    "index_requests": self.index_requests,
+                    "document_requests": self.document_requests,
+                    "retries": self.retries,
+                    "acquired": sorted(self.acquired),
+                    "events": self.events,
+                    "updated_utc": _utc_now(),
+                },
+                indent=2,
+                sort_keys=True,
+            ),
+            encoding="utf-8",
+        )
+        os.replace(tmp, self.path)
+
+    # ---- accounting -----------------------------------------------------------------
+    def charge_document(self, url: str) -> None:
         if self.document_requests >= self.max_document_requests:
             raise BudgetExceeded(f"max_document_requests={self.max_document_requests} reached")
         self.document_requests += 1
+        self.events.append(
+            {"kind": "document", "url": url, "sent_utc": _utc_now(), "n": self.document_requests}
+        )
+        self._flush()
 
-    def charge_index(self) -> None:
+    def charge_index(self, url: str = "") -> None:
         if self.index_requests >= self.max_index_requests:
             raise BudgetExceeded(f"max_index_requests={self.max_index_requests} reached")
         self.index_requests += 1
+        self.events.append(
+            {"kind": "index", "url": url, "sent_utc": _utc_now(), "n": self.index_requests}
+        )
+        self._flush()
 
     def charge_retry(self) -> None:
         if self.retries >= self.max_total_retries:
             raise BudgetExceeded(f"max_total_retries={self.max_total_retries} reached")
         self.retries += 1
+        self._flush()
+
+    # ---- CIK-once -------------------------------------------------------------------
+    @staticmethod
+    def acquisition_key(cik: int, form: str, accession: str) -> str:
+        return f"{cik:010d}|{form}|{accession}"
+
+    def already_acquired(self, cik: int, form: str, accession: str) -> bool:
+        return self.acquisition_key(cik, form, accession) in self.acquired
+
+    def mark_acquired(self, cik: int, form: str, accession: str) -> None:
+        self.acquired.add(self.acquisition_key(cik, form, accession))
+        self._flush()
 
 
 @dataclass
@@ -92,15 +184,9 @@ class FetchOutcome:
     http_status: int | None = None
     attempts: int = 0
     eof_reached: bool = False
-    """The document END was actually reached within the bounds.
-
-    The parser's completeness gate reads this and nothing else. It is set only by evidence
-    from the response itself -- a ``Content-Range`` whose end is the last byte of the stated
-    total, or a body that ended before the requested window was filled -- never inferred
-    from how much was read or from what the bytes contained.
-    """
     total_bytes: int | None = None
     continuations: int = 0
+    reason: str | None = None
 
 
 FETCH_OK: Final = "OK"
@@ -108,37 +194,35 @@ FETCH_UNAVAILABLE: Final = "EVIDENCE_UNAVAILABLE"
 
 
 class BoundedFetcher:
-    """GET-only, throttled, bounded document fetcher with a sticky halt latch."""
+    """GET-only, origin-locked, bounded document fetcher with a sticky halt latch."""
 
     def __init__(
         self,
-        ledger: RequestLedger,
+        authority: AcquisitionAuthority,
+        ledger: DurableLedger,
         *,
         user_agent: str,
-        ceiling_bytes: int,
-        stop_threshold_bytes: int,
-        rate_limit_per_sec: float = 5.0,
-        retry_statuses: tuple[int, ...] = (429, 500, 502, 503, 504),
-        halt_statuses: tuple[int, ...] = (403,),
-        retry_max_attempts: int = 5,
         client: httpx.Client | None = None,
         sleep: Any = time.sleep,
+        max_redirects: int = 0,
     ) -> None:
+        self.authority = authority
         self.ledger = ledger
-        self.ceiling = ceiling_bytes
-        self.stop_threshold = stop_threshold_bytes
-        self.retry_statuses = set(retry_statuses)
-        self.halt_statuses = set(halt_statuses)
-        self.retry_max_attempts = retry_max_attempts
+        self.ceiling = authority.ceiling_bytes
+        self.stop_threshold = authority.stop_threshold_bytes
+        self.retry_statuses = set(authority.retry_statuses)
+        self.halt_statuses = set(authority.halt_statuses)
+        self.retry_max_attempts = authority.retry_max_attempts
+        self.max_redirects = max_redirects
         self._halted = False
-        self._interval = 1.0 / max(0.1, rate_limit_per_sec)
+        self._interval = 1.0 / max(0.1, authority.rate_limit_per_sec)
         self._last = 0.0
         self._sleep = sleep
         self._rng = random.Random("SEC001_V3_1_WP0AQ_COVER")
         self._client = client or httpx.Client(
             headers={"User-Agent": user_agent},
             timeout=30.0,
-            follow_redirects=True,
+            follow_redirects=False,  # every hop is validated and charged explicitly
         )
 
     @property
@@ -155,46 +239,62 @@ class BoundedFetcher:
         self._last = time.monotonic()
 
     @staticmethod
-    def _content_range(value: str | None) -> tuple[int | None, int | None]:
-        """Parse ``Content-Range: bytes S-E/T`` into (end, total). ``None`` when unstated."""
+    def _content_range(value: str | None) -> tuple[int | None, int | None, int | None]:
+        """Parse ``Content-Range: bytes S-E/T`` into (start, end, total)."""
         if not value:
-            return None, None
+            return None, None, None
         m = re.search(r"bytes\s+(\d+)-(\d+)/(\d+|\*)", value)
         if not m:
-            return None, None
+            return None, None, None
         total = int(m.group(3)) if m.group(3) != "*" else None
-        return int(m.group(2)), total
+        return int(m.group(1)), int(m.group(2)), total
 
     def get_document(
         self, url: str, *, window_bytes: int | None = None, start: int = 0
     ) -> FetchOutcome:
-        """Fetch one bounded document window. GET only.
-
-        ``eof_reached`` is set only from response evidence: a ``Content-Range`` whose end is
-        the last byte of the stated total, or a body that ended before the requested window
-        was filled. It is never inferred from how much was read or from the content.
-        """
+        """Fetch one bounded document window from a frozen SEC origin. GET only."""
         if self._halted:
             raise CrawlHalt("fetcher is latched after a halt status; no further requests")
+        self.authority.require_origin(url)
 
         limit = min(window_bytes or self.stop_threshold, self.stop_threshold)
-        headers = {
-            "Range": f"bytes={start}-{start + limit - 1}",
-            "Accept-Encoding": "identity",
-        }
+        headers = {"Range": f"bytes={start}-{start + limit - 1}", "Accept-Encoding": "identity"}
+        target = url
+        redirects = 0
 
         for attempt in range(1, self.retry_max_attempts + 1):
             self._throttle()
-            self.ledger.charge_document()
-            with self._client.stream("GET", url, headers=headers) as r:
+            self.ledger.charge_document(target)
+            with self._client.stream("GET", target, headers=headers) as r:
                 status = r.status_code
                 if status in self.halt_statuses:
                     self._halted = True
-                    self.ledger.events.append({"url": url, "status": status, "outcome": "HALT"})
-                    raise CrawlHalt(f"EDGAR returned {status} for {url}")
+                    raise CrawlHalt(f"EDGAR returned {status} for {target}")
+
+                if status in REDIRECT_STATUSES:
+                    location = r.headers.get("location", "")
+                    if redirects >= self.max_redirects or not location:
+                        return FetchOutcome(
+                            FETCH_UNAVAILABLE,
+                            http_status=status,
+                            attempts=attempt,
+                            reason="redirect_refused",
+                        )
+                    nxt = str(httpx.URL(target).join(location))
+                    try:
+                        self.authority.require_origin(nxt)
+                    except NotAuthorized:
+                        return FetchOutcome(
+                            FETCH_UNAVAILABLE,
+                            http_status=status,
+                            attempts=attempt,
+                            reason="redirect_off_origin",
+                        )
+                    redirects += 1
+                    target = nxt
+                    continue
 
                 if status in self.retry_statuses:
-                    self.ledger.events.append({"url": url, "status": status, "outcome": "RETRY"})
                     if attempt == self.retry_max_attempts:
                         return FetchOutcome(FETCH_UNAVAILABLE, http_status=status, attempts=attempt)
                     self.ledger.charge_retry()
@@ -203,10 +303,12 @@ class BoundedFetcher:
                     continue
 
                 if status not in (200, 206):
-                    self.ledger.events.append(
-                        {"url": url, "status": status, "outcome": "FAIL_CLOSED_STATUS"}
+                    return FetchOutcome(
+                        FETCH_UNAVAILABLE,
+                        http_status=status,
+                        attempts=attempt,
+                        reason="unexpected_status",
                     )
-                    return FetchOutcome(FETCH_UNAVAILABLE, http_status=status, attempts=attempt)
 
                 enc = (r.headers.get("content-encoding") or "").strip().lower() or None
                 if enc not in IDENTITY_ENCODINGS:
@@ -215,8 +317,24 @@ class BoundedFetcher:
                         "would refer to the compressed representation (Defect E)"
                     )
 
-                # A 200 here means the server ignored Range and is sending the whole document.
-                # Stream it; never read it whole and slice. Consumption stops at the bound.
+                cr_start, cr_end, total = self._content_range(r.headers.get("content-range"))
+
+                # A 200 means Range was ignored: the body is the document from byte 0. That
+                # is fine for the first window and fatal for a continuation, which would
+                # otherwise append a second copy of the prefix as though it were the tail.
+                if status == 200 and start > 0:
+                    raise RangeIntegrityError(
+                        f"continuation requested start={start} but the server ignored Range and "
+                        "returned 200 from byte 0; the window cannot be appended"
+                    )
+                if status == 206:
+                    if cr_start is None:
+                        raise RangeIntegrityError("206 response without a parsable Content-Range")
+                    if cr_start != start:
+                        raise RangeIntegrityError(
+                            f"206 returned start={cr_start}, requested start={start}"
+                        )
+
                 buf = bytearray()
                 truncated = False
                 for chunk in r.iter_bytes(65536):
@@ -230,33 +348,23 @@ class BoundedFetcher:
                         truncated = True
                         break
                     buf.extend(chunk)
-                    if len(buf) > self.ceiling:  # defence in depth; unreachable via `take`
-                        truncated = True
-                        break
 
                 assert len(buf) <= self.ceiling, "hard byte ceiling breached"
 
-                end, total = self._content_range(r.headers.get("content-range"))
-                if total is not None and end is not None:
-                    eof = end + 1 >= total
+                if status == 206 and cr_end is not None and not truncated:
+                    expected = cr_end - (cr_start or 0) + 1
+                    if len(buf) != expected:
+                        raise RangeIntegrityError(
+                            f"206 body length {len(buf)} disagrees with its own Content-Range "
+                            f"({cr_start}-{cr_end}), which declares {expected}"
+                        )
+
+                if total is not None and cr_end is not None:
+                    eof = cr_end + 1 >= total
                 else:
-                    # No stated total: the only positive evidence of EOF is that the body
-                    # ended before the requested window was filled.
                     eof = not truncated
                     total = start + len(buf) if eof else None
 
-                self.ledger.events.append(
-                    {
-                        "url": url,
-                        "status": status,
-                        "outcome": "OK",
-                        "start": start,
-                        "bytes": len(buf),
-                        "range_honoured": status == 206,
-                        "truncated": truncated,
-                        "eof_reached": eof,
-                    }
-                )
                 return FetchOutcome(
                     FETCH_OK,
                     body=bytes(buf),
@@ -274,14 +382,10 @@ class BoundedFetcher:
     ) -> FetchOutcome:
         """Read successive bounded windows until EOF, or fail closed.
 
-        ⚠ **Continuation is opt-in and off by default.** ``max_continuations=0`` reproduces
-        the single-window behaviour the frozen controls describe. Every continuation is a
-        further **document request** against the sealed 1,200 cap, so how many windows a
-        filing may consume is a scope decision for the owner, not a default this module
-        picks. ``max_cumulative_bytes`` likewise defaults to one window.
-
-        Reaching the frozen bounds without EOF is ``EVIDENCE_UNAVAILABLE`` — never a partial
-        pass, and never rescued by however many class tuples the prefix happened to contain.
+        ⚠ Continuation is opt-in and off by default; ``authority.LIVE_MAX_CONTINUATIONS`` is
+        the only live-authorized setting. Every continuation is a further document request
+        against the sealed cap, so a nonzero policy must be frozen prospectively rather than
+        chosen after seeing which real filings exceed the first window.
         """
         budget = max_cumulative_bytes or self.stop_threshold
         body = bytearray()
@@ -329,26 +433,65 @@ class BoundedFetcher:
 
 
 class CreateOnceStore:
-    """Immutable artifact store keyed by CIK / accession / source_variant / observation id."""
+    """Atomic, immutable, **accession-level** evidence custody.
+
+    Two review findings shaped this. ``exists()`` followed by ``write_text()`` is not atomic
+    CREATE-ONCE under concurrency or interruption, so creation now uses ``O_CREAT | O_EXCL``
+    and the filesystem adjudicates the race. And writing observations one at a time meant a
+    crash between a registrant's Class A and Class C could leave a *persistent partial class
+    set* — the storage-layer twin of the truncation defect. An accession's whole observation
+    set is therefore committed as a single object: there is no state in which some of a
+    filing's classes are retained and the rest are lost.
+
+    The seven-field observation schema is unchanged. Non-semantic decision provenance —
+    parser-body SHA-256, byte count, EOF/range proof, request-event identity — is retained
+    beside it, never inside it.
+    """
 
     def __init__(self, root: Path) -> None:
         self.root = root
         self.root.mkdir(parents=True, exist_ok=True)
-        self._keys: set[str] = set()
 
     @staticmethod
     def identity(cik: int, accession: str, source_variant: str, observation_id: str) -> str:
         return f"{cik:010d}/{accession}/{source_variant}/{observation_id}"
 
-    def path_for(self, ident: str) -> Path:
-        return self.root / (hashlib.sha256(ident.encode()).hexdigest()[:32] + ".json")
+    @staticmethod
+    def accession_identity(cik: int, accession: str, source_variant: str) -> str:
+        return f"{cik:010d}/{accession}/{source_variant}"
 
-    def put(self, ident: str, record: dict[str, Any]) -> Path:
-        p = self.path_for(ident)
-        if ident in self._keys or p.exists():
-            raise CreateOnceViolation(f"artifact identity already exists: {ident}")
-        payload = dict(record)
-        payload["_artifact_identity"] = ident
-        p.write_text(json.dumps(payload, indent=2, sort_keys=True), encoding="utf-8")
-        self._keys.add(ident)
+    def path_for(self, cik: int, accession: str, source_variant: str) -> Path:
+        return self.root / f"{cik:010d}-{accession}-{source_variant}.json"
+
+    def put_accession_set(
+        self,
+        cik: int,
+        accession: str,
+        source_variant: str,
+        records: list[dict[str, Any]],
+        observation_ids: list[str],
+        provenance: dict[str, Any],
+    ) -> Path:
+        """Commit every observation for one accession as a single atomic object."""
+        p = self.path_for(cik, accession, source_variant)
+        payload = json.dumps(
+            {
+                "_artifact_identity": self.accession_identity(cik, accession, source_variant),
+                "observation_ids": observation_ids,
+                "observations": records,
+                "provenance": provenance,
+                "committed_utc": _utc_now(),
+            },
+            indent=2,
+            sort_keys=True,
+        )
+        try:
+            fd = os.open(p, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o644)
+        except FileExistsError as exc:
+            raise CreateOnceViolation(
+                f"artifact identity already exists: "
+                f"{self.accession_identity(cik, accession, source_variant)}"
+            ) from exc
+        with os.fdopen(fd, "w", encoding="utf-8") as fh:
+            fh.write(payload)
         return p
