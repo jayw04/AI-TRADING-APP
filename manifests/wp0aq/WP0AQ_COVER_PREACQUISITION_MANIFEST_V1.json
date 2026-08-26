@@ -1,0 +1,336 @@
+{
+  "WP0A_Q_EVIDENCE_CUTOFF_UTC": "2026-08-26T16:11:22Z",
+  "acquisition": {
+    "bounded_streaming": true,
+    "byte_ceiling_exhausted_disposition": "FAIL CLOSED as evidence-unavailable for that observation",
+    "cik_once": "each CIK/form/accession acquired exactly once; a shared CIK (e.g. GOOG/GOOGL -> 1652044) is NOT reacquired per security",
+    "consumption_stop_threshold_bytes": 983040,
+    "domains": [
+      "https://data.sec.gov",
+      "https://www.sec.gov"
+    ],
+    "halt_statuses": [
+      403
+    ],
+    "ignored_range_200_handling": "200_FULL_RANGE_IGNORED, bounded stream",
+    "immutable_artifact_identity": "CIK/accession/source_variant/observation_id, CREATE-ONCE",
+    "max_document_requests": 1200,
+    "max_index_requests": 200,
+    "max_total_retries": 200,
+    "method": "GET only",
+    "no_materialize_then_slice": true,
+    "rate_limit_per_sec": 5.0,
+    "response_consumption_ceiling_bytes": 1048576,
+    "retry_max_attempts": 5,
+    "retry_statuses": [
+      429,
+      500,
+      502,
+      503,
+      504
+    ],
+    "single_host_fair_access": true
+  },
+  "admissible_terminal_windows": {
+    "20.0y": {
+      "decisive_K": 16,
+      "first": "2022-05-16",
+      "last": "2026-06-08",
+      "max_failing_weeks": 9,
+      "rebalances": 189,
+      "span_years": 20.0,
+      "terminal_years": 4.0
+    },
+    "22.0y": {
+      "decisive_K": 13,
+      "first": "2021-12-20",
+      "last": "2026-06-08",
+      "max_failing_weeks": 10,
+      "rebalances": 208,
+      "span_years": 22.0,
+      "terminal_years": 4.4
+    },
+    "24.0y": {
+      "decisive_K": 13,
+      "first": "2021-08-02",
+      "last": "2026-06-08",
+      "max_failing_weeks": 11,
+      "rebalances": 227,
+      "span_years": 24.0,
+      "terminal_years": 4.8
+    },
+    "26.4y": {
+      "decisive_K": 13,
+      "first": "2021-02-08",
+      "last": "2026-06-08",
+      "max_failing_weeks": 12,
+      "rebalances": 249,
+      "span_years": 26.4,
+      "terminal_years": 5.28
+    }
+  },
+  "artifact": "SEC001_V3_1_WP0AQ_COVER_PREACQUISITION_MANIFEST_V1",
+  "authority": "WP0A-Q-COVER, owner 2026-08-26, sub-authority of WP0A only",
+  "binding_predicate": "LINEAGE_STABLE = CIK_FILING_SPAN_BRACKETS_WEEK AND SECURITY_CIK_BINDING_COVERS_WEEK AND NO_COMPETING_SECURITY_CIK_BINDING; exact accepted timestamps; the cover-page tranche supplies evidence for the middle term ONLY",
+  "candidate_count": 23,
+  "candidate_population": [
+    {
+      "cells_in_union_window": 249,
+      "permaticker": 119496,
+      "rank": 1,
+      "ticker": "GOOG",
+      "v3_cik": 1652044
+    },
+    {
+      "cells_in_union_window": 249,
+      "permaticker": 194817,
+      "rank": 2,
+      "ticker": "META",
+      "v3_cik": 1326801
+    },
+    {
+      "cells_in_union_window": 249,
+      "permaticker": 195146,
+      "rank": 3,
+      "ticker": "GOOGL",
+      "v3_cik": 1652044
+    },
+    {
+      "cells_in_union_window": 249,
+      "permaticker": 199122,
+      "rank": 4,
+      "ticker": "DHR",
+      "v3_cik": 313616
+    },
+    {
+      "cells_in_union_window": 249,
+      "permaticker": 199287,
+      "rank": 5,
+      "ticker": "TMO",
+      "v3_cik": 97745
+    },
+    {
+      "cells_in_union_window": 122,
+      "permaticker": 124373,
+      "rank": 6,
+      "ticker": "SNAP",
+      "v3_cik": 1564408
+    },
+    {
+      "cells_in_union_window": 122,
+      "permaticker": 124697,
+      "rank": 7,
+      "ticker": "TTD",
+      "v3_cik": 1671933
+    },
+    {
+      "cells_in_union_window": 121,
+      "permaticker": 190868,
+      "rank": 8,
+      "ticker": "BIDU",
+      "v3_cik": 1329099
+    },
+    {
+      "cells_in_union_window": 109,
+      "permaticker": 195878,
+      "rank": 9,
+      "ticker": "NOC",
+      "v3_cik": 1133421
+    },
+    {
+      "cells_in_union_window": 84,
+      "permaticker": 634780,
+      "rank": 10,
+      "ticker": "APP",
+      "v3_cik": 1751008
+    },
+    {
+      "cells_in_union_window": 80,
+      "permaticker": 110958,
+      "rank": 11,
+      "ticker": "ZM",
+      "v3_cik": 1585521
+    },
+    {
+      "cells_in_union_window": 80,
+      "permaticker": 187959,
+      "rank": 12,
+      "ticker": "TWTR",
+      "v3_cik": 1418091
+    },
+    {
+      "cells_in_union_window": 72,
+      "permaticker": 110959,
+      "rank": 13,
+      "ticker": "PINS",
+      "v3_cik": 1506293
+    },
+    {
+      "cells_in_union_window": 65,
+      "permaticker": 193213,
+      "rank": 14,
+      "ticker": "TT",
+      "v3_cik": 1466258
+    },
+    {
+      "cells_in_union_window": 53,
+      "permaticker": 189383,
+      "rank": 15,
+      "ticker": "NBIS",
+      "v3_cik": 1513845
+    },
+    {
+      "cells_in_union_window": 51,
+      "permaticker": 110558,
+      "rank": 16,
+      "ticker": "ASTS",
+      "v3_cik": 1780312
+    },
+    {
+      "cells_in_union_window": 41,
+      "permaticker": 641039,
+      "rank": 17,
+      "ticker": "FLUT",
+      "v3_cik": 1635327
+    },
+    {
+      "cells_in_union_window": 38,
+      "permaticker": 641935,
+      "rank": 18,
+      "ticker": "TEM",
+      "v3_cik": 1717115
+    },
+    {
+      "cells_in_union_window": 26,
+      "permaticker": 631597,
+      "rank": 19,
+      "ticker": "QS",
+      "v3_cik": 1811414
+    },
+    {
+      "cells_in_union_window": 24,
+      "permaticker": 199292,
+      "rank": 20,
+      "ticker": "TER",
+      "v3_cik": 97210
+    },
+    {
+      "cells_in_union_window": 18,
+      "permaticker": 636114,
+      "rank": 21,
+      "ticker": "DJT",
+      "v3_cik": 1849635
+    },
+    {
+      "cells_in_union_window": 16,
+      "permaticker": 193776,
+      "rank": 22,
+      "ticker": "ECHO",
+      "v3_cik": 1415404
+    },
+    {
+      "cells_in_union_window": 9,
+      "permaticker": 197849,
+      "rank": 23,
+      "ticker": "ROP",
+      "v3_cik": 882835
+    }
+  ],
+  "decisive_K_note": "regression expectation only; stop-early is decided at run time by the invariance rule, never by this number",
+  "decisive_K_worst_case": 16,
+  "design_commit": "741445fd7830b27ede675def54c789435c256658",
+  "design_document": "docs/design/SEC-001 V3.1/..._v1_4_FINAL.md",
+  "deterministic_order_key": "(-cells_in_union_window, permaticker)",
+  "envelope_derivation_rule": "the actual bounded request envelope is derived from SEC filing INDEXES without inspecting cover-page values; if it materially exceeds the planned scope, STOP BEFORE DOCUMENT ACQUISITION and report",
+  "evidence_chain_required": "permanent security identity -> effective-dated security/class identity -> SEC-declared {symbol, security title, exchange} -> registrant CIK; ticker equality alone is insufficient at every hop; multi-class issuers must match each security identity to its own declared class",
+  "evidence_cutoff_rule": "only SEC filings ACCEPTED on or before the cutoff are eligible; the cutoff is deliberately later than the 2026-06-12 evaluation endpoint because a filing accepted after it may legitimately establish that the security/registrant relationship continued across a June-2026 week -- that is lineage evidence, not a return or classification observation",
+  "explicitly_deferred_forms": [
+    "8-K",
+    "8-A12B",
+    "Form 25",
+    "6-K",
+    "registration statements",
+    "all other forms"
+  ],
+  "form_alias_universe": {
+    "G0_FORM_ALIAS_CANDIDATES_V1": [
+      "10-K405"
+    ],
+    "expansion_voids_adjudication": true
+  },
+  "form_expansion_rule": "expansion requires a new owner ruling before any request",
+  "frozen_utc": "2026-08-26T16:11:22Z",
+  "governed_slots": 1247,
+  "inputs_sha256": {
+    "governed_grid.json": "8c962f2e2d370ecd00fbf478e0a6ded7abf125050e503dd6bd1abb1ba95ef7a0",
+    "identity_rows.json": "82f317acb791cc94397473bc2f0b11f1ab44e1ae85f9b468e7a555acfdfeb29e",
+    "pit200_membership_v2.json": "985672ff3cf49a59f7bf2e7be2183eecdd8e2bdce1d66515751ac243475302dc",
+    "segments_projection.json": "90d7d9f7b55482ea2b2fdbe338062db2ff48bd70795ace50e232d93c0410e97f",
+    "sic_mapping.json": "633dc4cfa4ee9e7f893e65353ea8bf02f7b9bc1036a95df23a3af2e43e39bcb6"
+  },
+  "no_outward_extrapolation": "binding proven A..B qualifies cells within A..B only; no 'same company throughout'; no backward projection from present stability",
+  "not_authorized": [
+    "WP0B / FPI",
+    "WP1 lineage reconstruction",
+    "WP2 population/order",
+    "classification / SIC acquisition",
+    "state-seeding acquisition",
+    "coverage token creation or spend",
+    "economics",
+    "runtime"
+  ],
+  "output_artifacts": [
+    "WP0AQ_COVER_ENVELOPE_V1.json",
+    "WP0AQ_COVER_OBSERVATIONS_V1.jsonl",
+    "WP0AQ_COVER_BINDINGS_V1.json",
+    "WP0AQ_LINEAGE_STABILITY_MASK_V1.json",
+    "G0A_ADJUDICATION_V1.json",
+    "G0A_DISTANCE_TO_FEASIBILITY_V1.json"
+  ],
+  "permitted_forms": [
+    "10-K",
+    "10-K/A",
+    "10-Q",
+    "10-Q/A",
+    "20-F",
+    "20-F/A",
+    "40-F",
+    "40-F/A"
+  ],
+  "planning_estimate_not_authority": {
+    "indicative_filings": "350-480",
+    "note": "planning input only; the frozen envelope governs"
+  },
+  "prohibitions": {
+    "identity_scope_guard": "fails closed if the parser emits any field outside retained_field_schema",
+    "no_economic_information": true,
+    "no_pnl": true,
+    "no_prices": true,
+    "no_returns": true,
+    "no_sector_mapping": true,
+    "return_blind_ci_guard": "check_sec001_v31_coverage_return_blind.sh remains mandatory",
+    "sic_blind": "the WP0A-Q parser may not extract, expose, write, aggregate or inspect SIC, from any region of any document"
+  },
+  "retained_field_schema": [
+    "accepted_at",
+    "cik",
+    "trading_symbol",
+    "security_12b_title",
+    "security_exchange_name",
+    "form",
+    "accession"
+  ],
+  "sec_requests_issued_by_this_manifest": 0,
+  "stop_early_rule": "stop acquiring binding evidence as soon as, counting ONLY already-qualified LINEAGE_STABLE excluded_low cells as permanently unresolved and treating EVERY unreviewed or unproven candidate as RESOLVED, every admissible >=20-year span fails O-2",
+  "terminal_action": "adjudicate -> custody -> STOP and return to owner",
+  "terminal_outcomes": [
+    "G0A_STOP_FROZEN_CLASSES_FORECLOSE_COVERAGE",
+    "G0A_PASS (returns to owner checkpoint; does NOT start WP0B)",
+    "G0A_HOLD_SECURITY_CIK_BINDING_EVIDENCE_INCOMPLETE"
+  ],
+  "union_window": {
+    "first": "2021-02-08",
+    "last": "2026-06-08",
+    "rebalances": 249
+  }
+}
