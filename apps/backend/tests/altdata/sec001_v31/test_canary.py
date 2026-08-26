@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-import json
-
 import pytest
 
 from app.altdata.sec001_v31.canary import (
@@ -137,13 +135,14 @@ def test_screening_out_a_candidate_spends_no_document_request(
     from tests.altdata.sec001_v31.conftest import make_fetcher
 
     cik, form, accession, _ = envelope_keys[0]
-    body = json.dumps(
-        {
-            "directory": {
-                "name": f"/Archives/edgar/data/x/{accession.replace('-', '')}",
-                "item": [{"name": "big.htm", "type": form, "size": 4_000_000}],
-            }
-        }
+    body = (
+        f"<html><body><p>Accession Number: {accession}</p>"
+        '<table class="tableFile" summary="Document Format Files">'
+        "<tr><th>Seq</th><th>Description</th><th>Document</th><th>Type</th><th>Size</th></tr>"
+        f"<tr><td>1</td><td>{form}</td>"
+        f'<td><a href="/ix?doc=/x/big.htm">big.htm</a></td>'
+        f"<td>{form}</td><td>4000000</td></tr>"
+        "</table></body></html>"
     ).encode()
 
     def handler(_r: httpx.Request) -> httpx.Response:

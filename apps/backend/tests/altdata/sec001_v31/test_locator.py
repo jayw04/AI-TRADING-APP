@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import hashlib
-import json
 
 import httpx
 import pytest
@@ -12,10 +11,9 @@ from app.altdata.sec001_v31.authority import NotAuthorized
 from app.altdata.sec001_v31.custody import AccessionState, InterruptedAcquisition
 from app.altdata.sec001_v31.locator import (
     RESOLVER_ACCESSION_MISMATCH,
-    RESOLVER_AMBIGUOUS_PRIMARY_DOCUMENT,
     RESOLVER_INDEX_UNAVAILABLE,
     RESOLVER_NO_PRIMARY_DOCUMENT,
-    RESOLVER_SIZE_UNAVAILABLE,
+    RESOLVER_SCHEMA_UNSUPPORTED,
     RESOLVER_UNSAFE_DOCUMENT_NAME,
     LocatorResolutionError,
     LocatorResolver,
@@ -31,13 +29,28 @@ def target(envelope_keys):
 
 
 def index_body(accession: str, items: list[dict]) -> bytes:
-    return json.dumps(
-        {
-            "directory": {
-                "name": f"/Archives/edgar/data/x/{accession.replace('-', '')}",
-                "item": items,
-            }
-        }
+    """A filing-detail page in the REAL shape established by the governed fixture.
+
+    Synthetic, but structurally faithful: the ``Document Format Files`` summary, the frozen
+    five-column header, and a Document cell that is an anchor plus decoration rather than a
+    bare filename. Tests that need the genuine article use ``test_filing_detail``.
+    """
+    rows = ""
+    for it in items:
+        name = it.get("name", "")
+        doc = f'<a href="/ix?doc=/Archives/x/{name}">{name}</a> &nbsp;&nbsp;<span>iXBRL</span>'
+        size = "" if it.get("size") is None else it.get("size")
+        rows += (
+            "<tr>"
+            f"<td>{it.get('seq', '1')}</td><td>{it.get('type', '')}</td>"
+            f"<td>{doc}</td><td>{it.get('type', '')}</td><td>{size}</td>"
+            "</tr>"
+        )
+    return (
+        f"<html><body><p>Accession Number: {accession}</p>"
+        '<table class="tableFile" summary="Document Format Files">'
+        "<tr><th>Seq</th><th>Description</th><th>Document</th><th>Type</th><th>Size</th></tr>"
+        f"{rows}</table></body></html>"
     ).encode()
 
 
@@ -108,7 +121,7 @@ def test_a_crash_mid_lookup_is_visible_and_not_silently_repeated(
 
 
 # ============================================================ fail-closed paths
-def test_an_index_for_a_different_accession_fails_closed(authority, ledger, journal, target):
+def test_a_page_for_a_different_accession_fails_closed(authority, ledger, journal, target):
     cik, form, accession, _ = target
     body = index_body("9999999999-99-999999", [primary(form)])
     with pytest.raises(LocatorResolutionError) as e:
@@ -131,7 +144,7 @@ def test_two_items_typed_as_the_form_fail_closed_rather_than_picking_one(
     body = index_body(accession, [primary(form, "a.htm"), primary(form, "b.htm")])
     with pytest.raises(LocatorResolutionError) as e:
         resolver(authority, ledger, journal, body).resolve(cik, accession)
-    assert e.value.reason == RESOLVER_AMBIGUOUS_PRIMARY_DOCUMENT
+    assert e.value.reason == RESOLVER_SCHEMA_UNSUPPORTED
 
 
 @pytest.mark.parametrize("size", [None, "", 0, "not-a-number"])
@@ -141,16 +154,24 @@ def test_a_non_authoritative_size_fails_closed(authority, ledger, journal, targe
     body = index_body(accession, [primary(form, size=size)])
     with pytest.raises(LocatorResolutionError) as e:
         resolver(authority, ledger, journal, body).resolve(cik, accession)
-    assert e.value.reason == RESOLVER_SIZE_UNAVAILABLE
+    assert e.value.reason == RESOLVER_SCHEMA_UNSUPPORTED
 
 
-@pytest.mark.parametrize("name", ["../../etc/passwd", "sub/dir.htm", "x.htm?a=1", ""])
+@pytest.mark.parametrize("name", ["../../etc/passwd", "sub/dir.htm", "x.htm?a=1"])
 def test_an_unsafe_filename_from_sec_is_still_refused(authority, ledger, journal, target, name):
     cik, form, accession, _ = target
     body = index_body(accession, [primary(form, name=name)])
     with pytest.raises(LocatorResolutionError) as e:
         resolver(authority, ledger, journal, body).resolve(cik, accession)
     assert e.value.reason == RESOLVER_UNSAFE_DOCUMENT_NAME
+
+
+def test_an_empty_document_name_fails_closed_in_the_parser(authority, ledger, journal, target):
+    cik, form, accession, _ = target
+    body = index_body(accession, [primary(form, name="")])
+    with pytest.raises(LocatorResolutionError) as e:
+        resolver(authority, ledger, journal, body).resolve(cik, accession)
+    assert e.value.reason == RESOLVER_SCHEMA_UNSUPPORTED
 
 
 def test_an_unavailable_index_fails_closed(authority, ledger, journal, target):
@@ -172,11 +193,12 @@ def test_a_cik_that_does_not_own_the_accession_is_refused(authority, ledger, jou
         resolver(authority, ledger, journal, b"{}").resolve(cik + 1, accession)
 
 
-def test_index_url_is_origin_locked_and_accession_bound(authority, target):
+def test_index_url_is_the_filing_detail_page_not_the_directory_listing(authority, target):
     cik, _form, accession, _ = target
     u = index_url(authority, cik, accession)
     assert u.startswith("https://www.sec.gov/Archives/edgar/data/")
-    assert u.endswith("/index.json") and accession.replace("-", "") in u
+    assert u.endswith(f"/{accession}-index.html")
+    assert not u.endswith("/index.json"), "the directory listing carries no Type column"
     with pytest.raises(NotAuthorized):
         index_url(authority, cik, "9999999999-99-999999")
 
@@ -302,22 +324,20 @@ def test_only_a_genuine_interruption_remains_REQUEST_SENT(authority, ledger, jou
     assert journal.state_of(accession) in INTERRUPTED_STATES
 
 
-def test_the_schema_assumption_is_now_explicit_and_unverified(authority, ledger, journal, target):
-    """⚠ The type==form model is NOT yet grounded in a real SEC representation.
+def test_the_old_directory_listing_representation_is_now_rejected(
+    authority, ledger, journal, target
+):
+    """The superseded model: an accession-directory index.json body must NOT resolve.
 
-    It is retained only so the resolver has a shape; the governed fixture from
-    WP0A-Q-LOCATOR-DISCOVERY replaces it. Until then a real page is expected to land in
-    LOCATOR_SCHEMA_UNSUPPORTED / LOCATOR_NO_PRIMARY_DOCUMENT -- which, post-fix, costs one
-    index request and strands nothing.
+    It is not the filing-detail representation, so it lands determinate rather than being
+    reinterpreted -- and, post-fix, that costs one index request and strands nothing.
     """
     cik, _form, accession, _ = target
-    directory_listing_shape = index_body(
-        accession,
-        [
-            {"name": "0001193125-21-050735-index.htm", "type": "text.gif", "size": "1234"},
-            {"name": "d112233d10k.htm", "type": "", "size": "5551234"},
-        ],
+    directory_listing_json = (
+        b'{"directory":{"name":"/Archives/edgar/data/x/'
+        + accession.replace("-", "").encode()
+        + b'","item":[{"name":"d.htm","type":"10-K","size":"5551234"}]}}'
     )
     with pytest.raises(LocatorResolutionError):
-        resolver(authority, ledger, journal, directory_listing_shape).resolve(cik, accession)
+        resolver(authority, ledger, journal, directory_listing_json).resolve(cik, accession)
     assert journal.state_of(accession) in DETERMINATE

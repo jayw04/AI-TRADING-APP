@@ -1,0 +1,25 @@
+{
+  "artifact": "SEC001_V3_1_WP0AQ_LOCATOR_DISCOVERY_V1",
+  "authority": "WP0A-Q-LOCATOR-DISCOVERY (owner, 1 request)",
+  "envelope_sha256": "f10c1ad17589e5a8bec044d7aa5c1df2e0f752c37c6e75b9ed80ba044eece515",
+  "manifest_sha256": "3a30ad0296aa945f6b7a68c2bf578e47c69f75267670c2e3d0e72d4473339724",
+  "response": {
+    "byte_length": 10686,
+    "eof_reached": true,
+    "http_status": 200,
+    "raw_file": "0001144980-26-000089-index.html",
+    "retrieved_utc": "2026-08-26T22:43:21.574160Z",
+    "sha256": "a7d17ade7e55834dfe2770e608ff66611daa893c1420b5dd149c405d0edfae90",
+    "truncated": false,
+    "url": "https://www.sec.gov/Archives/edgar/data/1144980/000114498026000089/0001144980-26-000089-index.html"
+  },
+  "selection_sha256": "2b6839e36be1234dab67d8c191b1b250440b953c8b56ec259b6206c49b8b66ed",
+  "sic_note": "the raw page contains filer metadata including SIC; it is retained as evidence only. The locator parser must be table-positional and must never extract SIC from it.",
+  "target": {
+    "accession": "0001144980-26-000089",
+    "cik": 1144980,
+    "form": "8-K",
+    "note": "specimen of the SEC filing-detail representation; confers NO form-scope expansion -- 8-K remains explicitly deferred in the sealed manifest",
+    "out_of_population_proof": true
+  }
+}

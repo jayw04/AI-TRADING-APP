@@ -11,8 +11,16 @@ does not authorize inventing it — a locator must still be *authentic as a loca
 So the filename is resolved from SEC, for the exact authorized accession, immediately before
 acquisition:
 
-    verified Envelope-B accession -> authorized index lookup -> exact accession match
-        -> primaryDocument + authoritative size -> canonical archive_url()
+    verified Envelope-B accession -> authorized filing-detail lookup -> the page must
+        reference that accession -> Document + authoritative Size from the document table
+        -> canonical archive_url()
+
+⭐ The representation is the **filing-detail ``…-index.html`` page**, established from a
+governed fixture under WP0A-Q-LOCATOR-DISCOVERY. An earlier revision used the
+accession-directory ``index.json`` and matched ``item.type == form``; that model was invented
+by its own test fixture and was wrong in every particular. Parsing is delegated to
+``filing_detail``, which slices the one in-scope table before reading anything, because the
+same page carries SIC elsewhere.
 
 **Only two new transport facts are taken.** ``form`` and ``accepted_at`` are already frozen
 in the envelope; SEC is not asked to re-state what the owner has already sealed. Filename
@@ -46,9 +54,8 @@ another endpoint to make a screen pass.
 from __future__ import annotations
 
 import hashlib
-import json
 from dataclasses import dataclass
-from typing import Any, Final
+from typing import Final
 
 from app.altdata.sec001_v31.authority import (
     AcquisitionAuthority,
@@ -56,6 +63,11 @@ from app.altdata.sec001_v31.authority import (
     require_safe_document_name,
 )
 from app.altdata.sec001_v31.custody import AccessionState, AcquisitionJournal
+from app.altdata.sec001_v31.filing_detail import (
+    NO_PRIMARY_ROW,
+    FilingDetailError,
+    parse_primary_document,
+)
 from app.altdata.sec001_v31.layers import TransportLocator
 from app.altdata.sec001_v31.transport import FETCH_OK, BoundedFetcher
 
@@ -100,24 +112,18 @@ class ResolvedLocator:
 
 
 def index_url(authority: AcquisitionAuthority, cik: int, accession: str) -> str:
-    """The per-accession filing index. It is the representation that carries sizes."""
+    """The filing-detail page for an AUTHORIZED accession.
+
+    ⛔ Not the accession-directory ``index.json``: that is a directory listing and carries no
+    filing-form ``Type`` column.
+    """
     authority.require_authorized_accession(accession)
-    url = f"https://www.sec.gov/Archives/edgar/data/{cik}/{accession.replace('-', '')}/index.json"
+    url = (
+        f"https://www.sec.gov/Archives/edgar/data/{cik}/"
+        f"{accession.replace('-', '')}/{accession}-index.html"
+    )
     authority.require_origin(url)
     return url
-
-
-def _select_primary(items: list[dict[str, Any]], form: str) -> dict[str, Any]:
-    """The primary document is the item EDGAR types as the filing's own form."""
-    matches = [i for i in items if str(i.get("type", "")).strip() == form]
-    if not matches:
-        raise LocatorResolutionError(RESOLVER_NO_PRIMARY_DOCUMENT, f"no index item typed {form!r}")
-    if len(matches) > 1:
-        names = sorted(str(i.get("name")) for i in matches)
-        raise LocatorResolutionError(
-            RESOLVER_AMBIGUOUS_PRIMARY_DOCUMENT, f"{len(matches)} items typed {form!r}: {names}"
-        )
-    return matches[0]
 
 
 _DETERMINATE_FAILURES: Final = frozenset(
@@ -220,70 +226,43 @@ class LocatorResolver:
                 f"http {outcome.http_status} ({outcome.reason})",
                 digest,
             )
-        doc = json.loads(outcome.body.decode("utf-8"))
-        directory = doc.get("directory") or {}
-
-        # The response must be the index of THIS accession, not merely a valid index.
-        stated = str(directory.get("name", ""))
-        if accession.replace("-", "") not in stated.replace("-", ""):
+        # The response must belong to THIS accession, not merely be a valid page.
+        if (
+            accession.encode() not in outcome.body
+            and accession.replace("-", "").encode() not in outcome.body
+        ):
             raise self._determinate(
                 accession,
                 cik,
                 form,
                 AccessionState.LOCATOR_SCHEMA_UNSUPPORTED,
                 RESOLVER_ACCESSION_MISMATCH,
-                f"index directory {stated!r} is not {accession}",
+                f"page does not reference {accession}",
                 digest,
             )
 
+        # Parsing is delegated to `filing_detail`, which slices the one in-scope table
+        # before reading anything. Size comes from that table's Size column, so it is the
+        # same authoritative figure -- there is no separate size lookup to get wrong.
         try:
-            item = _select_primary(list(directory.get("item") or []), form)
-        except LocatorResolutionError as exc:
-            state = (
+            primary = parse_primary_document(outcome.body, form)
+        except FilingDetailError as exc:
+            no_row = exc.reason == NO_PRIMARY_ROW
+            raise self._determinate(
+                accession,
+                cik,
+                form,
                 AccessionState.LOCATOR_NO_PRIMARY_DOCUMENT
-                if exc.reason == RESOLVER_NO_PRIMARY_DOCUMENT
-                else AccessionState.LOCATOR_SCHEMA_UNSUPPORTED
-            )
-            raise self._determinate(
-                accession, cik, form, state, exc.reason, str(exc), digest
-            ) from exc
-
-        raw_size: object = item.get("size")
-        if raw_size is None or raw_size == "" or raw_size == 0:
-            raise self._determinate(
-                accession,
-                cik,
-                form,
-                AccessionState.LOCATOR_SCHEMA_UNSUPPORTED,
-                RESOLVER_SIZE_UNAVAILABLE,
-                "the index gave no authoritative size for the primary document",
-                digest,
-            )
-        if not isinstance(raw_size, (int, str)):
-            raise self._determinate(
-                accession,
-                cik,
-                form,
-                AccessionState.LOCATOR_SCHEMA_UNSUPPORTED,
-                RESOLVER_SIZE_UNAVAILABLE,
-                f"unusable size type {type(raw_size).__name__}",
-                digest,
-            )
-        try:
-            size = int(raw_size)
-        except (TypeError, ValueError) as exc:
-            raise self._determinate(
-                accession,
-                cik,
-                form,
-                AccessionState.LOCATOR_SCHEMA_UNSUPPORTED,
-                RESOLVER_SIZE_UNAVAILABLE,
-                f"unparsable size {raw_size!r}",
+                if no_row
+                else AccessionState.LOCATOR_SCHEMA_UNSUPPORTED,
+                RESOLVER_NO_PRIMARY_DOCUMENT if no_row else RESOLVER_SCHEMA_UNSUPPORTED,
+                str(exc),
                 digest,
             ) from exc
 
+        size = primary.size
         try:
-            name = require_safe_document_name(str(item.get("name", "")))
+            name = require_safe_document_name(primary.document)
         except NotAuthorized as exc:
             raise self._determinate(
                 accession,
@@ -296,8 +275,8 @@ class LocatorResolver:
             ) from exc
 
         locator_url = a.archive_url(cik, accession, name)
-        # The raw index body is not retained; only these facts and its digest.
-        del doc, directory, outcome
+        # The raw page is not retained; only these facts and its digest.
+        del outcome
 
         self.journal.transition(
             accession,

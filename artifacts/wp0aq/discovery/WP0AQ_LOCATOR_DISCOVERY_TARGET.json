@@ -1,0 +1,12 @@
+{
+  "accession": "0001144980-26-000089",
+  "artifact": "SEC001_V3_1_WP0AQ_LOCATOR_DISCOVERY_TARGET",
+  "authority": "WP0A-Q-LOCATOR-DISCOVERY (owner) -- exactly 1 request",
+  "cik": 1144980,
+  "confers_no_form_scope": true,
+  "form": "8-K",
+  "frozen_before_request": true,
+  "manifest_sha256": "3a30ad0296aa945f6b7a68c2bf578e47c69f75267670c2e3d0e72d4473339724",
+  "out_of_population_proof": true,
+  "representation": "filing-detail ...-index.html (NOT accession-directory index.json)"
+}
