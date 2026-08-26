@@ -1,20 +1,46 @@
 # Opportunity Page — Candidate Watchlist Design
 
-> **Superseded for current state** by `docs/design/Opportunity Page/TradingWorkbench_Opportunity_Page_Watchlist_Design_v1_0.md` (2026-08-26). This file remains the Phase 1.1 Slice 3 closeout pin.
-
 | Field | Value |
 |---|---|
-| Document version | **v0.11 — bidirectional LOW-001 boundary completion** |
-| Date | 2026-08-23 |
-| Status | Phase 1 **CLOSED**. Phase 1.1 Slice 1 **CLOSED**. Phase 1.1 Slice 2 **CLOSED**. Phase 1.1 Slice 3 **CLOSED** (`#658` / `81d63b4`, overlaid on `ec2-paper`). Phase 1.1 overall **IN PROGRESS**. v0.11 adds only the reverse direction of the v0.10 LOW-001 boundary (LOW-001 → Opportunity); it **does not reopen** families, thresholds, screen identity, checkpoint logic, research authority, or any deployed Slice-2 behavior. **Not a strategy pre-registration. Not an authorization to trade or influence LOW-001.** |
-| Supersedes | `docs/Strategies/TradingWorkbench_Opportunity_Page_Watchlist_Design_v0_10.md` for **current implementation/design state**. v0.9 remains the Slice-2 deployed-state pin; v0.8 remains the Slice-1 deployed-state pin; v0.7 remains the Slice-1 contract pin. |
+| Document version | **v1.0 — Phase 1.1 product/ops closeout** |
+| Date | 2026-08-26 |
+| Status | Phase 1.1 **product functionality COMPLETE**. Backup **inclusion** CONFIRMED (one-shot). Scheduled-backup **mechanism** not yet deployed (`#690` after close). 90-day JSON prune **FUTURE NATURAL PROOF**. **Not a strategy pre-registration. Not an authorization to trade or influence LOW-001.** |
+| Supersedes | `docs/design/Opportunity Page/TradingWorkbench_Opportunity_Page_Watchlist_Design_v0_11.md` for **current implementation/design state**. v0.11 remains the Slice-3 closeout pin; v0.9 remains the Slice-2 deployed-state pin; v0.8 remains the Slice-1 deployed-state pin; v0.7 remains the Slice-1 contract pin. |
 | Parent freeze | `docs/Strategies/TradingWorkbench_Opportunity_Page_Watchlist_Design_v0_3.md` — still the product/display contract that produced the Phase-1 freeze. Later revisions add history, MDQ boundary, and implementation contract; they do **not** reopen families, thresholds, screen identity, or research authority. |
-| Parent plan | `docs/Strategies/AlgoTraderPlus_v1_4_1_ImplementationPlan_v0_14.md` (current; supersedes v0.13). On conflict, the parent/governed artifact controls. |
+| Parent plan | `docs/design/ATP/AlgoTraderPlus_v1_4_1_ImplementationPlan_v0_14.md` (current; supersedes v0.13). On conflict, the parent/governed artifact controls. |
 | Screen identity | `DISC-001-WATCHLIST` / `v0.3.0` — unchanged. A gate change is a version bump and a ledger event, not a silent edit. |
 
-No new research authority and no strategy behavior change. v0.10 preserves the v0.9 Slice-2 deployed-state facts and adds only a cross-program boundary for LOW-001 Dynamic PIT. Frozen admission conditions remain v0.7 §3. Opportunity History remains independent of MDQ and of LOW-001 execution. Checkpoints remain read-time enrichment, not a new durable table.
+No new research authority and no strategy behavior change. Frozen admission conditions remain v0.7 §3. Opportunity History remains independent of MDQ and of LOW-001 execution. Checkpoints remain read-time enrichment, not a new durable table.
 
 ---
+
+## Change summary — v1.0 Phase 1.1 closeout (2026-08-26)
+
+Owner ruling 2026-08-26 (RTH): do nothing during RTH. Do not rebuild backend. Do not start strategy 8. Do not move host pin `07a9233` unless there is a separate reason. **Backup inclusion** and **scheduled-backup mechanism deployment** are different claims.
+
+| Item | State |
+|---|---|
+| Phase 1.1 product functionality | **COMPLETE** |
+| History filters | **CLOSED / live** |
+| SQLite backup inclusion | **CONFIRMED** (WAL-safe one-shot 2026-08-26; not a scheduled-job proof) |
+| `#690` scheduled backup repair | **READY — deploy after close** (scoped overlay/sidecar; pin stays `07a9233` unless the owner chooses a pin move) |
+| v1.0 design | **WRITTEN / `#691` open** (docs-only clock; need not wait for the first scheduled backup unless v1.0 is later amended to record the repair as **deployed**) |
+| 90-day prune survival | **FUTURE NATURAL PROOF** (~2026-11-12) |
+| Strategy 8 | **IDLE / untouched** |
+
+1. **§6.3 History filters / listing polish is CLOSED.** PR **#669** squash `e7f56c3` (date-range, family, symbol, screen-version, `presence` ∈ `{all,current,historical}`; `on_watchlist` from the **latest ingested candidate date**, optionally scoped by `screen_version`; `view=summary` with a symbol stays summary; row click uses `view=timeline`). PR **#681** squash `e58ee77` lists Watchlist/History only when status starts with `Source: MOM-001` (`isPatternValidatedStatus`) — **display-only**; admission unchanged. Owner display constraint 2026-08-25.
+2. **§6.4 SQLite backup *inclusion* is CONFIRMED; scheduled-backup *mechanism* is not yet deployed.** Ordinary nightly `daily_backup` was **not** writing files. Root cause: `run_daily_backup()` used `Path(__file__).parents[3] / "scripts" / "backup_db.sh"` (IndexError at `/app/app/lifespan.py`), the backend image has neither `bash` nor the `sqlite3` CLI, and repo-root `scripts/backup_db.sh` is not in the image. WAL-safe one-shot on 2026-08-26T16:09Z (no backend restart, Range Trader websocket preserved): `/app/data/backups/workbench-2026-08-26.sqlite` (27 MiB) contains `opportunity_occurrence` **100** rows, `candidate_date` **2026-08-14 → 2026-08-21**, matching live. `healthz` stayed `ok`. That proves **inclusion**. It does **not** prove the 02:00 ET job. Code fix is PR **#690**. After NYSE close: merge `#690` after walk-away, rebuild/restart **backend only**, keep pin `07a9233`, record `#690` via scoped overlay/sidecar. Post-rebuild prove `healthz=ok`, scheduler armed, Range Trader registration intact, no unexpected order/rebalance from restart, `daily_backup` registered for 02:00 ET, shared-root free space acceptable. After that night’s 02:00 ET run, verify a **new dated file created by the scheduled job** (not another one-shot) and `daily_backup_complete`, then re-prove `opportunity_occurrence` count/range against live. That closes the **repair deployment**.
+3. **90-day JSON prune remains FUTURE NATURAL PROOF.** `SNAPSHOT_RETENTION_DAYS = 90` in `apps/backend/app/research/disc001/spec.py`. Earliest snapshots are `2026-08-14`, so the first natural prune is ~**2026-11-12**. Do not invent a prune. Do not claim CLOSED. Durable `opportunity_occurrence` rows must survive JSON prune.
+4. **Three identities must not be collapsed** (updated 2026-08-26; do not use the v0.11 Slice-3 table as live state):
+
+   | Identity | Value | Do not infer |
+   |---|---|---|
+   | Host / application pin | `.deploy_src_sha` = `07a92330108390f8d5299e36b411150c08b9160c` (B3a / `#683`) | not `0344337`, not `956e932`, not `e7f56c3`, not strategy 8's version |
+   | DISC-001 sidecars | `.deploy_disc001_slice3.json` (Slice 3 overlay) and `.deploy_disc001_listing_filters.json` (2026-08-26 frontend rebuild) | not a box-level pin replacement |
+   | Strategy 8 live registration | **IDLE** / **1.0.3** / `32 10 * * mon` | not from the host code pin. Do not start it from this document. |
+
+5. **History book (2026-08-26 proof):** **100** durable rows, `2026-08-14` → `2026-08-21`; families MOM-CORE **60** + GAP **40**; listing shows 60 MOM-001 names; 40 GAP unlisted; `SCREEN_VERSION=v0.3.0`; Alembic **unchanged** `c8e2a4b1d7f0`. Frontend-only rebuild 2026-08-26T12:06Z; backend **not** restarted for Opportunity UI. Shared root 58G, ~38G free, 34%. Open orders (strict NEW/ACCEPTED/…) 0.
+6. **Still out of this closeout:** MDQ on the Opportunity surface, checkpoint persistence, `SCREEN_VERSION` bump, gate retune, order-path / broker / risk expansion, `EVIDENCE_NOT_FEEDBACK` fills filter, firing `disc001_watchlist_snapshot` except by owner request, Docker-prune, LOW-001 activation.
 
 ## Change summary — v0.11 Slice 3 closeout (2026-08-23)
 
@@ -272,7 +298,7 @@ Verified on `ec2-paper` after overlay. No login values were placed on the SSM co
 
 ## 6. Remaining Phase 1.1 work (in this order)
 
-Do not mix these into one PR. Do not alter `SCREEN_VERSION=v0.3.0` or frozen family gates. Do not import MDQ. Do not persist checkpoints. Do not expand the order path.
+Do not mix leftover items into one PR. Do not alter `SCREEN_VERSION=v0.3.0` or frozen family gates. Do not import MDQ. Do not persist checkpoints. Do not expand the order path.
 
 ### 6.1 “Why it left” — CLOSED
 
@@ -282,15 +308,16 @@ A **second labelled compute path**: re-evaluate the **frozen** family gates on a
 
 Only the frozen indicators required to explain family-state changes (RSI/RS/RVOL as the “Why it left” slice needs them). Not a general research feature engine. Not chip-string parsing. Shipped with Slice 3.
 
-### 6.3 Remaining History UI / filter polish
+### 6.3 Remaining History UI / filter polish — CLOSED
 
-Separate product-completeness slice. Check date-range, family, current-vs-historical, symbol, and screen-version filters, plus derived first/last seen and session counts already specified in v0.7. Do not mix into “Why it left.”
+Shipped as PR **#669** / `e7f56c3` (filters) and PR **#681** / `e58ee77` (MOM-001 listing only). On live pin `07a9233` after the 2026-08-26 frontend-only rebuild. Do not mix into “Why it left.”
 
 ### 6.4 Operational watches
 
-- Confirm ordinary SQLite backup includes `opportunity_occurrence` (can be done now).
-- First real 90-day JSON prune must not delete durable history (natural proof; not a code slice today).
-- Keep the post-overlay shared-root capacity check (Docker + MDQ share `/`).
+- **SQLite backup *inclusion* — CONFIRMED 2026-08-26.** One-shot WAL snapshot `/app/data/backups/workbench-2026-08-26.sqlite` has 100 rows, `2026-08-14` → `2026-08-21`, matching live. This is inclusion proof only.
+- **Scheduled-backup *mechanism* — READY, not deployed.** Nightly `daily_backup` was failing (Docker path + missing `sqlite3` CLI). Code fix is PR **#690**. Deploy after close (backend-only rebuild; pin stays `07a9233`; scoped sidecar). Repair is closed only after the **scheduled** 02:00 ET file exists and `daily_backup_complete` is logged, then count/range re-proved against live. Do not rebuild during RTH.
+- **First real 90-day JSON prune — FUTURE NATURAL PROOF.** `SNAPSHOT_RETENTION_DAYS = 90`. Earliest snapshot date `2026-08-14` → first natural fire ~**2026-11-12**. Must not delete durable history. Not a code slice today. Do not invent a prune. Do not claim CLOSED.
+- Keep the post-overlay shared-root capacity check (Docker + MDQ share `/`). 2026-08-26: 58G size, ~38G free, 34%.
 - Do not manually fire `disc001_watchlist_snapshot` unless the owner wants a non-natural run.
 - Do not Docker-prune or delete old SQLite copies as a capacity act.
 
