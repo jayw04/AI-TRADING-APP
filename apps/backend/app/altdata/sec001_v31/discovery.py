@@ -17,6 +17,13 @@ That is the whole point of proving the representation this way rather than pasti
 length, SHA-256 and retrieval time are all retained, so the fixture can be re-verified later
 against what was actually served.
 
+⚠ The 2026-08-26 discovery response predates ``FetchOutcome.content_type``: the transport did
+not surface response headers, so the contract's content-type field had nothing honest to
+write. The record now says so explicitly rather than implying the field was absent from the
+response. It is **not reconstructable** without another HTTP request, and none is authorized —
+a re-fetch would also be a different response. Later requests satisfy the contract at the time
+they are made, which is the only moment it is knowable.
+
 ⚠ The filing-detail page carries filer metadata including SIC, outside the document table.
 That is exactly why the parser this fixture will justify must be **table-positional and
 field-limited**. Retaining the raw page as evidence is not a parser act; extracting SIC from
@@ -115,7 +122,7 @@ def run_discovery(
         url=url,
         http_status=outcome.http_status,
         retrieved_utc=retrieved,
-        content_type=None,
+        content_type=outcome.content_type,
         byte_length=len(outcome.body),
         sha256=digest,
         raw_path=raw_path.name,
@@ -149,6 +156,7 @@ def run_discovery(
                 "raw_file": ev.raw_path,
                 "truncated": ev.truncated,
                 "eof_reached": ev.eof_reached,
+                "content_type": ev.content_type,
             },
             "sic_note": (
                 "the raw page contains filer metadata including SIC; it is retained as "

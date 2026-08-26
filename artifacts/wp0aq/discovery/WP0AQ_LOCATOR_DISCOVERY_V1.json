@@ -1,10 +1,22 @@
 {
+  "amendment": {
+    "amended_utc": "2026-08-26",
+    "no_sec_request_made": true,
+    "raw_fixture_sha256": "a7d17ade7e55834dfe2770e608ff66611daa893c1420b5dd149c405d0edfae90",
+    "raw_fixture_unchanged": true,
+    "reason": "custody discrepancy found in delta review of e0ab96e: the contract required a response content type and the record silently omitted the field",
+    "record_sha256_before_amendment": "c30fa2ada5e98a0ac1da8d658de8c81c47fdd52a7ceddd7ee79f44c9b09411c4",
+    "scope": "this JSON record only; the retained response bytes and their digest are untouched"
+  },
   "artifact": "SEC001_V3_1_WP0AQ_LOCATOR_DISCOVERY_V1",
   "authority": "WP0A-Q-LOCATOR-DISCOVERY (owner, 1 request)",
   "envelope_sha256": "f10c1ad17589e5a8bec044d7aa5c1df2e0f752c37c6e75b9ed80ba044eece515",
   "manifest_sha256": "3a30ad0296aa945f6b7a68c2bf578e47c69f75267670c2e3d0e72d4473339724",
   "response": {
     "byte_length": 10686,
+    "content_type": null,
+    "content_type_note": "The frozen discovery contract required the response content type. It was NOT captured: at the time of this request the transport outcome did not expose response headers, so there was nothing honest to record. Marked null/NOT_RETAINED rather than omitted. It is NOT reconstructable -- deriving it would require a further HTTP request, which is not authorized and would in any case describe a different response. FetchOutcome.content_type now carries it prospectively for subsequent index and document requests.",
+    "content_type_status": "NOT_RETAINED",
     "eof_reached": true,
     "http_status": 200,
     "raw_file": "0001144980-26-000089-index.html",

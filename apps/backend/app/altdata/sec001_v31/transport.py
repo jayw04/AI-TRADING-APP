@@ -186,6 +186,14 @@ class FetchOutcome:
     total_bytes: int | None = None
     continuations: int = 0
     reason: str | None = None
+    content_type: str | None = None
+    """The declared ``Content-Type``, retained prospectively.
+
+    Added after the locator-discovery record could not state one: the outcome simply did not
+    carry it, so an evidence contract that required it had nothing honest to write. Recording
+    it here means later index and document responses can satisfy that contract at the time of
+    the request, which is the only time it is knowable without making another one.
+    """
 
 
 FETCH_OK: Final = "OK"
@@ -373,6 +381,7 @@ class BoundedFetcher:
                     attempts=attempt,
                     eof_reached=eof,
                     total_bytes=total,
+                    content_type=r.headers.get("content-type"),
                 )
         return FetchOutcome(FETCH_UNAVAILABLE, attempts=self.retry_max_attempts)
 
@@ -433,6 +442,7 @@ class BoundedFetcher:
                     http_status=status,
                     attempts=attempt,
                     eof_reached=not truncated,
+                    content_type=r.headers.get("content-type"),
                 )
         return FetchOutcome(FETCH_UNAVAILABLE, attempts=self.retry_max_attempts)
 

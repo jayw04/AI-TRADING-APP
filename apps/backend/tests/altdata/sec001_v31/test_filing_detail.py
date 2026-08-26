@@ -243,3 +243,50 @@ def test_two_tables_claiming_the_same_summary_fail_closed():
 def test_a_well_formed_synthetic_page_still_parses():
     p = parse_primary_document(_table([("1", "10-Q", "x-2026.htm", "10-Q", "512000")]), "10-Q")
     assert (p.document, p.doc_type, p.size) == ("x-2026.htm", "10-Q", 512000)
+
+
+# ============================================================ content-type custody
+def test_the_record_states_content_type_was_not_retained_rather_than_omitting_it():
+    """Delta-review finding: the contract required a content type and the record silently
+    had no such field. Absence and null-with-a-reason are different claims."""
+    rec = json.loads((DISCOVERY / "WP0AQ_LOCATOR_DISCOVERY_V1.json").read_text(encoding="utf-8"))
+    resp = rec["response"]
+    assert "content_type" in resp, "the field must be present, not omitted"
+    assert resp["content_type"] is None
+    assert resp["content_type_status"] == "NOT_RETAINED"
+    note = resp["content_type_note"]
+    assert "NOT reconstructable" in note
+    assert "not authorized" in note
+
+
+def test_the_amendment_records_that_no_request_was_made_and_the_bytes_are_untouched():
+    rec = json.loads((DISCOVERY / "WP0AQ_LOCATOR_DISCOVERY_V1.json").read_text(encoding="utf-8"))
+    am = rec["amendment"]
+    assert am["no_sec_request_made"] is True
+    assert am["raw_fixture_unchanged"] is True
+    assert am["raw_fixture_sha256"] == FIXTURE_SHA256
+    assert len(am["record_sha256_before_amendment"]) == 64
+    assert "record only" in am["scope"]
+
+
+def test_the_raw_fixture_digest_is_unaffected_by_the_amendment(real_page):
+    """The amendment touches the JSON record; the evidence bytes are the immutable part."""
+    assert hashlib.sha256(real_page).hexdigest() == FIXTURE_SHA256
+
+
+def test_content_type_is_now_carried_prospectively_on_fetch_outcomes():
+    """So a later request can satisfy the contract at the only time it is knowable."""
+    import httpx
+
+    from app.altdata.sec001_v31.transport import FetchOutcome
+
+    assert "content_type" in FetchOutcome.__dataclass_fields__
+    assert FetchOutcome("OK").content_type is None
+
+    import inspect
+
+    from app.altdata.sec001_v31.transport import BoundedFetcher
+
+    for fn in (BoundedFetcher.get_index, BoundedFetcher.get_document):
+        assert 'content_type=r.headers.get("content-type")' in inspect.getsource(fn)
+    assert httpx  # the header comes from the live response, not a constant
