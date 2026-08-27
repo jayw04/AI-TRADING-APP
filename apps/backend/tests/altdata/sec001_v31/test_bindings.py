@@ -12,16 +12,22 @@ import pytest
 
 from app.altdata.sec001_v31.bindings import (
     COMPETING,
+    DECLARED_CLASS_ARTIFACT_UNVERIFIED,
+    DECLARED_CLASS_SOURCE_NOT_APPROVED,
     FIRST_HOP_ARTIFACT_UNVERIFIED,
     FIRST_HOP_IDENTITY_NOT_INDEPENDENT,
     FIRST_HOP_INTERVAL_UNSUPPORTED,
     FIRST_HOP_SOURCE_CLASS_NOT_APPROVED,
     NO_BINDING,
     NO_FIRST_HOP,
-    O9_APPROVED_SOURCE_CLASSES,
+    O9_APPROVED_DECLARED_CLASS_SOURCE_CLASSES,
+    O9_APPROVED_FIRST_HOP_SOURCE_CLASSES,
+    SEC_PERIODIC_COVER_IDENTITY_V1,
     UNIQUE,
     BindingReport,
     ClassIdentityLink,
+    DeclaredClassAdmissionPolicy,
+    DeclaredClassInadmissible,
     FirstHopAdmissionPolicy,
     FirstHopSource,
     build_declared_class_episodes,
@@ -36,6 +42,9 @@ from app.altdata.sec001_v31.layers import Observation
 CLASS_A = ("Class A Common Stock, $0.001 par value", "GOOGL", "Nasdaq Global Select Market")
 CLASS_C = ("Class C Capital Stock, $0.001 par value", "GOOG", "Nasdaq Global Select Market")
 GOOGL_PT, GOOG_PT = 195146, 119496
+
+#: The one class O-9 approved for ``declared class -> CIK`` (owner ruling 2026-08-26).
+COVER = SEC_PERIODIC_COVER_IDENTITY_V1.name
 
 APPROVED_CLASS = "TEST_O9_EFFECTIVE_DATED_SECURITY_MASTER"
 #: The production policy admits NOTHING; tests must opt a class in explicitly.
@@ -87,6 +96,8 @@ def test_declared_class_episodes_are_not_bindings():
             obs(1652044, "2026-06-08T12:00:00.000Z", CLASS_A, "a2"),
         ],
         to_utc=accepted_at_utc,
+        source_class=COVER,
+        artifact_verified=True,
     )
     assert len(eps) == 1
     assert type(eps[0]).__name__ == "DeclaredClassCikEpisode"
@@ -101,6 +112,8 @@ def test_without_a_first_hop_the_week_is_disputed_not_bound():
             obs(1652044, "2026-06-08T12:00:00.000Z", CLASS_A, "a2"),
         ],
         to_utc=accepted_at_utc,
+        source_class=COVER,
+        artifact_verified=True,
     )
     covered, status = security_cik_binding_covers_week(
         build_security_cik_bindings(eps, [], POLICY), [], GOOGL_PT, t("2024-01-01"), POLICY
@@ -115,12 +128,14 @@ def _eps():
             obs(1652044, "2026-06-08T12:00:00.000Z", CLASS_A, "a2"),
         ],
         to_utc=accepted_at_utc,
+        source_class=COVER,
+        artifact_verified=True,
     )
 
 
 def test_the_production_policy_admits_nothing_by_construction():
     """No O-9-approved source class exists in custody; that absence IS the finding."""
-    assert frozenset() == O9_APPROVED_SOURCE_CLASSES
+    assert frozenset() == O9_APPROVED_FIRST_HOP_SOURCE_CLASSES
     default = FirstHopAdmissionPolicy()
     ok, reason = default.admit(link(GOOGL_PT, CLASS_A, "2000-01-01", "2026-12-31"))
     assert ok is False and reason == FIRST_HOP_SOURCE_CLASS_NOT_APPROVED
@@ -166,6 +181,8 @@ def test_an_approved_first_hop_produces_a_binding():
             obs(1652044, "2026-06-08T12:00:00.000Z", CLASS_A, "a2"),
         ],
         to_utc=accepted_at_utc,
+        source_class=COVER,
+        artifact_verified=True,
     )
     links = [link(GOOGL_PT, CLASS_A, "2000-01-01", "2026-12-31")]
     bindings = build_security_cik_bindings(eps, links, POLICY)
@@ -189,7 +206,9 @@ def test_a_reused_class_tuple_across_unrelated_issuers_does_not_merge():
         obs(1652044, "2022-05-16T12:00:00.000Z", CLASS_A, "new1"),
         obs(1652044, "2026-06-08T12:00:00.000Z", CLASS_A, "new2"),
     ]
-    eps = build_declared_class_episodes(observations, to_utc=accepted_at_utc)
+    eps = build_declared_class_episodes(
+        observations, to_utc=accepted_at_utc, source_class=COVER, artifact_verified=True
+    )
     assert len(eps) == 2, "two CIKs -> two declared-class episodes"
 
     # only the modern permanent security is linked to the modern interval
@@ -213,7 +232,9 @@ def test_one_cik_two_classes_binds_to_two_permanent_securities():
         obs(1652044, "2022-05-16T12:00:00.000Z", CLASS_C, "a1"),
         obs(1652044, "2026-06-08T12:00:00.000Z", CLASS_C, "a2"),
     ]
-    eps = build_declared_class_episodes(observations, to_utc=accepted_at_utc)
+    eps = build_declared_class_episodes(
+        observations, to_utc=accepted_at_utc, source_class=COVER, artifact_verified=True
+    )
     links = [
         link(GOOGL_PT, CLASS_A, "2015-01-01", "2026-12-31"),
         link(GOOG_PT, CLASS_C, "2015-01-01", "2026-12-31"),
@@ -239,7 +260,9 @@ def test_two_admissible_bindings_overlapping_one_permanent_security_are_competin
         obs(1288776, "2023-01-01T12:00:00.000Z", CLASS_A, "b1"),
         obs(1288776, "2025-01-01T12:00:00.000Z", CLASS_A, "b2"),
     ]
-    eps = build_declared_class_episodes(observations, to_utc=accepted_at_utc)
+    eps = build_declared_class_episodes(
+        observations, to_utc=accepted_at_utc, source_class=COVER, artifact_verified=True
+    )
     links = [link(GOOGL_PT, CLASS_A, "2000-01-01", "2026-12-31")]
     bindings = build_security_cik_bindings(eps, links, POLICY)
 
@@ -261,7 +284,9 @@ def test_non_overlapping_successive_ciks_are_not_competing():
         obs(1652044, "2016-01-01T12:00:00.000Z", CLASS_A, "a1"),
         obs(1652044, "2026-06-08T12:00:00.000Z", CLASS_A, "a2"),
     ]
-    eps = build_declared_class_episodes(observations, to_utc=accepted_at_utc)
+    eps = build_declared_class_episodes(
+        observations, to_utc=accepted_at_utc, source_class=COVER, artifact_verified=True
+    )
     links = [link(GOOGL_PT, CLASS_A, "2000-01-01", "2026-12-31")]
     assert detect_competing_bindings(build_security_cik_bindings(eps, links, POLICY)) == []
 
@@ -274,6 +299,8 @@ def test_binding_interval_is_the_intersection_of_both_hops():
             obs(1652044, "2026-06-08T12:00:00.000Z", CLASS_A, "a2"),
         ],
         to_utc=accepted_at_utc,
+        source_class=COVER,
+        artifact_verified=True,
     )
     links = [link(GOOGL_PT, CLASS_A, "2024-01-01", "2025-01-01")]
     b = build_security_cik_bindings(eps, links, POLICY)[0]
@@ -291,6 +318,8 @@ def test_no_outward_extrapolation_past_observed_evidence():
             obs(1652044, "2026-06-08T12:00:00.000Z", CLASS_A, "a2"),
         ],
         to_utc=accepted_at_utc,
+        source_class=COVER,
+        artifact_verified=True,
     )
     links = [link(GOOGL_PT, CLASS_A, "2000-01-01", "2030-12-31")]
     bindings = build_security_cik_bindings(eps, links, POLICY)
@@ -316,6 +345,8 @@ def test_a_week_outside_every_binding_but_with_an_admissible_link_reports_no_bin
             obs(1652044, "2022-06-08T12:00:00.000Z", CLASS_A, "a2"),
         ],
         to_utc=accepted_at_utc,
+        source_class=COVER,
+        artifact_verified=True,
     )
     links = [link(GOOGL_PT, CLASS_A, "2000-01-01", "2030-12-31")]
     bindings = build_security_cik_bindings(eps, links, POLICY)
@@ -341,8 +372,134 @@ def test_binding_report_surfaces_inadmissible_first_hops():
         ),
         link(GOOG_PT, CLASS_C, "2000-01-01", "2026-12-31"),
     ]
-    rep = BindingReport.build(observations, links, to_utc=accepted_at_utc, policy=POLICY)
+    rep = BindingReport.build(
+        observations,
+        links,
+        to_utc=accepted_at_utc,
+        source_class=COVER,
+        artifact_verified=True,
+        policy=POLICY,
+    )
     assert len(rep.inadmissible_first_hops) == 1
     assert rep.inadmissible_first_hops[0][1] == FIRST_HOP_IDENTITY_NOT_INDEPENDENT
     assert rep.bindings == [] and rep.conflicts == []
     assert len(rep.episodes) == 1
+
+
+# ============================================ O-9: the cover class is NOT a first hop
+def test_the_cover_page_class_is_approved_for_the_LAST_two_hops_only():
+    assert SEC_PERIODIC_COVER_IDENTITY_V1.hop == "DECLARED_CLASS_TO_CIK"
+    assert SEC_PERIODIC_COVER_IDENTITY_V1.name in O9_APPROVED_DECLARED_CLASS_SOURCE_CLASSES
+    assert SEC_PERIODIC_COVER_IDENTITY_V1.admissible_fields == (
+        "EntityCentralIndexKey",
+        "TradingSymbol",
+        "Security12bTitle",
+        "SecurityExchangeName",
+    )
+
+
+def test_the_first_hop_registry_is_still_empty_after_the_O9_approval():
+    assert frozenset() == O9_APPROVED_FIRST_HOP_SOURCE_CLASSES
+
+
+def test_citing_the_cover_class_cannot_close_the_FIRST_hop():
+    """The load-bearing separation: the cover page proves what a registrant DECLARED, not
+    which permanent security that declaration belongs to. One shared registry would have
+    manufactured the permaticker->CIK binding the ruling explicitly withholds."""
+    link = ClassIdentityLink(
+        GOOGL_PT,
+        CLASS_A,
+        t("2022-01-01"),
+        t("2026-01-01"),
+        governed_source(source_class=SEC_PERIODIC_COVER_IDENTITY_V1.name),
+    )
+    ok, reason = FirstHopAdmissionPolicy().admit(link)
+    assert ok is False and reason == FIRST_HOP_SOURCE_CLASS_NOT_APPROVED
+    assert build_security_cik_bindings(_eps(), [link]) == []
+
+
+def test_the_two_registries_are_disjoint():
+    assert not (O9_APPROVED_FIRST_HOP_SOURCE_CLASSES & O9_APPROVED_DECLARED_CLASS_SOURCE_CLASSES)
+
+
+# --- the four minimum controls on the declared-class boundary (owner ruling 2026-08-26) ---
+
+
+def test_control1_the_approved_cover_source_MAY_build_declared_class_episodes():
+    """Control 1. The approved class is admitted -- the split gates, it does not block."""
+    assert COVER in O9_APPROVED_DECLARED_CLASS_SOURCE_CLASSES
+    eps = build_declared_class_episodes(
+        [obs(1652044, "2022-05-16T12:00:00.000Z", CLASS_A, "a1")],
+        to_utc=accepted_at_utc,
+        source_class=COVER,
+        artifact_verified=True,
+    )
+    assert len(eps) == 1 and eps[0].cik == 1652044
+
+
+def test_control2_an_unapproved_declared_source_is_REFUSED():
+    """Control 2. ⭐ It RAISES rather than returning [] -- an unapproved source must never be
+    indistinguishable from an approved one that happened to yield no episodes."""
+    observations = [obs(1652044, "2022-05-16T12:00:00.000Z", CLASS_A, "a1")]
+    with pytest.raises(DeclaredClassInadmissible) as exc:
+        build_declared_class_episodes(
+            observations,
+            to_utc=accepted_at_utc,
+            source_class="SOME_FUTURE_COVER_SHAPED_PARSER_V1",
+            artifact_verified=True,
+        )
+    assert DECLARED_CLASS_SOURCE_NOT_APPROVED in str(exc.value)
+
+    # ...and provenance alone is not admission: the right class with an unverified artifact
+    # is refused too, so `Observation.build`'s INLINE_XBRL_COVER check cannot stand in for
+    # the owner's separate ruling.
+    with pytest.raises(DeclaredClassInadmissible) as exc:
+        build_declared_class_episodes(
+            observations,
+            to_utc=accepted_at_utc,
+            source_class=COVER,
+            artifact_verified=False,
+        )
+    assert DECLARED_CLASS_ARTIFACT_UNVERIFIED in str(exc.value)
+
+
+def test_control3_the_cover_class_can_NEVER_satisfy_the_first_hop_policy():
+    """Control 3. Restated against the *default* production policy, for every shape of
+    otherwise-perfect first-hop source. See also
+    ``test_citing_the_cover_class_cannot_close_the_FIRST_hop``."""
+    for method in ("GOVERNED_SECURITY_MASTER_KEY", "TICKER_EQUALITY"):
+        link = ClassIdentityLink(
+            GOOGL_PT,
+            CLASS_A,
+            t("2022-01-01"),
+            t("2026-01-01"),
+            governed_source(source_class=COVER, identity_match_method=method),
+        )
+        ok, reason = FirstHopAdmissionPolicy().admit(link)
+        assert ok is False and reason == FIRST_HOP_SOURCE_CLASS_NOT_APPROVED
+    assert COVER not in O9_APPROVED_FIRST_HOP_SOURCE_CLASSES
+
+
+def test_control4_a_future_FIRST_HOP_approval_does_not_authorize_a_declared_class_source():
+    """Control 4. The registries must not leak in the *other* direction either.
+
+    Simulates the day O-9 qualifies a real first-hop source: that ruling must not silently
+    grant the same class authority to mint declared-class episodes.
+    """
+    future = "FUTURE_O9_EFFECTIVE_DATED_SECURITY_MASTER_V1"
+    first_hop_policy = FirstHopAdmissionPolicy(frozenset({future}))
+    link = ClassIdentityLink(
+        GOOGL_PT, CLASS_A, t("2022-01-01"), t("2026-01-01"), governed_source(source_class=future)
+    )
+    assert first_hop_policy.admit(link)[0] is True  # approved for the FIRST hop...
+
+    # ...and still refused at the declared-class boundary, which reads the other registry.
+    ok, reason = DeclaredClassAdmissionPolicy().admit(future, artifact_verified=True)
+    assert ok is False and reason == DECLARED_CLASS_SOURCE_NOT_APPROVED
+    with pytest.raises(DeclaredClassInadmissible):
+        build_declared_class_episodes(
+            [obs(1652044, "2022-05-16T12:00:00.000Z", CLASS_A, "a1")],
+            to_utc=accepted_at_utc,
+            source_class=future,
+            artifact_verified=True,
+        )

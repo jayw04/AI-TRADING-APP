@@ -19,10 +19,19 @@ admissible only when its ``FirstHopSource`` names a source class in the frozen O
 artifact digest is verified, its permanent-identity match is independent of the ticker, and
 the source actually covers the link's effective interval.
 
-``O9_APPROVED_SOURCE_CLASSES`` is **empty by construction**. No qualifying source exists in
-custody — that absence is the entire reason WP0A-Q was authorized — so the default state of
-this module is DISPUTED, and it takes an owner ruling rather than a code edit to change
-that.
+``O9_APPROVED_FIRST_HOP_SOURCE_CLASSES`` is **still empty by construction**. The cover-page
+class ``SEC_PERIODIC_COVER_IDENTITY_V1`` was O-9 approved once the first observation was
+sealed, but it is approved for ``declared class -> CIK`` and lives in a *separate* registry:
+it proves what a registrant declared, not which permanent security that declaration belongs
+to. The first hop still has no qualifying source, so the default state of this module remains
+DISPUTED and ``bindings`` remains 0.
+
+⭐ The split is **enforced at both boundaries, not merely named**. ``FirstHopAdmissionPolicy``
+reads ``O9_APPROVED_FIRST_HOP_SOURCE_CLASSES``; ``DeclaredClassAdmissionPolicy`` reads
+``O9_APPROVED_DECLARED_CLASS_SOURCE_CLASSES``; the two frozensets are asserted disjoint at
+import. Approving a class for one hop therefore cannot approve it for the other in either
+direction -- a future first-hop ruling does not silently authorize that source to mint
+declared-class episodes, and the cover-page class can never close the first hop.
 
 ``NO_COMPETING_SECURITY_CIK_BINDING`` is evaluated between two *admissible bindings* keyed by
 permanent security, never against an index CIK: index metadata is not a binding, and
@@ -46,14 +55,64 @@ UNIQUE: Final = "NO_COMPETING_SECURITY_CIK_BINDING"
 NO_BINDING: Final = "NO_BINDING_COVERS_WEEK"
 NO_FIRST_HOP: Final = "DISPUTED_NO_PERMANENT_SECURITY_LINK"
 
-#: ⛔ EMPTY BY CONSTRUCTION — see the module docstring. Adding an entry is an owner ruling.
-O9_APPROVED_SOURCE_CLASSES: Final[frozenset[str]] = frozenset()
+
+@dataclass(frozen=True)
+class SourceClass:
+    """A governed evidence class, with the hop it is approved for stated explicitly."""
+
+    name: str
+    hop: str
+    admissible_fields: tuple[str, ...]
+    semantics: str
+
+
+#: ⭐ O-9 APPROVED 2026-08-26, after the first sealed cover-page observation.
+#:
+#: It is approved for the LAST TWO hops -- ``declared class tuple -> registrant CIK`` at a
+#: known accepted timestamp -- and for nothing else.
+SEC_PERIODIC_COVER_IDENTITY_V1: Final = SourceClass(
+    name="SEC_PERIODIC_COVER_IDENTITY_V1",
+    hop="DECLARED_CLASS_TO_CIK",
+    admissible_fields=(
+        "EntityCentralIndexKey",
+        "TradingSymbol",
+        "Security12bTitle",
+        "SecurityExchangeName",
+    ),
+    semantics=(
+        "At accepted_at, this SEC registrant declared this listed security/class tuple on "
+        "the filing cover page."
+    ),
+)
+
+#: Source classes approved for ``declared class -> CIK``. The cover-page class lives here.
+O9_APPROVED_DECLARED_CLASS_SOURCE_CLASSES: Final[frozenset[str]] = frozenset(
+    {SEC_PERIODIC_COVER_IDENTITY_V1.name}
+)
+
+#: ⛔ STILL EMPTY BY CONSTRUCTION. Source classes approved for the FIRST hop,
+#: ``permanent security identity -> effective-dated declared class``.
+#:
+#: ⚠ Renamed from ``O9_APPROVED_SOURCE_CLASSES``, which was dangerously ambiguous: it reads
+#: like a general registry but gates only ``FirstHopAdmissionPolicy``. Putting the cover-page
+#: class in it would have made a ``ClassIdentityLink`` citing that class admissible as a first
+#: hop -- manufacturing exactly the ``permaticker -> CIK`` binding the O-9 ruling says the
+#: cover page does NOT establish. Two registries, because there are two different questions.
+O9_APPROVED_FIRST_HOP_SOURCE_CLASSES: Final[frozenset[str]] = frozenset()
+
+assert not (O9_APPROVED_FIRST_HOP_SOURCE_CLASSES & O9_APPROVED_DECLARED_CLASS_SOURCE_CLASSES), (
+    "a source class approved for one hop is not thereby approved for the other"
+)
 
 FIRST_HOP_OK: Final = "ADMISSIBLE"
 FIRST_HOP_SOURCE_CLASS_NOT_APPROVED: Final = "SOURCE_CLASS_NOT_O9_APPROVED"
 FIRST_HOP_ARTIFACT_UNVERIFIED: Final = "SOURCE_ARTIFACT_DIGEST_UNVERIFIED"
 FIRST_HOP_IDENTITY_NOT_INDEPENDENT: Final = "PERMANENT_IDENTITY_NOT_INDEPENDENTLY_MATCHED"
 FIRST_HOP_INTERVAL_UNSUPPORTED: Final = "EFFECTIVE_INTERVAL_NOT_SUPPORTED_BY_SOURCE"
+
+DECLARED_CLASS_OK: Final = "ADMISSIBLE"
+DECLARED_CLASS_SOURCE_NOT_APPROVED: Final = "SOURCE_CLASS_NOT_O9_APPROVED_FOR_DECLARED_CLASS"
+DECLARED_CLASS_ARTIFACT_UNVERIFIED: Final = "DECLARED_CLASS_ARTIFACT_UNVERIFIED"
 
 #: Identity-match methods that are not independent of the ticker. Named so a rejection can be
 #: precise; admission never depends on this list.
@@ -105,7 +164,7 @@ class ClassIdentityLink:
 class FirstHopAdmissionPolicy:
     """Which source classes may close the first hop. Frozen; empty until an owner ruling."""
 
-    approved_source_classes: frozenset[str] = O9_APPROVED_SOURCE_CLASSES
+    approved_source_classes: frozenset[str] = O9_APPROVED_FIRST_HOP_SOURCE_CLASSES
 
     def admit(self, link: ClassIdentityLink) -> tuple[bool, str]:
         src = link.source
@@ -176,10 +235,57 @@ class CompetingBinding:
         )
 
 
+class DeclaredClassInadmissible(RuntimeError):
+    """Episode construction was attempted from a source O-9 has not approved for this hop."""
+
+
+@dataclass(frozen=True)
+class DeclaredClassAdmissionPolicy:
+    """Which source classes may close ``declared class -> CIK``.
+
+    ⭐ This exists because ``Observation.build`` proves only **provenance** -- that the tuple
+    came off a cover page through ``INLINE_XBRL_COVER``. Provenance is not the owner's
+    separate decision that the provenance class is O-9 admissible for this hop, and
+    conflating the two would let any future cover-shaped parser mint episodes without a
+    ruling. The registry is consulted at the boundary, not inferred from the payload.
+
+    ⛔ Deliberately reads a *different* frozenset from ``FirstHopAdmissionPolicy``. Approving
+    a class for one hop must never approve it for the other, in either direction.
+    """
+
+    approved_source_classes: frozenset[str] = O9_APPROVED_DECLARED_CLASS_SOURCE_CLASSES
+
+    def admit(self, source_class: str, artifact_verified: bool) -> tuple[bool, str]:
+        if source_class not in self.approved_source_classes:
+            return False, DECLARED_CLASS_SOURCE_NOT_APPROVED
+        if not artifact_verified:
+            return False, DECLARED_CLASS_ARTIFACT_UNVERIFIED
+        return True, DECLARED_CLASS_OK
+
+
 def build_declared_class_episodes(
-    observations: list[Observation], *, to_utc
+    observations: list[Observation],
+    *,
+    to_utc,
+    source_class: str,
+    artifact_verified: bool,
+    policy: DeclaredClassAdmissionPolicy | None = None,
 ) -> list[DeclaredClassCikEpisode]:
-    """Group admissible observations into inward-bounded (declared class, CIK) episodes."""
+    """Group admissible observations into inward-bounded (declared class, CIK) episodes.
+
+    ``source_class`` and ``artifact_verified`` are REQUIRED keywords: the caller must state
+    which governed source class it is building from, and a refusal raises rather than
+    returning an empty list, so an unapproved source can never be mistaken for one that
+    simply produced no episodes.
+    """
+    admitted, reason = (policy or DeclaredClassAdmissionPolicy()).admit(
+        source_class, artifact_verified
+    )
+    if not admitted:
+        raise DeclaredClassInadmissible(
+            f"cannot build declared-class episodes from {source_class!r}: {reason}"
+        )
+
     grouped: dict[tuple[DeclaredClass, int], list[Observation]] = {}
     for obs in observations:
         grouped.setdefault((declared_class(obs), obs.cik), []).append(obs)
@@ -294,10 +400,19 @@ class BindingReport:
         links: list[ClassIdentityLink],
         *,
         to_utc,
+        source_class: str,
+        artifact_verified: bool,
         policy: FirstHopAdmissionPolicy | None = None,
+        declared_policy: DeclaredClassAdmissionPolicy | None = None,
     ) -> BindingReport:
         pol = policy or FirstHopAdmissionPolicy()
-        eps = build_declared_class_episodes(observations, to_utc=to_utc)
+        eps = build_declared_class_episodes(
+            observations,
+            to_utc=to_utc,
+            source_class=source_class,
+            artifact_verified=artifact_verified,
+            policy=declared_policy,
+        )
         bindings = build_security_cik_bindings(eps, links, pol)
         rejected: list[tuple[ClassIdentityLink, str]] = []
         for link in links:

@@ -1,0 +1,211 @@
+{
+  "record": "WP0AQ_FIRST_HOP_QUALIFICATION_V1",
+  "program": "SEC-001 V3.1",
+  "workpackage": "WP0A-Q-FIRST-HOP-QUALIFICATION",
+  "authorized": "2026-08-26",
+  "ruled": "2026-08-26",
+  "authority": {
+    "sealed_manifest_sha256": "3a30ad0296aa945f6b7a68c2bf578e47c69f75267670c2e3d0e72d4473339724",
+    "scope": "Existing sealed/local evidence only. No SEC requests.",
+    "sec_requests_spent_by_this_workpackage": 0,
+    "counters_at_ruling": {
+      "index": "71/200",
+      "documents": "3/1200"
+    }
+  },
+  "question": "Does any source in custody establish the FIRST hop -- permanent security identity -> effective-dated security/share-class identity -- with an independent security-class discriminator in addition to effective-dated symbol identity?",
+  "prohibited_inference": "permaticker historical ticker == SEC TradingSymbol therefore same security",
+  "verdict": "FIRST_HOP_SOURCE_NOT_QUALIFIED",
+  "gate_0a": "G0A_HOLD_FIRST_HOP_SOURCE_NOT_QUALIFIED",
+  "gate_0a_computed": false,
+  "bindings": 0,
+  "sources_inventoried": [
+    {
+      "id": "S1",
+      "identity": "MR-002 identity crosswalk",
+      "artifacts": [
+        "apps/backend/data/mr002_research.duckdb::crosswalk",
+        "apps/backend/data/mr002_provenance.duckdb::identity_crosswalk"
+      ],
+      "provenance": "apps/backend/scripts/mr002_build_crosswalk.py -> app/altdata/mr002/crosswalk.py; source=sharadar_tickers.secfilings (1063 rows), manual_override_table (5)",
+      "rows": 1068,
+      "distinct_permatickers": 754,
+      "fields": [
+        "permaticker",
+        "ticker",
+        "cik",
+        "effective_from",
+        "effective_to",
+        "relationship_type",
+        "source",
+        "source_record_id",
+        "confidence",
+        "mapping_rationale",
+        "review_status"
+      ],
+      "genuinely_effective_dated": false,
+      "effective_dating_finding": "CURRENT-STATE with historical-looking dates. cik_from_secfilings() regex-extracts the CIK from the `secfilings` URL of the CURRENT-state Sharadar TICKERS row -- one scalar, no time dimension -- and mr002_build_crosswalk.py:222 calls it ONCE per ticker, before intervals are painted on. Corroborated three ways: 752/754 permatickers carry exactly one CIK across all intervals; mapping_rationale for 752 rows reads 'current symbol per Sharadar TICKERS; CIK from secfilings'; the cross-check parameter is named edgar_tickers_now. The dates date the TICKER, never the CIK.",
+      "class_discriminator_beyond_ticker": false,
+      "class_discriminator_finding": "None. No exchange, no security title, no class column. relationship_type='share_class' (16 rows) LABELS a row as a share class but never NAMES which; its mapping_rationale is the same generic string as the 752 'direct' rows.",
+      "candidate_coverage": "21/23",
+      "historical_gaps": [
+        "BIDU permaticker 190868 absent",
+        "NBIS permaticker 189383 absent"
+      ],
+      "conflicting_identities": "2 permatickers carry >1 CIK (both Alphabet, 1288776 -> 1652044)",
+      "deterministic_join_definable": false,
+      "join_finding": "Joinable to TradingSymbol only. Security12bTitle and SecurityExchangeName have no counterpart column, so the join reduces to ticker equality -- the prohibited inference.",
+      "disposition": "NOT QUALIFIED (also disqualified by v1.3 control 27)"
+    },
+    {
+      "id": "S2",
+      "identity": "factor-store `tickers` projection",
+      "artifacts": [
+        "origin/main apps/backend/app/factor_data/store.py (_TICKERS_COLS, permaticker_asof at :907)",
+        "apps/backend/data/factor_data.duckdb::tickers",
+        "apps/backend/data/factor_data_full.duckdb::tickers",
+        "apps/backend/data/factor_data_full.refresh.duckdb::tickers"
+      ],
+      "provenance": "Sharadar TICKERS; permaticker landed PR #542 / PERMATICKER_EFFECTIVE_INTERVAL_V1",
+      "rows": 21853,
+      "fields": [
+        "permaticker",
+        "ticker",
+        "name",
+        "exchange",
+        "category",
+        "sector",
+        "industry",
+        "isdelisted",
+        "firstpricedate",
+        "lastpricedate",
+        "lastupdated"
+      ],
+      "instantiated_in_local_or_sealed_custody": false,
+      "custody_finding": "NO local or sealed artifact carries the permaticker column. All three local store DBs are pre-#542 10-column builds. The capability is code on origin/main plus a live-box measurement (21,988/22,104 = 99.47%); it is not evidence in custody.",
+      "genuinely_effective_dated": false,
+      "effective_dating_finding": "exchange and category are single CURRENT-STATE scalars with no history: 21,853 rows / 21,853 distinct tickers, one value each for all time. store.py:907's own docstring concedes the row 'describes the lineage holding the bare ticker NOW', and [firstpricedate, lastpricedate] bounds the validity of the ticker->permaticker answer -- NOT the exchange or class attributes.",
+      "class_discriminator_beyond_ticker": true,
+      "class_discriminator_finding": "PRESENT and genuine: `category` separates share classes of one issuer (GOOG=Secondary Class vs GOOGL=Primary Class; likewise BRK.A/BRK.B, CMCSA/CMCSK, LBTYA/LBTYK). This is more than ticker.",
+      "deterministic_join_definable": false,
+      "join_finding": "Security12bTitle: NOT deterministically joinable. The vendor ordinal tracks primacy/liquidity, not the registrant class letter, and the correspondence INVERTS between issuers -- registrant Class A maps to vendor 'Primary Class' for Alphabet (GOOGL) but 'Secondary Class' for Berkshire (BRK.A). SecurityExchangeName: the 6-value vocabulary (NASDAQ/NYSE/NYSEMKT/NYSEARCA/BATS/OTC) IS mappable, but the value is not historically valid, so agreement at a historical accepted_at proves nothing and disagreement is uninterpretable.",
+      "candidate_coverage": "23/23 by ticker",
+      "disposition": "NOT QUALIFIED. The independent discriminator fails on both legs -- one for want of a determinate mapping, the other for want of historical validity."
+    },
+    {
+      "id": "S3",
+      "identity": "mr002_provenance::cik_permaticker_crosswalk",
+      "rows": 10,
+      "fields": [
+        "ticker",
+        "cik",
+        "permaticker",
+        "built_at"
+      ],
+      "genuinely_effective_dated": false,
+      "class_discriminator_beyond_ticker": false,
+      "disposition": "NOT QUALIFIED -- no effective dates at all, no class, n=10."
+    },
+    {
+      "id": "S4",
+      "identity": "mr002_research::security_sector_overrides",
+      "rows": 33,
+      "fields": [
+        "permaticker",
+        "ticker",
+        "cik",
+        "effective_from",
+        "effective_to",
+        "research_sector",
+        "sector_etf",
+        "confidence",
+        "review_status",
+        "mapping_rationale",
+        "evidence",
+        "reviewer",
+        "review_date"
+      ],
+      "genuinely_effective_dated": true,
+      "class_discriminator_beyond_ticker": false,
+      "disposition": "NOT QUALIFIED -- research_sector/sector_etf are SECTOR attributes, not security class; they cannot separate GOOG from GOOGL."
+    },
+    {
+      "id": "S5",
+      "identity": "SEC-001 V3 retained decision bytes",
+      "artifacts": [
+        "apps/backend/app/altdata/sec001_v3/decision_bytes.py"
+      ],
+      "class_discriminator_beyond_ticker": false,
+      "disposition": "NOT QUALIFIED -- SEC-HEADER bytes retained to reproduce SIC decisions. SIC is an industry code, not a security class; no trading symbol, title or exchange is retained; and V3.1 is structurally SIC-blind."
+    },
+    {
+      "id": "S6",
+      "identity": "sealed S3 sec001-v3-successor-epoch-evidence.v1",
+      "artifacts": [
+        "manifests/s3/objects/sec001-v3-successor-epoch-evidence.v1.json"
+      ],
+      "disposition": "NOT A SOURCE -- manifest carries objects: 0. Nothing pinned."
+    }
+  ],
+  "missing_link": [
+    {
+      "hop": "permanent security identity",
+      "state": "present (permaticker; main/live only)"
+    },
+    {
+      "hop": "-> effective-dated security/share-class identity",
+      "state": "ABSENT -- no O-9-qualified source"
+    },
+    {
+      "hop": "-> SEC-declared class",
+      "state": "QUALIFIED (SEC_PERIODIC_COVER_IDENTITY_V1, O-9 approved)"
+    },
+    {
+      "hop": "-> CIK",
+      "state": "QUALIFIED"
+    }
+  ],
+  "o9_registries": {
+    "O9_APPROVED_DECLARED_CLASS_SOURCE_CLASSES": [
+      "SEC_PERIODIC_COVER_IDENTITY_V1"
+    ],
+    "O9_APPROVED_FIRST_HOP_SOURCE_CLASSES": [],
+    "enforced_disjoint_at_import": true
+  },
+  "disposition": {
+    "candidate": "SEC-001 V3.1",
+    "state": "HOLD / REDESIGN REQUIRED",
+    "workstreams": {
+      "WP0A-Q acquisition/transport": "QUALIFIED",
+      "SEC declared-class evidence": "QUALIFIED",
+      "O9 declared-class source": "APPROVED",
+      "O9 first-hop source": "NONE QUALIFIED",
+      "security->CIK bindings": 0,
+      "Gate 0a": "NOT RUN / HOLD",
+      "coverage verdict": "NOT REACHED",
+      "economics": "NOT REACHED"
+    },
+    "explicitly_not": [
+      "NOT a Gate-0 coverage failure -- authority to compute that gate was never obtained.",
+      "NOT a demonstration that the taxonomy itself fails. The earlier excluded_low diagnostics remain successor-design evidence; this candidate terminates earlier, on evidence-chain admissibility."
+    ]
+  },
+  "successor_requirements": [
+    "Specify, BEFORE looking at coverage impact, a genuinely historical permanent-security / security-class dataset or a governed reconstruction methodology.",
+    "That must be a new source qualification / version boundary.",
+    "NOT an ad hoc extension of permaticker_asof.",
+    "NOT current exchange painted backward.",
+    "NOT ticker equality plus SEC cover pages.",
+    "The v1.3 taxonomy-successor methodology remains the right separate path: universal, coverage-blind review of the whole mapping table, not selective repair of known losing rows."
+  ],
+  "not_authorized": [
+    "additional SEC requests",
+    "first-hop reconstruction",
+    "WP1",
+    "Gate-0a calculation",
+    "WP0B",
+    "economics",
+    "runtime",
+    "PR/merge"
+  ]
+}

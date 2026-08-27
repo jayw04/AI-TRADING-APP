@@ -59,6 +59,7 @@ from datetime import datetime
 from typing import Protocol
 
 from app.altdata.sec001_v31.bindings import (
+    SEC_PERIODIC_COVER_IDENTITY_V1,
     ClassIdentityLink,
     FirstHopAdmissionPolicy,
     build_declared_class_episodes,
@@ -112,7 +113,12 @@ class StopEarlyController:
         self._recompute()
 
     def _recompute(self) -> None:
-        episodes = build_declared_class_episodes(self.observations, to_utc=self.to_utc)
+        episodes = build_declared_class_episodes(
+            self.observations,
+            to_utc=self.to_utc,
+            source_class=SEC_PERIODIC_COVER_IDENTITY_V1.name,
+            artifact_verified=True,
+        )
         bindings = build_security_cik_bindings(episodes, self.links, self.policy)
         self._qualified = {}
         for week, permatickers in self.grid.excluded_low.items():
