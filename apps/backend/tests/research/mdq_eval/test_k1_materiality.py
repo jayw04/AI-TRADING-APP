@@ -164,7 +164,8 @@ def test_ungoverned_inputs_cannot_be_omitted_by_the_caller(tmp_path, adjudicatio
 
     supplied = InputProvenance(decision_provider_supplied=True)
     result = KResult(criterion="K1", outcome=KOutcome.PASS, threshold="t", detail="d",
-                     tokens=adjudication.tokens(tmp_path, [SESSIONS[0]]), provenance=supplied)
+                     sessions=(SESSIONS[0].isoformat(),),
+                     scope=adjudication.scope(tmp_path, [SESSIONS[0]]), provenance=supplied)
     assert result.ungoverned_inputs == (DECISION_PROVIDER_UNBOUND,)
     assert result.evidentiary is False
     # `ungoverned_inputs` is a read-only property, so there is no field to clear.
@@ -184,16 +185,22 @@ def test_a_boolean_alone_does_not_create_authority(tmp_path, adjudication):
     # Supplied, no AuthorityRef: still ungoverned no matter what any boolean elsewhere says.
     provenance = InputProvenance(decision_provider_supplied=True, decision_provider_authority=None)
     result = KResult(criterion="K1", outcome=KOutcome.PASS, threshold="t", detail="d",
-                     tokens=adjudication.tokens(tmp_path, [SESSIONS[0]]), provenance=provenance)
+                     sessions=(SESSIONS[0].isoformat(),),
+                     scope=adjudication.scope(tmp_path, [SESSIONS[0]]), provenance=provenance)
     assert result.evidentiary is False
     assert result.ungoverned_inputs == (DECISION_PROVIDER_UNBOUND,)
 
 
-def test_a_verified_binding_is_what_makes_a_result_governed(tmp_path, adjudication):
+def test_a_well_formed_authority_ref_enables_the_future_binding_contract(tmp_path, adjudication):
     """The FUTURE contract, exercised now: a governed artifact with a digest, not a boolean.
 
-    This is deliberately not a claim that any such authority exists today — both module bindings are
-    None. It pins the shape a real binding must have, so the next person cannot satisfy it with a flag.
+    ⚠ This is deliberately NOT a claim that any such authority exists today — both module bindings are
+    None. Nor does `AuthorityRef` verify that the referenced artifact exists or that its bytes match
+    the declared SHA-256; it checks the reference is well formed and checkable. Establishing artifact
+    existence and byte/hash equality is the separate governance binding step.
+
+    What this pins is the SHAPE a real binding must have, so the next person cannot satisfy it with a
+    flag.
     """
     from app.research.mdq_eval.results import AuthorityRef, InputProvenance, KResult
 
@@ -202,7 +209,8 @@ def test_a_verified_binding_is_what_makes_a_result_governed(tmp_path, adjudicati
     provenance = InputProvenance(decision_provider_supplied=True,
                                  decision_provider_authority=binding)
     result = KResult(criterion="K1", outcome=KOutcome.PASS, threshold="t", detail="d",
-                     tokens=adjudication.tokens(tmp_path, [SESSIONS[0]]), provenance=provenance)
+                     sessions=(SESSIONS[0].isoformat(),),
+                     scope=adjudication.scope(tmp_path, [SESSIONS[0]]), provenance=provenance)
     assert result.ungoverned_inputs == ()
     assert result.evidentiary is True
     assert result.as_dict()["input_provenance"]["decision_provider_authority"]["digest"] == "a" * 64

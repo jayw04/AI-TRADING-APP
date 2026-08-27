@@ -121,7 +121,7 @@ def evaluate_k1(
             "K1 requires admissibility tokens for an evidentiary result. Obtain them from "
             "mdq_eval.gate.require_admissible, or pass diagnostic=True for a labelled number."
         )
-    token_objects = validate_tokens(root, sessions, tokens) if tokens is not None else ()
+    scope = validate_tokens(root, sessions, tokens) if tokens is not None else None
 
     measures: dict[str, Any] = {
         "evaluated_session_days": len(sessions),
@@ -200,6 +200,6 @@ def evaluate_k1(
     return KResult(
         criterion=CRITERION, outcome=outcome, threshold=THRESHOLD, detail=detail,
         measures=measures, sessions=tuple(s.isoformat() for s in sessions),
-        tokens=token_objects, provenance=provenance,
+        scope=scope, provenance=provenance,
         definition_source=DEFINITION_SOURCE,
     )

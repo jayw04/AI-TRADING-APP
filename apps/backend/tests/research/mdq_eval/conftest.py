@@ -63,4 +63,9 @@ def adjudication(monkeypatch):
         def tokens(root: Path | str, sessions):
             return [Control.token(root, s) for s in sessions]
 
+        @staticmethod
+        def scope(root: Path | str, sessions):
+            """A ValidatedScope obtained the only supported way: through the real scope validator."""
+            return gate.validate_tokens(root, list(sessions), Control.tokens(root, sessions))
+
     return Control

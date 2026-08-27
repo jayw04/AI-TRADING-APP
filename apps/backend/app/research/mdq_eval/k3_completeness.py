@@ -139,7 +139,7 @@ def evaluate_k3(
             "mdq_eval.gate.require_admissible, or pass diagnostic=True to get an explicitly "
             "non-evidentiary number."
         )
-    token_records = validate_tokens(root, sessions, tokens) if tokens is not None else ()
+    scope = validate_tokens(root, sessions, tokens) if tokens is not None else None
 
     iex_keys: set[tuple[str, str, str]] = set()
     sip_keys: set[tuple[str, str, str]] = set()
@@ -172,7 +172,7 @@ def evaluate_k3(
             detail=("the union grid U is empty — neither feed reported a bar inside the Phase-A "
                     "window on these sessions, so there is no grid on which to measure completeness"),
             measures=measures, sessions=tuple(s.isoformat() for s in sessions),
-            tokens=token_records,
+            scope=scope,
             definition_source=DEFINITION_SOURCE,
         )
 
@@ -189,7 +189,7 @@ def evaluate_k3(
                     "reduction ratio is undefined. The frozen definition makes this NOT EVALUABLE "
                     "— no division, no artificial pass"),
             measures=measures, sessions=tuple(s.isoformat() for s in sessions),
-            tokens=token_records,
+            scope=scope,
             definition_source=DEFINITION_SOURCE,
         )
 
@@ -213,6 +213,6 @@ def evaluate_k3(
         ),
         measures=measures,
         sessions=tuple(s.isoformat() for s in sessions),
-        tokens=token_records,
+        scope=scope,
         definition_source=DEFINITION_SOURCE,
     )

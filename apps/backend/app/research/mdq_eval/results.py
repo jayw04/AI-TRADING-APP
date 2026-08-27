@@ -114,6 +114,57 @@ def _mint_token(*, root: str, session: date, verdict: str, assessed_at: str,
     )
 
 
+class _ScopeMint:
+    """Private mint marker for ValidatedScope."""
+
+    __slots__ = ()
+
+
+_SCOPE_MINT = _ScopeMint()
+
+
+@dataclass(frozen=True)
+class ValidatedScope:
+    """Proof that a specific set of tokens was validated against a specific evaluation scope.
+
+    ⛔ **Possessing a token is not the same as having validated it.** An earlier revision derived
+    `evidentiary` from `bool(tokens)`, so a legitimate token for one session could be lifted out of the
+    evaluator and attached to a directly-constructed result naming a different session — becoming
+    evidence without `validate_tokens` ever running. That is precisely the laundering the gate exists
+    to stop, and the test suite had blessed it.
+
+    The capability therefore binds the root AND the exact session set the tokens were checked against,
+    and `KResult` requires the scope to match the sessions it reports.
+    """
+
+    root: str
+    sessions: tuple[str, ...]
+    tokens: tuple[AdmissibilityToken, ...]
+
+    def __init__(self, *, root: str, sessions: tuple[str, ...],
+                 tokens: tuple[AdmissibilityToken, ...], _mint: _ScopeMint | None = None) -> None:
+        if _mint is not _SCOPE_MINT:
+            raise TypeError(
+                "ValidatedScope cannot be constructed directly; it is produced only by "
+                "mdq_eval.gate.validate_tokens, which checks the tokens against the exact root and "
+                "session set being evaluated. A scope anyone could build would make that check "
+                "optional, which is the same hole as deriving evidence from raw token possession."
+            )
+        object.__setattr__(self, "root", root)
+        object.__setattr__(self, "sessions", sessions)
+        object.__setattr__(self, "tokens", tokens)
+
+    def as_dict(self) -> dict[str, Any]:
+        return {"root": self.root, "sessions": list(self.sessions),
+                "tokens": [t.as_dict() for t in self.tokens]}
+
+
+def _mint_scope(*, root: str, sessions: tuple[str, ...],
+                tokens: tuple[AdmissibilityToken, ...]) -> ValidatedScope:
+    """⛔ INTERNAL. Imported by `gate.validate_tokens` and by nothing else."""
+    return ValidatedScope(root=root, sessions=sessions, tokens=tokens, _mint=_SCOPE_MINT)
+
+
 #: Stable identifiers for a missing governing authority. Stable because they end up in records that
 #: get copied elsewhere, where prose does not survive but an identifier does.
 DECISION_PROVIDER_UNBOUND = "decision_provider_unbound"
@@ -232,19 +283,24 @@ class KResult:
     #: The frozen definition's own numbers. Diagnostics live here too, labelled.
     measures: dict[str, Any] = field(default_factory=dict)
     sessions: tuple[str, ...] = ()
-    #: Real tokens only. Anything else is refused at construction.
-    tokens: tuple[AdmissibilityToken, ...] = ()
+    #: The validated scope this result was computed under, or None for a diagnostic.
+    #: ⛔ NOT raw tokens: possession of a token is not proof it was validated against these sessions.
+    scope: ValidatedScope | None = None
     #: Where the inputs came from. `ungoverned_inputs` is DERIVED from this, not passed in.
     provenance: InputProvenance = field(default_factory=InputProvenance)
     definition_source: str = ""
 
     def __post_init__(self) -> None:
-        for t in self.tokens:
-            if not isinstance(t, AdmissibilityToken):
-                raise TypeError(
-                    f"KResult.tokens must contain AdmissibilityToken objects, got {type(t).__name__}; "
-                    f"evidentiary status is derived from real tokens and cannot be asserted"
-                )
+        if self.scope is not None and not isinstance(self.scope, ValidatedScope):
+            raise TypeError(
+                f"KResult.scope must be a ValidatedScope from mdq_eval.gate.validate_tokens, got "
+                f"{type(self.scope).__name__}; evidentiary status cannot be asserted"
+            )
+
+    @property
+    def tokens(self) -> tuple[AdmissibilityToken, ...]:
+        """The tokens behind this result, if any. Derived from the validated scope."""
+        return self.scope.tokens if self.scope is not None else ()
 
     @property
     def ungoverned_inputs(self) -> tuple[str, ...]:
@@ -253,9 +309,15 @@ class KResult:
 
     @property
     def evidentiary(self) -> bool:
-        """True iff every evaluated session carried a real admissibility token AND no ungoverned
-        caller-injected input contributed to the value."""
-        return bool(self.tokens) and not self.ungoverned_inputs
+        """True iff a VALIDATED scope covers exactly the sessions reported, and no ungoverned
+        caller-injected input contributed to the value.
+
+        ⛔ The scope must match `sessions` exactly. Without that check a scope validated for one set of
+        days could be attached to a result reporting another — the laundering path in a second form.
+        """
+        if self.scope is None or self.ungoverned_inputs:
+            return False
+        return tuple(self.scope.sessions) == tuple(self.sessions)
 
     def as_dict(self) -> dict[str, Any]:
         return {
@@ -268,6 +330,7 @@ class KResult:
             "measures": self.measures,
             "sessions": list(self.sessions),
             "admissibility_tokens": [t.as_dict() for t in self.tokens],
+            "validated_scope": self.scope.as_dict() if self.scope else None,
             "ungoverned_inputs": [
                 {"authority": a, "reason": _UNGOVERNED_REASONS[a]} for a in self.ungoverned_inputs
             ],

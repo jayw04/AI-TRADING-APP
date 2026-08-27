@@ -19,7 +19,12 @@ from pathlib import Path
 from typing import Any
 
 from app.research.capture.admissibility import AdmissibilityReport, Verdict, assess_partition
-from app.research.mdq_eval.results import AdmissibilityToken, _mint_token
+from app.research.mdq_eval.results import (
+    AdmissibilityToken,
+    ValidatedScope,
+    _mint_scope,
+    _mint_token,
+)
 
 
 class NotAdmissible(RuntimeError):
@@ -75,11 +80,12 @@ def require_admissible(
 
 def validate_tokens(
     root: Path | str, sessions: Iterable[date], tokens: Iterable[AdmissibilityToken]
-) -> tuple[AdmissibilityToken, ...]:
+) -> ValidatedScope:
     """Check that the supplied tokens cover exactly the sessions being evaluated, under this root.
 
-    Returns the token OBJECTS, not dictionaries: `KResult` derives `evidentiary` from real tokens, so
-    handing back plain dicts would reintroduce the very assertion path this validation exists to close.
+    Returns a `ValidatedScope` capability, not the tokens: `KResult` derives `evidentiary` from a
+    validated scope, because possession of a token proves nothing about whether it was ever checked
+    against the sessions a result reports.
 
     ⚠ This is not ceremony. Without it, a token minted for an admissible day could be passed
     alongside a *different*, inadmissible day and the result would still be stamped evidentiary — the
@@ -110,4 +116,9 @@ def validate_tokens(
             f"token(s) supplied for session(s) {extra} that are not being evaluated; refusing rather "
             f"than silently ignoring evidence of a scope mismatch"
         )
-    return tuple(by_session[s] for s in sorted(want))
+    ordered = tuple(sorted(want))
+    return _mint_scope(
+        root=resolved_root,
+        sessions=tuple(s.isoformat() for s in ordered),
+        tokens=tuple(by_session[s] for s in ordered),
+    )

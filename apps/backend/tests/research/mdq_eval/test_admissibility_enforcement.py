@@ -48,20 +48,49 @@ def test_a_result_cannot_claim_to_be_evidentiary(tmp_path):
                 evidentiary=True)  # type: ignore[call-arg]
 
 
-def test_evidentiary_is_derived_from_real_tokens(tmp_path, adjudication):
-    result = KResult(criterion="K3", outcome=KOutcome.PASS, threshold="t", detail="d")
-    assert result.evidentiary is False
-    with_token = KResult(criterion="K3", outcome=KOutcome.PASS, threshold="t", detail="d",
-                         tokens=(adjudication.token(tmp_path, SESSION),))
-    assert with_token.evidentiary is True
+def test_raw_token_possession_does_not_confer_evidentiary_status(tmp_path, adjudication):
+    """★ THE regression. A legitimate token, attached directly, must not make a result evidentiary.
 
-
-def test_token_dictionaries_are_refused(tmp_path, adjudication):
-    """Dicts would reintroduce the assertion path; only real token objects count."""
-    fake = adjudication.token(tmp_path, SESSION).as_dict()
-    with pytest.raises(TypeError, match="must contain AdmissibilityToken"):
+    An earlier revision derived `evidentiary` from `bool(tokens)`, so a real token for one session
+    could be lifted out of the evaluator and pinned to a hand-built result — becoming evidence without
+    `validate_tokens` ever running. `tokens` is now a read-only property, so there is no such argument.
+    """
+    with pytest.raises(TypeError):
         KResult(criterion="K3", outcome=KOutcome.PASS, threshold="t", detail="d",
-                tokens=(fake,))  # type: ignore[arg-type]
+                tokens=(adjudication.token(tmp_path, SESSION),))  # type: ignore[call-arg]
+
+
+def test_a_validated_scope_is_what_confers_evidentiary_status(tmp_path, adjudication):
+    plain = KResult(criterion="K3", outcome=KOutcome.PASS, threshold="t", detail="d")
+    assert plain.evidentiary is False
+    scoped = KResult(criterion="K3", outcome=KOutcome.PASS, threshold="t", detail="d",
+                     sessions=(SESSION.isoformat(),),
+                     scope=adjudication.scope(tmp_path, [SESSION]))
+    assert scoped.evidentiary is True
+
+
+def test_a_scope_for_one_session_cannot_support_a_result_claiming_another(tmp_path, adjudication):
+    """★ The second form of laundering: a genuinely validated scope, wrong sessions."""
+    mismatched = KResult(criterion="K3", outcome=KOutcome.PASS, threshold="t", detail="d",
+                         sessions=(OTHER.isoformat(),),
+                         scope=adjudication.scope(tmp_path, [SESSION]))
+    assert mismatched.evidentiary is False
+
+
+def test_a_scope_cannot_be_constructed_directly(tmp_path, adjudication):
+    from app.research.mdq_eval.results import ValidatedScope
+
+    with pytest.raises(TypeError, match="cannot be constructed directly"):
+        ValidatedScope(root=str(tmp_path), sessions=(SESSION.isoformat(),),
+                       tokens=(adjudication.token(tmp_path, SESSION),))
+
+
+def test_a_non_scope_object_is_refused(tmp_path, adjudication):
+    """Anything but a real ValidatedScope reintroduces the assertion path."""
+    fake = adjudication.scope(tmp_path, [SESSION]).as_dict()
+    with pytest.raises(TypeError, match="must be a ValidatedScope"):
+        KResult(criterion="K3", outcome=KOutcome.PASS, threshold="t", detail="d",
+                scope=fake)  # type: ignore[arg-type]
 
 
 def test_a_token_cannot_be_constructed_directly():
