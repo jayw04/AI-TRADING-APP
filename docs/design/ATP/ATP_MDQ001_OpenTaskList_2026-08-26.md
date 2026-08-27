@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Document | **Task list for review.** Not a plan, not a governing record, not an authorization. |
-| Date | 2026-08-26 |
+| Date | 2026-08-26, **revised in place 2026-08-27** |
 | Purpose | Enumerate what remains to be finished in the ATP / MDQ-001 design scope so the owner can confirm the direction before work resumes. |
 | Governing plan | `docs/design/ATP/AlgoTraderPlus_v1_4_1_ImplementationPlan_v0_14.md` — **v0.14 remains the sole current plan.** This list does not supersede it and creates no v0.15. |
 | Authority conveyed | **NONE.** Every item below is a candidate for work, not authorized work. The 2026-08-26 owner freeze stands. |
@@ -30,25 +30,39 @@ separately opened; live-consumer cutover before the local-cache ADR.
 
 ---
 
-## 1. In flight today — the 2026-08-26 governed partition
+## 1. Where things actually stand — 2026-08-27
 
-**CLOSED — the partition is COMPLETE and SEALED on both feeds.** All six items discharged; evidence
-recorded in the 2026-08-26 state sync of v0.14, section A.
+### 1.1 Closed since this list was written
 
-| # | Task | State |
-|---|---|---|
-| **A-1** | Sampler terminal completeness stamp | ✅ `sampled 395 cycle(s) x 50 symbols x 2 feeds (395/395 scheduled slots)`, 09:25:02 → 15:59:00 EDT, `ExecMainStatus=0`. Corroborated independently: 19,750 rows per feed = 395 x 50, both feeds identical |
-| **A-2** | EOD | ✅ 16:30:00 → 16:30:04 EDT, `Result=success`; **16,149 iex** / **25,685 sip** 1-min bar rows; identity re-verified 16:30:02 |
-| **A-3** | Freeze | ✅ 16:45:02 → 16:45:05 EDT, full sequence **frozen → verified → mirrored** on both feeds |
-| **A-4** | **Independent** S3 custody verification | ✅ my own `s3 ls` / `head-object`: all 6 objects present, every `ContentLength` equal to the manifest byte count, **every host MD5 equal to the returned ETag** (measured equality; `ChecksumSHA256` null, so no S3-side SHA-256 exists — SHA-256 verified host-side against the manifests) |
-| **A-5** | Governance tuple unchanged | ✅ `mdq-collector/0.1.0` · `b56421a28128` · `PA3BGKRLH2AP` · `universe_sha256 a022e399...` — the corpus did not split |
-| **A-6** | Declare the partition sealed | ✅ **SEALED.** Corpus = **five governed trading days**: 08-19, 08-20, 08-21, 08-25, 08-26 |
+| Item | Outcome |
+|---|---|
+| 08-26 governed partition | ✅ **SEALED** — 395/395, EOD + freeze→verify→mirror, S3 custody verified independently |
+| Corpus | **five sealed days**: 08-19, 08-20, 08-21, 08-25, 08-26 |
+| D-2 / D-3 state sync + SEC-001 §J correction | ✅ merged (#692, squash `52cf292f…`) |
+| E-1 runtime self-report repair | 🏁 **MERGED** — Amendment 8, #693 `50be5921…`, squash **`47715b4e…`**, run 1659 green on the exact pre-merge head. ⛔ Merging authorized nothing operational; the next owner gate is **DEPLOYMENT** |
 
-`ALERTS_TODAY = 0` for the entire session. The freeze's **first** condition is discharged — which
-reopens the runtime-self-report repair track *for authorization*; it does not self-authorize, and it
-does not release LOW-001 Run 2 (see section 5).
+### 1.2 Running now
 
----
+**2026-08-27 acquisition** — three-proof standard met **under the pre-repair five-gate control** (READY 5/5 at 12:32:09Z and 13:14:46Z;
+natural start proven by causality: timer `LastTriggerUSec` == service `ExecMainStartTimestamp` ==
+09:25:01 EDT). ⛔ **Not a governed partition until** terminal completeness + EOD + freeze→verify→mirror
++ independent S3 custody verification.
+
+⚠ Produced by the **deployed five-gate** control. It says nothing about deployment identity — the
+`07a9233` / `ada7a5be…` divergence is still live and unrepaired by design.
+
+### 1.3 ⭐ What changed in the plan, and why
+
+The 08-26 list put **B-1 (build the K calculators)** first once the freeze lifted. The freeze did lift —
+and the entire window since was consumed by the self-report repair, legitimately, under owner
+authorization, after production falsified the declaration-only identity model. It grew from "extend one
+module" into a 21-file governed Amendment.
+
+**B-1 has still not started.** Meanwhile the deployment chain ahead of LOW-001 has grown to eight
+serialized steps with owner checkpoints at several of them.
+
+⇒ **The adjustment: B-1 no longer sits behind the deployment chain — it runs in parallel.** The
+deployment chain has no deadline. The verdict does, and K1/K3 are the only deterministic path to it.
 
 ## 2. Critical path to the G3 verdict — the actual deliverable
 
@@ -175,16 +189,16 @@ Today's 13:35-14:00Z Run-2 window closed unused. Strategy 8 remains IDLE; Dynami
 
 ## 6. Dated deadlines — these expire whether or not we act
 
-| Date | Item | Consequence of missing it |
-|---|---|---|
-| **early-to-mid Sept** | **G10 owner-decision deadline** (distinct from the measurement deadline) | Deciding later leaves no implementation or qualification slack before 09-21 |
-| **2026-09-10** | Factor-refresh corroboration evidence **expires** | Regenerate before then or the stale-corroboration control loses its evidence basis |
-| **2026-09-21** | **Absolute latest K2 measurement start** — computed, not estimated | K2 needs 20 consecutive sessions; 09-21 → 10-16 is exactly 20. Start later and **K2 is foreclosed permanently** |
-| **2026-10-06** | Period holdout **opens** | All *exploratory* access to the final 12 days is denied from this date; B-1 must be finished and exercised before it. See **B-6b** — whether this also bars K2 *measurement* needs an explicit ruling |
-| **2026-10-16** | Last usable session in the review window | Friday; 10-18 is a Sunday |
-| **2026-10-18** | Review window **closes** | The G3 verdict is computed on whatever corpus and calculators exist at that moment |
+| Date | Sessions left (from 08-27) | Item | Consequence |
+|---|---:|---|---|
+| early-to-mid Sept | — | **G10 owner decision** | Later leaves no implementation slack before 09-21 |
+| **2026-09-10** | 10 | Factor-refresh corroboration evidence **expires** | Regenerate or the stale-corroboration control loses its basis |
+| **2026-09-21** | **17** | **Absolute latest K2 measurement start** | 09-21 → 10-16 is exactly 20 sessions. Start later and **K2 is foreclosed permanently** |
+| **2026-10-05** | 27 | Last session before the period holdout opens | B-1 must be finished and exercised before it |
+| **2026-10-16** | 36 | Last usable session in the review window | Friday; 10-18 is a Sunday |
+| **2026-10-18** | — | Review window **closes** | The G3 verdict is computed on whatever corpus and calculators exist then |
 
----
+⚠ Recomputed 2026-08-27 (Labor Day 09-07 excluded), not carried forward from the previous list.
 
 ## 7. Items I could not verify — confirm before acting on them
 
@@ -206,22 +220,34 @@ K5 cannot FAIL, and its PASS does not count toward the GO floor. Consequence fol
 ## 8. Proposed order, for the owner to confirm or correct
 
 ```text
-[DONE] seal the 08-26 partition (A-1 ... A-6)
-  -> D-2 / D-3  state sync + the SEC-001 section J correction  (drafted; awaiting commit instruction)
-  -> B-1        build K1 and K3 first, then the rest           (P0 - load-bearing, foreclosing)
-  -> E-1        runtime self-report repair, then E-2           (unblocks LOW-001 Run 2)
-  -> D-1        wrapper + systemd units into custody           (folded into an ops-governance change)
+P0 - DEADLINE-BEARING, start now, in parallel with everything below
+  B-1   build K1 and K3 calculators, run behind the section 7.1 admissibility check
+  B-5   force the G10 decision onto the calendar   (17 sessions to 2026-09-21)
+  K4    measure whether the data gap has ANY realistic closure path
+        (the 250-event-day contract is NOT waivable - measure, do not "open")
+  B-6b  rule holdout-scope vs K2 measurement BEFORE G10 is decided
 
-IN PARALLEL, on the calendar and not behind the queue:
-  -> B-5 / B-6a  force the G10 owner decision well before 2026-09-21
-  -> B-6b        rule on holdout scope vs K2 measurement BEFORE G10 is decided
-  -> K4          measure whether the data gap has any realistic closure path
-                 (prioritize feasibility work; the 250-event-day contract is NOT waivable)
+P1 - SERIALIZED, no deadline, must not consume the calculator window
+  #693 merged 47715b4e                         <- DONE
+    -> separately authorized exact deployment  <- NEXT OWNER GATE
+    -> verify the deployed control VERSION, then the first governing READY 6/6
+    -> independently review + close the production deployment-identity evidence
+    -> fresh no-transition window
+    -> prospective S8.6 checks 1-12
+    -> rollback-baseline restore iff genuine 12/12
+    -> frozen B3a proof on the SAME runtime
+
+P2
+  D-1   wrapper + systemd units into versioned custody (fold into an ops-governance change)
+  D-4   branch hygiene on research/mr002-validation2-lineage
 ```
 
-**Priority rationale.** B-1 is P0 because K1 and K3 are now the only deterministic GO path. The G10 and
-K4 items sit in parallel rather than behind it because they are the only ones that can **foreclose the
-October verdict before October arrives** — they expire on the calendar regardless of how much
-engineering gets done.
+**Why the order inverted.** The 08-26 list sequenced B-1 first and the repair second; the repair went
+first because production forced it. Repeating that sequencing error would put the one deadline-bearing
+deliverable behind the remaining deadline-free deployment chain and its owner checkpoints.
+
+⛔⛔ **No post-deployment "READY 5/5" step exists.** Once the repaired control is deployed it **is** the
+six-gate control; its governing verdict is `READY - all six gates pass`, and `--diagnostic` cannot emit
+READY. Five-gate READYs in this record are pre-deployment evidence under the old control.
 
 C-1 remains an owner ruling that can be issued at any point and blocks downstream DISC-MDQ work.
