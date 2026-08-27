@@ -54,7 +54,13 @@ from pathlib import Path
 from typing import Any, Protocol
 
 from app.research.mdq_eval.gate import validate_tokens
-from app.research.mdq_eval.results import AdmissibilityToken, KOutcome, KResult
+from app.research.mdq_eval.results import (
+    AdmissibilityToken,
+    AuthorityRef,
+    InputProvenance,
+    KOutcome,
+    KResult,
+)
 
 CRITERION = "K1"
 THRESHOLD = (
@@ -64,15 +70,16 @@ THRESHOLD = (
 DEFINITION_SOURCE = "MDQ-001 Registration v1.0 section 4, K1"
 DIVERGENCE_THRESHOLD = 0.10
 
-#: Reasons a result carries no governed authority even when the partitions were admissible.
-UNGOVERNED_PROVIDER = (
-    "limb A used a caller-supplied decision provider; no SCAN-001/GAPPER provider has been bound as "
-    "the authoritative K1 decision, so this value is diagnostic"
-)
-UNGOVERNED_DEFECTS = (
-    "limb B used a caller-supplied defect list; the registration declares no predeclared "
-    "gate-material defect list, so this value is diagnostic"
-)
+#: ⛔ No governed K1 authority is bound today. These are the visible CURRENT-STATE declaration; the
+#: binding itself is an `AuthorityRef` carrying a governed artifact and its digest. Setting either of
+#: these to True does NOT create authority — `InputProvenance` derives binding from the presence of a
+#: real `AuthorityRef`, precisely so a one-line constant flip cannot make injected data evidentiary.
+DECISION_PROVIDER_BOUND = False
+DEFECT_REGISTRY_BOUND = False
+
+#: The bindings themselves. Both None until a separately reviewed governance artifact exists.
+DECISION_PROVIDER_AUTHORITY: AuthorityRef | None = None
+DEFECT_REGISTRY_AUTHORITY: AuthorityRef | None = None
 
 
 class DecisionProvider(Protocol):
@@ -116,7 +123,6 @@ def evaluate_k1(
         )
     token_objects = validate_tokens(root, sessions, tokens) if tokens is not None else ()
 
-    ungoverned: list[str] = []
     measures: dict[str, Any] = {
         "evaluated_session_days": len(sessions),
         "divergence_threshold": DIVERGENCE_THRESHOLD,
@@ -136,7 +142,6 @@ def evaluate_k1(
             "module will not choose one"
         )
     else:
-        ungoverned.append(UNGOVERNED_PROVIDER)
         diverged = [
             s.isoformat() for s in sessions
             if decisions(root=Path(root), feed="iex", session=s)
@@ -160,7 +165,6 @@ def evaluate_k1(
             "quarantine"
         )
     else:
-        ungoverned.append(UNGOVERNED_DEFECTS)
         corrected = [d for d in predeclared_defects if defect_corrected(d)]
         measures.update({
             "predeclared_defects": len(predeclared_defects),
@@ -185,9 +189,17 @@ def evaluate_k1(
     else:
         detail = f"K1 not met: both limbs evaluable and neither passed (limb A {limb_a}, limb B {limb_b})"
 
+    # Provenance is computed from the inputs themselves, so the ungoverned reasons cannot be
+    # omitted or cleared by whoever builds the result.
+    provenance = InputProvenance(
+        decision_provider_supplied=decisions is not None,
+        decision_provider_authority=DECISION_PROVIDER_AUTHORITY,
+        defect_list_supplied=predeclared_defects is not None and defect_corrected is not None,
+        defect_registry_authority=DEFECT_REGISTRY_AUTHORITY,
+    )
     return KResult(
         criterion=CRITERION, outcome=outcome, threshold=THRESHOLD, detail=detail,
         measures=measures, sessions=tuple(s.isoformat() for s in sessions),
-        tokens=token_objects, ungoverned_inputs=tuple(ungoverned),
+        tokens=token_objects, provenance=provenance,
         definition_source=DEFINITION_SOURCE,
     )

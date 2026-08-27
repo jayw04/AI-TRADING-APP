@@ -14,7 +14,11 @@ from pathlib import Path
 import pytest
 
 from app.research.mdq_eval.k1_materiality import DIVERGENCE_THRESHOLD, evaluate_k1
-from app.research.mdq_eval.results import KOutcome
+from app.research.mdq_eval.results import (
+    DECISION_PROVIDER_UNBOUND,
+    PREDECLARED_DEFECT_REGISTRY_UNBOUND,
+    KOutcome,
+)
 
 SESSIONS = [date(2026, 8, 19), date(2026, 8, 20), date(2026, 8, 21),
             date(2026, 8, 25), date(2026, 8, 26)]
@@ -131,7 +135,10 @@ def test_an_injected_provider_yields_a_diagnostic_not_evidence(tmp_path, adjudic
                          decisions=_provider({TEN[0]}))
     assert result.outcome is KOutcome.PASS
     assert result.evidentiary is False           # admissible sessions, but ungoverned input
-    assert any("no SCAN-001/GAPPER provider has been bound" in u for u in result.ungoverned_inputs)
+    assert result.ungoverned_inputs == (DECISION_PROVIDER_UNBOUND,)
+    # the id travels with a human-readable reason, so a copied record stays reviewable
+    assert result.as_dict()["ungoverned_inputs"][0]["authority"] == DECISION_PROVIDER_UNBOUND
+    assert "no SCAN-001/GAPPER provider has been bound" in result.as_dict()["ungoverned_inputs"][0]["reason"]
 
 
 def test_an_injected_defect_list_yields_a_diagnostic_not_evidence(tmp_path, adjudication):
@@ -139,7 +146,8 @@ def test_an_injected_defect_list_yields_a_diagnostic_not_evidence(tmp_path, adju
                          predeclared_defects=[{"id": "D1"}], defect_corrected=lambda d: True)
     assert result.outcome is KOutcome.PASS
     assert result.evidentiary is False
-    assert any("declares no predeclared" in u for u in result.ungoverned_inputs)
+    assert result.ungoverned_inputs == (PREDECLARED_DEFECT_REGISTRY_UNBOUND,)
+    assert "declares no predeclared" in result.as_dict()["ungoverned_inputs"][0]["reason"]
 
 
 def test_the_only_evidentiary_k1_today_is_not_evaluable(tmp_path, adjudication):
@@ -148,3 +156,77 @@ def test_the_only_evidentiary_k1_today_is_not_evaluable(tmp_path, adjudication):
     result = evaluate_k1(tmp_path, SESSIONS, tokens=adjudication.tokens(tmp_path, SESSIONS))
     assert result.evidentiary is True
     assert result.outcome is KOutcome.NOT_EVALUABLE
+
+
+def test_ungoverned_inputs_cannot_be_omitted_by_the_caller(tmp_path, adjudication):
+    """★ Provenance is DERIVED from the inputs, not a flag a builder can drop."""
+    from app.research.mdq_eval.results import InputProvenance, KResult
+
+    supplied = InputProvenance(decision_provider_supplied=True)
+    result = KResult(criterion="K1", outcome=KOutcome.PASS, threshold="t", detail="d",
+                     tokens=adjudication.tokens(tmp_path, [SESSIONS[0]]), provenance=supplied)
+    assert result.ungoverned_inputs == (DECISION_PROVIDER_UNBOUND,)
+    assert result.evidentiary is False
+    # `ungoverned_inputs` is a read-only property, so there is no field to clear.
+    with pytest.raises(AttributeError):
+        object.__setattr__(result, "ungoverned_inputs", ())
+
+
+def test_a_boolean_alone_does_not_create_authority(tmp_path, adjudication):
+    """★ THE point. Binding is an AuthorityRef, never a flag.
+
+    Otherwise the old caller-controlled `evidentiary=True` simply moves to a module-controlled
+    `BOUND=True` — better located, still an assertion standing in for evidence, and one line away from
+    making arbitrary injected data evidentiary.
+    """
+    from app.research.mdq_eval.results import InputProvenance, KResult
+
+    # Supplied, no AuthorityRef: still ungoverned no matter what any boolean elsewhere says.
+    provenance = InputProvenance(decision_provider_supplied=True, decision_provider_authority=None)
+    result = KResult(criterion="K1", outcome=KOutcome.PASS, threshold="t", detail="d",
+                     tokens=adjudication.tokens(tmp_path, [SESSIONS[0]]), provenance=provenance)
+    assert result.evidentiary is False
+    assert result.ungoverned_inputs == (DECISION_PROVIDER_UNBOUND,)
+
+
+def test_a_verified_binding_is_what_makes_a_result_governed(tmp_path, adjudication):
+    """The FUTURE contract, exercised now: a governed artifact with a digest, not a boolean.
+
+    This is deliberately not a claim that any such authority exists today — both module bindings are
+    None. It pins the shape a real binding must have, so the next person cannot satisfy it with a flag.
+    """
+    from app.research.mdq_eval.results import AuthorityRef, InputProvenance, KResult
+
+    binding = AuthorityRef(identifier="scan001-eligibility-replay/v1", digest="a" * 64,
+                           governed_artifact="docs/design/MDQ-001_K1_Decision_Authority_v1.md")
+    provenance = InputProvenance(decision_provider_supplied=True,
+                                 decision_provider_authority=binding)
+    result = KResult(criterion="K1", outcome=KOutcome.PASS, threshold="t", detail="d",
+                     tokens=adjudication.tokens(tmp_path, [SESSIONS[0]]), provenance=provenance)
+    assert result.ungoverned_inputs == ()
+    assert result.evidentiary is True
+    assert result.as_dict()["input_provenance"]["decision_provider_authority"]["digest"] == "a" * 64
+
+
+@pytest.mark.parametrize("bad", [
+    {"identifier": "", "digest": "a" * 64, "governed_artifact": "doc.md"},
+    {"identifier": "x", "digest": "not-a-digest", "governed_artifact": "doc.md"},
+    {"identifier": "x", "digest": "a" * 64, "governed_artifact": ""},
+])
+def test_a_binding_that_cannot_be_checked_is_refused(bad):
+    """A binding nothing can be verified against is an assertion wearing a dataclass."""
+    from app.research.mdq_eval.results import AuthorityRef
+
+    with pytest.raises(ValueError):
+        AuthorityRef(**bad)
+
+
+def test_no_k1_authority_is_bound_today(tmp_path):
+    """⛔ Both bindings are None and both declarations are False. This is the tripwire that makes a
+    silent binding visible in review."""
+    from app.research.mdq_eval import k1_materiality as k1
+
+    assert k1.DECISION_PROVIDER_BOUND is False
+    assert k1.DEFECT_REGISTRY_BOUND is False
+    assert k1.DECISION_PROVIDER_AUTHORITY is None
+    assert k1.DEFECT_REGISTRY_AUTHORITY is None
