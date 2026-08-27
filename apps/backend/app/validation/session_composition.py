@@ -419,7 +419,8 @@ def build_session_runtime(config: ForwardDeploymentConfig, session: date, *,
         model=config.deployment_model, build_info_path=config.build_info_path,
         deployment_manifest_path=config.deployment_manifest_path,
         runtime_digest_path=config.runtime_digest_path,
-        runtime_digest_env=config.runtime_digest_env, expected_commit=config.expected_commit)
+        runtime_digest_env=config.runtime_digest_env,
+        runtime_tree_root=config.runtime_code_root, expected_commit=config.expected_commit)
     evidence["deployment_identity"] = deployment.to_open_provenance()
 
     witness, invocation = resolve_witness(config, invocation_id=invocation_id)

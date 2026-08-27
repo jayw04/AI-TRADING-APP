@@ -117,6 +117,13 @@ class ForwardDeploymentConfig:
     first_session_outcome_pin: Any | None = None
     runtime_digest_path: Path | None = None
     runtime_digest_env: str | None = None
+    #: The root whose code the runtime DERIVES its identity from — `/app/app` in the container, since
+    #: the Dockerfile does `WORKDIR /app` then `COPY app ./app`.
+    #:
+    #: ⚠ Required for CONTAINER_ATTESTED and refused at load when absent. It is the only source in the
+    #: model that cannot be written down in advance, so a deployment that does not name it has not
+    #: configured attestation — it has configured three declarations that agree with each other.
+    runtime_code_root: Path | None = None
     expected_commit: str | None = None
     source_path: Path | None = None
     raw: dict[str, Any] = field(default_factory=dict)
@@ -187,11 +194,16 @@ def load_deployment_config(path: Path | None = None) -> ForwardDeploymentConfig:
         raise DeploymentConfigError(
             f"the configuration names Account {ACCOUNT_4_ID} as the validation ledger; the forward "
             f"validation never runs on the live book")
-    if model is DeploymentModel.CONTAINER and not (
+    if model in (DeploymentModel.CONTAINER, DeploymentModel.CONTAINER_ATTESTED) and not (
             payload.get("runtime_digest_path") or payload.get("runtime_digest_env")):
         raise DeploymentConfigError(
             "a CONTAINER deployment must configure runtime_digest_path or runtime_digest_env so the "
             "running artifact can be identified")
+    if model is DeploymentModel.CONTAINER_ATTESTED and not payload.get("runtime_code_root"):
+        raise DeploymentConfigError(
+            "a CONTAINER_ATTESTED deployment must configure runtime_code_root so the running code can "
+            "be hashed independently; without it the model degrades to three mutually agreeing "
+            "declarations, which is the condition it exists to detect")
 
     return ForwardDeploymentConfig(
         factor_store_path=Path(payload["factor_store_path"]),
@@ -233,6 +245,8 @@ def load_deployment_config(path: Path | None = None) -> ForwardDeploymentConfig:
                              if payload.get("runtime_digest_path") else None),
         runtime_digest_env=(str(payload["runtime_digest_env"])
                             if payload.get("runtime_digest_env") else None),
+        runtime_code_root=(Path(payload["runtime_code_root"])
+                           if payload.get("runtime_code_root") else None),
         expected_commit=(str(payload["expected_commit"]) if payload.get("expected_commit") else None),
         source_path=resolved,
         raw=payload,

@@ -141,6 +141,47 @@ for f in $SUPERSET_PRESENT $SUPERSET_EXCLUDED; do
   done
 done
 
+# ── the build-time code identity CONTAINER_ATTESTED will check the runtime against ──────────────
+# Computed by the canonicalization that lives INSIDE THE COMMIT BEING DEPLOYED, over that commit's own
+# blobs. This is the leg whose absence let the 2026-08-26 rebuild run while .deploy_src_sha and this
+# very marker went on declaring the previous commit: every identity in the marker was an assertion, and
+# assertions survive the runtime they describe.
+#
+# ⚠⚠ WHY A TEMPORARY WORKTREE AND NOT `python apps/backend/scripts/...` FROM HERE.
+# This script deliberately packages an explicit, immutable $DEPLOYED_SHA, which may be older than the
+# checkout it runs from. Executing the CURRENT checkout's producer would let one commit's
+# canonicalization rules define another commit's identity — and a dirty checkout would do it silently.
+# Running the producer out of a detached worktree AT $DEPLOYED_SHA means the code bytes and the
+# algorithm that defines their identity come from the same immutable object graph.
+# ⛔ Do not "simplify" this by requiring HEAD == $DEPLOYED_SHA; that would remove the ability to deploy
+# an older approved commit, which is a deliberate property of this script.
+PRODUCER_WT="$(mktemp -d)"
+cleanup_producer_wt() { git worktree remove --force "$PRODUCER_WT" >/dev/null 2>&1 || true; }
+trap cleanup_producer_wt EXIT
+git worktree add --detach --quiet "$PRODUCER_WT" "$DEPLOYED_SHA" || {
+  echo "FATAL: could not create a producer worktree at $DEPLOYED_SHA" >&2
+  exit 1
+}
+if [ ! -f "$PRODUCER_WT/apps/backend/scripts/compute_deploy_code_digest.py" ]; then
+  echo "FATAL: $DEPLOYED_SHA predates the code-digest producer" >&2
+  echo "       it cannot be deployed under the attested model; deploy a commit that contains it" >&2
+  exit 1
+fi
+# --repo points at the MAIN repository so the producer reads $DEPLOYED_SHA's blobs from the shared
+# object store; --ref pins which commit those blobs come from. Only the CODE doing the reading comes
+# from the worktree.
+CODE_DIGEST="$(cd "$PRODUCER_WT" && python3 apps/backend/scripts/compute_deploy_code_digest.py --repo "$PRODUCER_WT" --ref "$DEPLOYED_SHA")" || {
+  echo "FATAL: could not compute the build-time code_digest for $DEPLOYED_SHA" >&2
+  echo "       refusing to stamp a marker whose code identity is unknown" >&2
+  exit 1
+}
+case "$CODE_DIGEST" in
+  sha256:*) : ;;
+  *) echo "FATAL: code_digest is not a sha256 value: $CODE_DIGEST" >&2; exit 1 ;;
+esac
+cleanup_producer_wt
+trap - EXIT
+
 BUILT_AT="$(date -u +%FT%TZ)"
 BUILDER="$(git config user.email 2>/dev/null || echo unknown)@$(hostname 2>/dev/null || echo unknown-host)"
 
@@ -171,12 +212,21 @@ ${EXCLUDED_JSON}
   "application_delta_classification": "reviewed_non_adr0043_directional_delta",
   "built_at_utc": "$BUILT_AT",
   "builder": "$BUILDER",
-  "artifact_type": "git-archive"
+  "artifact_type": "git-archive",
+  "schema": "workbench-deployed-build-info/2",
+  "commit": "$DEPLOYED_SHA",
+  "tree_clean": true,
+  "code_digest": "$CODE_DIGEST"
 }
 EOF
 
 TAR="$OUT_DIR/source.tar"
-git archive --format=tar "$DEPLOYED_SHA" > "$TAR"
+# -c core.autocrlf=false: parity between the build-time code_digest (hashed from BLOBS) and the
+# runtime derivation (hashed from the EXTRACTED archive) requires the archive to carry blob bytes.
+# .gitattributes already pins eol=lf for these paths, so this is belt-and-braces -- but it costs
+# nothing and covers any path that ever escapes that rule. On a Windows build host with
+# core.autocrlf=true an unguarded `git archive` injects CRLF and the deployment stops verifying.
+git -c core.autocrlf=false archive --format=tar "$DEPLOYED_SHA" > "$TAR"
 # Append the marker at the archive ROOT (extracts to /opt/workbench/app/DEPLOYED_BUILD_INFO.json).
 tar --append --file="$TAR" -C "$OUT_DIR" DEPLOYED_BUILD_INFO.json
 gzip -nf "$TAR"                       # -n: reproducible (no mtime/name in the gzip header)
@@ -196,6 +246,7 @@ adr0043_governed_paths_match  : $GOVERNED_MATCH (byte-identical to the implement
 present_in_deploy_delta       : $(printf '%s ' $SUPERSET_PRESENT)(added/modified/type-changed, present in deploy; classification: reviewed_non_adr0043_directional_delta)
 excluded_from_deploy          : $(printf '%s ' $SUPERSET_EXCLUDED)(baseline files intentionally reverted/absent from the deploy)
 built_at_utc                  : $BUILT_AT
+code_digest                   : $CODE_DIGEST (apps/backend/app -> runtime /app/app)
 builder                       : $BUILDER
 archive                       : $ARCHIVE
 archive_sha256                : $ARCHIVE_SHA
