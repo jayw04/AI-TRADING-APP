@@ -4,7 +4,7 @@
 |---|---|
 | Document version | **v0.14 (LOW-001 Dynamic-PIT cross-program integration boundary + state sync; still DRAFT)** |
 | Initial version date | 2026-08-22 |
-| **Last state sync** | **2026-08-27** — 08-27 capture RUNNING (three proofs met; partition **not yet earned**); **Amendment 8 / #693 ready, required CI GREEN (run 1659)** — the runtime-self-report repair, which moves MDQ readiness to a **six-gate** standard **at deployment**; **forward plan ADJUSTED**: K1/K3 calculators now run in PARALLEL with the deployment chain, not behind it (17 sessions to the K2 deadline) |
+| **Last state sync** | **2026-08-27** — 08-27 capture RUNNING (three proofs met; partition **not yet earned**); **Amendment 8 / #693 MERGED** (squash `47715b4e…`, run 1659 green on the exact pre-merge head) — the runtime-self-report repair, which moves MDQ readiness to a **six-gate** standard **at deployment**; ⛔ next owner gate is **DEPLOYMENT, not merge**; **forward plan ADJUSTED**: K1/K3 calculators now run in PARALLEL with the deployment chain, not behind it (17 sessions to the K2 deadline) |
 | Supersedes | **`AlgoTraderPlus_v1_4_1_ImplementationPlan_v0_13.md` and all earlier drafts. v0.13 and earlier are historical only; v0.14 is the sole current implementation-plan version.** |
 | Basis | `docs/Strategies/Strategy-proposals-v1_4_1-Algo-Trader-Plus-2026-08-15.md` + `docs/Strategies/AlgoTraderPlus_Data_Inventory_Report_v1_1_2026-08-17.md` + Strategy Author Data and Validation Brief v1.2 + owner rulings and sealed evidence through 2026-08-17 (P-2 v2 proof, collector validation disposition, account-7 P0 closure records) + `docs/design/MDQ-001_Registration_v1_0_DRAFT.md` **as merged to `main` with the signed §8 block and the ratified §8.1** (PR #634 = `63c0c52`) + the merge chain #634 → #636 (`be4235d`, feed-pinning guard CI-enforced) → #637 (`0273012`) + the governed deployment executed on `ec2-paper` on the night of 2026-08-17 **+ the governed state-sync and ruling records of 2026-08-18 → 2026-08-27**: the D0 admissibility adjudication and Program-Start Record v0.2 (+ Amendment A, `e488440`/#672) · the 2026-08-20 rulings · the discovery-ledger acceptance and CEE authorization/Observation Record 001 · the GAPPER G4 closure record · the SEC-001 V3 governing records under `docs/design/SEC-001/` (disposition ruling, store pre-ingestion freeze, universe-liquidity defect ruling, pre-crawl coverage freeze, canary-defect remediations A–E, execution-control addenda v1.4.1/v1.4.2) · the 2026-08-22 SEC-001 production conformance incident · the 2026-08-24 MDQ capture non-event record (`311863cb`/#679) and the 5-gate acquisition-readiness control (`363daa08`/#673) · the 2026-08-25 MDQ capture recovery record (`5a48ee88`/#684) and its provenance addendum (`379eca63`/#689) · the 2026-08-26 state sync below, including the K5/`N_min` and §8.4 verdict-reachability closures read from `docs/design/MDQ-001_Registration_v1_0_DRAFT.md` |
 | Repository | `github.com/jayw04/AI-TRADING-APP` |
@@ -20,7 +20,7 @@
 ## State sync — 2026-08-27 *(applied in place per the ONE CURRENT PLAN rule; no new version)*
 
 **Headline: the 2026-08-27 capture started naturally and is acquiring; and the runtime-self-report
-repair is built, qualified and awaiting CI as Preregistration Amendment 8 (#693).** Nothing here changes
+repair is MERGED as Preregistration Amendment 8 (#693).** Nothing here changes
 research authority, K1–K6, D0, the review window, the holdouts, the DISC-001 gates, the DISC-MDQ hold,
 or the value-extraction priority order.
 
@@ -28,9 +28,11 @@ or the value-extraction priority order.
 
 ### A. 2026-08-27 — ACQUISITION RUNNING, PARTITION NOT YET EARNED
 
-The three-proof standard was met in full.
+The three-proof standard was met in full, **under the pre-repair DEPLOYED FIVE-GATE control**
+(`2ad345b8…`). Every "READY 5/5" below is therefore *pre-deployment evidence produced by the old
+control*, valid precisely because the repaired six-gate control was not on the box when it was produced.
 
-| Proof | Evidence |
+| Proof | Evidence (five-gate control `2ad345b8…`) |
 |---|---|
 | 1. Early preflight | **READY 5/5**, `12:32:09Z`, 52 minutes of margin |
 | 2. Near-slot preflight | **READY 5/5**, `13:14:46Z` — the verdict line was read explicitly, not inferred from five PASS lines |
@@ -51,11 +53,13 @@ READY means *the five readiness predicates pass* and **nothing whatsoever about 
 the `07a9233` self-report versus running image `ada7a5be…` divergence is still live and unrepaired, by
 design, because deployment is on HOLD.
 
-### B. Amendment 8 — the runtime-self-report repair *(#693, ready, **required CI GREEN**)*
+### B. Amendment 8 — the runtime-self-report repair *(#693 **MERGED**)*
 
 `50be59216b93c5487503e855482e635bcf11e7ac`, one commit, 21 files, base `52cf292f…`.
 
-✅ **Run 1659 SUCCESS on this exact head** — Detect changes PASS · Python (backend) PASS · **Python FULL (backend) PASS (30m57s)** · **Python CI Gate PASS**. The release condition is therefore satisfied: exact head + required CI green + mergeable. ⛔ **Merge itself remains HOLD pending the owner's merge ruling** — a green gate qualifies the candidate, it does not authorize the merge.
+🏁 **MERGED** — squash **`47715b4e9de61ae4e95e6d37e62b08650b8bf204`**, 2026-08-27T14:07:12Z. Run **1659 SUCCESS** on the exact pre-merge head (Detect changes · Python (backend) · **Python FULL (backend) 30m57s** · **Python CI Gate** all PASS).
+**Post-merge byte custody verified on `main`:** Amendment 8 = 24,457 B, 0 CR, sha256 `b5643e1424e03a83…` — *identical to the `amendment_sha256` the merged freeze binds*, so the squash did not decouple the governance document from the custody chain that pins it. Anchor `1c73d442…`, chain link `99f1e7e4…`, validation tree `1748d771…`, entrypoints `100755 × 3` all intact.
+⛔ **Merging authorized NOTHING operational.** The next owner gate is **DEPLOYMENT**, under a separate ruling.
 
 **The defect it closes.** `verify_deployment_identity` already required three sources to agree, but the
 "runtime artifact digest" was **read from a declaration**. A declaration keeps whatever value it was
@@ -115,21 +119,27 @@ started.**
 
 ⇒ **The adjustment: B-1 no longer sits behind the deployment chain. It runs in parallel with it.**
 
-The deployment chain is now long and serialized by owner ruling:
+The remaining serialized deployment chain, by owner ruling:
 
 ```
-#693 required CI green on 50be5921…      <- DONE (run 1659 SUCCESS)
-  -> merge #693                            <- next owner ruling
-  -> exact immutable production deployment
-  -> MDQ five-gate preflight READY 5/5   (hard post-recreate requirement, not optional)
-  -> three-source identity proof
-  -> open the LOW-001 no-transition window
+#693 merged 47715b4e                        <- DONE
+  -> separately authorized exact deployment <- NEXT OWNER GATE
+  -> verify the deployed control VERSION, then the first governing READY 6/6
+  -> independently review and close the production deployment-identity evidence
+  -> fresh no-transition window
   -> prospective S8.6 checks 1-12
-  -> new rollback baseline iff genuine 12/12
+  -> rollback-baseline restore iff genuine 12/12
   -> frozen B3a proof on the SAME runtime
 ```
 
-That chain has many owner checkpoints and no deadline. **The verdict does.** K1 and K3 are the only
+⛔⛔ **There is no post-deployment "READY 5/5" step, and there cannot be one.** Earlier drafts of this
+sync carried that line forward from the pre-repair sequence. Once the repaired control is deployed, the
+deployed script **is** the six-gate control: its governing success verdict is `READY - all six gates
+pass`, and `--diagnostic` cannot emit READY at all. A five-gate READY after deployment would be a
+stale-control reading, which is the very error §B.1 exists to prevent. Any five-gate preflight in this
+record is **pre-deployment evidence under the old deployed control** and must be labelled as such.
+
+That chain has several owner checkpoints and no deadline. **The verdict does.** K1 and K3 are the only
 deterministic GO path (§E), so sequencing the calculators behind eight deployment steps would put the
 one deadline-bearing deliverable behind the one deadline-free one.
 
@@ -140,7 +150,7 @@ one deadline-bearing deliverable behind the one deadline-free one.
 | **P0 — deadline-bearing** | **B-1: build K1 and K3 calculators**, then run them behind the §7.1 admissibility check | The only deterministic GO path; 36 sessions to window close, 27 before the holdout opens |
 | **P0 — calendar lever** | **G10 decision for K2** | Expires 2026-09-21; 17 sessions |
 | **P1 — measure only** | K4 data-gap closure feasibility | The 250-event-day contract is **not waivable**; measure whether closure is even possible |
-| **P1 — serialized** | The #693 deployment chain above | No deadline; many checkpoints; must not consume the calculator window |
+| **P1 — serialized** | The remaining deployment chain above | No deadline; several owner checkpoints; must not consume the calculator window |
 | **P2** | Wrapper + systemd units into versioned custody | Owner: fold into the next ops-governance change |
 | ⛔ HOLD | LOW-001 Run 2 / S8.6 / B3a, #687 | Conjunctive gate; downstream of the whole deployment chain |
 

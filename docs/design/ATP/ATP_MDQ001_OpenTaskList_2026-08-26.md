@@ -39,11 +39,11 @@ separately opened; live-consumer cutover before the local-cache ADR.
 | 08-26 governed partition | ✅ **SEALED** — 395/395, EOD + freeze→verify→mirror, S3 custody verified independently |
 | Corpus | **five sealed days**: 08-19, 08-20, 08-21, 08-25, 08-26 |
 | D-2 / D-3 state sync + SEC-001 §J correction | ✅ merged (#692, squash `52cf292f…`) |
-| E-1 runtime self-report repair | ✅ **BUILT + QUALIFIED** — Amendment 8, PR #693 `50be5921…`, **required CI GREEN (run 1659)**. ⛔ merge HOLD |
+| E-1 runtime self-report repair | 🏁 **MERGED** — Amendment 8, #693 `50be5921…`, squash **`47715b4e…`**, run 1659 green on the exact pre-merge head. ⛔ Merging authorized nothing operational; the next owner gate is **DEPLOYMENT** |
 
 ### 1.2 Running now
 
-**2026-08-27 acquisition** — three-proof standard met (preflight READY 5/5 at 12:32:09Z and 13:14:46Z;
+**2026-08-27 acquisition** — three-proof standard met **under the pre-repair five-gate control** (READY 5/5 at 12:32:09Z and 13:14:46Z;
 natural start proven by causality: timer `LastTriggerUSec` == service `ExecMainStartTimestamp` ==
 09:25:01 EDT). ⛔ **Not a governed partition until** terminal completeness + EOD + freeze→verify→mirror
 + independent S3 custody verification.
@@ -228,15 +228,13 @@ P0 - DEADLINE-BEARING, start now, in parallel with everything below
   B-6b  rule holdout-scope vs K2 measurement BEFORE G10 is decided
 
 P1 - SERIALIZED, no deadline, must not consume the calculator window
-  #693 required CI green on 50be5921...        <- DONE (run 1659 SUCCESS)
-    -> merge #693                              <- next owner ruling
-    -> exact immutable production deployment
-    -> MDQ five-gate preflight READY 5/5       (hard post-recreate requirement)
-    -> three-source identity proof
-    -> six-gate standard becomes governing
-    -> open the LOW-001 no-transition window
+  #693 merged 47715b4e                         <- DONE
+    -> separately authorized exact deployment  <- NEXT OWNER GATE
+    -> verify the deployed control VERSION, then the first governing READY 6/6
+    -> independently review + close the production deployment-identity evidence
+    -> fresh no-transition window
     -> prospective S8.6 checks 1-12
-    -> new rollback baseline iff genuine 12/12
+    -> rollback-baseline restore iff genuine 12/12
     -> frozen B3a proof on the SAME runtime
 
 P2
@@ -246,6 +244,10 @@ P2
 
 **Why the order inverted.** The 08-26 list sequenced B-1 first and the repair second; the repair went
 first because production forced it. Repeating that sequencing error would put the one deadline-bearing
-deliverable behind eight deadline-free steps, each with an owner checkpoint.
+deliverable behind the remaining deadline-free deployment chain and its owner checkpoints.
+
+⛔⛔ **No post-deployment "READY 5/5" step exists.** Once the repaired control is deployed it **is** the
+six-gate control; its governing verdict is `READY - all six gates pass`, and `--diagnostic` cannot emit
+READY. Five-gate READYs in this record are pre-deployment evidence under the old control.
 
 C-1 remains an owner ruling that can be issued at any point and blocks downstream DISC-MDQ work.
