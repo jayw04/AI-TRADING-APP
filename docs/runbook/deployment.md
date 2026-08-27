@@ -65,9 +65,10 @@ docker compose up -d
 docker compose logs -f backend
 ```
 
-Expect a clean boot:
+Expect a clean boot. The **first** line is the startup identity gate, which runs *before* migrations:
 
 ```
+runtime code identity verified: sha256:...
 crypto_master_key_verified
 broker_registry_adapter_loaded  (none yet on a fresh install)
 scheduler_started
@@ -76,6 +77,40 @@ metrics_snapshot_scheduled
 daily_backup_scheduled
 lifespan_startup_complete
 ```
+
+### Step 4a — Record what you just deployed *(mandatory, Amendment 8)*
+
+⛔ **A container recreation that skips this is invisible to every check.** That is exactly what happened
+on 2026-08-26: the backend was rebuilt between two legs of a governed MDQ capture while
+`.deploy_src_sha` and `DEPLOYED_BUILD_INFO.json` both went on declaring the previous commit, and nothing
+alerted.
+
+```bash
+sudo deploy/aws/write-deployment-manifest.sh          # writes DEPLOYMENT_RUNTIME_MANIFEST.json
+```
+
+It pins the commit, code digest, image digest, **container id and creation timestamp** the deploy step
+actually produced. A later `docker compose up -d` that silently replaces the container then no longer
+matches the record, and MDQ preflight **Gate 6** fails.
+
+Re-run it after *any* legitimate recreation. It is idempotent.
+
+### Step 4b — Prove the deployment reconciles
+
+```bash
+apps/backend/scripts/mdq_preflight_readiness.sh       # Gate 6 must reconcile A/B/C
+```
+
+⚠ **Startup enforcement and Gate 6 are not interchangeable.** The in-container gate proves *the code
+executing now equals the code this image claims it was built with* — a wrong image passes it, describing
+itself correctly. Only Gate 6, which reads the runtime from outside via `docker cp` without executing
+container userland, answers *was the approved commit actually deployed*.
+
+⚠ Gate 6 is **governing and fail-closed by version** — there is no switch that makes it count. A box
+still running the pre-repair five-gate script keeps the old standard; the moment this version is
+deployed, six gates govern. Use `--diagnostic` to exercise it against a pre-repair box: that mode is
+labelled **NON-GOVERNING** and cannot print a READY verdict.
+
 
 `master_key_missing_or_invalid` → the backend `sys.exit(1)`s; fix `.env` and
 restart.

@@ -35,6 +35,7 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+from collections.abc import Sequence
 from dataclasses import asdict, dataclass
 from enum import StrEnum
 from pathlib import Path
@@ -49,12 +50,112 @@ class DeploymentModel(StrEnum):
     """What evidence a deployment can be expected to produce."""
     CONTAINER = "CONTAINER"                  # build stamp + runtime digest + deploy manifest
     SOURCE_CHECKOUT = "SOURCE_CHECKOUT"      # build stamp + deploy manifest (no image digest)
+    CONTAINER_ATTESTED = "CONTAINER_ATTESTED"  # ...plus a digest DERIVED from the running tree
 
 
 REQUIRED_EVIDENCE: dict[DeploymentModel, tuple[str, ...]] = {
     DeploymentModel.CONTAINER: ("build_info", "runtime_digest", "deployment_manifest"),
     DeploymentModel.SOURCE_CHECKOUT: ("build_info", "deployment_manifest"),
+    DeploymentModel.CONTAINER_ATTESTED: (
+        "build_info", "runtime_digest", "runtime_code", "deployment_manifest"),
 }
+
+CODE_DIGEST_SCHEMA = "workbench-code-digest/1"
+
+# Unit separator. Framing is explicit so a path containing a newline cannot shift field boundaries.
+_FIELD_SEP = "\x1f"
+
+#: The scope contract. Build-time and runtime MUST use the same values, or the two sides derive
+#: different identities for the same deployment. Public because the build-time producer imports
+#: them rather than transcribing them.
+CODE_DIGEST_SUFFIXES: tuple[str, ...] = (".py",)
+
+CODE_DIGEST_EXCLUDED_DIRS = frozenset(
+    {"__pycache__", ".git", ".pytest_cache", ".mypy_cache", ".ruff_cache", ".venv", "node_modules"})
+
+
+def code_entries_from_tree(
+    root: Path | str,
+    *,
+    suffixes: tuple[str, ...] = CODE_DIGEST_SUFFIXES,
+    excluded_dirs: frozenset[str] = CODE_DIGEST_EXCLUDED_DIRS,
+) -> list[tuple[str, str]]:
+    """Collect `(relative_posix_path, sha256)` for the code ACTUALLY ON DISK under `root`."""
+    base = Path(root)
+    if not base.is_dir():
+        raise DeploymentEvidenceMissing(
+            f"the running code tree is absent at {base}; the runtime cannot be hashed")
+
+    entries: list[tuple[str, str]] = []
+    for path in sorted(base.rglob("*"), key=lambda q: q.relative_to(base).as_posix()):
+        relative = path.relative_to(base)
+        if any(part in excluded_dirs for part in relative.parts):
+            continue
+        in_scope = not suffixes or path.suffix in suffixes
+        if path.is_symlink():
+            # ⛔ A symlink whose name is IN SCOPE is a refusal, never a skip. Silently skipping
+            # executable indirection would let a measured module point somewhere unmeasured and still
+            # produce a clean identity — the ambiguity is worse than the inconvenience.
+            if in_scope:
+                raise DeploymentEvidenceMismatch(
+                    f"the measured code scope at {base} contains a symlink at "
+                    f"{relative.as_posix()}; executable indirection inside the measured set is "
+                    f"refused rather than skipped")
+            continue
+        if not path.is_file():
+            continue
+        if not in_scope:
+            continue
+        try:
+            payload = path.read_bytes()
+        except OSError as exc:
+            raise DeploymentEvidenceMissing(
+                f"the running code tree at {base} is unreadable at {relative.as_posix()}: "
+                f"{exc}") from exc
+        entries.append((relative.as_posix(), hashlib.sha256(payload).hexdigest()))
+    return entries
+
+
+def code_identity(entries: Sequence[tuple[str, str]]) -> str:
+    """Canonicalize collected entries into one code identity.
+
+    ⚠⚠ THE SINGLE IMPLEMENTATION. The build side and the runtime side MUST both reach the value
+    through this function. A producer carrying its own transcribed copy of the framing is a second
+    implementation that can drift, and a stamp produced by a drifted producer pins a digest no
+    deployment can ever reproduce — the failure the measurement-freeze generator already warns about.
+
+    Determinism matters more than speed: the value is computed on a build machine and recomputed on
+    the box. Paths are relative POSIX and sorted here rather than trusted from the caller; framing is
+    explicit so a path containing a newline cannot shift field boundaries.
+    """
+    ordered = sorted(entries)
+    if not ordered:
+        # An empty result hashes to a stable value and reads as a successful derivation of "nothing",
+        # which is indistinguishable from a correct derivation over the WRONG root. Refuse instead.
+        raise DeploymentEvidenceMissing(
+            "refusing to derive a code identity from an empty file set; an empty traversal is a "
+            "wrong root far more often than it is an empty deployment")
+    digest = hashlib.sha256(CODE_DIGEST_SCHEMA.encode("utf-8"))
+    for relative_path, file_digest in ordered:
+        digest.update(f"{relative_path}{_FIELD_SEP}{file_digest}\n".encode())
+    return f"sha256:{digest.hexdigest()}"
+
+
+def derive_runtime_code_digest(
+    root: Path | str,
+    *,
+    suffixes: tuple[str, ...] = CODE_DIGEST_SUFFIXES,
+    excluded_dirs: frozenset[str] = CODE_DIGEST_EXCLUDED_DIRS,
+) -> str:
+    """Hash the code that is ACTUALLY ON DISK under `root`, right now.
+
+    This is the one source in the model that nothing can simply declare. A build stamp, a manifest and
+    an image-digest file are all *assertions*; each keeps whatever value it was written with even after
+    the runtime moves underneath it. This function reads the running tree instead, so a rebuilt
+    artifact produces a different value whether or not anyone remembered to update a pin.
+    """
+    return code_identity(
+        code_entries_from_tree(root, suffixes=suffixes, excluded_dirs=excluded_dirs))
 
 
 class DeploymentIdentityError(IntegrityStop):
@@ -87,6 +188,9 @@ class DeploymentIdentityEvidence:
     agreed_commit: str
     agreed_artifact_digest: str | None
     identity_digest: str
+    embedded_code_digest: str | None = None
+    runtime_code_digest: str | None = None
+    runtime_code_source: str | None = None
 
     def to_open_provenance(self) -> dict[str, Any]:
         d = asdict(self)
@@ -130,6 +234,7 @@ def verify_deployment_identity(
     deployment_manifest_path: Path | str,
     runtime_digest_path: Path | str | None = None,
     runtime_digest_env: str | None = None,
+    runtime_tree_root: Path | str | None = None,
     expected_commit: str | None = None,
 ) -> DeploymentIdentityEvidence:
     """Derive the running deployment's identity and refuse unless every available source agrees.
@@ -192,6 +297,31 @@ def verify_deployment_identity(
             raise DeploymentEvidenceMismatch(
                 f"the runtime-reported artifact digest {runtime_digest!r} is not a sha256 digest")
 
+    # (2b) the running tree, hashed HERE. This is the only source that cannot be merely declared:
+    # a build stamp, a manifest and a digest file all keep whatever value they were written with, even
+    # after the runtime moves underneath them. Production has already produced exactly that failure.
+    runtime_code_digest: str | None = None
+    runtime_code_source: str | None = None
+    embedded_code_digest = build.get("code_digest")
+    if embedded_code_digest is not None and not _is_digest(embedded_code_digest):
+        raise DeploymentEvidenceMismatch(
+            f"the embedded build stamp records an invalid code digest {embedded_code_digest!r}")
+    if "runtime_code" in required:
+        if embedded_code_digest is None:
+            raise DeploymentEvidenceMissing(
+                f"the embedded build stamp at {build_path} records no code_digest, so the running tree "
+                f"cannot be reconciled with what was built")
+        if runtime_tree_root is None:
+            raise DeploymentEvidenceMissing(
+                f"the {model} deployment supplied no running code tree to hash; a DECLARED digest alone "
+                f"cannot evidence what is executing")
+        runtime_code_digest = derive_runtime_code_digest(runtime_tree_root)
+        runtime_code_source = f"derived:{Path(runtime_tree_root)}"
+        if _normalize_digest(embedded_code_digest) != runtime_code_digest:
+            raise DeploymentEvidenceMismatch(
+                f"the running code tree hashes to {runtime_code_digest} but the artifact was built from "
+                f"{_normalize_digest(embedded_code_digest)} - the running code is not the built code")
+
     # (3) what the deploy step recorded
     manifest_path = Path(deployment_manifest_path)
     manifest = _read_json(manifest_path, what="the deployment manifest")
@@ -247,6 +377,10 @@ def verify_deployment_identity(
         agreed_commit=commit,
         agreed_artifact_digest=agreed_digest,
         identity_digest="",
+        embedded_code_digest=(
+            _normalize_digest(embedded_code_digest) if embedded_code_digest else None),
+        runtime_code_digest=runtime_code_digest,
+        runtime_code_source=runtime_code_source,
     )
     body = {k: v for k, v in asdict(identity).items() if k != "identity_digest"}
     body["model"] = str(model)

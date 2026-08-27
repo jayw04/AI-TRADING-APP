@@ -49,10 +49,19 @@ COPY scripts ./scripts
 
 RUN mkdir -p /app/data /app/bars_cache /app/strategies_user
 
+# Bake the code identity INTO the image, derived from the very bytes COPY just placed at /app/app.
+# Derived, not asserted: no build ARG, no environment variable, nothing an operator can supply at
+# container creation. The startup gate re-derives this at boot and refuses on mismatch, which is what
+# catches code edited into a running container or shadowed by a bind mount.
+RUN python scripts/bake_code_identity.py
+
 EXPOSE 8000
 
 HEALTHCHECK --interval=10s --timeout=3s --start-period=20s --retries=5 \
   CMD curl -fsS http://127.0.0.1:8000/healthz >/dev/null || exit 1
 
 # Self-bootstrap on first start: run migrations, then idempotent seed, then serve.
-CMD ["sh", "-c", "alembic upgrade head && python scripts/seed_dev_data.py && uvicorn app.main:create_app --factory --host 0.0.0.0 --port 8000"]
+# ⚠ The identity gate runs BEFORE `alembic upgrade head`. Migrations and seeding are side effects on
+# durable state; a container that cannot prove it is running the code it was built with must not reach
+# them. `sh -c` chains on && , so a non-zero exit here stops the container.
+CMD ["sh", "-c", "python scripts/verify_runtime_code_identity.py && alembic upgrade head && python scripts/seed_dev_data.py && uvicorn app.main:create_app --factory --host 0.0.0.0 --port 8000"]

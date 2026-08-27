@@ -54,6 +54,29 @@ def _commit(repo: Path, msg: str) -> str:
     return _git(repo, "rev-parse", "HEAD")
 
 
+#: Amendment 8 requires the build-time `code_digest` to be computed by the canonicalization that lives
+#: INSIDE the commit being archived, so `build-deploy-archive.sh` runs the producer out of a detached
+#: worktree at DEPLOYED_SHA and refuses a commit that predates it.
+#:
+#: These synthetic repos are therefore not deployable unless they carry the producer themselves. Copying
+#: the REAL files in is the faithful fix: a stub producer would be exactly the "second implementation"
+#: the amendment forbids, and relaxing the refusal would weaken a fail-closed control to suit a fixture.
+_PRODUCER_FILES = (
+    "apps/backend/scripts/compute_deploy_code_digest.py",
+    "apps/backend/app/__init__.py",
+    "apps/backend/app/validation/__init__.py",
+    "apps/backend/app/validation/deployment_identity.py",
+    "apps/backend/app/validation/forward_window.py",   # IntegrityStop; stdlib-only, so the cascade ends
+)
+
+
+def _carry_the_producer(r: Path) -> None:
+    """Make the synthetic repo represent a commit that can actually be deployed."""
+    for rel in _PRODUCER_FILES:
+        target = r / rel
+        target.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy(REPO_ROOT / rel, target)
+
 @pytest.fixture
 def repo(tmp_path) -> Path:
     """A synthetic repo: BASELINE commit has the governed file + an ordinary file."""
@@ -63,6 +86,7 @@ def repo(tmp_path) -> Path:
     _git(r, "config", "commit.gpgsign", "false")
     _write(r, GOVERNED_FILE, "SETTLEMENT V1\n")
     _write(r, OTHER_FILE, "other v1\n")
+    _carry_the_producer(r)
     return r
 
 
