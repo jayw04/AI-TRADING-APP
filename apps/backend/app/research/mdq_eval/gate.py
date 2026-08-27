@@ -75,8 +75,11 @@ def require_admissible(
 
 def validate_tokens(
     root: Path | str, sessions: Iterable[date], tokens: Iterable[AdmissibilityToken]
-) -> tuple[dict[str, Any], ...]:
+) -> tuple[AdmissibilityToken, ...]:
     """Check that the supplied tokens cover exactly the sessions being evaluated, under this root.
+
+    Returns the token OBJECTS, not dictionaries: `KResult` derives `evidentiary` from real tokens, so
+    handing back plain dicts would reintroduce the very assertion path this validation exists to close.
 
     ⚠ This is not ceremony. Without it, a token minted for an admissible day could be passed
     alongside a *different*, inadmissible day and the result would still be stamped evidentiary — the
@@ -107,4 +110,4 @@ def validate_tokens(
             f"token(s) supplied for session(s) {extra} that are not being evaluated; refusing rather "
             f"than silently ignoring evidence of a scope mismatch"
         )
-    return tuple(by_session[s].as_dict() for s in sorted(want))
+    return tuple(by_session[s] for s in sorted(want))

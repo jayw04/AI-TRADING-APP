@@ -40,34 +40,44 @@ def _et(h: int, m: int, session: date = SESSION) -> datetime:
 
 # ── the metric itself ────────────────────────────────────────────────────────────────────────────
 
-def test_reduction_at_the_threshold_passes(tmp_path):
-    """IEX missing 4 of 10 grid keys, SIP missing 2 → reduction exactly 0.50, which is `>=`."""
+def test_reduction_exactly_at_the_threshold_passes(tmp_path):
+    """★ THE boundary. Grid of 10; IEX observes 6 (missing 0.40), SIP observes 8 (missing 0.20).
+
+        reduction = (0.40 - 0.20) / 0.40 = 0.50 EXACTLY
+
+    This pins `>=` against `>`. An earlier version of this test built IEX missing 0.40 and SIP missing
+    0.00, giving reduction 1.0 — which passes under either operator and therefore pinned nothing.
+    """
     minutes = [_et(9, 30 + i) for i in range(10)]
-    _write_bars(tmp_path, "iex", SESSION, [("AAA", m) for m in minutes[:6]])
-    _write_bars(tmp_path, "sip", SESSION, [("AAA", m) for m in minutes])
-    # union = 10 (sip covers all), iex observes 6 -> 0.4 ; sip observes 10 -> 0.0
+    _write_bars(tmp_path, "iex", SESSION, [("AAA", m) for m in minutes[:6]])    # keys 0..5
+    _write_bars(tmp_path, "sip", SESSION, [("AAA", m) for m in minutes[2:]])    # keys 2..9
     result = evaluate_k3(tmp_path, [SESSION], diagnostic=True)
-    assert result.measures["grid_keys_U"] == 10
-    assert result.measures["missing_rate_iex"] == pytest.approx(0.4)
-    assert result.measures["missing_rate_sip"] == pytest.approx(0.0)
-    assert result.measures["reduction"] == pytest.approx(1.0)
+    assert result.measures["grid_keys_U"] == 10          # union of 0..5 and 2..9
+    assert result.measures["missing_rate_iex"] == pytest.approx(0.40)
+    assert result.measures["missing_rate_sip"] == pytest.approx(0.20)
+    assert result.measures["reduction"] == pytest.approx(0.50)
     assert result.outcome is KOutcome.PASS
 
 
-def test_insufficient_reduction_fails(tmp_path):
-    """SIP better, but not by half: 5 of 10 missing vs 4 of 10 → reduction 0.2."""
+def test_just_below_the_threshold_fails(tmp_path):
+    """Grid of 10; IEX missing 0.40, SIP missing 0.30 → reduction 0.25 < 0.50."""
     minutes = [_et(9, 30 + i) for i in range(10)]
-    _write_bars(tmp_path, "iex", SESSION, [("AAA", m) for m in minutes[:5]])
-    _write_bars(tmp_path, "sip", SESSION, [("AAA", m) for m in minutes[:6]])
-    # union = 6; iex 5/6 observed -> missing 1/6 ; sip 6/6 -> missing 0
+    _write_bars(tmp_path, "iex", SESSION, [("AAA", m) for m in minutes[:6]])    # keys 0..5
+    _write_bars(tmp_path, "sip", SESSION, [("AAA", m) for m in minutes[3:]])    # keys 3..9
     result = evaluate_k3(tmp_path, [SESSION], diagnostic=True)
-    assert result.measures["grid_keys_U"] == 6
-    assert result.outcome is KOutcome.PASS  # sip covers the whole union here
-    # A genuine partial case: sip misses one of the union keys too.
-    _write_bars(tmp_path, "sip", SESSION, [("AAA", m) for m in minutes[1:6]])
+    assert result.measures["grid_keys_U"] == 10
+    assert result.measures["missing_rate_iex"] == pytest.approx(0.40)
+    assert result.measures["missing_rate_sip"] == pytest.approx(0.30)
+    assert result.measures["reduction"] == pytest.approx(0.25)
+    assert result.outcome is KOutcome.FAIL
+
+
+def test_sip_worse_than_iex_is_a_negative_reduction_and_fails(tmp_path):
+    minutes = [_et(9, 30 + i) for i in range(10)]
+    _write_bars(tmp_path, "iex", SESSION, [("AAA", m) for m in minutes[:8]])
+    _write_bars(tmp_path, "sip", SESSION, [("AAA", m) for m in minutes[4:]])
     result = evaluate_k3(tmp_path, [SESSION], diagnostic=True)
-    # union = minutes[0..5] = 6 ; iex observes 5 (0..4) missing 1/6 ; sip observes 5 (1..5) missing 1/6
-    assert result.measures["reduction"] == pytest.approx(0.0)
+    assert result.measures["reduction"] < 0
     assert result.outcome is KOutcome.FAIL
 
 

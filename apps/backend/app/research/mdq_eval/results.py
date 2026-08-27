@@ -101,7 +101,13 @@ class AdmissibilityToken:
 
 def _mint_token(*, root: str, session: date, verdict: str, assessed_at: str,
                 admissibility_digest: str) -> AdmissibilityToken:
-    """Internal: the single construction site. Imported by `gate`, by nothing else."""
+    """⛔ INTERNAL. The single construction site, imported by `gate` and by nothing else.
+
+    ⚠ Do not import this in tests. A test that mints its own "ADMISSIBLE" token is not exercising the
+    gate — it is asserting that a bypass works. Tests obtain tokens by driving
+    `gate.require_admissible` against a controlled passing adjudication, which is also the only way
+    the integration itself gets covered.
+    """
     return AdmissibilityToken(
         root=root, session=session, verdict=verdict, assessed_at=assessed_at,
         admissibility_digest=admissibility_digest, _mint=_MINT,
@@ -112,9 +118,14 @@ def _mint_token(*, root: str, session: date, verdict: str, assessed_at: str,
 class KResult:
     """One K criterion evaluated over one scope.
 
-    `evidentiary` is the load-bearing field. It is True only when a valid `AdmissibilityToken` was
-    supplied for exactly this scope. A reader who sees `evidentiary=False` is looking at a number,
-    not at a governed K-value, regardless of how convincing the number is.
+    ⛔ `evidentiary` is **not a constructor field** and cannot be asserted by a caller. It is derived
+    from `tokens`, which must be real `AdmissibilityToken` objects — and those have a single guarded
+    mint. An earlier revision took `evidentiary: bool` and token *dictionaries*, which meant
+    `KResult(..., evidentiary=True, tokens=())` was constructible and the "structural" claim was
+    merely documentary. Deriving it closes that.
+
+    A reader who sees `evidentiary=False` is looking at a number, not a governed K-value, regardless
+    of how convincing the number is.
     """
 
     criterion: str
@@ -126,10 +137,26 @@ class KResult:
     #: The frozen definition's own numbers. Diagnostics live here too, labelled.
     measures: dict[str, Any] = field(default_factory=dict)
     sessions: tuple[str, ...] = ()
-    evidentiary: bool = False
-    tokens: tuple[dict[str, Any], ...] = ()
-    #: Registration text this result is bound to, so a later reader need not go hunting.
+    #: Real tokens only. Anything else is refused at construction.
+    tokens: tuple[AdmissibilityToken, ...] = ()
+    #: Set when a result is computed from caller-injected inputs that carry no governed authority.
+    #: Such a result is diagnostic even if every session was admissible.
+    ungoverned_inputs: tuple[str, ...] = ()
     definition_source: str = ""
+
+    def __post_init__(self) -> None:
+        for t in self.tokens:
+            if not isinstance(t, AdmissibilityToken):
+                raise TypeError(
+                    f"KResult.tokens must contain AdmissibilityToken objects, got {type(t).__name__}; "
+                    f"evidentiary status is derived from real tokens and cannot be asserted"
+                )
+
+    @property
+    def evidentiary(self) -> bool:
+        """True iff every evaluated session carried a real admissibility token AND no ungoverned
+        caller-injected input contributed to the value."""
+        return bool(self.tokens) and not self.ungoverned_inputs
 
     def as_dict(self) -> dict[str, Any]:
         return {
@@ -141,12 +168,14 @@ class KResult:
             "detail": self.detail,
             "measures": self.measures,
             "sessions": list(self.sessions),
-            "admissibility_tokens": [dict(t) for t in self.tokens],
+            "admissibility_tokens": [t.as_dict() for t in self.tokens],
+            "ungoverned_inputs": list(self.ungoverned_inputs),
             "definition_source": self.definition_source,
             # Stated in the record itself, so the distinction survives being pasted somewhere else.
             "evidentiary_note": (
                 "evidentiary=true means every session below passed the section 7.1 admissibility "
-                "check before this value was computed. evidentiary=false means this is a diagnostic "
-                "number and is NOT a governed K-value."
+                "check before this value was computed, and no ungoverned caller-injected input "
+                "contributed to it. evidentiary=false means this is a diagnostic number and is NOT a "
+                "governed K-value."
             ),
         }

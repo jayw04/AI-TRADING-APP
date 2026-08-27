@@ -172,7 +172,7 @@ def evaluate_k3(
             detail=("the union grid U is empty — neither feed reported a bar inside the Phase-A "
                     "window on these sessions, so there is no grid on which to measure completeness"),
             measures=measures, sessions=tuple(s.isoformat() for s in sessions),
-            evidentiary=bool(token_records), tokens=token_records,
+            tokens=token_records,
             definition_source=DEFINITION_SOURCE,
         )
 
@@ -189,7 +189,7 @@ def evaluate_k3(
                     "reduction ratio is undefined. The frozen definition makes this NOT EVALUABLE "
                     "— no division, no artificial pass"),
             measures=measures, sessions=tuple(s.isoformat() for s in sessions),
-            evidentiary=bool(token_records), tokens=token_records,
+            tokens=token_records,
             definition_source=DEFINITION_SOURCE,
         )
 
@@ -213,7 +213,6 @@ def evaluate_k3(
         ),
         measures=measures,
         sessions=tuple(s.isoformat() for s in sessions),
-        evidentiary=bool(token_records),
         tokens=token_records,
         definition_source=DEFINITION_SOURCE,
     )

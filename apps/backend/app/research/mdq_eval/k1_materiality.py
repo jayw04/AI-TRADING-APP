@@ -1,4 +1,4 @@
-"""K1 — scanner/decision materiality. The frame, and an explicit statement of what is missing.
+"""K1 — scanner/decision materiality. The frame, the OR truth table, and the governed-input boundary.
 
 ## The registered definition, quoted
 
@@ -7,30 +7,43 @@
     gate-material IEX observation defect that would otherwise alter eligibility or risk disposition.
     ΔVolume is a required diagnostic, NOT a keep trigger.
 
-## ⚠ Why this module does not compute a verdict on its own
+## ⚠ Why this module does not compute a governed verdict
 
-Unlike K3, K1 is not self-contained. It has two limbs and **neither is executable from the frozen
-partitions alone**:
+K1 is not self-contained. It has two limbs and **neither is executable from the frozen partitions**:
 
 * **Limb A — decision divergence.** Requires replaying SCAN-001 eligibility / ranking (or the
-  GAPPER-relevant upstream classification) *twice per session-day*, once on each feed, and comparing
-  the decisions. That needs a decision function, and which function is authoritative is a governed
-  choice — not something a calculator may pick.
+  GAPPER-relevant upstream classification) once per feed per session-day and comparing. That needs a
+  decision function, and which function is authoritative is a governed choice.
 * **Limb B — predeclared defect correction.** Requires a **predeclared** list of gate-material IEX
-  observation defects. The registration uses the word "predeclared" but **no such list exists in it**.
-  A defect list assembled now, after the corpus exists, would be chosen with knowledge of the data —
-  exactly the post-hoc selection the pre-registration quarantine forbids.
+  observation defects. The registration uses the word but **contains no such list**. A list assembled
+  now, after the corpus exists, would be chosen with knowledge of the data — the post-hoc selection the
+  pre-registration quarantine forbids.
 
-So this module implements the *frame* — the session-day denominator, the >= 10% threshold, the
-divergence bookkeeping, ΔVolume as a labelled diagnostic — and returns **NOT EVALUABLE with a precise
-reason** when the governed inputs are absent.
+## ⭐ The OR truth table — why FAIL is narrower than it looks
 
-⛔ It deliberately does not invent a decision function, and it deliberately does not synthesise a
-defect list. Either would produce a number that looks like K1 and is not, and the failure would be
-invisible: nothing downstream can tell a fabricated definition from a registered one.
+`A OR B` over three-valued outcomes is not "not PASS ⇒ FAIL". A **FAIL is only justified when both
+limbs were actually evaluable and neither passed.**
 
-⭐ When the owner supplies a governed decision provider, K1 becomes computable through
-`evaluate_k1(..., decisions=provider)` with no change to this module's contract.
+| Limb A | Limb B | K1 |
+|---|---|---|
+| PASS | anything | PASS |
+| anything | PASS | PASS |
+| FAIL | FAIL | FAIL |
+| FAIL | NOT EVALUABLE | **NOT EVALUABLE** |
+| NOT EVALUABLE | FAIL | **NOT EVALUABLE** |
+| NOT EVALUABLE | NOT EVALUABLE | **NOT EVALUABLE** |
+
+⛔ An earlier revision returned FAIL when limb A missed the threshold while limb B was unavailable.
+That is not merely imprecise: FAIL and NOT EVALUABLE have **different consequences under the frozen
+verdict rules**. A NOT-EVALUABLE criterion leaves the keep/cancel denominator entirely, so a false FAIL
+changes the evaluable denominator and can alter HOLD/STOP reachability.
+
+## ⛔ Injected inputs are diagnostic, not authority
+
+A caller can supply a decision provider or a defect list, and the algorithm runs. But "a caller passed
+a callable" is not "the owner bound a governed K1 authority". Until a separately reviewed provider or a
+genuinely pre-existing defect declaration exists, results computed from injected inputs are marked
+`ungoverned_inputs` and are therefore **diagnostic even when every session was admissible**.
 """
 
 from __future__ import annotations
@@ -51,27 +64,34 @@ THRESHOLD = (
 DEFINITION_SOURCE = "MDQ-001 Registration v1.0 section 4, K1"
 DIVERGENCE_THRESHOLD = 0.10
 
+#: Reasons a result carries no governed authority even when the partitions were admissible.
+UNGOVERNED_PROVIDER = (
+    "limb A used a caller-supplied decision provider; no SCAN-001/GAPPER provider has been bound as "
+    "the authoritative K1 decision, so this value is diagnostic"
+)
+UNGOVERNED_DEFECTS = (
+    "limb B used a caller-supplied defect list; the registration declares no predeclared "
+    "gate-material defect list, so this value is diagnostic"
+)
+
 
 class DecisionProvider(Protocol):
     """A governed replay of the decision under test, for one feed on one session-day.
 
     The return value is compared for equality across feeds, so it must be a deterministic,
     order-stable description of the decision — eligibility set, ranking, or upstream classification.
-
-    ⛔ Supplying this is a governed choice. This module names the shape; it does not choose the
-    function, because which decision is authoritative for K1 is a registration question.
     """
 
     def __call__(self, *, root: Path, feed: str, session: date) -> Any: ...
 
 
-def _not_evaluable(reason: str, measures: dict[str, Any], sessions: Sequence[date],
-                   tokens: tuple[dict[str, Any], ...]) -> KResult:
-    return KResult(
-        criterion=CRITERION, outcome=KOutcome.NOT_EVALUABLE, threshold=THRESHOLD, detail=reason,
-        measures=measures, sessions=tuple(s.isoformat() for s in sessions),
-        evidentiary=bool(tokens), tokens=tokens, definition_source=DEFINITION_SOURCE,
-    )
+def _combine(limb_a: KOutcome, limb_b: KOutcome) -> KOutcome:
+    """`A OR B` over three-valued logic. FAIL requires BOTH limbs evaluable and neither passing."""
+    if KOutcome.PASS in (limb_a, limb_b):
+        return KOutcome.PASS
+    if limb_a is KOutcome.FAIL and limb_b is KOutcome.FAIL:
+        return KOutcome.FAIL
+    return KOutcome.NOT_EVALUABLE
 
 
 def evaluate_k1(
@@ -84,11 +104,7 @@ def evaluate_k1(
     defect_corrected: Callable[[Any], bool] | None = None,
     diagnostic: bool = False,
 ) -> KResult:
-    """Evaluate K1 if — and only if — the governed inputs for a limb are present.
-
-    `decisions` drives limb A. `predeclared_defects` + `defect_corrected` drive limb B. With neither,
-    the result is NOT EVALUABLE and says exactly which input was missing.
-    """
+    """Evaluate K1 under the OR truth table, with each limb's own evaluability tracked separately."""
     if not sessions:
         raise ValueError("K1 needs at least one session")
     sessions = sorted(set(sessions))
@@ -98,8 +114,9 @@ def evaluate_k1(
             "K1 requires admissibility tokens for an evidentiary result. Obtain them from "
             "mdq_eval.gate.require_admissible, or pass diagnostic=True for a labelled number."
         )
-    token_records = validate_tokens(root, sessions, tokens) if tokens is not None else ()
+    token_objects = validate_tokens(root, sessions, tokens) if tokens is not None else ()
 
+    ungoverned: list[str] = []
     measures: dict[str, Any] = {
         "evaluated_session_days": len(sessions),
         "divergence_threshold": DIVERGENCE_THRESHOLD,
@@ -108,69 +125,69 @@ def evaluate_k1(
             "NOT a keep trigger; it may never be used to satisfy K1"
         ),
     }
+    missing_inputs: list[str] = []
+
+    # ── limb A: decision divergence ─────────────────────────────────────────────────────────────
+    if decisions is None:
+        limb_a = KOutcome.NOT_EVALUABLE
+        missing_inputs.append(
+            "limb A needs a governed SCAN-001 / GAPPER decision provider to replay the decision on "
+            "each feed; which decision is authoritative for K1 is a registration question and this "
+            "module will not choose one"
+        )
+    else:
+        ungoverned.append(UNGOVERNED_PROVIDER)
+        diverged = [
+            s.isoformat() for s in sessions
+            if decisions(root=Path(root), feed="iex", session=s)
+            != decisions(root=Path(root), feed="sip", session=s)
+        ]
+        share = len(diverged) / len(sessions)
+        measures.update({
+            "diverged_session_days": len(diverged),
+            "diverged_sessions": diverged,
+            "divergence_share": share,
+        })
+        limb_a = KOutcome.PASS if share >= DIVERGENCE_THRESHOLD else KOutcome.FAIL
 
     # ── limb B: predeclared gate-material defect correction ─────────────────────────────────────
-    limb_b_available = predeclared_defects is not None and defect_corrected is not None
-    if limb_b_available:
-        corrected = [d for d in (predeclared_defects or []) if defect_corrected(d)]  # type: ignore[misc]
-        measures["predeclared_defects"] = len(predeclared_defects or [])
-        measures["defects_corrected_by_sip"] = len(corrected)
-        if corrected:
-            return KResult(
-                criterion=CRITERION, outcome=KOutcome.PASS, threshold=THRESHOLD,
-                detail=(f"{len(corrected)} predeclared gate-material IEX observation defect(s) "
-                        f"corrected by SIP; the registered definition is met on limb B"),
-                measures=measures, sessions=tuple(s.isoformat() for s in sessions),
-                evidentiary=bool(token_records), tokens=token_records,
-                definition_source=DEFINITION_SOURCE,
-            )
-
-    # ── limb A: decision divergence across feeds ────────────────────────────────────────────────
-    if decisions is None:
-        missing = []
-        if decisions is None:
-            missing.append(
-                "limb A needs a governed SCAN-001 / GAPPER decision provider to replay the decision "
-                "on each feed; which decision is authoritative for K1 is a registration question and "
-                "this module will not choose one"
-            )
-        if not limb_b_available:
-            missing.append(
-                "limb B needs a PREDECLARED list of gate-material IEX observation defects. The "
-                "registration says 'predeclared' but contains no such list, and assembling one now — "
-                "after the corpus exists — would be post-hoc selection barred by the "
-                "pre-registration quarantine"
-            )
-        measures["missing_inputs"] = missing
-        return _not_evaluable(
-            "K1 is NOT EVALUABLE as registered on the inputs available: " + "; ".join(missing),
-            measures, sessions, token_records,
+    if predeclared_defects is None or defect_corrected is None:
+        limb_b = KOutcome.NOT_EVALUABLE
+        missing_inputs.append(
+            "limb B needs a PREDECLARED list of gate-material IEX observation defects. The "
+            "registration says 'predeclared' but contains no such list, and assembling one now — "
+            "after the corpus exists — would be post-hoc selection barred by the pre-registration "
+            "quarantine"
         )
+    else:
+        ungoverned.append(UNGOVERNED_DEFECTS)
+        corrected = [d for d in predeclared_defects if defect_corrected(d)]
+        measures.update({
+            "predeclared_defects": len(predeclared_defects),
+            "defects_corrected_by_sip": len(corrected),
+        })
+        limb_b = KOutcome.PASS if corrected else KOutcome.FAIL
 
-    diverged: list[str] = []
-    for session in sessions:
-        iex_decision = decisions(root=Path(root), feed="iex", session=session)
-        sip_decision = decisions(root=Path(root), feed="sip", session=session)
-        if iex_decision != sip_decision:
-            diverged.append(session.isoformat())
+    measures["limb_a"] = str(limb_a)
+    measures["limb_b"] = str(limb_b)
+    if missing_inputs:
+        measures["missing_inputs"] = missing_inputs
 
-    share = len(diverged) / len(sessions)
-    measures["diverged_session_days"] = len(diverged)
-    measures["diverged_sessions"] = diverged
-    measures["divergence_share"] = share
+    outcome = _combine(limb_a, limb_b)
+    if outcome is KOutcome.NOT_EVALUABLE:
+        detail = (
+            f"K1 is NOT EVALUABLE: limb A {limb_a}, limb B {limb_b}. Under the registered OR, a FAIL "
+            f"requires BOTH limbs evaluable and neither passing"
+            + (f". Missing: {'; '.join(missing_inputs)}" if missing_inputs else "")
+        )
+    elif outcome is KOutcome.PASS:
+        detail = f"K1 met: limb A {limb_a}, limb B {limb_b}"
+    else:
+        detail = f"K1 not met: both limbs evaluable and neither passed (limb A {limb_a}, limb B {limb_b})"
 
-    met = share >= DIVERGENCE_THRESHOLD
     return KResult(
-        criterion=CRITERION,
-        outcome=KOutcome.PASS if met else KOutcome.FAIL,
-        threshold=THRESHOLD,
-        detail=(
-            f"SIP changed the decision on {len(diverged)}/{len(sessions)} evaluated session-days "
-            f"({share:.4f}) {'>=' if met else '<'} {DIVERGENCE_THRESHOLD}"
-        ),
-        measures=measures,
-        sessions=tuple(s.isoformat() for s in sessions),
-        evidentiary=bool(token_records),
-        tokens=token_records,
+        criterion=CRITERION, outcome=outcome, threshold=THRESHOLD, detail=detail,
+        measures=measures, sessions=tuple(s.isoformat() for s in sessions),
+        tokens=token_objects, ungoverned_inputs=tuple(ungoverned),
         definition_source=DEFINITION_SOURCE,
     )
