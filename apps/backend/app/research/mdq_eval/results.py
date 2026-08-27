@@ -284,18 +284,14 @@ class KResult:
     measures: dict[str, Any] = field(default_factory=dict)
     sessions: tuple[str, ...] = ()
     #: The validated scope this result was computed under, or None for a diagnostic.
-    #: ⛔ NOT raw tokens: possession of a token is not proof it was validated against these sessions.
-    scope: ValidatedScope | None = None
+    #: ⛔ NOT an init field. A scope proves the PARTITIONS were admissible; it says nothing about
+    #: whether an evaluator produced this outcome. Allowing it at construction let a caller pair a
+    #: legitimate scope with a hand-written PASS. Only `_mint_result` — used by the evaluators — can
+    #: attach one, so directly constructed results are always diagnostic.
+    scope: ValidatedScope | None = field(init=False, default=None)
     #: Where the inputs came from. `ungoverned_inputs` is DERIVED from this, not passed in.
     provenance: InputProvenance = field(default_factory=InputProvenance)
     definition_source: str = ""
-
-    def __post_init__(self) -> None:
-        if self.scope is not None and not isinstance(self.scope, ValidatedScope):
-            raise TypeError(
-                f"KResult.scope must be a ValidatedScope from mdq_eval.gate.validate_tokens, got "
-                f"{type(self.scope).__name__}; evidentiary status cannot be asserted"
-            )
 
     @property
     def tokens(self) -> tuple[AdmissibilityToken, ...]:
@@ -344,3 +340,26 @@ class KResult:
                 "governed K-value."
             ),
         }
+
+
+def _mint_result(*, scope: ValidatedScope | None, **fields: Any) -> KResult:
+    """⛔ INTERNAL. The single site that can attach a validated scope to a result.
+
+    Imported by the K evaluators and by nothing else. This is what makes the capability chain
+    complete:
+
+        require_admissible -> validate_tokens -> ValidatedScope -> EVALUATOR -> evidentiary KResult
+
+    Without it, a caller holding a legitimate scope could hand-write `KResult(outcome=PASS, ...)` and
+    it would be evidentiary — the scope having proved only that the partitions were admissible, never
+    that this outcome came from evaluating them.
+    """
+    result = KResult(**fields)
+    if scope is not None:
+        if not isinstance(scope, ValidatedScope):
+            raise TypeError(
+                f"scope must be a ValidatedScope from mdq_eval.gate.validate_tokens, got "
+                f"{type(scope).__name__}"
+            )
+        object.__setattr__(result, "scope", scope)
+    return result

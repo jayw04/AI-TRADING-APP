@@ -60,6 +60,7 @@ from app.research.mdq_eval.results import (
     InputProvenance,
     KOutcome,
     KResult,
+    _mint_result,
 )
 
 CRITERION = "K1"
@@ -197,7 +198,7 @@ def evaluate_k1(
         defect_list_supplied=predeclared_defects is not None and defect_corrected is not None,
         defect_registry_authority=DEFECT_REGISTRY_AUTHORITY,
     )
-    return KResult(
+    return _mint_result(
         criterion=CRITERION, outcome=outcome, threshold=THRESHOLD, detail=detail,
         measures=measures, sessions=tuple(s.isoformat() for s in sessions),
         scope=scope, provenance=provenance,

@@ -158,62 +158,44 @@ def test_the_only_evidentiary_k1_today_is_not_evaluable(tmp_path, adjudication):
     assert result.outcome is KOutcome.NOT_EVALUABLE
 
 
-def test_ungoverned_inputs_cannot_be_omitted_by_the_caller(tmp_path, adjudication):
-    """★ Provenance is DERIVED from the inputs, not a flag a builder can drop."""
-    from app.research.mdq_eval.results import InputProvenance, KResult
+def test_ungoverned_inputs_are_derived_from_the_inputs(tmp_path):
+    """★ Provenance is DERIVED, not a flag a builder can drop."""
+    from app.research.mdq_eval.results import InputProvenance
 
     supplied = InputProvenance(decision_provider_supplied=True)
-    result = KResult(criterion="K1", outcome=KOutcome.PASS, threshold="t", detail="d",
-                     sessions=(SESSIONS[0].isoformat(),),
-                     scope=adjudication.scope(tmp_path, [SESSIONS[0]]), provenance=supplied)
-    assert result.ungoverned_inputs == (DECISION_PROVIDER_UNBOUND,)
-    assert result.evidentiary is False
-    # `ungoverned_inputs` is a read-only property, so there is no field to clear.
-    with pytest.raises(AttributeError):
-        object.__setattr__(result, "ungoverned_inputs", ())
+    assert supplied.ungoverned() == (DECISION_PROVIDER_UNBOUND,)
+    nothing_supplied = InputProvenance()
+    assert nothing_supplied.ungoverned() == ()
 
 
-def test_a_boolean_alone_does_not_create_authority(tmp_path, adjudication):
-    """★ THE point. Binding is an AuthorityRef, never a flag.
+def test_a_boolean_alone_does_not_create_authority():
+    """★ Binding is an AuthorityRef, never a flag.
 
     Otherwise the old caller-controlled `evidentiary=True` simply moves to a module-controlled
-    `BOUND=True` — better located, still an assertion standing in for evidence, and one line away from
-    making arbitrary injected data evidentiary.
+    `BOUND=True` — better located, still an assertion standing in for evidence.
     """
-    from app.research.mdq_eval.results import InputProvenance, KResult
+    from app.research.mdq_eval.results import InputProvenance
 
-    # Supplied, no AuthorityRef: still ungoverned no matter what any boolean elsewhere says.
-    provenance = InputProvenance(decision_provider_supplied=True, decision_provider_authority=None)
-    result = KResult(criterion="K1", outcome=KOutcome.PASS, threshold="t", detail="d",
-                     sessions=(SESSIONS[0].isoformat(),),
-                     scope=adjudication.scope(tmp_path, [SESSIONS[0]]), provenance=provenance)
-    assert result.evidentiary is False
-    assert result.ungoverned_inputs == (DECISION_PROVIDER_UNBOUND,)
+    supplied_unbound = InputProvenance(decision_provider_supplied=True,
+                                       decision_provider_authority=None)
+    assert supplied_unbound.ungoverned() == (DECISION_PROVIDER_UNBOUND,)
 
 
-def test_a_well_formed_authority_ref_enables_the_future_binding_contract(tmp_path, adjudication):
-    """The FUTURE contract, exercised now: a governed artifact with a digest, not a boolean.
+def test_a_well_formed_authority_ref_enables_the_future_binding_contract():
+    """The FUTURE contract: a governed artifact with a digest, not a boolean.
 
-    ⚠ This is deliberately NOT a claim that any such authority exists today — both module bindings are
-    None. Nor does `AuthorityRef` verify that the referenced artifact exists or that its bytes match
-    the declared SHA-256; it checks the reference is well formed and checkable. Establishing artifact
+    ⚠ Deliberately NOT a claim that such an authority exists today — both module bindings are None.
+    Nor does `AuthorityRef` verify that the referenced artifact exists or that its bytes match the
+    declared SHA-256; it checks the reference is well formed and checkable. Establishing artifact
     existence and byte/hash equality is the separate governance binding step.
-
-    What this pins is the SHAPE a real binding must have, so the next person cannot satisfy it with a
-    flag.
     """
-    from app.research.mdq_eval.results import AuthorityRef, InputProvenance, KResult
+    from app.research.mdq_eval.results import AuthorityRef, InputProvenance
 
     binding = AuthorityRef(identifier="scan001-eligibility-replay/v1", digest="a" * 64,
                            governed_artifact="docs/design/MDQ-001_K1_Decision_Authority_v1.md")
-    provenance = InputProvenance(decision_provider_supplied=True,
-                                 decision_provider_authority=binding)
-    result = KResult(criterion="K1", outcome=KOutcome.PASS, threshold="t", detail="d",
-                     sessions=(SESSIONS[0].isoformat(),),
-                     scope=adjudication.scope(tmp_path, [SESSIONS[0]]), provenance=provenance)
-    assert result.ungoverned_inputs == ()
-    assert result.evidentiary is True
-    assert result.as_dict()["input_provenance"]["decision_provider_authority"]["digest"] == "a" * 64
+    bound = InputProvenance(decision_provider_supplied=True, decision_provider_authority=binding)
+    assert bound.ungoverned() == ()
+    assert bound.as_dict()["decision_provider_authority"]["digest"] == "a" * 64
 
 
 @pytest.mark.parametrize("bad", [

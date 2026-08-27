@@ -36,7 +36,12 @@ from typing import Any
 from zoneinfo import ZoneInfo
 
 from app.research.mdq_eval.gate import validate_tokens
-from app.research.mdq_eval.results import AdmissibilityToken, KOutcome, KResult
+from app.research.mdq_eval.results import (
+    AdmissibilityToken,
+    KOutcome,
+    KResult,
+    _mint_result,
+)
 
 ET = ZoneInfo("America/New_York")
 
@@ -167,7 +172,7 @@ def evaluate_k3(
     }
 
     if grid == 0:
-        return KResult(
+        return _mint_result(
             criterion=CRITERION, outcome=KOutcome.NOT_EVALUABLE, threshold=THRESHOLD,
             detail=("the union grid U is empty — neither feed reported a bar inside the Phase-A "
                     "window on these sessions, so there is no grid on which to measure completeness"),
@@ -183,7 +188,7 @@ def evaluate_k3(
 
     if missing_iex == 0.0:
         # Registered explicitly: no division, no artificial pass.
-        return KResult(
+        return _mint_result(
             criterion=CRITERION, outcome=KOutcome.NOT_EVALUABLE, threshold=THRESHOLD,
             detail=("missing_rate_IEX = 0 on this grid, so there is no IEX gap to reduce and the "
                     "reduction ratio is undefined. The frozen definition makes this NOT EVALUABLE "
@@ -202,7 +207,7 @@ def evaluate_k3(
     )
 
     met = reduction >= REDUCTION_THRESHOLD
-    return KResult(
+    return _mint_result(
         criterion=CRITERION,
         outcome=KOutcome.PASS if met else KOutcome.FAIL,
         threshold=THRESHOLD,

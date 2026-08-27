@@ -60,21 +60,35 @@ def test_raw_token_possession_does_not_confer_evidentiary_status(tmp_path, adjud
                 tokens=(adjudication.token(tmp_path, SESSION),))  # type: ignore[call-arg]
 
 
-def test_a_validated_scope_is_what_confers_evidentiary_status(tmp_path, adjudication):
-    plain = KResult(criterion="K3", outcome=KOutcome.PASS, threshold="t", detail="d")
-    assert plain.evidentiary is False
-    scoped = KResult(criterion="K3", outcome=KOutcome.PASS, threshold="t", detail="d",
-                     sessions=(SESSION.isoformat(),),
-                     scope=adjudication.scope(tmp_path, [SESSION]))
-    assert scoped.evidentiary is True
+def test_a_hand_built_result_cannot_be_evidentiary_even_with_a_legitimate_scope(
+        tmp_path, adjudication):
+    """★ THE final regression. Holding a real ValidatedScope must not let a caller write their own PASS.
+
+    A scope proves the PARTITIONS were admissible. It says nothing about whether an evaluator produced
+    this outcome from them. `scope` is therefore not an init field, so the pairing has no syntax —
+    and any directly constructed result stays diagnostic.
+    """
+    legitimate = adjudication.scope(tmp_path, [SESSION])   # genuinely validated
+    with pytest.raises(TypeError):
+        KResult(criterion="K3", outcome=KOutcome.PASS, threshold="t", detail="d",
+                sessions=(SESSION.isoformat(),), scope=legitimate)  # type: ignore[call-arg]
+
+    # Constructed without it, the result exists but is diagnostic.
+    hand_built = KResult(criterion="K3", outcome=KOutcome.PASS, threshold="t", detail="d",
+                         sessions=(SESSION.isoformat(),))
+    assert hand_built.evidentiary is False
+    assert hand_built.scope is None
+    assert hand_built.tokens == ()
 
 
-def test_a_scope_for_one_session_cannot_support_a_result_claiming_another(tmp_path, adjudication):
-    """★ The second form of laundering: a genuinely validated scope, wrong sessions."""
-    mismatched = KResult(criterion="K3", outcome=KOutcome.PASS, threshold="t", detail="d",
-                         sessions=(OTHER.isoformat(),),
-                         scope=adjudication.scope(tmp_path, [SESSION]))
-    assert mismatched.evidentiary is False
+def test_the_evaluator_path_with_the_same_scope_is_evidentiary(tmp_path, adjudication):
+    """★ The other half: the supported path still produces governed evidence."""
+    _write_bars(tmp_path, "iex", SESSION, 2)
+    _write_bars(tmp_path, "sip", SESSION, 4)
+    result = evaluate_k3(tmp_path, [SESSION], tokens=adjudication.tokens(tmp_path, [SESSION]))
+    assert result.evidentiary is True
+    assert result.scope is not None
+    assert tuple(result.scope.sessions) == (SESSION.isoformat(),)
 
 
 def test_a_scope_cannot_be_constructed_directly(tmp_path, adjudication):
@@ -85,12 +99,24 @@ def test_a_scope_cannot_be_constructed_directly(tmp_path, adjudication):
                        tokens=(adjudication.token(tmp_path, SESSION),))
 
 
-def test_a_non_scope_object_is_refused(tmp_path, adjudication):
-    """Anything but a real ValidatedScope reintroduces the assertion path."""
-    fake = adjudication.scope(tmp_path, [SESSION]).as_dict()
-    with pytest.raises(TypeError, match="must be a ValidatedScope"):
-        KResult(criterion="K3", outcome=KOutcome.PASS, threshold="t", detail="d",
-                scope=fake)  # type: ignore[arg-type]
+def test_scope_is_not_an_init_field_at_all(tmp_path, adjudication):
+    """Stronger than rejecting a bad value: there is no `scope` argument to pass, good or bad.
+
+    A validated scope, a dictionary and a lie are all equally unpassable, so the construction path
+    cannot be got wrong rather than merely being checked.
+    """
+    import dataclasses
+
+    fields = {f.name: f for f in dataclasses.fields(KResult)}
+    assert "scope" in fields
+    assert fields["scope"].init is False
+
+    for candidate in (adjudication.scope(tmp_path, [SESSION]),
+                      adjudication.scope(tmp_path, [SESSION]).as_dict(),
+                      "not-a-scope"):
+        with pytest.raises(TypeError, match="unexpected keyword argument 'scope'"):
+            KResult(criterion="K3", outcome=KOutcome.PASS, threshold="t", detail="d",
+                    scope=candidate)  # type: ignore[call-arg]
 
 
 def test_a_token_cannot_be_constructed_directly():
