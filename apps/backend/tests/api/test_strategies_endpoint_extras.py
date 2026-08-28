@@ -29,6 +29,7 @@ from app.db.models.strategy import Strategy as StrategyRow
 from app.db.models.strategy_run import StrategyRun
 from app.db.models.symbol import Symbol
 from app.db.models.user import User
+from app.strategies.engine import RegistrationIntent
 
 
 def _now() -> datetime:
@@ -39,9 +40,7 @@ async def _seed(factory: async_sessionmaker) -> None:
     async with factory() as session:
         session.add(User(id=1, email="jay@test", display_name="Jay"))
         session.add(
-            Account(
-                id=1, user_id=1, broker="alpaca", mode=AccountMode.paper, label="Paper"
-            )
+            Account(id=1, user_id=1, broker="alpaca", mode=AccountMode.paper, label="Paper")
         )
         session.add(
             Symbol(
@@ -57,9 +56,7 @@ async def _seed(factory: async_sessionmaker) -> None:
 
 
 @pytest_asyncio.fixture
-async def client_and_factory() -> (
-    AsyncIterator[tuple[AsyncClient, async_sessionmaker]]
-):
+async def client_and_factory() -> AsyncIterator[tuple[AsyncClient, async_sessionmaker]]:
     from app.config import get_settings
     from app.db import models  # noqa: F401
     from app.db.base import Base
@@ -243,9 +240,7 @@ async def test_list_backtests_returns_404_for_unknown_strategy(client) -> None:
     assert resp.status_code == 404
 
 
-async def test_get_backtest_returns_404_when_result_does_not_belong(
-    client, factory
-) -> None:
+async def test_get_backtest_returns_404_when_result_does_not_belong(client, factory) -> None:
     """A backtest result owned by another strategy must not leak across
     strategy ids."""
     sid_a = await _make_strategy(factory)
@@ -343,11 +338,14 @@ async def test_detail_injects_schema_from_engine(client, factory) -> None:
 
     fake_schema = {
         "rsi_period": {
-            "type": "integer", "min": 2, "max": 100, "default": 14,
+            "type": "integer",
+            "min": 2,
+            "max": 100,
+            "default": 14,
         }
     }
-    client._transport.app.state.strategy_engine.get_params_schema = (
-        lambda strategy_id: fake_schema if strategy_id == sid else None
+    client._transport.app.state.strategy_engine.get_params_schema = lambda strategy_id: (
+        fake_schema if strategy_id == sid else None
     )
 
     resp = await client.get(f"/api/v1/strategies/{sid}")
@@ -357,15 +355,11 @@ async def test_detail_injects_schema_from_engine(client, factory) -> None:
     assert body["params_schema"]["rsi_period"]["default"] == 14
 
 
-async def test_detail_returns_null_schema_when_engine_has_none(
-    client, factory
-) -> None:
+async def test_detail_returns_null_schema_when_engine_has_none(client, factory) -> None:
     """If the engine doesn't know about this strategy (not registered, or
     the class doesn't declare a schema), ``params_schema`` is ``None``."""
     sid = await _make_strategy(factory)
-    client._transport.app.state.strategy_engine.get_params_schema = (
-        lambda strategy_id: None
-    )
+    client._transport.app.state.strategy_engine.get_params_schema = lambda strategy_id: None
 
     resp = await client.get(f"/api/v1/strategies/{sid}")
     assert resp.status_code == 200
@@ -397,7 +391,8 @@ async def test_list_endpoint_omits_schema(client, factory) -> None:
 
 
 async def test_reload_active_strategy_calls_unregister_then_register(
-    client, factory,
+    client,
+    factory,
 ) -> None:
     """Reload of an active strategy: unregister → clear flag → register."""
     sid = await _make_strategy(factory, status=StrategyStatus.PAPER)
@@ -409,6 +404,7 @@ async def test_reload_active_strategy_calls_unregister_then_register(
 
     unregister_calls: list[tuple[int, str | None]] = []
     register_calls: list[int] = []
+    register_intents: list[object] = []
 
     async def fake_unregister(strategy_id: int, *, reason: str | None = None):
         unregister_calls.append((strategy_id, reason))
@@ -417,8 +413,11 @@ async def test_reload_active_strategy_calls_unregister_then_register(
             r.status = StrategyStatus.IDLE
             await s.commit()
 
-    async def fake_register(strategy_id: int):
+    async def fake_register(
+        strategy_id: int, *, intent: RegistrationIntent = RegistrationIntent.ACTIVATE
+    ):
         register_calls.append(strategy_id)
+        register_intents.append(intent)
         async with factory() as s:
             r = await s.get(StrategyRow, strategy_id)
             r.status = StrategyStatus.PAPER
@@ -438,6 +437,10 @@ async def test_reload_active_strategy_calls_unregister_then_register(
     assert body["run_id"] == 99
 
     assert unregister_calls == [(sid, "reload")]
+    # Reload is RECOVERY, not activation: it re-registers a strategy the durable status
+    # already called active. With ACTIVATE, a factor book reloaded while the factor store is
+    # RED is refused and left LIVE/PAPER with no engine registration and nothing to re-arm it.
+    assert register_intents == [RegistrationIntent.RECOVER]
     assert register_calls == [sid]
 
     async with factory() as session:
@@ -493,13 +496,20 @@ async def test_reload_rejects_non_python_strategy(client, factory) -> None:
 
     async with factory() as session:
         row = StrategyRow(
-            user_id=1, name="pine-x", version="0.1.0",
-            type=ST.PINE, status=StrategyStatus.IDLE,
+            user_id=1,
+            name="pine-x",
+            version="0.1.0",
+            type=ST.PINE,
+            status=StrategyStatus.IDLE,
             code_path=None,
-            params_json={}, symbols_json=["AAPL"], schedule="event",
+            params_json={},
+            symbols_json=["AAPL"],
+            schedule="event",
             risk_limits_id=None,
-            has_pending_reload=False, pending_reload_at=None,
-            created_at=_now(), updated_at=_now(),
+            has_pending_reload=False,
+            pending_reload_at=None,
+            created_at=_now(),
+            updated_at=_now(),
         )
         session.add(row)
         await session.commit()
@@ -511,7 +521,8 @@ async def test_reload_rejects_non_python_strategy(client, factory) -> None:
 
 
 async def test_strategy_response_exposes_pending_reload_fields(
-    client, factory,
+    client,
+    factory,
 ) -> None:
     """The detail response surfaces has_pending_reload + pending_reload_at."""
     sid = await _make_strategy(factory)
@@ -549,7 +560,9 @@ async def test_reload_clears_flag_even_if_register_fails(client, factory) -> Non
             r.status = StrategyStatus.IDLE
             await s.commit()
 
-    async def failing_register(_strategy_id: int):
+    async def failing_register(
+        _strategy_id: int, *, intent: RegistrationIntent = RegistrationIntent.ACTIVATE
+    ):
         raise StrategyLoadError("SyntaxError on line 17")
 
     client._transport.app.state.strategy_engine.unregister = fake_unregister

@@ -64,6 +64,7 @@ from app.events import get_event_bus
 from app.services.paper_variant import PaperVariantService
 from app.services.strategy_cooldown import StrategyCooldownService
 from app.strategies import StrategyLoader, StrategyLoadError
+from app.strategies.engine import RegistrationIntent
 from app.strategies.factor_readiness import FactorReadinessNotMet
 from app.strategies.hold_service import StrategyOnHold
 
@@ -524,7 +525,24 @@ async def reload_strategy(
     new_run_id: int | None = None
     if was_active:
         try:
-            running = await engine.register(strategy_id)
+            # RECOVERY, not activation — see ``RegistrationIntent``. This branch runs ONLY when
+            # ``was_active``, i.e. the durable status already says the strategy is active: the
+            # authorization was granted before the reload and is not being re-granted here.
+            #
+            # ⚠ With ACTIVATE this seam had the same shape as the restart defect, and was worse
+            # for being operator-initiated at any moment: reload unregisters FIRST, so a
+            # factor-consuming book reloaded while the store is RED was refused re-registration,
+            # the endpoint returned 400 "Reload failed", and the row stayed LIVE/PAPER with no
+            # engine registration and nothing to re-arm it when readiness recovered. Blocking
+            # new factor-derived activity is the interlock's purpose; de-arming an already-active
+            # book because someone reloaded it is not.
+            #
+            # Dispatch stays gated: a reloaded book computes and applies NO factor-derived book
+            # until readiness is PASS. The operational hold is UNAFFECTED — ``_block_if_on_hold``
+            # runs ahead of the intent branch for both intents (ADR 0044 inv 5 names reload-class
+            # paths as activation boundaries), which is why the ``StrategyOnHold`` handler below
+            # is still reachable and still returns 409.
+            running = await engine.register(strategy_id, intent=RegistrationIntent.RECOVER)
             new_run_id = running.run_id
         except StrategyOnHold as exc:
             raise HTTPException(

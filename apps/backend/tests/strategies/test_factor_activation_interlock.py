@@ -644,3 +644,112 @@ async def test_event_fallback_evaluates_readiness_once_per_strategy_not_per_symb
     )
     # ...and it must still be consulted somewhere in the function.
     assert "_factor_readiness_ok" in ast.dump(tree)
+
+
+# ------------------------------------ hot reload is recovery, not activation (2026-08-28)
+
+
+def test_reload_re_registers_with_recover_intent():
+    """The reload seam must not de-arm a durably-active book on a RED factor store.
+
+    ``POST /strategies/{id}/reload`` unregisters FIRST and then re-registers, and that
+    re-register runs ONLY when ``was_active`` — the durable status already says the strategy is
+    active, so the authorization predates the reload and is not being re-granted. With
+    ``ACTIVATE`` this had the same shape as the restart defect and was worse for being
+    operator-initiated at any moment: a factor book reloaded while readiness was FAIL got a 400
+    and was left ``LIVE``/``PAPER`` with no engine registration and nothing to re-arm it.
+
+    Structural, and scoped to the reload handler's own body: searching the whole module would
+    find an unrelated ``register`` call in the activation endpoint, and the check would then
+    pass or fail for a reason that has nothing to do with this seam.
+    """
+    import ast
+    import textwrap
+    from pathlib import Path
+
+    source = (
+        Path(__file__).resolve().parents[2] / "app" / "api" / "v1" / "strategies.py"
+    ).read_text(encoding="utf-8")
+    tree = ast.parse(source)
+
+    reload_fn = next(
+        (
+            node
+            for node in ast.walk(tree)
+            if isinstance(node, ast.AsyncFunctionDef | ast.FunctionDef)
+            and "reload" in node.name
+            and any(
+                isinstance(n, ast.Call)
+                and isinstance(n.func, ast.Attribute)
+                and n.func.attr == "register"
+                for n in ast.walk(node)
+            )
+        ),
+        None,
+    )
+    assert reload_fn is not None, "no reload handler calling register() - this test is blind"
+
+    register_calls = [
+        node
+        for node in ast.walk(reload_fn)
+        if isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Attribute)
+        and node.func.attr == "register"
+    ]
+    assert register_calls, "the reload handler no longer registers - update this test"
+    for call in register_calls:
+        intents = [kw for kw in call.keywords if kw.arg == "intent"]
+        assert intents, (
+            "reload re-registers with the default ACTIVATE intent: on a RED factor store this "
+            "refuses a durably-active factor book and leaves it LIVE-but-unregistered"
+        )
+        assert "RECOVER" in ast.dump(intents[0].value)
+
+    # The operational hold is a SEPARATE control and must remain enforced on this path:
+    # _block_if_on_hold runs ahead of the intent branch for both intents (ADR 0044 inv 5).
+    assert "StrategyOnHold" in textwrap.dedent(ast.get_source_segment(source, reload_fn) or "")
+
+
+@pytest.mark.asyncio
+async def test_a_reloaded_book_is_dispatch_gated_while_red_then_resumes(monkeypatch):
+    """The behavioural half: recovery restores the REGISTRATION, never permission to trade.
+
+    Same guarantee as the restart path — no factor-derived book is computed or applied while
+    RED, and the same registration dispatches once readiness turns PASS, with no reactivation.
+    """
+    from app.strategies import engine as eng
+
+    verdicts = {
+        "red": ReadinessVerdict(
+            ok=False,
+            reason="producer readiness verdict is FAIL",
+            checks={"producer_liveness_verified": True, "overall_readiness": "FAIL"},
+        ),
+        "green": ReadinessVerdict(
+            ok=True,
+            reason="ok",
+            checks={"producer_liveness_verified": True, "overall_readiness": "PASS"},
+        ),
+    }
+    state = {"now": "red"}
+
+    async def _verdict(self):  # noqa: ANN001
+        return verdicts[state["now"]]
+
+    stub = type(
+        "E",
+        (),
+        {
+            "_classify_factor_consuming": eng.StrategyEngine._classify_factor_consuming,
+            "_is_factor_consuming": eng.StrategyEngine._is_factor_consuming,
+            "_factor_readiness_ok": eng.StrategyEngine._factor_readiness_ok,
+            "_factor_readiness_verdict": _verdict,
+        },
+    )()
+
+    cls = _uninspectable("ReloadedBook", requires_factor_readiness=True)
+    running = type("R", (), {"strategy_id": 7, "instance": cls.__new__(cls), "symbols": ["AAPL"]})()
+
+    assert await stub._factor_readiness_ok(running, dispatch_source="bar_tick") is False
+    state["now"] = "green"
+    assert await stub._factor_readiness_ok(running, dispatch_source="bar_tick") is True
