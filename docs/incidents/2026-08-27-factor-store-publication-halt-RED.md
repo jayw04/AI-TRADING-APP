@@ -195,12 +195,17 @@ only gate 6 shows the scheduled path works on its own.
 | ruff check / ruff format (changed files) | **RUN — clean** |
 | mypy (changed app modules) | **RUN — clean** |
 | CI structural invariants (14 scripts incl. the new one) | **RUN — PASS** |
-| Full backend pytest under CI's matrix | **NOT RUN** — not reproducible in this sandbox |
+| Full backend pytest under CI's matrix | **RUN — PASS.** All 13 checks green on `c101cbf` (PR #698), including `Python FULL (backend)` and `Python (backend)` (the latter executing the new no-ticker invariant on Ubuntu; it had only been run on Windows locally). This item was NOT RUN at PR open and is now evidence rather than an inference. |
 | Container / integration run of `factor_evidence.py` against a real store | **NOT RUN** — requires the box |
 | Live `AlpacaBarsProbe` corroboration fetch | **NOT RUN** — Norton SSL blocks `data.alpaca.markets` on the laptop |
 | Production deployment and gates 0–6 above | **NOT RUN** |
 
 Items marked NOT RUN are **not** inferred to pass. They are the next capable session's work.
+
+⚠ **Green CI does not move the status.** It shows the control repair is internally sound. It says
+nothing about `WBS`, nothing about the box, and nothing about gates 0–6. The factor store remains
+**RED / publication blocked**, the administrative hold remains ACTIVE, and the mechanical
+interlock remains **NOT YET DEPLOYED**.
 
 ---
 
