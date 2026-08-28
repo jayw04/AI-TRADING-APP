@@ -1,0 +1,203 @@
+{
+  "schema_version": 1,
+  "artifact": "SEC001_V3_SUCCESSOR_EPOCH_HOST_CLOSEOUT",
+  "record_built_utc": "2026-08-27T21:05:00Z",
+  "program": "SEC-001-V3",
+  "program_state": "CLOSED / HOLD - REDESIGN REQUIRED",
+  "program_state_basis": "FIRST_HOP_SOURCE_NOT_QUALIFIED over 6 local sources, 0 SEC requests; Gate 0a NOT COMPUTED; bindings 0. Commit 4893c6a.",
+  "termination_status": "EXECUTED",
+  "termination_timestamp_utc": "2026-08-28T20:05:33Z",
+  "hosts": [
+    {
+      "instance_id": "i-0407ca119eb85cdb1",
+      "name": "sec001-v3-successor-epoch",
+      "instance_type": "m7g.large",
+      "launched_utc": "2026-08-25T23:00:48Z",
+      "state_at_record": "running",
+      "idle_evidence": "work complete 2026-08-26T09:03:21Z; CPU flat 0.24-0.27% avg over 24h, max 2.3%; load average 0.00",
+      "volumes": [
+        {
+          "id": "vol-05aee1fd578387fe8",
+          "size_gb": 30,
+          "device": "/dev/sda1",
+          "delete_on_termination": true,
+          "disposition": "auto-deleted with instance"
+        },
+        {
+          "id": "vol-0c55ac93dc1736a80",
+          "size_gb": 250,
+          "device": "/dev/sdb",
+          "delete_on_termination": false,
+          "disposition": "REQUIRES EXPLICIT DELETION - would otherwise orphan at $20.00/mo"
+        }
+      ]
+    },
+    {
+      "instance_id": "i-00e6b78fcabd32413",
+      "name": "sec001-v3-research-build",
+      "instance_type": "m7g.xlarge",
+      "state_at_record": "stopped since 2026-08-25T13:24:38Z",
+      "volumes": [
+        {
+          "id": "vol-0cf17223018c3a1c6",
+          "size_gb": 100,
+          "device": "/dev/sda1",
+          "delete_on_termination": false,
+          "disposition": "REQUIRES EXPLICIT DELETION - content preserved byte-for-byte in snapshot"
+        }
+      ],
+      "content_preservation": {
+        "snapshot_id": "snap-01a33687b1588626b",
+        "source_volume_verified": "vol-0cf17223018c3a1c6",
+        "size_gb": 100,
+        "state": "completed",
+        "description": "SEC-001 V3 v1.4 bulk crawl HALTED 374/1167 on ENOSPC 2026-08-25T04:15:31Z - Defect F nonconforming acquisition bound - failed filesystem preserved byte-for-byte"
+      }
+    }
+  ],
+  "epoch_completion": {
+    "epoch_token": "SUCCESSOR_EPOCH_0_1167",
+    "completed_utc": "2026-08-26T09:03:21.247889Z",
+    "terminal_identities": 1167,
+    "requests": 122127,
+    "retries": 35,
+    "package_built_utc": "2026-08-26T14:48:13.232174Z",
+    "file_count": 77523,
+    "total_uncompressed_bytes": 1682515377
+  },
+  "custody_verification": {
+    "method": "SHA-256 computed on-host via SSM, compared against S3 ChecksumSHA256 with checksum-mode ENABLED",
+    "verified_utc": "2026-08-27T20:55:00Z",
+    "result": "ALL MATCH - host holds no unique bytes",
+    "bucket": "workbench-sec001-v3-research-219024422756",
+    "bucket_versioning": "Enabled",
+    "objects": [
+      {
+        "key": "sealed/epoch/SUCCESSOR_EPOCH_0_1167/2026-08-26/epoch_evidence.tar.gz",
+        "bytes": 152784085,
+        "sha256": "a8d100c66425f3dbe9c2474c3f0fbe66d19f683ba3c348b4d98f2ca355d500c7",
+        "version_id": "oF6TQj4..ivc5heZGX_n8.zz5q8EQtzw",
+        "last_modified_utc": "2026-08-26T14:49:32Z",
+        "match": true
+      },
+      {
+        "key": "sealed/epoch/SUCCESSOR_EPOCH_0_1167/2026-08-26/INVENTORY.json",
+        "bytes": 17561542,
+        "sha256": "c7946144d732ab4f903200281a14e44185d344bb886ce0dd4ba4a9d6fe9b27ef",
+        "version_id": "G0RTcy6CZNjpGAeCnq9ZxFWl6yn8.h.l",
+        "last_modified_utc": "2026-08-26T14:49:32Z",
+        "match": true
+      },
+      {
+        "key": "sealed/epoch/SUCCESSOR_EPOCH_0_1167/2026-08-26/PACKAGE.json",
+        "bytes": 455,
+        "sha256": "03d76428638a546b1028eb7197401648e605592f59e57b6436dfd3434bc59097",
+        "version_id": "BCtOCfD6ydKHblV6jwLrITpkdnTw8vQf",
+        "last_modified_utc": "2026-08-26T14:49:31Z",
+        "match": true
+      }
+    ],
+    "additional_sealed_prefixes": [
+      "sealed/epoch/SUCCESSOR_EPOCH_0_1167/2026-08-26/measurement/"
+    ],
+    "revalidated_immediately_before_termination": {
+      "verified_utc": "2026-08-28T20:00:00Z",
+      "s3_side": "head-object pinned by VersionId with checksum-mode ENABLED; ContentLength and ChecksumSHA256 match this record 3/3",
+      "host_side": "sha256sum re-run on /opt/epoch/_custody/*; all three digests match S3 and this record 3/3",
+      "bucket_versioning": "Enabled",
+      "result": "ALL MATCH 3/3 on both sides"
+    }
+  },
+  "expected_monthly_saving_usd": 93.62,
+  "saving_breakdown_usd": {
+    "m7g.large_compute": 59.57,
+    "gp3_250gb": 20.0,
+    "gp3_30gb_root": 2.4,
+    "public_ipv4": 3.65,
+    "gp3_100gb_research_build": 8.0
+  },
+  "excluded_from_this_closeout": {
+    "i-00c1034f7026db45e": "mr002-phase3c-run-host - disableApiTermination=True (deliberate protection flag) AND content redundancy NOT proven at byte level. Investigate only; do not disable the flag.",
+    "vol-0710769fb6981102d": "adr0043-canary-ws5 - DO NOT TOUCH. Orphan/unattached appearance is an intentional ADR-0043 WS5 test condition. Exclude by governance identity, not heuristics."
+  },
+  "termination_executed": {
+    "authorized_by": "owner, 2026-08-28 (two-step closeout: terminate -> confirm terminal -> explicit volume deletion)",
+    "terminate_issued_utc": "2026-08-28T20:04:49Z",
+    "state_transition_reason": "User initiated (2026-08-28 20:04:51 GMT)",
+    "both_terminal_confirmed_utc": "2026-08-28T20:05:33Z",
+    "instances_terminated": [
+      {
+        "instance_id": "i-0407ca119eb85cdb1",
+        "name": "sec001-v3-successor-epoch",
+        "previous_state": "running",
+        "final_state": "terminated"
+      },
+      {
+        "instance_id": "i-00e6b78fcabd32413",
+        "name": "sec001-v3-research-build",
+        "previous_state": "stopped",
+        "final_state": "terminated"
+      }
+    ],
+    "volumes_deleted": [
+      {
+        "volume_id": "vol-05aee1fd578387fe8",
+        "size_gb": 30,
+        "method": "auto (DeleteOnTermination=true)",
+        "confirmed": "InvalidVolume.NotFound"
+      },
+      {
+        "volume_id": "vol-0c55ac93dc1736a80",
+        "size_gb": 250,
+        "method": "explicit delete-volume",
+        "issued_utc": "2026-08-28T20:05:48Z",
+        "confirmed": "InvalidVolume.NotFound"
+      },
+      {
+        "volume_id": "vol-0cf17223018c3a1c6",
+        "size_gb": 100,
+        "method": "explicit delete-volume",
+        "issued_utc": "2026-08-28T20:05:50Z",
+        "confirmed": "InvalidVolume.NotFound"
+      }
+    ],
+    "total_gb_released": 380,
+    "exclusions_verified_untouched": {
+      "i-00c1034f7026db45e": "stopped; disableApiTermination re-verified True 2026-08-28",
+      "vol-074b501ce685e1d94": "30GB, still attached to the mr002 host",
+      "vol-0710769fb6981102d": "20GB adr0043-canary-ws5 - still 'available'; orphan appearance preserved as the intended WS5 test condition",
+      "i-084f47fe4e69192e9": "workbench-paper - running, untouched",
+      "i-0db7a37488c8017cc": "globalcomplyai-lab-gateway - running, separate review"
+    },
+    "snapshot_retained": {
+      "snapshot_id": "snap-01a33687b1588626b",
+      "state": "completed",
+      "size_gb": 100,
+      "source_volume": "vol-0cf17223018c3a1c6"
+    }
+  },
+  "residual_capture": {
+    "finding": "The 'host holds no unique bytes' claim was true of the SEALED EPOCH EVIDENCE but overstated for the VOLUME. INVENTORY.json 'excluded' listed 4 reasoned exclusions; three are unarguable (2 GiB zero-fill TERMINAL_RESERVE.bin; transport re-encodings of included files; code2/site pinned by httpx 0.28.1 / httpcore 1.0.9 + sha256). The fourth, /opt/epoch/code ('superseded pre-Gate-6 payload tree'), held bytes existing nowhere else - byte-compared against sealed code2: gate2.py, verify_blobs.py, payload.tar.gz and payload.b64 all DIFFER, and code/site differs from code2/site.",
+    "owner_ruling": "2026-08-28 - capture to S3 before terminating.",
+    "bucket": "workbench-sec001-v3-research-219024422756",
+    "key": "build/nongoverning-residual/2026-08-28/opt_epoch_code_pre_gate6.tar.gz",
+    "version_id": "sXp7NJfm6SJCcNiCKbxOm_vdvOXb.bmM",
+    "bytes": 26276781,
+    "sha256": "4bd52682fc280d994303ed13940d00ff9be4cd854900dc398f16a2b06122080e",
+    "verified": "put + head-object with checksum-mode ENABLED; ContentLength and ChecksumSHA256 both MATCH the locally computed digest",
+    "includes_site": true,
+    "governing": false,
+    "prefix_rationale": "The host role (sec001-v3-research-role) may PutObject only under build/* and raw/*, and is explicitly Denied s3:* on sealed/*. Writing under build/ respects that least-privilege design; NO IAM amendment was made.",
+    "least_privilege_evidence": {
+      "observed": "The first upload attempt targeted a NEW prefix 'nongoverning/successor-host-residual/2026-08-28/' and was REFUSED.",
+      "error": "AccessDenied on s3:PutObject for arn:aws:sts::219024422756:assumed-role/sec001-v3-research-role/i-0407ca119eb85cdb1 - no identity-based policy allows the action on that prefix.",
+      "interpretation": "This is least privilege WORKING, not an obstacle. sec001-v3-research-policy grants PutObject only under build/* and raw/*, and carries an explicit Deny (Sid DenySealedPrefixEntirely) on s3:* for sealed/* so the builder cannot write its own sealed evidence.",
+      "resolution": "The capture was written to the build/ prefix the policy already permits.",
+      "iam_change_made": false,
+      "iam_change_statement": "NO IAM policy change was made. The role, its attached managed policy sec001-v3-research-policy, and the bucket (which has no bucket policy) were all left exactly as found. Amending an identity policy to reach a newly-invented prefix was considered and rejected in favour of using the prefix least privilege already allowed.",
+      "host_tooling_note": "The host has no aws CLI installed; the upload was performed with boto3 1.34.46 under the instance profile."
+    }
+  },
+  "record_stamped_utc": "2026-08-28T20:10:00Z",
+  "record_provenance": "Every field in termination_executed was stamped from OBSERVED AWS state after the fact (terminate-instances response, ec2 wait instance-terminated, describe-instances StateTransitionReason, and describe-volumes returning InvalidVolume.NotFound). No timestamp was pre-filled."
+}
