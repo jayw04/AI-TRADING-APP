@@ -666,3 +666,65 @@ def test_the_defective_default_would_have_failed_this_suite(tmp_path):
     path.write_text(json.dumps(doc), encoding="utf-8")
     _all, claimable, _note, _status = fa.load_evidence_records(path)
     assert claimable == {}, "the defective artifact must attribute nothing - that was the bug"
+
+
+# ------------------------------ an empty universe must FAIL verification (finding 8, 2026-08-28)
+#
+# The verifier is documented as THE gate: the evidence writer is deliberately non-fatal
+# ("a non-zero exit must NOT abort the refresh on its own — the verifier is the gate"). Until
+# 2026-08-28 the entire per-name block — staleness, adjudication, the coverage gate AND the
+# evidence-health check — sat behind `if s_sep is not None and universe:` with no `else`, so an
+# empty universe produced ZERO failures and a passing verify, and the swap proceeded on a
+# vacuously-green gate. `derive_refresh_universe` refuses to WRITE an empty universe, which
+# lowers reachability but does not make the gate correct.
+
+
+def _verify_stores(tmp_path: Path, name: str = "v") -> tuple[Path, Path]:
+    """A healthy live/staging pair: same frontier, one fresh liquid name."""
+    import duckdb
+
+    live, stage = tmp_path / f"{name}_live.duckdb", tmp_path / f"{name}_stage.duckdb"
+    for path in (live, stage):
+        con = duckdb.connect(str(path))
+        try:
+            con.execute("CREATE TABLE sep (ticker VARCHAR, date DATE, close DOUBLE, volume BIGINT)")
+            con.execute("CREATE TABLE tickers (ticker VARCHAR, lastpricedate DATE)")
+            for d in (date(2026, 8, 26), date(2026, 8, 27)):
+                con.execute("INSERT INTO sep VALUES ('AAPL', ?, 100.0, 1000)", [d])
+            con.execute("INSERT INTO tickers VALUES ('AAPL', ?)", [date(2026, 8, 27)])
+        finally:
+            con.close()
+    return live, stage
+
+
+def test_an_empty_universe_fails_verification(tmp_path):
+    """NEGATIVE CONTROL. A healthy staging store plus an empty universe must NOT pass.
+
+    "Nothing to verify" is not "nothing failed". The universe defines the population being
+    verified; with none, no per-name freshness, adjudication, coverage or evidence check is
+    performed, and an unperformed check is not a passed one.
+    """
+    fr = _load("factor_refresh")
+    live, stage = _verify_stores(tmp_path, "empty")
+    failures, _report = fr.verify_staging(
+        live_path=live, stage_path=stage, universe=[], evidence={}, as_of=date(2026, 8, 27)
+    )
+    assert any("universe is EMPTY" in f for f in failures), (
+        f"an empty universe passed verification; failures were {failures}. A gate that passes "
+        "when its input is absent is not a gate."
+    )
+
+
+def test_a_healthy_non_empty_universe_still_passes(tmp_path):
+    """POSITIVE CONTROL. The new refusal must not fail an ordinary healthy run.
+
+    Without this, the negative control above is satisfiable by failing everything.
+    """
+    fr = _load("factor_refresh")
+    live, stage = _verify_stores(tmp_path, "healthy")
+    failures, _report = fr.verify_staging(
+        live_path=live, stage_path=stage, universe=["AAPL"], evidence={}, as_of=date(2026, 8, 27)
+    )
+    assert not any("universe is EMPTY" in f for f in failures), (
+        f"a healthy non-empty universe was refused as empty: {failures}"
+    )

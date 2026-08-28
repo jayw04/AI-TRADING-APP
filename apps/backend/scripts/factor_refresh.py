@@ -662,6 +662,24 @@ def verify_staging(
         }
     }
 
+    # ⛔ THE UNIVERSE DEFINES THE POPULATION BEING VERIFIED. Without it there is nothing to
+    # verify, and "nothing to verify" is not "nothing failed". Until 2026-08-28 the entire
+    # per-name block below — staleness, adjudication, the coverage gate AND the evidence-health
+    # check — sat behind ``if s_sep is not None and universe:`` with no ``else``, so an empty
+    # universe file produced ZERO failures and a passing verify, and the swap proceeded on a
+    # vacuously-green gate. ``derive_refresh_universe`` refuses to WRITE an empty universe,
+    # which lowers reachability but does not make this gate correct: a truncated, missing or
+    # unreadable file reaches here, and the evidence writer is deliberately non-fatal precisely
+    # because "the verifier is the gate". A gate that passes when its input is absent is not a
+    # gate. Fail closed, first-class, before anything else reads it.
+    if not universe:
+        failures.append(
+            "refresh universe is EMPTY - refusing verification and promotion. The universe "
+            "defines the population being verified; with none, no per-name freshness, "
+            "adjudication, coverage or evidence check can be performed, and an unperformed "
+            "check is not a passed one"
+        )
+
     if s_sep is not None and universe:
         st = per_name_staleness(stage_path, universe, max_lag_days=max_lag_days)
         report["per_name"] = st

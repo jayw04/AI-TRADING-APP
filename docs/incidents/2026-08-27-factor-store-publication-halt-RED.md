@@ -190,6 +190,30 @@ The 2026-09-10 cliff is removed regardless of `WBS`.
 
 ---
 
+## Residual recorded, not fixed — `PENDING_LIVE` with code that breaks during the cooldown
+
+Review on 2026-08-28 found that making `complete_pending` fail-closed on an unclassifiable
+strategy class (`c101cbf8`, correct in itself) turned a **pre-existing** omission in the
+activation prerequisites into a durable stranded state. The **structural** half is fixed here: a
+strategy that can never be dispatched — a non-`PYTHON` type, or a null/blank `code_path` (the
+column is nullable) — is now refused by the `strategy_is_dispatchable` prerequisite **before**
+entering `PENDING_LIVE`, rather than after the 24-hour cooldown has elapsed.
+
+**The remaining case is NOT decided here and needs an owner ruling.** A `PYTHON` strategy that
+was structurally eligible at initiation and whose file *becomes* unloadable during the cooldown
+(deleted, edited into a syntax error, a broken import) is refused by `complete_pending` and stays
+`PENDING_LIVE`, retried every 60 seconds, with a `warning` log and no durable record. Cancellation
+remains available, so the strategy is not trapped — but nothing tells an operator who is not
+reading logs that the promotion is failing.
+
+**There is no suitable durable surface today.** The only activation-refusal audit action is
+`STRATEGY_ACTIVATION_BLOCKED_BY_HOLD`, which is hold-specific and must not be overloaded. Giving
+this case one means either a new `AuditAction` (plus its on-call runbook scenario, per the
+repository's standing convention) or an explicit activation-failure state. **The latter is
+state-machine design and was deliberately not invented here.** Before it is chosen, the ruling
+needs to say whether the strategy should stay `PENDING_LIVE` (preserving the cooldown and the
+frictionless cancel) or move to an explicit failure state, and what clears it.
+
 ## Closure gate
 
 **⛔ A merge does not close this incident.** The PR remains **NOT DEPLOYMENT-CLOSED** until

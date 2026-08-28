@@ -563,3 +563,84 @@ async def test_activation_while_red_is_still_refused_after_the_recovery_carve_ou
     intent = eng.RegistrationIntent.RECOVER
     gated = intent is eng.RegistrationIntent.ACTIVATE and stub._classify_factor_consuming(cls, 7)
     assert gated is False
+
+
+# ------------------------------------------- inference is lazy (finding 4, 2026-08-28)
+
+
+def test_a_declared_factor_strategy_never_consults_inference(monkeypatch):
+    """The incident signature must stay an incident signature.
+
+    ``strategy_factor_classification_unavailable`` is the line ADR 0056, ``base.py`` and the
+    2026-08-10 record all name as the signature of the disarmed veto — the string an operator
+    greps for to detect the defect this interlock exists to prevent. Until 2026-08-28 it fired
+    on EVERY DISPATCH of every correctly-declared factor book, because inference ran before the
+    code knew whether inference was needed and ``StrategyLoader`` never registers the module in
+    ``sys.modules``, so introspection always fails for a loaded instance. A warning that fires
+    constantly on healthy strategies is not a signal.
+
+    ⚠ Asserted by SPYING ON THE CALL, not by capturing the log. ``caplog`` does not see
+    structlog output, so a log-based version of this test passes against an empty string
+    whatever the code does — it cannot fail, which is worse than not having it.
+    """
+    from app.strategies import factor_classification as fc
+
+    calls: list[int | None] = []
+    real = fc.infer_factor_consuming
+
+    def _spy(cls, strategy_id=None):
+        calls.append(strategy_id)
+        return real(cls, strategy_id)
+
+    monkeypatch.setattr(fc, "infer_factor_consuming", _spy)
+
+    assert (
+        fc.requires_factor_readiness(_uninspectable("Declared", requires_factor_readiness=True), 7)
+        is True
+    )
+    assert calls == [], (
+        "a declared-True strategy consulted inference it cannot need, re-emitting the "
+        "disarmed-veto signature on every dispatch of a healthy book"
+    )
+
+    # The converse: where the declaration cannot answer, inference must still run.
+    assert fc.requires_factor_readiness(_uninspectable("Undeclared"), 8) is False
+    assert calls == [8], "inference must still run when there is no declaration to trust"
+
+
+# ------------------------------------------- the fallback gate is per strategy (finding 7)
+
+
+@pytest.mark.asyncio
+async def test_event_fallback_evaluates_readiness_once_per_strategy_not_per_symbol():
+    """Cost, not policy: the verdict is a property of the store, never of the symbol.
+
+    ``evaluate_factor_readiness`` opens DuckDB and reads two JSON files synchronously on the
+    event loop. Inside the symbol loop a book with N symbols paid that N times per fallback
+    tick to reach the same answer N times.
+    """
+    import ast
+    import inspect
+    import textwrap
+
+    from app.strategies import engine as eng
+
+    tree = ast.parse(
+        textwrap.dedent(inspect.getsource(eng.StrategyEngine._fire_all_event_strategies))
+    )
+
+    symbol_loops = [
+        node
+        for node in ast.walk(tree)
+        if isinstance(node, ast.For)
+        and isinstance(node.target, ast.Name)
+        and node.target.id == "symbol"
+    ]
+    assert symbol_loops, "the per-symbol loop moved - this test is now blind"
+    inside = any("_factor_readiness_ok" in ast.dump(loop) for loop in symbol_loops)
+    assert not inside, (
+        "the readiness gate sits inside the per-symbol loop: it re-opens the store once per "
+        "symbol per fallback tick to reach the same verdict"
+    )
+    # ...and it must still be consulted somewhere in the function.
+    assert "_factor_readiness_ok" in ast.dump(tree)

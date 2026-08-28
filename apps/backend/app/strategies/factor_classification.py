@@ -104,6 +104,21 @@ def requires_factor_readiness(cls: type[Strategy], strategy_id: int | None = Non
     population.
     """
     declared = getattr(cls, "requires_factor_readiness", None)
+
+    # ⚠ INFER ONLY WHEN INFERENCE CAN CHANGE THE ANSWER. Until 2026-08-28 this computed
+    # ``infer_factor_consuming`` unconditionally, before knowing whether it was needed. For a
+    # correctly-declared factor book that is pure cost AND active harm: ``StrategyLoader``
+    # never registers the module in ``sys.modules``, so ``inspect.getsource`` and its
+    # ``__file__`` fallback both fail for every loaded instance, and inference logged
+    # ``strategy_factor_classification_unavailable`` at WARNING on EVERY DISPATCH of a healthy,
+    # correctly-declared strategy. That string is the documented signature of the disarmed veto
+    # (ADR 0056, ``base.py``, the 2026-08-10 incident record) — the line an operator would grep
+    # for to detect the defect this interlock exists to prevent. Emitting it constantly on
+    # healthy books destroys it as a signal. A declared ``True`` is authoritative and complete;
+    # nothing inference could return would change it, so it is not consulted.
+    if declared is True:
+        return True
+
     inferred = infer_factor_consuming(cls, strategy_id)
 
     if declared is None:

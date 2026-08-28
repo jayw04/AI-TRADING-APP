@@ -924,6 +924,15 @@ class StrategyEngine:
         for sid, running in list(self._running.items()):
             if running.schedule != EVENT_SCHEDULE_SENTINEL:
                 continue
+            # Evaluated ONCE PER STRATEGY, above the symbol loop. The verdict is a property of
+            # the store and the strategy, never of the symbol, and evaluating it opens DuckDB
+            # and reads two JSON files SYNCHRONOUSLY on the event loop — so inside the symbol
+            # loop a book with N symbols paid that N times per fallback tick to reach the same
+            # answer N times. Placement only; the policy is unchanged, and a blocked book still
+            # cannot suppress the tick for the unrelated event-scheduled strategies beside it,
+            # because this continues the STRATEGY loop rather than returning.
+            if not await self._factor_readiness_ok(running, dispatch_source="event_fallback"):
+                continue
             for symbol in running.symbols:
                 try:
                     latest = await self._bar_cache.get_latest_bar(symbol)
@@ -939,18 +948,15 @@ class StrategyEngine:
                         symbol=symbol,
                     )
                     continue
-                # Same on_bar that computes and applies the book, so the same interlock.
+                # Same on_bar that computes and applies the book, so the same interlock —
+                # applied above, once for this strategy.
                 #
                 # ⚠ Found by ``test_every_execution_seam_is_gated``, not by reading: this is a
                 # FOURTH on_bar path, and it was the one nobody had noticed. It only fires for
                 # ``schedule == "event"`` strategies and every factor book runs on cron
                 # (``0 14 * * mon`` and similar), so it could not dispatch one today — which is
                 # exactly the kind of incidental safety this PR exists to replace with a
-                # structural guarantee. Gated per-strategy inside the loop rather than around
-                # it, so a factor book being blocked never suppresses the fallback tick for the
-                # unrelated event-scheduled strategies beside it.
-                if not await self._factor_readiness_ok(running, dispatch_source="event_fallback"):
-                    continue
+                # structural guarantee.
                 try:
                     await running.instance.on_bar(event_bar)
                     running.last_dispatch_at = time.time()

@@ -50,6 +50,7 @@ from app.db.enums import (
     OrderType,
     RiskScopeType,
     StrategyStatus,
+    StrategyType,
     TimeInForce,
 )
 from app.db.models.account import Account, AccountMode
@@ -170,6 +171,45 @@ class ActivationService:
         account = await self._resolve_strategy_account(strategy, AccountMode.live)
         store = CredentialStore(self._session)
         prereqs: list[Prerequisite] = []
+
+        # 0a. STRUCTURALLY DISPATCHABLE. Checked FIRST, because it is the only prerequisite
+        # that can never become satisfiable by an operator action on the account, the
+        # credentials or the clock.
+        #
+        # ⚠ Added 2026-08-28. ``complete_pending`` became fail-closed on an unclassifiable
+        # strategy class (correctly — the ``None`` path could otherwise promote an unloadable
+        # strategy to LIVE with the factor interlock never evaluated). That turned a
+        # PRE-EXISTING omission here into a durable stranded state: nothing on this list
+        # established that the strategy is dispatchable Python at all, so a PINE/AGENT strategy
+        # or one with a null ``code_path`` (the column is nullable) could enter PENDING_LIVE,
+        # sit through the 24h cooldown, and then be refused by ``complete_pending`` FOREVER on
+        # a 60-second retry — a permanent PENDING_LIVE with no path forward.
+        # ``StrategyEngine.register`` has always guarded this (``row.type != PYTHON`` ->
+        # StrategyLoadError); the activation path never did.
+        #
+        # This is the STRUCTURAL half only: a type or a missing path that can never be
+        # dispatched, rejected before the cooldown starts rather than after it ends. Code that
+        # was valid at initiation and BREAKS during the cooldown is a different case with a
+        # different answer, and is deliberately NOT decided here — see the module note.
+        dispatchable = strategy.type == StrategyType.PYTHON and bool(
+            (strategy.code_path or "").strip()
+        )
+        prereqs.append(
+            Prerequisite(
+                name="strategy_is_dispatchable",
+                satisfied=dispatchable,
+                detail=(
+                    "Python strategy with a code path."
+                    if dispatchable
+                    else (
+                        f"Strategy type {strategy.type.value} with code_path="
+                        f"{strategy.code_path!r} can never be dispatched by the engine, so it "
+                        "cannot complete a live activation. Only PYTHON strategies with a code "
+                        "path are engine-runnable."
+                    )
+                ),
+            )
+        )
 
         # 0. LIVE account exists.
         prereqs.append(
