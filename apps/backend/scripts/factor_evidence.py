@@ -195,6 +195,40 @@ def effective_last_by_symbol(store: str | Path, universe: Sequence[str]) -> dict
     return out
 
 
+def sep_last_by_symbol(store: str | Path, universe: Sequence[str]) -> dict[str, date | None]:
+    """Per-symbol frontier of INGESTED PRICE ROWS: ``max(sep.date)``, and nothing else.
+
+    ⚠ Deliberately NOT :func:`effective_last_by_symbol`. The two answer different questions and
+    conflating them was a production defect (2026-08-28, gate 1):
+
+    * *effective* = ``min(max(sep.date), tickers.lastpricedate)`` — how FRESH is this name for
+      ranking. Clamped by the reference table because a lagging ``lastpricedate`` removes the
+      name from the pool outright.
+    * *sep last* = what price history we have actually INGESTED. The only frontier against which
+      "did the provider return rows we missed?" can be asked.
+
+    Counting SEP rows after the *effective* frontier answers neither: for any name whose
+    ``lastpricedate`` lags its ``sep_max`` — the exhausted/delisted shape, e.g. ``EA`` with
+    ``sep_max 2026-08-05`` and ``lastpricedate 2026-08-04`` — the already-ingested ``08-05`` row
+    sits "after" the effective frontier permanently, so the count is structurally >= 1 and
+    ``classify_stale_symbol`` refuses the name forever with "ingestion missed them". Nothing was
+    missed; SEP is simply ahead of lagging ticker metadata.
+    """
+    if not universe:
+        return {}
+    con = _duck(store)
+    try:
+        placeholders = ",".join("?" * len(universe))
+        rows = con.execute(
+            f"SELECT ticker, max(date) FROM sep WHERE ticker IN ({placeholders}) GROUP BY ticker",  # noqa: S608
+            list(universe),
+        ).fetchall()
+    finally:
+        con.close()
+    found = {t: _as_date(v) for t, v in rows if v is not None}
+    return {ticker: found.get(ticker) for ticker in universe}
+
+
 def rows_after(store: str | Path, symbol: str, frontier: date | None) -> int:
     """How many SEP rows the provider delivered for ``symbol`` strictly after ``frontier``.
 
@@ -548,6 +582,10 @@ def generate(
         if stage_effective.get(s) is None or stage_effective[s] < cutoff  # type: ignore[operator]
     )
     live_effective = effective_last_by_symbol(live_path, non_fresh) if non_fresh else {}
+    # The counter's frontier, which is NOT the classifier's frontier. See sep_last_by_symbol:
+    # "rows the provider returned that we missed" can only be asked against the price rows we
+    # actually hold, never against a frontier clamped by the reference table.
+    live_sep_last = sep_last_by_symbol(live_path, non_fresh) if non_fresh else {}
 
     # The control is probed on the SAME call as the subjects, so a source outage cannot
     # produce a current control and stale subjects.
@@ -585,9 +623,7 @@ def generate(
         non_fresh=non_fresh,
         live_effective=live_effective,
         stage_effective={s: stage_effective.get(s) for s in non_fresh},
-        rows_after_frontier={
-            s: rows_after(stage_path, s, live_effective.get(s)) for s in non_fresh
-        },
+        rows_after_frontier={s: rows_after(stage_path, s, live_sep_last.get(s)) for s in non_fresh},
         corroborated={s: probed.get(s) for s in non_fresh},
         control_symbol=control_symbol.upper(),
         control_last_date=control_last,
