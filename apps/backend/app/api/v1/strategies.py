@@ -64,6 +64,7 @@ from app.events import get_event_bus
 from app.services.paper_variant import PaperVariantService
 from app.services.strategy_cooldown import StrategyCooldownService
 from app.strategies import StrategyLoader, StrategyLoadError
+from app.strategies.factor_readiness import FactorReadinessNotMet
 from app.strategies.hold_service import StrategyOnHold
 
 router = APIRouter(prefix="/strategies", tags=["strategies"])
@@ -347,6 +348,21 @@ async def start_strategy(
             detail=(
                 f"Strategy #{strategy_id} is under an operational hold "
                 f"({exc.reason_code}). Clear the hold before activating."
+            ),
+        ) from exc
+    except FactorReadinessNotMet as exc:
+        # Factor-readiness interlock (2026-08-27): a factor-consuming strategy may not go
+        # IDLE -> PAPER while the governing factor readiness is not PASS. 409, like the
+        # operational hold above: a conflicting STATE the caller resolves by restoring
+        # readiness, not a bad request and not a server fault. The strategy is left IDLE and
+        # no position was touched.
+        raise HTTPException(
+            status_code=409,
+            detail=(
+                f"Strategy #{strategy_id} consumes factor data and factor readiness is not "
+                f"PASS ({exc.reason}). Existing positions are untouched. Restore the factor "
+                "store (deploy/aws/factor-refresh.sh, then factor-freshness.sh) before "
+                "activating."
             ),
         ) from exc
     except StrategyLoadError as exc:

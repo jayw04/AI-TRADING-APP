@@ -36,6 +36,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
+from pathlib import Path
 from typing import Any
 
 import structlog
@@ -56,7 +57,13 @@ from app.db.models.backtest_result import BacktestResult
 from app.db.models.risk_limits import RiskLimits
 from app.db.models.strategy import Strategy
 from app.db.models.user import User
+from app.factor_data.config import resolve_store_path
 from app.security.credential_store import CredentialKind, CredentialStore
+from app.strategies.factor_classification import requires_factor_readiness
+from app.strategies.factor_readiness import (
+    ReadinessVerdict,
+    evaluate_factor_readiness,
+)
 from app.strategies.hold_service import (
     HoldStateInvalid,
     HoldStoreUnavailable,
@@ -64,6 +71,7 @@ from app.strategies.hold_service import (
     assert_no_active_hold,
     record_activation_blocked,
 )
+from app.strategies.loader import StrategyLoader
 from app.utils.time import ensure_aware
 
 logger = structlog.get_logger(__name__)
@@ -388,6 +396,51 @@ class ActivationService:
         await self._session.commit()
         logger.info("strategy_activation_canceled", strategy_id=strategy_id, user_id=user_id)
 
+    async def _factor_readiness_for(self, strategy: Strategy) -> ReadinessVerdict | None:
+        """The governing factor-readiness verdict for this strategy, or ``None`` if the
+        interlock does not apply to it.
+
+        ``None`` means "not a factor consumer" — Range Trader and every other book that never
+        reads ``ctx.factors``. It is deliberately distinct from a failing verdict, so a caller
+        cannot confuse "the interlock does not apply" with "the interlock passed".
+
+        Classification comes from :mod:`app.strategies.factor_classification`, shared with the
+        engine, so this path and dispatch cannot disagree about which strategies are governed.
+
+        A class that cannot be LOADED returns ``None`` and the interlock is skipped here — not
+        because that is safe, but because it is not this method's call to make. A strategy
+        whose code path is unloadable cannot be registered by the engine either and is refused
+        there, on its own terms, with a message about the real problem. Failing it closed here
+        would report a factor-readiness fault for a strategy whose actual defect is a missing
+        file, and send the operator to the wrong system.
+
+        ⚠ The root is ``Path("strategies_user")``, byte-identical to ``app/lifespan.py`` and
+        ``app/api/v1/strategies.py``. Relative on purpose: those two resolve it against the
+        process CWD, and a second, cleverer resolution here (one derived from ``__file__``,
+        say) would become a DIFFERENT root the day a deployment layout changed — and its
+        failure mode would be this method quietly returning ``None`` and skipping the
+        interlock. One convention, so there is nothing to drift.
+        """
+        try:
+            cls = StrategyLoader(Path("strategies_user")).load(strategy.code_path or "")
+        except Exception:
+            logger.warning(
+                "activation_factor_classification_unavailable",
+                strategy_id=strategy.id,
+                detail=(
+                    "strategy class could not be loaded, so factor consumption could not be "
+                    "classified; leaving the decision to the loader at registration"
+                ),
+            )
+            return None
+        if not requires_factor_readiness(cls, strategy.id):
+            return None
+        return evaluate_factor_readiness(
+            store_path=resolve_store_path(),
+            sealed_path=resolve_store_path().parent / "_factor_refresh_universe_sealed.json",
+            readiness_path=resolve_store_path().parent / "_factor_readiness.json",
+        )
+
     async def complete_pending(self, strategy_id: int) -> bool:
         """Scheduler entry point. Transition PENDING_LIVE → LIVE if 24h elapsed.
         Idempotent: returns False (no change) if the strategy is no longer
@@ -434,6 +487,35 @@ class ActivationService:
             return False
         except (HoldStateInvalid, HoldStoreUnavailable):
             logger.error("activation_hold_unreadable_refused", strategy_id=strategy_id)
+            return False
+
+        # FACTOR-READINESS ACTIVATION INTERLOCK (2026-08-27), same shape as the hold above.
+        #
+        # ⚠ This path is NOT covered by the engine's register-time interlock. The scheduler
+        # calls straight into this method and flips the status to LIVE itself; the engine is
+        # not consulted, so a factor book whose cooldown elapsed during a factor-store outage
+        # would complete into LIVE with the store frozen. The interlock the owner set on
+        # 2026-08-27 forbids IDLE -> PAPER/LIVE while readiness is not PASS, and LIVE is the
+        # consequential half of that.
+        #
+        # Refuse, leave the strategy PENDING_LIVE, and let a later pass complete it once the
+        # factor store recovers — exactly the hold's behaviour, and for the same reason: the
+        # cooldown is not the thing being questioned, the data is. Nothing is liquidated,
+        # cancelled, or reset, and no held position is touched.
+        readiness = await self._factor_readiness_for(strategy)
+        if readiness is not None and not readiness.ok:
+            logger.warning(
+                "activation_blocked_factor_not_ready",
+                strategy_id=strategy_id,
+                status_mutated=False,
+                positions_touched=0,
+                detail=(
+                    "PENDING_LIVE->LIVE completion refused: governing factor readiness is "
+                    "not PASS. The strategy stays PENDING_LIVE and a later pass completes it "
+                    "once the factor store recovers."
+                ),
+                **readiness.as_log(),
+            )
             return False
 
         strategy.status = StrategyStatus.LIVE

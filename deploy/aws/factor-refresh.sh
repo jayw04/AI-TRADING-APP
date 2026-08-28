@@ -84,6 +84,50 @@ $COMPOSE run --rm --no-deps \
     --datasets sep,actions,tickers --from "$FROM"
 log "ingested SEP/actions/tickers since ${FROM} into staging"
 
+# 2a) REGENERATE the exhaustion evidence artifact from what this run actually observed.
+#
+#     ⚠ THIS STEP DECIDES NOTHING. It writes observations — was the symbol in the list handed
+#     to the ingest, how did that ingest exit, how many rows did the provider deliver past the
+#     live frontier, and what does an INDEPENDENT source say about the symbol and about a
+#     control symbol probed on the same call. `factor_refresh.py verify` re-derives every
+#     verdict from those observations using the shared adjudicator; the artifact cannot talk
+#     the gate into anything.
+#
+#     WHY IT IS HERE. Until 2026-08-27 nothing in the repository wrote this artifact. The
+#     production copy was hand-built once, on 2026-08-11, holding eleven records. A name that
+#     went attributable-stale afterwards therefore had NO record and adjudicated
+#     FAILED_OR_UNEXPLAINED, aborting the swap: EA needed a human on 08-17, and WBS halted the
+#     refresh on 08-25, 08-26 and 08-27, freezing the live store at SEP 2026-08-21. Worse, all
+#     eleven records shared one observation timestamp, so with MAX_EVIDENCE_AGE_DAYS=30 they
+#     were due to expire TOGETHER on 2026-09-10 and the refresh would then have failed on
+#     eleven names instead of one. A control refreshed by remembering to refresh it is a
+#     control with a human in the hot path of every market day.
+#
+#     ⚠ A FAILURE HERE IS NOT AN ABORT. The verifier is the gate and is fail-closed on a
+#     missing, unreadable or expired artifact, so a failed regeneration surfaces as a verify
+#     failure with a diagnosis rather than as a second, earlier exit whose meaning an operator
+#     would have to learn separately. The `|| log ...` tail is therefore deliberate rather
+#     than defensive — it absorbs the non-zero exit that `set -e` would otherwise turn into an
+#     abort, so the step is allowed to fail and the NEXT step is what refuses to promote.
+#
+#     ⚠ NO SYMBOL IS NAMED ANYWHERE IN THIS FILE. Every name — EA, WBS, and whatever the next
+#     one is — reaches a verdict through evidence and adjudication. A ticker literal in this
+#     path would be an exemption nobody could audit; check_no_factor_symbol_special_cases.sh
+#     fails the build on one.
+#
+#     `--ingest-status` is left at its default `ok` and NOT computed from the ingest's exit
+#     code, because `set -e` is in force above: a non-zero ingest has already exited the
+#     script, so this line is only ever reached after a successful one. Capturing `$?` here
+#     would suggest a failure path that cannot occur and would read as handling something it
+#     does not. The parameter exists for reruns driven by hand, where the operator knows.
+$COMPOSE_REFRESH run --rm --no-deps backend python scripts/factor_evidence.py generate \
+    --live     /app/data/factor_data.duckdb \
+    --stage    /app/data/factor_data.staging.duckdb \
+    --universe "$UNIVERSE_FILE" \
+    --app-db   /app/data/workbench.sqlite \
+    --out      /app/data/_factor_exhaustion_evidence.json \
+  || log "WARN: evidence regeneration FAILED — verification will fail closed on the stale artifact and report why"
+
 # 2b) VERIFY the staging store BEFORE the swap — a bad refresh must NOT reach the live book.
 #     A stale factor store is a silent allocation bug, so the swap is GATED: staging must not
 #     regress vs the current live (sep_max backward, >10% tickers lost) and must be self-consistent

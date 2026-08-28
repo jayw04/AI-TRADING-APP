@@ -140,6 +140,11 @@ TOLERANCE="${FRESH_TOLERANCE_DAYS:-4}"        # sep frontier vs ET today
 MAX_LAG_DAYS="${FRESH_MAX_LAG_DAYS:-4}"       # per-name lag vs the store's own frontier
 MIN_COVERAGE="${FRESH_MIN_COVERAGE:-0.98}"    # fraction of the universe that must be current
 STALE_NAME_SAMPLE="${STALE_NAME_SAMPLE:-12}"  # how many stale names to attribute in the alert
+# How many days before the evidence artifact expires this watchdog starts saying so.
+# Mirrors EVIDENCE_EXPIRY_WARN_DAYS in apps/backend/scripts/factor_refresh.py. The
+# refresh runs weekdays, so 10 days is at least seven chances to act before a cliff
+# that takes every attribution at once.
+EVIDENCE_EXPIRY_WARN_DAYS="${EVIDENCE_EXPIRY_WARN_DAYS:-10}"
 
 # ── environment seams (production defaults; the test harness overrides these) ────────
 REGION="${AWS_REGION:-us-east-1}"
@@ -705,7 +710,40 @@ else:
             t for t in universe if effective[t] is None or effective[t] < cutoff
         )
 
-        evidence, ev_note, ev_status = load_evidence(os.environ["EXHAUSTION_PATH"])
+        all_evidence, evidence, ev_note, ev_status = load_evidence_records(
+            os.environ["EXHAUSTION_PATH"]
+        )
+
+        # ── EVIDENCE EXPIRY: a control whose failure mode is a CLIFF ────────────────────
+        #
+        # Every record carries one observation timestamp, and a hand-built artifact gives
+        # them all the SAME one - so attributions do not expire one at a time, they expire
+        # together. The production artifact on 2026-08-27 held eleven records observed
+        # 2026-08-11: eleven simultaneous expiries due 2026-09-10, after which the refresh
+        # would fail on eleven names rather than one. Nothing measured the distance to that
+        # date, so the only available way to learn it was to go over it.
+        #
+        # Reported here while there is still time to act. Computed by the SHARED module, so
+        # this watchdog and the refresh verifier cannot disagree about when the artifact
+        # expires - the same reason every other figure on this page comes from there.
+        expiry = evidence_expiry(evidence, as_of=et_today)
+        if expiry["earliest_expiry_on"]:
+            print(f"NOTE DATA_EVIDENCE_EXPIRY: earliest {expiry['earliest_expiry_on']} "
+                  f"({expiry['days_remaining']}d remaining) over "
+                  f"{expiry['record_count']} record(s)")
+        warn_days = int(os.environ.get("EVIDENCE_EXPIRY_WARN_DAYS", "10"))
+        if expiry["days_remaining"] is not None and expiry["days_remaining"] <= warn_days:
+            print("PROBLEM DATA_EVIDENCE_EXPIRING: attribution for "
+                  f"{expiry['record_count']} symbol(s) expires on "
+                  f"{expiry['earliest_expiry_on']} ({expiry['days_remaining']}d) - they "
+                  "expire TOGETHER, so the refresh begins failing on all of them at once. "
+                  "The refresh regenerates this artifact on every run; if this is firing, "
+                  "that step is not running (scripts/factor_evidence.py)")
+        if expiry["expired_count"]:
+            print(f"PROBLEM DATA_EVIDENCE_EXPIRED: {expiry['expired_count']} record(s) are "
+                  "already past the permitted observation age and can attribute nothing: "
+                  f"{expiry['expired_symbols'][:sample]}")
+
         if ev_status in ("unreadable", "malformed"):
             # A broken control is a finding even on a run where nothing is stale.
             print("PROBLEM DATA_EXHAUSTION_EVIDENCE_UNREADABLE: "
@@ -765,10 +803,30 @@ else:
                       f"{sep} frontier; e.g. {','.join(bad[:sample])}")
             if result["failed_or_unexplained_symbols"]:
                 bad = result["failed_or_unexplained_symbols"]
+                # WHY each name is unexplained, not merely THAT it is. The bare list is the
+                # same string whether nobody ever wrote a record for the name or the rule
+                # read a current record and refused it - and those need opposite operator
+                # responses (regenerate the artifact, or investigate the symbol). Computed
+                # by the shared module so this alert and the refresh verifier's abort line
+                # say the same words about the same condition.
+                diagnosis = diagnose_unexplained(
+                    bad,
+                    all_records=all_evidence,
+                    claimable_records=evidence,
+                    as_of=et_today,
+                )
+                grouped = {}
+                for symbol, label in sorted(diagnosis.items()):
+                    grouped.setdefault(label, []).append(symbol)
+                detail = "; ".join(
+                    f"{label} {syms[:sample]} - {EVIDENCE_DIAGNOSIS_DETAIL.get(label, '')}"
+                    for label, syms in sorted(grouped.items())
+                )
                 print(f"PROBLEM DATA_UNADJUDICATED_STALE: {len(bad)} universe tickers are "
                       "stale with no accepted evidence - a name with a stale "
                       "tickers.lastpricedate is EXCLUDED from the ranking pool outright "
-                      f"(worse than ranking on old data); e.g. {','.join(bad[:sample])}")
+                      f"(worse than ranking on old data); e.g. {','.join(bad[:sample])}. "
+                      f"Diagnosis: {detail}")
 c.close()
 PY
 } | $DOCKER exec -i \
@@ -782,6 +840,7 @@ PY
   -e APP_DB="$CONTAINER_APP_DB" \
   -e ET_TODAY="${WATCHDOG_ET_TODAY:-}" \
   -e REFRESH_TZ="$REFRESH_TZ" \
+  -e EVIDENCE_EXPIRY_WARN_DAYS="$EVIDENCE_EXPIRY_WARN_DAYS" \
   "$BACKEND_CONTAINER" python - 2>/dev/null )"
 STORE_RC=$?
 

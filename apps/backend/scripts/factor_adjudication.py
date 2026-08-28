@@ -103,8 +103,194 @@ def _observed_on(v: Any) -> date | None:
 # ------------------------------------------------------------------------ evidence io
 
 
+#: Why a stale symbol ended up ``FAILED_OR_UNEXPLAINED``. These are DIAGNOSTIC labels, never
+#: verdicts: nothing here can change what :func:`classify_stale_symbol` decided. They exist
+#: because ``UNEXPLAINED: ['WBS']`` — the line that aborted three consecutive production
+#: refreshes on 2026-08-25/26/27 — is indistinguishable between four operationally different
+#: situations that need four different operator responses. Three of them are cleared by
+#: regenerating the artifact; the fourth is a real finding about the symbol and is not.
+EVIDENCE_ABSENT = "EVIDENCE_ABSENT"
+EVIDENCE_NOT_CLAIMABLE = "EVIDENCE_NOT_CLAIMABLE"
+EVIDENCE_EXPIRED = "EVIDENCE_EXPIRED"
+EVIDENCE_PRESENT_REFUSED = "EVIDENCE_PRESENT_REFUSED"
+
+#: Operator prose per diagnosis, held HERE so the refresh verifier's abort line and the
+#: watchdog's alert say the SAME words about the same condition. Two components describing one
+#: state in two vocabularies is how an operator comes to believe they are two states.
+EVIDENCE_DIAGNOSIS_DETAIL = {
+    EVIDENCE_ABSENT: (
+        "no evidence record exists for this symbol at all - the artifact predates the name "
+        "going stale and nothing regenerated it; regenerate (scripts/factor_evidence.py)"
+    ),
+    EVIDENCE_NOT_CLAIMABLE: (
+        "an evidence record exists but claims no adjudicable classification, so it was "
+        "dropped before adjudication - regenerate the artifact"
+    ),
+    EVIDENCE_EXPIRED: (
+        "the record's corroboration observation is older than the permitted window - it is "
+        "provenance, not a live signal, and must be re-observed; regenerate the artifact"
+    ),
+    EVIDENCE_PRESENT_REFUSED: (
+        "a CURRENT evidence record was adjudicated and REFUSED on its merits - this is a real "
+        "finding about the symbol, not a gap in the artifact, and REGENERATING EVIDENCE WILL "
+        "NOT CLEAR IT"
+    ),
+}
+
+
+def load_evidence_records(
+    path: str | Path,
+) -> tuple[dict[str, dict[str, Any]], dict[str, dict[str, Any]], str, str]:
+    """Read the artifact. Returns ``(all_by_symbol, claimable_by_symbol, note, status)``.
+
+    ``claimable_by_symbol`` is what adjudication consumes, and is exactly what
+    :func:`load_evidence` returns. ``all_by_symbol`` additionally retains records claiming
+    nothing adjudicable, because "a record was DROPPED" and "no record ever existed" are
+    different facts about the system and only the diagnosis layer needs to tell them apart.
+
+    Adjudication must never see the dropped ones, and does not: they are returned in a
+    SEPARATE mapping, and :func:`adjudicate` is only ever handed the claimable one. Returning
+    them from the same function is what keeps a single parser and a single set of failure
+    labels — a second reader would be a second chance to disagree.
+    """
+    try:
+        raw = json.loads(Path(path).read_text(encoding="utf-8"))
+    except FileNotFoundError:
+        return {}, {}, "evidence artifact ABSENT - nothing attributable", "absent"
+    except Exception as exc:  # noqa: BLE001 - any parse failure is the same verdict
+        return (
+            {},
+            {},
+            f"evidence artifact UNREADABLE ({type(exc).__name__}) - nothing attributable",
+            "unreadable",
+        )
+
+    records = raw.get("symbols") if isinstance(raw, dict) else None
+    if not isinstance(records, list):
+        return (
+            {},
+            {},
+            "evidence artifact MALFORMED (no 'symbols' list) - nothing attributable",
+            "malformed",
+        )
+
+    all_by_symbol: dict[str, dict[str, Any]] = {}
+    claimable: dict[str, dict[str, Any]] = {}
+    for rec in records:
+        if not isinstance(rec, dict):
+            continue
+        symbol = str(rec.get("symbol", "")).strip().upper()
+        if not symbol:
+            continue
+        all_by_symbol[symbol] = rec
+        claim = str(rec.get("expected_classification", "")).strip().upper()
+        if claim in CLAIMABLE:
+            claimable[symbol] = rec
+    generated = raw.get("generated_at_utc") if isinstance(raw, dict) else None
+    return (
+        all_by_symbol,
+        claimable,
+        f"{len(claimable)} adjudicable record(s), evidence generated {generated}",
+        "ok",
+    )
+
+
+def diagnose_unexplained(
+    symbols: Sequence[str],
+    *,
+    all_records: dict[str, dict[str, Any]],
+    claimable_records: dict[str, dict[str, Any]],
+    as_of: date,
+    max_evidence_age_days: int = MAX_EVIDENCE_AGE_DAYS,
+) -> dict[str, str]:
+    """Label each unexplained symbol with WHY it is unexplained. Pure; no I/O.
+
+    ⚠ Reporting, not policy. Deliberately incapable of changing a verdict: it takes the
+    already-decided unexplained set as input and only names which of four conditions produced
+    it. It lives in this module rather than in either caller so the verifier and the watchdog
+    cannot invent two vocabularies for one state — the exact failure ADR 0051 exists to end.
+
+    :data:`EVIDENCE_PRESENT_REFUSED` is the one that means *investigate the symbol*. The other
+    three mean *the artifact is out of date* and are cleared by regeneration.
+
+    ⚠ The order of the tests below is deliberate, and NOT "claimable first". A record written
+    by ``scripts/factor_evidence.py`` for a name the shared rule refused carries a current
+    observation and a recorded derivation, but claims nothing adjudicable — because the rule
+    itself refused it. Testing claimability first would label that ``EVIDENCE_NOT_CLAIMABLE``,
+    whose advice is "regenerate", and regeneration is exactly what will NOT help. Freshness of
+    the observation is therefore judged before claimability, and a recorded derivation is
+    treated as proof the rule already ran.
+    """
+    out: dict[str, str] = {}
+    for raw_symbol in symbols:
+        symbol = str(raw_symbol).strip().upper()
+        record = all_records.get(symbol)
+        if record is None:
+            out[symbol] = EVIDENCE_ABSENT
+            continue
+        observed = _observed_on(record.get("adjudicated_at_utc"))
+        if observed is None or (as_of - observed).days > max_evidence_age_days:
+            out[symbol] = EVIDENCE_EXPIRED
+            continue
+        if symbol in claimable_records or record.get("generator_derived_classification"):
+            # Either adjudication was handed this record and refused it, or the generator
+            # applied the same shared rule at write time and recorded that it refused. Both
+            # mean the rule has seen current observations for this name.
+            out[symbol] = EVIDENCE_PRESENT_REFUSED
+            continue
+        out[symbol] = EVIDENCE_NOT_CLAIMABLE
+    return out
+
+
+def evidence_expiry(
+    records: dict[str, dict[str, Any]],
+    *,
+    as_of: date,
+    max_evidence_age_days: int = MAX_EVIDENCE_AGE_DAYS,
+) -> dict[str, Any]:
+    """How far is this artifact from expiring? Pure; no I/O.
+
+    Every record carries ONE observation timestamp, and in a hand-built artifact they are all
+    the SAME timestamp — so attributions do not expire one at a time, they expire together. On
+    2026-08-27 the live artifact held eleven records observed ``2026-08-11``: eleven
+    simultaneous expiries due ``2026-09-10``, after which the refresh would have failed on
+    eleven names rather than one. A control whose failure mode is a cliff must report its
+    distance from that cliff while there is still time to act, which is what this returns.
+
+    ``days_remaining`` goes negative once passed. A record with no parseable observation time
+    is counted in ``undated_symbols`` and treated as already expired — an undatable
+    observation cannot be shown to be current, and unproven is not permission.
+    """
+    expiries: list[date] = []
+    undated: list[str] = []
+    expired_now: list[str] = []
+    for symbol, rec in sorted(records.items()):
+        observed = _observed_on(rec.get("adjudicated_at_utc"))
+        if observed is None:
+            undated.append(symbol)
+            expired_now.append(symbol)
+            continue
+        expiries.append(observed + timedelta(days=max_evidence_age_days))
+        if (as_of - observed).days > max_evidence_age_days:
+            expired_now.append(symbol)
+    earliest = min(expiries) if expiries else None
+    return {
+        "record_count": len(records),
+        "undated_symbols": undated,
+        "earliest_expiry_on": earliest.isoformat() if earliest else None,
+        "days_remaining": (earliest - as_of).days if earliest else None,
+        "expired_symbols": sorted(expired_now),
+        "expired_count": len(expired_now),
+        "max_evidence_age_days": max_evidence_age_days,
+    }
+
+
 def load_evidence(path: str | Path) -> tuple[dict[str, dict[str, Any]], str, str]:
     """Read the exhaustion evidence artifact. Returns ``(by_symbol, note, status)``.
+
+    The adjudication-facing reader. Only records that *claim* one of :data:`CLAIMABLE` are
+    returned: the claim is not honoured here — :func:`classify_stale_symbol` re-derives the
+    verdict — but a record claiming nothing adjudicable is not evidence of anything.
 
     ``status`` is one of ``ok``/``absent``/``unreadable``/``malformed``. It is returned
     separately from the note because a broken artifact is a FINDING in its own right:
@@ -115,44 +301,9 @@ def load_evidence(path: str | Path) -> tuple[dict[str, dict[str, Any]], str, str
     wrongly-shaped artifact yields an EMPTY mapping, so no symbol can be attributed
     and every stale name falls through to ``FAILED_OR_UNEXPLAINED``. The note is
     operator prose naming which of those happened; callers surface it verbatim.
-
-    Only records that *claim* one of :data:`CLAIMABLE` are returned. The claim is not
-    honoured here — :func:`classify_stale_symbol` re-derives the verdict — but a record
-    claiming nothing adjudicable is not evidence of anything and is dropped early.
     """
-    try:
-        raw = json.loads(Path(path).read_text(encoding="utf-8"))
-    except FileNotFoundError:
-        return {}, "evidence artifact ABSENT - nothing attributable", "absent"
-    except Exception as exc:  # noqa: BLE001 - any parse failure is the same verdict
-        return (
-            {},
-            f"evidence artifact UNREADABLE ({type(exc).__name__}) - nothing attributable",
-            "unreadable",
-        )
-
-    records = raw.get("symbols") if isinstance(raw, dict) else None
-    if not isinstance(records, list):
-        return (
-            {},
-            "evidence artifact MALFORMED (no 'symbols' list) - nothing attributable",
-            "malformed",
-        )
-
-    by_symbol: dict[str, dict[str, Any]] = {}
-    for rec in records:
-        if not isinstance(rec, dict):
-            continue
-        symbol = str(rec.get("symbol", "")).strip().upper()
-        claim = str(rec.get("expected_classification", "")).strip().upper()
-        if symbol and claim in CLAIMABLE:
-            by_symbol[symbol] = rec
-    generated = raw.get("generated_at_utc") if isinstance(raw, dict) else None
-    return (
-        by_symbol,
-        f"{len(by_symbol)} adjudicable record(s), evidence generated {generated}",
-        "ok",
-    )
+    _all, claimable, note, status = load_evidence_records(path)
+    return claimable, note, status
 
 
 def exemption_ceiling(universe_size: int) -> int:

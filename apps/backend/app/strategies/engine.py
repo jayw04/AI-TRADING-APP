@@ -73,10 +73,15 @@ from app.ops.dispatch_health import (
     evaluate_dispatch_health,
     stale_dispatch,
 )
-from app.strategies.factor_readiness import evaluate_factor_readiness
+from app.strategies.factor_readiness import (
+    FactorReadinessNotMet,
+    ReadinessVerdict,
+    evaluate_factor_readiness,
+)
 
 from .base import Strategy
 from .context import Bar, FillEvent, SignalEvent, StrategyContext
+from .factor_classification import requires_factor_readiness
 from .hold_service import StrategyOnHold, read_hold, record_activation_blocked
 from .loader import StrategyLoader, StrategyLoadError
 
@@ -402,6 +407,48 @@ class StrategyEngine:
                 await self._mark_error(session, row, f"pr_s_capability_unavailable: {exc}")
                 await session.commit()
                 raise
+
+            # FACTOR-READINESS ACTIVATION INTERLOCK (2026-08-27).
+            #
+            # The dispatch-time gate below (:meth:`_factor_readiness_ok`) refuses to ENTER a
+            # factor book while readiness is not PASS. It does not, on its own, refuse to
+            # ACTIVATE one — and those are different events with different consequences. An
+            # activation while the factor store is frozen registers the book, starts its
+            # schedule, and leaves it to discover at each tick that it may not run; the
+            # operator sees a strategy in PAPER/LIVE and reasonably reads that as "running".
+            # The interlock the owner set on 2026-08-27 is explicit that IDLE -> PAPER/LIVE is
+            # itself forbidden while readiness is FAIL, so the refusal belongs at the seam
+            # every activation passes through, which is here.
+            #
+            # ⚠ THIS REFUSES ENTRY ONLY. It creates no liquidation path, cancels nothing, and
+            # touches no held position: a strategy already registered short-circuits at the
+            # top of this method and never reaches this line, so the interlock cannot reach
+            # into a live book. RED is not a liquidation trigger, and
+            # ``test_activation_block_never_liquidates`` pins that.
+            #
+            # Non-factor strategies are unaffected — Range Trader declares
+            # ``requires_factor_readiness = False`` and never evaluates the gate.
+            if self._classify_factor_consuming(cls, strategy_id):
+                verdict = await self._factor_readiness_verdict()
+                if not verdict.ok:
+                    logger.warning(
+                        "strategy_activation_blocked_factor_not_ready",
+                        strategy_id=strategy_id,
+                        strategy_class=getattr(cls, "__name__", "?"),
+                        status_mutated=False,
+                        positions_touched=0,
+                        orders_submitted=0,
+                        detail=(
+                            "IDLE->PAPER/LIVE activation of a factor-consuming strategy "
+                            "refused: governing factor readiness is not PASS. Existing "
+                            "positions are untouched; this blocks entry only."
+                        ),
+                        **verdict.as_log(),
+                    )
+                    # NOT _mark_error: the strategy is not broken and must not be left in a
+                    # state an operator has to clear by hand once the factor store recovers.
+                    # It stays exactly where it was — IDLE — and the caller is told why.
+                    raise FactorReadinessNotMet(strategy_id, verdict.reason)
 
             symbols = list(row.symbols_json) or list(cls.symbols)
             merged_params = {**cls.default_params, **(row.params_json or {})}
@@ -822,6 +869,18 @@ class StrategyEngine:
                         symbol=symbol,
                     )
                     continue
+                # Same on_bar that computes and applies the book, so the same interlock.
+                #
+                # ⚠ Found by ``test_every_execution_seam_is_gated``, not by reading: this is a
+                # FOURTH on_bar path, and it was the one nobody had noticed. It only fires for
+                # ``schedule == "event"`` strategies and every factor book runs on cron
+                # (``0 14 * * mon`` and similar), so it could not dispatch one today — which is
+                # exactly the kind of incidental safety this PR exists to replace with a
+                # structural guarantee. Gated per-strategy inside the loop rather than around
+                # it, so a factor book being blocked never suppresses the fallback tick for the
+                # unrelated event-scheduled strategies beside it.
+                if not await self._factor_readiness_ok(running, dispatch_source="event_fallback"):
+                    continue
                 try:
                     await running.instance.on_bar(event_bar)
                     running.last_dispatch_at = time.time()
@@ -1036,48 +1095,47 @@ class StrategyEngine:
         # refused, and treating it as "nothing happened" is what let 2026-07-13 re-run 6x.
         await self._close_slot(claim, slot_claim.SLOT_COMPLETED, None)
 
-    def _is_factor_consuming(self, running: RunningStrategy) -> bool:
-        """Does this strategy rank on factor data? Read from its source, via AST.
+    def _classify_factor_consuming(
+        self, cls: type[Strategy], strategy_id: int | None = None
+    ) -> bool:
+        """Is this strategy governed by the factor-readiness interlock?
 
-        AST rather than a substring: a docstring mentioning ``ctx.factors`` must not
-        classify a strategy as using it. Range Trader does not touch factor data, and
-        blocking it on factor staleness would stop a working strategy for no reason.
-
-        ⚠ An introspection failure returns False (not gated) **deliberately**. Gating
-        everything we cannot classify would turn a diagnostic gap — a dynamically
-        loaded module whose source linecache cannot see — into a full trading halt,
-        which is a worse failure than the one this gate exists to prevent. The
-        strategies that matter are file-backed templates and classify correctly;
-        ``test_all_real_templates_classify_correctly`` pins that against the actual
-        files, so a new factor template cannot silently escape the gate.
+        Delegates to ``app.strategies.factor_classification``, which is shared with
+        ``ActivationService``: the scheduler's PENDING_LIVE -> LIVE completion never passes
+        through this engine, so a copy here would be a second implementation of one question
+        — the divergence ADR 0051 closed between the refresh verifier and the watchdog, about
+        to be recreated one layer down.
         """
-        import ast
-        import inspect
-        import sys
+        return requires_factor_readiness(cls, strategy_id)
 
-        src: str | None = None
-        with contextlib.suppress(Exception):
-            src = inspect.getsource(type(running.instance))
-        if src is None:  # dynamically loaded: fall back to the module file
-            with contextlib.suppress(Exception):
-                mod = sys.modules.get(type(running.instance).__module__)
-                path = getattr(mod, "__file__", None)
-                if path:
-                    src = Path(path).read_text(encoding="utf-8")
-        if src is None:
-            logger.warning(
-                "strategy_factor_classification_unavailable",
-                strategy_id=running.strategy_id,
-                detail="source not introspectable; treating as non-factor-consuming",
-            )
-            return False
+    def _is_factor_consuming(self, running: RunningStrategy) -> bool:
+        """Declaration-first classification for a RUNNING strategy."""
+        return self._classify_factor_consuming(type(running.instance), running.strategy_id)
+
+    async def _factor_readiness_verdict(self) -> ReadinessVerdict:
+        """Evaluate the governing factor-readiness verdict. NEVER raises.
+
+        One evaluation used by both the dispatch gate and the activation interlock, so the
+        two cannot come to different conclusions about one store on one day — the same class
+        of divergence ADR 0051 closed between the refresh verifier and the watchdog, applied
+        here to the two consumers.
+
+        An exception is converted to a BLOCKING verdict rather than propagated: this is a
+        gate, and a gate that throws takes out its caller instead of refusing.
+        """
         try:
-            tree = ast.parse(src)
-        except SyntaxError:
-            return False
-        return any(
-            isinstance(node, ast.Attribute) and node.attr == "factors" for node in ast.walk(tree)
-        )
+            return evaluate_factor_readiness(
+                store_path=resolve_store_path(),
+                sealed_path=self._sealed_universe_path(),
+                readiness_path=self._factor_readiness_path(),
+            )
+        except Exception as exc:  # noqa: BLE001 — fail closed, never explode
+            logger.exception("strategy_factor_readiness_check_failed")
+            return ReadinessVerdict(
+                ok=False,
+                reason=f"readiness evaluation failed: {type(exc).__name__}",
+                checks={"producer_liveness_verified": False},
+            )
 
     async def _factor_readiness_ok(
         self, running: RunningStrategy, *, dispatch_source: str = "unknown"
@@ -1099,18 +1157,7 @@ class StrategyEngine:
         if not self._is_factor_consuming(running):
             return True
         started = time.perf_counter()
-        try:
-            verdict = evaluate_factor_readiness(
-                store_path=resolve_store_path(),
-                sealed_path=self._sealed_universe_path(),
-                readiness_path=self._factor_readiness_path(),
-            )
-        except Exception:
-            logger.exception(
-                "strategy_dispatch_factor_readiness_check_failed",
-                strategy_id=running.strategy_id,
-            )
-            return False  # fail closed
+        verdict = await self._factor_readiness_verdict()
         # Gate latency is telemetry, not decoration: this opens DuckDB and reads JSON
         # on every classified dispatch, so a high-frequency factor consumer would show
         # up here before it showed up as a problem.
@@ -1368,6 +1415,21 @@ class StrategyEngine:
             price=price,
             filled_at=payload.get("filled_at") or datetime.now(UTC),
         )
+        # ⚠ DELIBERATELY NOT GATED on factor readiness, and this is the one seam where that
+        # is the correct answer rather than an oversight.
+        #
+        # ``on_fill`` is told about an order that has ALREADY filled. Blocking it prevents
+        # nothing — the trade is done, the position exists — while denying the strategy the
+        # news of its own fill, which desynchronises its internal book from the account. The
+        # next thing that strategy computes would then be wrong in a way factor freshness has
+        # nothing to do with, and it would be wrong because a freshness gate refused to
+        # deliver a fact.
+        #
+        # The interlock's job is to stop a NEW factor-derived book being computed or applied;
+        # every seam that can do that (``on_bar`` on both dispatch paths, ``on_overlay_tick``,
+        # ``on_signal``) is gated. Post-hoc bookkeeping about a completed fill is not such a
+        # seam. Recorded as a reasoned exemption in ``test_every_execution_seam_is_gated`` so
+        # it is a decision on the record rather than a gap someone re-discovers.
         try:
             await running.instance.on_fill(fill_event)
         except Exception as exc:
@@ -1401,6 +1463,18 @@ class StrategyEngine:
             payload=payload.get("payload") or {},
             received_at=payload.get("received_at") or datetime.now(UTC),
         )
+        # A signal can drive a strategy to compute and apply a NEW book, so this is an
+        # execution seam in the same sense ``on_bar`` is, and it must meet the same interlock.
+        #
+        # ⚠ No shipped factor book implements ``on_signal`` today — all six use ``on_bar``
+        # (momentum-portfolio adds ``on_overlay_tick``), and every one of those seams was
+        # already gated. That made this hole invisible and harmless simultaneously, which is
+        # the dangerous combination: the invariant held because of what the STRATEGIES happen
+        # to contain, not because of anything the ENGINE guarantees. A factor book that grew
+        # an ``on_signal`` handler would have ranked on stale factors with nothing in the way
+        # and no test failing. ``test_every_execution_seam_is_gated`` now makes it structural.
+        if not await self._factor_readiness_ok(running, dispatch_source="signal"):
+            return
         try:
             await running.instance.on_signal(event)
         except Exception as exc:

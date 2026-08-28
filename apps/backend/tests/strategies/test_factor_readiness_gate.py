@@ -314,23 +314,30 @@ def test_factor_consuming_detection_splits_correctly():
 
     _PlainStrategy mentions ctx.factors in its DOCSTRING: detection reads the AST,
     so prose about factors must not classify a strategy as using them."""
-    from app.strategies.engine import StrategyEngine
+    from app.strategies.factor_classification import requires_factor_readiness
 
-    det = StrategyEngine._is_factor_consuming
-    assert det(object(), _running(_FactorStrategy())) is True
-    assert det(object(), _running(_PlainStrategy())) is False
+    # Called on the shared function rather than through an unbound engine method with a
+    # dummy `self`: classification is no longer engine-private, because ActivationService
+    # needs the same answer at the PENDING_LIVE -> LIVE completion the engine never sees.
+    assert requires_factor_readiness(_FactorStrategy) is True
+    assert requires_factor_readiness(_PlainStrategy) is False
 
 
 def test_unclassifiable_strategy_is_not_gated():
     """Deliberately NOT gated. Blocking everything we cannot classify would turn a
     diagnostic gap into a full trading halt — worse than the failure this prevents.
     The real templates are pinned by the test below, so nothing silently escapes."""
-    from app.strategies.engine import StrategyEngine
+    from app.strategies.factor_classification import requires_factor_readiness
 
     # __module__ must point nowhere, or the fallback legitimately reads this test
     # file — which DOES use .factors — and classifies it as factor-consuming.
+    #
+    # This class also declares NOTHING, which is the other half of the condition: an
+    # undeclared AND uninspectable strategy is the only population still handled this way.
+    # Every shipped template now declares requires_factor_readiness, so no factor book can
+    # reach this branch — which is what made 2026-08-10 possible.
     cls = type("Dynamic", (), {"__module__": "no.such.module.anywhere"})
-    assert StrategyEngine._is_factor_consuming(object(), _running(cls())) is False
+    assert requires_factor_readiness(cls) is False
 
 
 def test_all_real_templates_classify_correctly():
@@ -380,6 +387,12 @@ async def test_dispatch_blocked_and_strategy_never_entered(tmp_path, monkeypatch
         (),
         {
             "_is_factor_consuming": eng.StrategyEngine._is_factor_consuming,
+            # The gate delegates through these two now: classification moved to the
+            # shared app.strategies.factor_classification (so ActivationService cannot
+            # carry a second copy), and the verdict is evaluated once for both the
+            # dispatch gate and the activation interlock.
+            "_classify_factor_consuming": eng.StrategyEngine._classify_factor_consuming,
+            "_factor_readiness_verdict": eng.StrategyEngine._factor_readiness_verdict,
             "_sealed_universe_path": eng.StrategyEngine._sealed_universe_path,
             "_factor_readiness_path": eng.StrategyEngine._factor_readiness_path,
         },
@@ -400,6 +413,12 @@ async def test_non_factor_strategy_is_unaffected(tmp_path, monkeypatch):
         (),
         {
             "_is_factor_consuming": eng.StrategyEngine._is_factor_consuming,
+            # The gate delegates through these two now: classification moved to the
+            # shared app.strategies.factor_classification (so ActivationService cannot
+            # carry a second copy), and the verdict is evaluated once for both the
+            # dispatch gate and the activation interlock.
+            "_classify_factor_consuming": eng.StrategyEngine._classify_factor_consuming,
+            "_factor_readiness_verdict": eng.StrategyEngine._factor_readiness_verdict,
             "_sealed_universe_path": eng.StrategyEngine._sealed_universe_path,
             "_factor_readiness_path": eng.StrategyEngine._factor_readiness_path,
         },
@@ -416,6 +435,12 @@ def _engine_self():
         (),
         {
             "_is_factor_consuming": eng.StrategyEngine._is_factor_consuming,
+            # The gate delegates through these two now: classification moved to the
+            # shared app.strategies.factor_classification (so ActivationService cannot
+            # carry a second copy), and the verdict is evaluated once for both the
+            # dispatch gate and the activation interlock.
+            "_classify_factor_consuming": eng.StrategyEngine._classify_factor_consuming,
+            "_factor_readiness_verdict": eng.StrategyEngine._factor_readiness_verdict,
             "_sealed_universe_path": eng.StrategyEngine._sealed_universe_path,
             "_factor_readiness_path": eng.StrategyEngine._factor_readiness_path,
         },
@@ -498,14 +523,31 @@ def test_engine_never_makes_the_readiness_artifact_optional():
     assert "readiness_path=self._factor_readiness_path()" in src
 
 
+#: Every dispatch site that must consult the readiness gate, by ``dispatch_source`` label.
+#:
+#: ⚠ This said THREE until 2026-08-27, and the docstring below asserted "three dispatch paths
+#: exist" as a statement of fact. There were five. ``_fire_all_event_strategies`` — the
+#: fallback tick for event-scheduled strategies — called the same ``on_bar`` that computes the
+#: book, and ``_on_signal_event`` could drive a rebalance. Neither was gated, and the hardcoded
+#: count of 3 made the tree look complete.
+#:
+#: Both are gated now. They were found by ``test_every_execution_seam_is_gated``, which
+#: enumerates seams from the AST rather than trusting a number — which is why that test, and
+#: not this one, is the guard that keeps this list honest as the engine grows.
+GATED_DISPATCH_SOURCES = ("bar_tick", "event_bar", "overlay", "signal", "event_fallback")
+
+
 def test_gate_runs_at_every_dispatch_site():
-    """Three dispatch paths exist (cron bar tick, event bar, overlay). A gate on
-    only some of them is the 2026-07-13 mistake repeated — HALTED was enforced on
-    the cron path while the event path kept firing."""
+    """A gate on only some dispatch paths is the 2026-07-13 mistake repeated — HALTED was
+    enforced on the cron path while the event path kept firing."""
     src = Path(eng_file()).read_text(encoding="utf-8")
-    assert src.count("_factor_readiness_ok(running, dispatch_source=") == 3
-    for source in ("bar_tick", "event_bar", "overlay"):
+    for source in GATED_DISPATCH_SOURCES:
         assert f'dispatch_source="{source}"' in src, f"{source} dispatch site is ungated"
+    # Derived from the tuple above rather than hardcoded: adding a site now means NAMING it,
+    # not bumping an integer. An integer is precisely what concealed the two missing seams.
+    assert src.count("_factor_readiness_ok(running, dispatch_source=") == len(
+        GATED_DISPATCH_SOURCES
+    )
 
 
 def eng_file() -> str:
@@ -574,6 +616,12 @@ async def test_absent_lastpricedate_leaves_strategy_never_entered(tmp_path, monk
         (),
         {
             "_is_factor_consuming": eng.StrategyEngine._is_factor_consuming,
+            # The gate delegates through these two now: classification moved to the
+            # shared app.strategies.factor_classification (so ActivationService cannot
+            # carry a second copy), and the verdict is evaluated once for both the
+            # dispatch gate and the activation interlock.
+            "_classify_factor_consuming": eng.StrategyEngine._classify_factor_consuming,
+            "_factor_readiness_verdict": eng.StrategyEngine._factor_readiness_verdict,
             "_sealed_universe_path": eng.StrategyEngine._sealed_universe_path,
             "_factor_readiness_path": eng.StrategyEngine._factor_readiness_path,
         },

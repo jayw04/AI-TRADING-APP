@@ -81,6 +81,12 @@ class CombinedBook(Strategy):
     # Weekly, Monday 14:00 UTC ≈ 09:00 ET. Day names avoid APScheduler's off-by-one.
     schedule: ClassVar[str] = "0 14 * * mon"
 
+    # ⚠ DECLARED factor consumption (2026-08-27). This book ranks on ``ctx.factors``, so the
+    # factor-readiness interlock governs both its dispatch and its IDLE->PAPER/LIVE activation.
+    # Declared rather than inferred because AST introspection of the LOADED INSTANCE failed in
+    # production on 2026-08-10 and silently disarmed the veto for this class of strategy.
+    requires_factor_readiness: ClassVar[bool] = True
+
     default_params: ClassVar[dict[str, Any]] = {
         # --- sleeve blend (fixed 40/60 — production live config, λ=0; plan §locked) ---
         "equity_sleeve_weight": 0.40,
