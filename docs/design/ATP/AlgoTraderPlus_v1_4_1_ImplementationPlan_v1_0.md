@@ -11,7 +11,7 @@
 | **Supersedes** | v0.14 in Git and the unlanded v0.15/v0.16 review drafts. **Do not commit v0.15 or v0.16 as current plans.** v0.14 is **RETAINED in Git** with the disposition **SUPERSEDED HISTORICAL BASELINE / NOT CURRENT AUTHORITY** — it is deliberately not deleted, because removing a historical governing artifact destroys provenance for no benefit *(owner ruling 2026-08-28)*. |
 | **Historical companion** | `AlgoTraderPlus_v1_4_1_History_v0_3_to_v0_16.md` — exact byte copy of the supplied v0.16 final-review draft; SHA-256 `51ae39e670b451d70764fb0372f4b1b6c13381df093fae47acb19aa623923dd8` (LF, repository form). |
 | **Byte form** | **LF-only — 0 CR bytes in both files**, verified by direct byte inspection. `git hash-object` with and without `--no-filters` returns the identical blob SHA under `core.autocrlf=true`, so committing cannot invalidate the companion digest above. No normalization was applied or required. *(verified 2026-08-28)* |
-| **State sync** | **2026-08-28**, applied **in place** per the ONE CURRENT PLAN rule — §2.1, §2.2, §3, §5.2, §11, §12. No historical section was rewritten. |
+| **State sync** | **2026-08-28**, applied **in place** per the ONE CURRENT PLAN rule, over three review rounds. Surface touched: this header, **§2.1, §2.2, §2.3, §2.4, §3, §4, §4.6, §5.2, §5.2.1 (new), §6.1, §11, §12, §13**. **No historical section was rewritten** — §13 item 1 and §2.3's prior DRAFT claim are **annotated as superseded and retained verbatim**, and §4.6 is retained in full as the executed record. |
 | **Sole program objective** | **Generate robust, deployable, net-profitable strategies at acceptable risk.** Research, data, infrastructure and governance are means, not products. |
 | **Authority hierarchy** | Frozen registrations / sealed evidence / accepted ADRs / explicit owner rulings > this plan > subordinate task lists. A merge, test pass, document statement or planning priority never grants live mutation or strategy activation by implication. |
 
@@ -43,7 +43,9 @@ Only two classes belong in the strategy program:
 
 ### 2.1 Repository / deployment
 
-- `main = 3f32c75b1053f8181f98ddf51bbc473364ffd34c` after #695.
+- **Source-control `main`:** **`ce6dbaa61a515856f79973592037d8cc766eeb6a`** — the merged factor-repair head (#698). *(state sync 2026-08-28; at finalization this section read `main = 3f32c75b…` after #695, which is no longer current repository state.)*
+- **Deployed backend:** **`3f32c75b1053f8181f98ddf51bbc473364ffd34c`** — the Amendment 8 runtime pin. This is a **deployment identity, not a branch head**; do not present it as current `main`.
+- ⭐⭐ **The two are not the same commit, and the gap is the point.** `3f32c75b` is an ancestor of `main`, but `main` is ahead of the deployed backend by **both** #696 (`15456560a99ecd857306771831a61e81d846a629` — the K1/K3 calculators) and #698 (`ce6dbaa6…` — the factor-readiness repair). **Neither is present in the running backend.** ⇒ no live K3 computation and no factor-readiness repair behaviour may be inferred from either merge; each needs its own separately authorized deployment.
 - Amendment 8 / runtime-derived deployment identity is **MERGED** through #693, squash `47715b4e9de61ae4e95e6d37e62b08650b8bf204`.
 - **Amendment 8 is DEPLOYED / CLOSED** *(state sync 2026-08-28; it was NOT deployed at the 08-27 finalization, and the deployment postdates it)*. Deployed at the pinned pre-#696 object with **no substitution**: commit `3f32c75b1053f8181f98ddf51bbc473364ffd34c`, `code_digest sha256:813be1b9775fb98e4276a499e8c715b745c7a518decf04072ef5a75999b72610`. Container recreated 2026-08-27 17:02:21 EDT; first governing **`READY — all six gates pass`** 2026-08-27T21:04Z.
 - **Runtime identity is now measured, and all three legs agree** (re-verified read-only 2026-08-28): `/opt/workbench/app/.deploy_src_sha` = `3f32c75b…`; `DEPLOYED_BUILD_INFO.json` `commit`/`deployed_repository_commit` = `3f32c75b…` with `tree_clean: true` and the `code_digest` above; backend boot log `runtime code identity verified: sha256:813be1b9…`. The known-stale host self-report is therefore **closed** — the pre-deployment record is retained beside it as `DEPLOYED_BUILD_INFO.json.pre-catchup` (commit `956e932c8860602060b627b9c8f7966d31565337`).
@@ -99,7 +101,7 @@ The 08-27 seal/state record must explicitly say that runtime identity for this d
 - A prior LOW-001 v1.0.3 S8.6 execution produced a **12/12 PASS**; PR #687 carries its execution-variance and S8.6 custody records and remains an activation prerequisite until closed or explicitly superseded.
 - Strategy 8 remains **IDLE**. Dynamic BUY / reactivation authority remains closed.
 - There is **no forced 2026-08-31 or 2026-09-14 activation deadline**. The governing LOW record says B1/B3a must close **before any Strategy-8 reactivation**. If the owner does not choose a rebalance window, IDLE is the correct default.
-- Because Amendment 8 will recreate/change the backend runtime, the old 12/12 S8.6 result remains historical evidence but does **not substitute for the required fresh post-deployment no-transition proof** before activation.
+- Because Amendment 8 **recreated/changed** the backend runtime *(deployed 2026-08-27; §2.1)*, the old 12/12 S8.6 result remains historical evidence but does **not substitute for the required fresh post-deployment no-transition proof** before activation. That proof is still outstanding, and is additionally gated by §5.2.1 — checks 3/4/8 take no PASS credit while factor readiness is RED, so a fresh 12/12 is not yet reachable.
 
 ---
 
