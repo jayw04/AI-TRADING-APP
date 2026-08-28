@@ -8,7 +8,7 @@
 | **Canonical repository path** | `docs/design/ATP/AlgoTraderPlus_v1_4_1_ImplementationPlan_v1_0.md` |
 | **Repository** | `github.com/jayw04/AI-TRADING-APP` |
 | **Repository state at finalization** | `main = 3f32c75b1053f8181f98ddf51bbc473364ffd34c` (#695 squash). |
-| **Supersedes** | v0.14 in Git and the unlanded v0.15/v0.16 review drafts. **Do not commit v0.15 or v0.16 as current plans.** |
+| **Supersedes** | v0.14 in Git and the unlanded v0.15/v0.16 review drafts. **Do not commit v0.15 or v0.16 as current plans.** v0.14 is **RETAINED in Git** with the disposition **SUPERSEDED HISTORICAL BASELINE / NOT CURRENT AUTHORITY** — it is deliberately not deleted, because removing a historical governing artifact destroys provenance for no benefit *(owner ruling 2026-08-28)*. |
 | **Historical companion** | `AlgoTraderPlus_v1_4_1_History_v0_3_to_v0_16.md` — exact byte copy of the supplied v0.16 final-review draft; SHA-256 `51ae39e670b451d70764fb0372f4b1b6c13381df093fae47acb19aa623923dd8` (LF, repository form). |
 | **Byte form** | **LF-only — 0 CR bytes in both files**, verified by direct byte inspection. `git hash-object` with and without `--no-filters` returns the identical blob SHA under `core.autocrlf=true`, so committing cannot invalidate the companion digest above. No normalization was applied or required. *(verified 2026-08-28)* |
 | **State sync** | **2026-08-28**, applied **in place** per the ONE CURRENT PLAN rule — §2.1, §2.2, §3, §5.2, §11, §12. No historical section was rewritten. |
@@ -75,23 +75,23 @@ If terminal completeness or any downstream leg fails, classify the day according
 
 The 08-27 seal/state record must explicitly say that runtime identity for this date was established through the running-container/code-hash authority, **not** the known-stale host self-report.
 
-### 2.3 B-1 / PR #696
+### 2.3 B-1 / PR #696 — **MERGED / ENGINEERING CLOSED** *(state sync 2026-08-28)*
 
-Remote GitHub state at finalization:
+⛔ At finalization this section recorded #696 as **DRAFT** at remote head `02bdae3097d7e8e96032fcada500ddca856a8fb7`, with a newer local successor *"not yet pushed and therefore not repository evidence."* **That state is closed.** The successor was pushed, reviewed and merged; the plan text is corrected here so the current baseline does not reopen completed work.
 
-- PR **#696** remains **DRAFT**;
-- remote head `02bdae3097d7e8e96032fcada500ddca856a8fb7`;
-- base `3f32c75b…`;
-- 2 commits / 11 files.
+| Field | Value (verified against GitHub and `origin/main`, 2026-08-28) |
+|---|---|
+| PR **#696** | **MERGED** — *feat(mdq-001): K1/K3 calculators behind a structural admissibility gate (B-1)* |
+| Squash commit on `main` | **`15456560a99ecd857306771831a61e81d846a629`** |
+| Merged | **2026-08-27T17:24:47Z** |
+| Head at merge | `77461c747a66f2b3e5f653fafc3e89a33c0c9cb7` (**not** the `02bdae30…` recorded above) |
+| B-1 engineering | **CLOSED** |
 
-Latest developer-reported local successor, **not yet pushed and therefore not repository evidence**:
+**Status: B-1 ENGINEERING CLOSED. K1 = NOT EVALUABLE / AUTHORITIES UNBOUND. Bounded K1 provenance discovery = COMPLETE.**
 
-- `AuthorityRef` binding/provenance adjustment implemented locally;
-- 49 focused tests reported passing;
-- ruff and mypy reported clean;
-- full `tests/research/` rerun still requires an unambiguous result because the previous background invocation produced no observable output.
+⛔ **Do not recreate push, review, CI or merge actions for #696.** Every step in §4.6 is executed; that procedure is retained as the historical record of how B-1 closed, not as outstanding work.
 
-No claim about the local successor becomes governing until it is pushed, frozen to an exact SHA, independently reviewed, and CI completes on that exact head.
+⭐⭐ **Merged is not deployed — and here the distinction is load-bearing.** `15456560` is **NOT an ancestor of** `3f32c75b1053f8181f98ddf51bbc473364ffd34c`, the object Amendment 8 was deployed from (verified with `git merge-base --is-ancestor`). The Amendment 8 artifact was built at `2026-08-27T17:06:05Z`, **18 minutes before** #696 merged, and the owner's pin was deliberately held. ⇒ **the running backend carries no K-calculator changes.** Any K1/K3 computation on the live box requires a separate, separately authorized deployment; this section closes the *engineering* question only.
 
 ### 2.4 LOW-001 / B3a
 
@@ -108,7 +108,7 @@ No claim about the local successor becomes governing until it is pushed, frozen 
 | Priority | Work | Class | Serves | Stop rule / acceptance | Next gate |
 |---|---|---|---|---|---|
 | ~~**P0-1 time-bound**~~ ✅ **DISCHARGED** *(state sync 2026-08-28)* | Finish the 08-27 MDQ terminal sequence without intervention | REQUIRED ENABLER | MDQ evidence / ATP retention context | Met in full: 395/395 + EOD + freeze→verify→mirror + independent 6/6 S3 custody. No salvage was needed or used. | ✅ Partition **ADMITTED** — see §2.2 |
-| **P0-2 finish-only** | Finish #696 K3/K1 evaluator candidate | REQUIRED ENABLER | MDQ decision machinery, then close B-1 | Real research-tree PASS + push exact successor + focused immutable review + exact-head CI. Merge remains a separate ruling. | B-1 engineering closure |
+| ~~**P0-2 finish-only**~~ ✅ **DISCHARGED** *(state sync 2026-08-28)* | Finish #696 K3/K1 evaluator candidate | REQUIRED ENABLER | MDQ decision machinery, then close B-1 | Met: successor pushed, reviewed, exact-head CI green, separate merge ruling given. Squash `15456560…`, merged 2026-08-27T17:24:47Z. | ✅ **B-1 ENGINEERING CLOSED** — see §2.3 |
 | ~~**P0-3**~~ ✅ **DISCHARGED** *(state sync 2026-08-28)* | Separately authorize and deploy Amendment 8; capture wrapper/unit SHAs before/after; first governing `READY 6/6`; close production identity evidence | REQUIRED ENABLER | **LOW-001** activation path | Met: deployed at the pinned object with no substitution; runtime identity independently proven by two implementations converging on `code_digest 813be1b9…`; first governing `READY — all six gates pass` 2026-08-27T21:04Z. | ✅ Fresh LOW-001 no-transition window — **now additionally gated on factor-system GREEN, see §5.2** |
 | **P0-4** *(amended 2026-08-28)* | Fresh no-transition window → S8.6 1–12 → rollback-baseline restore iff genuine 12/12 → B3a production proof on the **same runtime**; close required custody such as #687; **then factor-system GREEN confirmed** | STRATEGY-DIRECT ENABLER | **LOW-001** | Any failed check stops the chain. No substitution and no “equivalent” prior-runtime proof. ⛔ **Blocked at the factor-consumption boundary while factor readiness is RED** — checks 3/4/8 take no PASS credit, so a genuine 12/12 is unreachable until GREEN (§5.2.1). | Owner reactivation decision |
 | **P0-5** | Freeze LOW-001 paper-observation protocol before reactivation; then, only if separately authorized, observe paper economics | STRATEGY-DIRECT | **LOW-001** | Proposed minimum: ≥13 weekly rebalances / one quarter; EVIDENCE_NOT_FEEDBACK; KEEP/DEMOTE only, no economic upgrade from paper alone. Must be owner-frozen in LOW track before activation. | End-window owner disposition |
@@ -120,13 +120,15 @@ No claim about the local successor becomes governing until it is pushed, frozen 
 | **P2 conditional** | MOM-LIQ / SIP-CONT / SIP-LSR | STRATEGY-DIRECT | New alpha | Start only after evidence shows SIP contains material economic information beyond data-quality/execution safety. | Pre-registration |
 | **Future conditional** | OPRA overlays / options-derived strategy work | STRATEGY-DIRECT | Named strategy only | No capture-first project. A strategy interaction and corpus sufficiency target must exist first. | G8 → G9 |
 
-**Parallelism rule:** #696 engineering may proceed while the 08-27 collector runs because it does not touch the acquisition path. Once terminal capture proof begins, the time-bound capture sequence has priority over PR administration.
+**Parallelism rule** *(historical — both items discharged 2026-08-27/28; retained as the sequencing precedent)*: #696 engineering was permitted to proceed while the 08-27 collector ran because it does not touch the acquisition path, with the time-bound capture sequence taking priority over PR administration once terminal capture proof began. Both completed without contention — #696 merged 17:24:47Z and the 08-27 partition sealed at 16:45 EDT.
 
 ---
 
 ## 4. B-1 / #696 final implementation contract
 
 B-1 is **engineering-complete when the evaluator machinery is sound**, even if governed K1 remains NOT EVALUABLE. A missing K1 authority is then a bounded provenance question, not an open-ended engineering project.
+
+✅ **Both halves of that test are now satisfied** *(state sync 2026-08-28)*: the machinery merged as `15456560…` (§2.3), and the bounded provenance question was answered and **closed** — `K1 = NOT EVALUABLE / AUTHORITIES UNBOUND` (§4.6). **The contract below is retained as the governing specification of what was built and what must remain true of it — it is not an outstanding work list.**
 
 ### 4.1 Admissibility / evidentiary boundary
 
@@ -199,16 +201,29 @@ Do not reopen unless the successor diff materially changes them:
 - naive timestamps are refused;
 - sub-minute events collapse to one minute cell.
 
-### 4.6 #696 completion procedure
+### 4.6 #696 completion procedure — ✅ **EXECUTED IN FULL; steps 1–8 are HISTORICAL** *(state sync 2026-08-28)*
 
-1. Re-run full `tests/research/` with an unambiguous exit code/output; silence is inconclusive, not PASS.
-2. Confirm focused tests (latest local report: 49), ruff, and mypy.
-3. Commit/push the provenance successor.
-4. Freeze and report exact successor SHA, commit count, changed-file count, clean working tree, focused-test count, research-tree result, ruff and mypy.
-5. Keep #696 **draft** for the focused immutable review of §§4.1–4.4.
-6. After review, ready-state CI must pass on the exact approved head.
-7. **Merge requires a separate owner ruling.**
-8. After merge, conduct at most **two working sessions** of provenance-only K1 authority discovery (target close by 2026-09-04). If no unique pre-corpus governed authority is found, record `K1 = NOT EVALUABLE` and close B-1. Do not create a provider or “predeclared” defect list after the corpus exists.
+⛔ **Nothing in this list is outstanding. Do not re-run, re-push, re-review, re-CI or re-merge #696.** The procedure is retained as the record of how B-1 closed.
+
+1. ✅ Full `tests/research/` re-run with an unambiguous result; silence was correctly treated as inconclusive, not PASS.
+2. ✅ Focused tests, ruff and mypy confirmed.
+3. ✅ Provenance successor committed and pushed.
+4. ✅ Exact successor SHA frozen and reported — head at merge `77461c747a66f2b3e5f653fafc3e89a33c0c9cb7`.
+5. ✅ Draft retained through the focused immutable review of §§4.1–4.4.
+6. ✅ Ready-state CI passed on the exact approved head.
+7. ✅ Separate owner merge ruling given — squash **`15456560a99ecd857306771831a61e81d846a629`**, 2026-08-27T17:24:47Z.
+8. ✅ **COMPLETE.** Bounded provenance-only K1 authority discovery ran to its cap of **two working sessions** (2026-08-27 and 2026-08-28) and **closed 2026-08-28, ahead of the 2026-09-04 target**. No unique pre-corpus governed authority exists on either limb, so the recorded disposition is:
+
+> ### `K1 = NOT EVALUABLE / AUTHORITIES UNBOUND`
+>
+> **Limb A (decision provider) — NOT FOUND.** No SCAN-001 artifact carries an approval binding; the pre-corpus SCAN-001 documents contain no approval SHA-256 at all. The one hash-bound candidate is scoped *"Stage 0 only"*, so binding it here would be a forbidden scope transfer. Uniqueness fails independently — nothing designates which artifact governs, and K1 names three decision surfaces.
+>
+> **Limb B (predeclared defect registry) — UNBINDABLE BY DESIGN.** No predeclared gate-material IEX observation defect registry exists. The only genuinely pre-corpus gate-material IEX evidence was **affirmatively elected out before the corpus existed** by the signed §8 item 14 resolution (*"MDQ corpus ONLY … citable context, never scored"*) — exclusion by deliberate choice, not oversight.
+>
+> Under the three-valued OR, `NOT EVALUABLE + NOT EVALUABLE = NOT EVALUABLE`. **This is a governed outcome, not a defect and not a failure to search.**
+
+⛔ **Do not now create a decision provider or a “predeclared” defect list.** The corpus exists, so that is post-hoc selection and remains prohibited.
+⚠ Whether a newly authored governing record may *designate* an already-existing pre-corpus artifact as the K1 authority is a **separate, open governance decision** — legitimate only if it records a designation that genuinely already existed, prohibited if it manufactures authority to make K1 evaluable. **It is deliberately left unresolved here and is not answered by any wording in this plan.**
 
 ---
 
@@ -287,7 +302,7 @@ The ratified G3 floor remains **≥2 of K1–K6 both evaluable AND PASS**. No de
 
 Current planning reachability:
 
-- **K3**: computable once #696 lands and partitions are admissible.
+- **K3**: **the calculator has landed** (#696, squash `15456560…`); computability now depends only on admissible partitions — and on a separately authorized deployment, since the running backend predates the merge (§2.3).
 - **K1**: NOT EVALUABLE unless a genuinely pre-corpus governed authority is discovered.
 - **K2**: NOT EVALUABLE unless G10 opens.
 - **K4**: requires the non-waivable ≥250 trustworthy PIT event-day contract; current GAPPER census is far below it.
@@ -431,8 +446,9 @@ These are explicit gates, not developer TODOs to resolve by inference:
 |---|---|
 | ~~**Amendment 8 live deployment**~~ | ✅ **RESOLVED 2026-08-27** — authorized and deployed at `3f32c75b…`; see §2.1. |
 | **Factor-system deployment + restoration to GREEN** | **HOLD.** The merged factor repair is **NOT deployed**; deployment is a separate owner ruling. Schedule pressure is not authorization. Until GREEN, §5.2.1 applies. |
-| **#696 merge** | **HOLD.** Successor must be pushed, focused review closed, ready-state CI green, then explicit merge ruling. |
-| **K1 authority discovery** | Bounded discovery only after B-1 lands. No post-hoc provider/list creation. |
+| ~~**#696 merge**~~ | ✅ **RESOLVED 2026-08-27** — merged as `15456560…`; B-1 engineering CLOSED. See §2.3. |
+| ~~**K1 authority discovery**~~ | ✅ **COMPLETE 2026-08-28** — both bounded sessions used; `K1 = NOT EVALUABLE / AUTHORITIES UNBOUND` (§4.6). ⛔ No post-hoc provider/list creation. |
+| **K1 authority *designation* (new)** | **OPEN / UNRESOLVED.** Whether a newly authored record may designate an already-existing pre-corpus artifact is a **new governance decision**, not a documentation correction. Not answered by this plan. |
 | **Prospective G3 expected-disposition record** | Owner should record expected HOLD-with-extension/STOP under the profitability allocation before K results drive disposition. |
 | **ATP retention economic rule** | Owner ratification required before it governs keep/cancel. |
 | **SF1 sequencing exception** | Required before the NO-START census can precede GAPPER disposition. |
@@ -477,7 +493,7 @@ These are explicit gates, not developer TODOs to resolve by inference:
 
 The final changes relative to v0.16 are deliberately narrow but load-bearing:
 
-1. **#696 status updated** to the actual remote successor head `02bdae3…` and the newer `AuthorityRef` work is correctly labelled **local/unpushed**, not repository evidence.
+1. **#696 status updated** to the actual remote successor head `02bdae3…` and the newer `AuthorityRef` work is correctly labelled **local/unpushed**, not repository evidence. ⚠ *(superseded 2026-08-28 — this records the position as it stood at the 08-27 final review and is retained as that record. #696 has since MERGED as `15456560…`; §2.3 is authoritative for current state.)*
 2. **#696 A6 contract changed from over-specified implementation shape to enforceable invariants.** Boolean state cannot create authority; future governed K1 binding requires verifiable immutable provenance.
 3. **B3a ambiguity closed:** PR #683 / merge `07a9233…` is the pinned artifact.
 4. **LOW-001 timing corrected:** no invented 08-31/09-14 activation deadline; Strategy 8 remains IDLE until all activation gates close and the owner chooses reactivation.
