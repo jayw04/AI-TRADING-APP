@@ -105,6 +105,12 @@ class MomentumPortfolio(Strategy):
     # The engine also normalizes numeric dow now, but the name is unambiguous.
     schedule: ClassVar[str] = "0 14 * * mon"
 
+    # ⚠ DECLARED factor consumption (2026-08-27). This book ranks on ``ctx.factors``, so the
+    # factor-readiness interlock governs both its dispatch and its IDLE->PAPER/LIVE activation.
+    # Declared rather than inferred because AST introspection of the LOADED INSTANCE failed in
+    # production on 2026-08-10 and silently disarmed the veto for this class of strategy.
+    requires_factor_readiness: ClassVar[bool] = True
+
     default_params: ClassVar[dict[str, Any]] = {
         # Momentum window (R1, evidence: research/momentum_12m_backtest.md). Default
         # 252/0 = 12-month total return, the OOS-dominant variant (Sharpe 1.85 vs

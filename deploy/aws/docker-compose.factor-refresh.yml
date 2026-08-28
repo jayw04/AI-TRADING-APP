@@ -34,3 +34,9 @@ services:
       # Any further sibling import added to factor_refresh.py needs a line here too, which
       # test_factor_refresh_override_delivers_sibling_imports pins.
       - ./apps/backend/scripts/factor_adjudication.py:/app/scripts/factor_adjudication.py:ro
+      # The evidence REGENERATOR (2026-08-27). Delivered by the same mechanism and for the
+      # same reason: it postdates the deployed image entirely, and it is what stops the
+      # exhaustion artifact from being a document somebody has to remember to update. It
+      # imports factor_adjudication as a sibling as well, so the line above is its
+      # prerequisite too.
+      - ./apps/backend/scripts/factor_evidence.py:/app/scripts/factor_evidence.py:ro

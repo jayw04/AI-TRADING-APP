@@ -97,9 +97,41 @@ def test_the_watchdog_no_longer_carries_its_own_adjudication_logic():
 
 
 def test_the_driver_calls_the_shared_entry_points():
+    """Every figure and every label in the watchdog's report comes from the shared module.
+
+    The DIAGNOSTIC entry points were added on 2026-08-27 and belong on this list for the
+    same reason as the rest. ``UNEXPLAINED: ['WBS']`` aborted three consecutive production
+    refreshes while the watchdog reported ``unexplained_count: 0``, and both statements were
+    true — they adjudicate different stores. What an operator needed was WHY the name was
+    unexplained and HOW LONG the artifact remains usable, and if the two components computed
+    those separately they would eventually answer differently, which is the entire failure
+    mode ADR 0051 exists to prevent.
+    """
     text = WATCHDOG.read_text(encoding="utf-8")
-    for symbol in ("load_evidence(", "operational_facts(", "adjudicate(", "gating_coverage("):
+    for symbol in (
+        "load_evidence_records(",
+        "operational_facts(",
+        "adjudicate(",
+        "gating_coverage(",
+        "evidence_expiry(",
+        "diagnose_unexplained(",
+        "EVIDENCE_DIAGNOSIS_DETAIL",
+    ):
         assert symbol in text, f"driver must call the shared {symbol}"
+
+
+def test_the_driver_does_not_reimplement_the_diagnostics_it_relays():
+    """The diagnosis LABELS and the expiry arithmetic must not be restated in the shell.
+
+    A hand-rolled "if the record is missing say ABSENT" in the driver would be a second
+    vocabulary for a state the shared module already names, and it would drift the first time
+    the rules changed on one side only.
+    """
+    code = _code_lines()
+    for banned in ("EVIDENCE_ABSENT =", "EVIDENCE_EXPIRED =", "max_evidence_age_days ="):
+        assert not [ln for ln in code if banned in ln], f"driver must not define {banned}"
+    # ...and the expiry threshold must be a knob, not arithmetic reimplemented in python.
+    assert not [ln for ln in code if "timedelta(days=30)" in ln]
 
 
 # ------------------------------------------------------- property 3: missing = fail closed

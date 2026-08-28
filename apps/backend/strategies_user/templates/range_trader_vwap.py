@@ -40,6 +40,12 @@ class RangeTraderVWAP(RangeTrader):
     symbols: ClassVar[list[str]] = []
     schedule: ClassVar[str] = "*/5 * * * *"
 
+    # Declared NON-factor-consuming: this strategy never reads ``ctx.factors``, so factor-store
+    # staleness must not block it. Stated explicitly rather than left to inference — an absent
+    # declaration is what the engine has to guess about, and guessing is what failed on
+    # 2026-08-10.
+    requires_factor_readiness: ClassVar[bool] = False
+
     default_params: ClassVar[dict[str, Any]] = {
         "timeframe": "5Min",
         "entry_sigma": 1.0,      # buy at VWAP - entry_sigma·σ

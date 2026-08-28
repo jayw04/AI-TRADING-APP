@@ -91,6 +91,12 @@ class MomentumDaily(Strategy):
     # Post-close daily evaluation. Day names (the dow off-by-one bites numeric cron). ~16:10 ET.
     schedule: ClassVar[str] = "10 21 * * mon-fri"
 
+    # ⚠ DECLARED factor consumption (2026-08-27). This book ranks on ``ctx.factors``, so the
+    # factor-readiness interlock governs both its dispatch and its IDLE->PAPER/LIVE activation.
+    # Declared rather than inferred because AST introspection of the LOADED INSTANCE failed in
+    # production on 2026-08-10 and silently disarmed the veto for this class of strategy.
+    requires_factor_readiness: ClassVar[bool] = True
+
     default_params: ClassVar[dict[str, Any]] = {
         # ---- signal (shared with v0.9: A1 dual filter, A3 12-1 window) ----
         "momentum_lookback_days": 252,

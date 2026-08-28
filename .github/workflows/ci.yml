@@ -381,6 +381,15 @@ jobs:
         if: matrix.p.project == 'backend'
         run: bash apps/backend/scripts/check_marketdata_feed_pinning.sh
 
+      # No ticker may be special-cased in the factor refresh / readiness path. Twice the
+      # cheapest apparent repair has been to name a symbol (EA 2026-08-17, WBS 2026-08-25/26/27)
+      # and each time that would have left an exemption the adjudication ceiling cannot see,
+      # no report counts, and no operator can audit. Every name reaches a verdict through
+      # evidence + adjudication, or is not excused at all.
+      - name: Factor path no-symbol-special-case invariant check (backend)
+        if: matrix.p.project == 'backend'
+        run: python apps/backend/scripts/check_no_factor_symbol_special_cases.py
+
   # The FULL Python suite, one matrix entry PER PROJECT that must run FULL this event (see the FULL
   # matrix). pytest + coverage for each; the backend entry additionally runs the risk/P2/P3 branch-
   # coverage gates. Runs on every push / dispatch / schedule AND on a PR for each project the classifier

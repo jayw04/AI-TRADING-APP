@@ -111,6 +111,12 @@ class LowVolatility(Strategy):
     # the governed live registration. Day names avoid APScheduler's dow off-by-one.
     schedule: ClassVar[str] = "32 10 * * mon"
 
+    # ⚠ DECLARED factor consumption (2026-08-27). This book ranks on ``ctx.factors``, so the
+    # factor-readiness interlock governs both its dispatch and its IDLE->PAPER/LIVE activation.
+    # Declared rather than inferred because AST introspection of the LOADED INSTANCE failed in
+    # production on 2026-08-10 and silently disarmed the veto for this class of strategy.
+    requires_factor_readiness: ClassVar[bool] = True
+
     default_params: ClassVar[dict[str, Any]] = {
         # LOW-001 research-frozen parameters (V1 headline; from low_vol_research.py)
         "vol_lookback_days": 252,  # 12-month trailing realized vol; frozen from research

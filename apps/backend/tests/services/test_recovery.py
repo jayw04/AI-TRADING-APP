@@ -20,6 +20,8 @@ from app.db.enums import StrategyStatus, StrategyType
 from app.db.models.strategy import Strategy as StrategyRow
 from app.db.models.user import User
 from app.services.recovery import RESUME, resume_strategies_on_boot
+from app.strategies.engine import RegistrationIntent
+from app.strategies.factor_readiness import FactorReadinessNotMet
 
 
 def _now() -> datetime:
@@ -31,11 +33,36 @@ class _FakeEngine:
 
     def __init__(self, fail_ids: set[int] | None = None) -> None:
         self.registered: list[int] = []
+        self.intents: list[RegistrationIntent] = []
         self.fail_ids = fail_ids or set()
 
-    async def register(self, strategy_id: int) -> object:
+    async def register(
+        self, strategy_id: int, *, intent: RegistrationIntent = RegistrationIntent.ACTIVATE
+    ) -> object:
+        self.intents.append(intent)
         if strategy_id in self.fail_ids:
             raise RuntimeError("register boom")
+        self.registered.append(strategy_id)
+        return object()
+
+
+class _FactorGatedEngine:
+    """The engine's REAL rule, in miniature: the readiness interlock applies to ACTIVATE only.
+
+    Not a stand-in for the engine — a stand-in for the *governance decision* the engine makes,
+    so this test can assert what resume-on-boot ASKS FOR rather than trusting that it asks.
+    """
+
+    def __init__(self) -> None:
+        self.registered: list[int] = []
+        self.intents: list[RegistrationIntent] = []
+
+    async def register(
+        self, strategy_id: int, *, intent: RegistrationIntent = RegistrationIntent.ACTIVATE
+    ) -> object:
+        self.intents.append(intent)
+        if intent is RegistrationIntent.ACTIVATE:
+            raise FactorReadinessNotMet(strategy_id, "producer readiness verdict is FAIL")
         self.registered.append(strategy_id)
         return object()
 
@@ -46,10 +73,19 @@ async def _seed(session_factory, statuses: list[StrategyStatus]) -> list[int]:
         session.add(User(id=1, email="jay@test", display_name="Jay"))
         for i, status in enumerate(statuses, start=1):
             row = StrategyRow(
-                id=i, user_id=1, name=f"s{i}", version="0.0.1",
-                type=StrategyType.PYTHON, status=status, code_path="echo_strategy.py",
-                params_json={}, symbols_json=["AAPL"], schedule="event",
-                risk_limits_id=None, created_at=_now(), updated_at=_now(),
+                id=i,
+                user_id=1,
+                name=f"s{i}",
+                version="0.0.1",
+                type=StrategyType.PYTHON,
+                status=status,
+                code_path="echo_strategy.py",
+                params_json={},
+                symbols_json=["AAPL"],
+                schedule="event",
+                risk_limits_id=None,
+                created_at=_now(),
+                updated_at=_now(),
             )
             session.add(row)
             ids.append(i)
@@ -101,3 +137,62 @@ async def test_no_runnable_strategies_is_clean_noop(session_factory) -> None:
     assert summary.attempted == 0
     assert summary.resumed == 0
     assert eng.registered == []
+
+
+# ---------------------------------------------------- restart recovery vs. activation (2026-08-28)
+
+
+async def test_resume_on_boot_recovers_a_live_factor_book_while_readiness_is_red(
+    session_factory,
+) -> None:
+    """THE REGRESSION. A restart during a RED factor store must not de-arm a LIVE book.
+
+    ``_running`` is process-local, so after a restart every durable strategy takes the
+    not-yet-registered path in ``engine.register``. Until 2026-08-28 that meant the
+    factor-readiness ACTIVATION interlock refused them: the row stayed ``LIVE``, the engine had
+    no registration, and **nothing re-registers it when readiness recovers** — this pass runs
+    once and has no retry. The control plane went on saying LIVE while the execution plane was
+    inert. ``factor-refresh.sh`` restarts the backend itself, so the RED store and the restart
+    arrive together by construction.
+
+    Blocking new factor-derived activity is the interlock's purpose; silently de-arming an
+    already-active book is not.
+    """
+    await _seed(session_factory, [StrategyStatus.LIVE])
+    eng = _FactorGatedEngine()
+
+    summary = await resume_strategies_on_boot(session_factory, eng)
+
+    assert eng.intents == [RegistrationIntent.RECOVER], (
+        "resume-on-boot must request RECOVER. With ACTIVATE the readiness interlock refuses a "
+        "durably-LIVE factor book and nothing ever re-registers it."
+    )
+    assert summary.resumed == 1
+    assert summary.failed == 0
+    assert summary.failed_ids == []
+    assert eng.registered == [1]
+
+
+async def test_the_db_status_is_never_mutated_by_recovery(session_factory) -> None:
+    """Recovery restores a registration; it does not re-decide the durable status.
+
+    The converse of the defect: the repair must not paper over a divergence by *writing* one.
+    """
+    await _seed(session_factory, [StrategyStatus.LIVE])
+    await resume_strategies_on_boot(session_factory, _FactorGatedEngine())
+    async with session_factory() as session:
+        row = await session.get(StrategyRow, 1)
+        assert row.status is StrategyStatus.LIVE
+
+
+async def test_activation_intent_is_the_default_so_a_new_call_site_is_gated() -> None:
+    """The safe default. Every other caller of ``register`` activates, and must stay gated.
+
+    A boolean flag defaulting the other way is how an interlock quietly stops applying.
+    """
+    import inspect
+
+    from app.strategies.engine import StrategyEngine
+
+    default = inspect.signature(StrategyEngine.register).parameters["intent"].default
+    assert default is RegistrationIntent.ACTIVATE

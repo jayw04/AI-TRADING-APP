@@ -513,10 +513,26 @@ from factor_adjudication import (  # noqa: E402  (needs the sys.path line above)
     ATTRIBUTED as ATTRIBUTED,
 )
 from factor_adjudication import (  # noqa: E402
+    DEFAULT_SCHEDULE_TZ as _DEFAULT_SCHEDULE_TZ,
+)
+
+# The DIAGNOSTIC surface, re-exported on the same terms. It decides nothing — see
+# ``diagnose_unexplained`` — but it is what lets this gate's abort line and the watchdog's
+# alert describe one condition in one vocabulary.
+from factor_adjudication import (  # noqa: E402
+    EVIDENCE_DIAGNOSIS_DETAIL as EVIDENCE_DIAGNOSIS_DETAIL,
+)
+from factor_adjudication import (  # noqa: E402
+    EVIDENCE_PRESENT_REFUSED as EVIDENCE_PRESENT_REFUSED,
+)
+from factor_adjudication import (  # noqa: E402
     FAILED_OR_UNEXPLAINED as FAILED_OR_UNEXPLAINED,
 )
 from factor_adjudication import (  # noqa: E402
     FRESH as FRESH,
+)
+from factor_adjudication import (  # noqa: E402
+    MAX_EVIDENCE_AGE_DAYS as MAX_EVIDENCE_AGE_DAYS,
 )
 from factor_adjudication import (  # noqa: E402
     PROVIDER_EXHAUSTED as PROVIDER_EXHAUSTED,
@@ -534,6 +550,12 @@ from factor_adjudication import (  # noqa: E402
     classify_stale_symbol as classify_stale_symbol,
 )
 from factor_adjudication import (  # noqa: E402
+    diagnose_unexplained as diagnose_unexplained,
+)
+from factor_adjudication import (  # noqa: E402
+    evidence_expiry as evidence_expiry,
+)
+from factor_adjudication import (  # noqa: E402
     exemption_ceiling as exemption_ceiling,
 )
 from factor_adjudication import (  # noqa: E402
@@ -543,8 +565,36 @@ from factor_adjudication import (  # noqa: E402
     load_evidence as load_evidence,
 )
 from factor_adjudication import (  # noqa: E402
+    load_evidence_records as load_evidence_records,
+)
+from factor_adjudication import (  # noqa: E402
     operational_facts as operational_facts,
 )
+from factor_adjudication import (  # noqa: E402
+    schedule_today as schedule_today,
+)
+
+#: How many days before the evidence artifact's expiry the verifier starts saying so. The
+#: refresh runs on weekdays, so a 10-day notice is at least seven opportunities to act — and
+#: the cliff it guards against (all attributions sharing one observation timestamp) turns a
+#: missed notice into a multi-name failure rather than a single one.
+EVIDENCE_EXPIRY_WARN_DAYS = 10
+
+#: The timezone the refresh schedule is expressed in. Mirrors ``REFRESH_SCHEDULE_TZ`` in
+#: ``deploy/aws/factor-freshness.sh``. DEFINED IN THE SHARED MODULE and re-exported here, not
+#: restated: this verifier, the watchdog and the evidence generator must age one artifact
+#: against ONE calendar, and three copies of a timezone constant is three chances to drift.
+DEFAULT_SCHEDULE_TZ = _DEFAULT_SCHEDULE_TZ
+
+
+def _schedule_today(tz_name: str = DEFAULT_SCHEDULE_TZ) -> date:
+    """Today's date in the refresh schedule's timezone. Delegates to the shared module.
+
+    Kept as a name because this module's call sites and tests use it; the implementation
+    lives in ``factor_adjudication`` so the generator can reach the same clock without
+    importing the verifier. See :func:`factor_adjudication.schedule_today`.
+    """
+    return schedule_today(tz_name)
 
 
 def verify_staging(
@@ -555,13 +605,28 @@ def verify_staging(
     max_lag_days: int = DEFAULT_MAX_LAG_DAYS,
     min_coverage: float = DEFAULT_MIN_COVERAGE,
     evidence: dict[str, dict[str, Any]] | None = None,
+    evidence_all: dict[str, dict[str, Any]] | None = None,
+    evidence_status: str = "ok",
     operational: dict[str, dict[str, Any]] | None = None,
+    as_of: date | None = None,
 ) -> tuple[list[str], dict[str, Any]]:
     """Gate the staging store before the swap. Returns ``(failures, report)``.
 
     Keeps the original global regression checks — they catch a truncated or
     rolled-back pull — and adds the per-name coverage the ``max(date)`` checks
     could not see.
+
+    ``evidence`` is the CLAIMABLE mapping adjudication consumes. ``evidence_all`` additionally
+    carries records that claim nothing adjudicable, and is used ONLY to diagnose the abort
+    message: it is never passed to :func:`adjudicate`, so a dropped record cannot become an
+    exemption by being reported. ``evidence_status`` is the artifact's own health, surfaced
+    because a broken control is a finding even on a run where nothing happens to be stale.
+
+    ``as_of`` is the run date the corroboration observations are aged against. It is a
+    PARAMETER rather than ``date.today()`` because the watchdog computes it in the schedule
+    timezone: with the two components on different clocks, a run in the UTC evening would age
+    evidence one day further than the watchdog did over the same artifact, and the two would
+    disagree at the tolerance boundary while both believed they were applying one rule.
     """
     failures: list[str] = []
     live, stage = _duck(live_path), _duck(stage_path)
@@ -596,6 +661,24 @@ def verify_staging(
             "stage_lastpricedate_max": str(s_lpd),
         }
     }
+
+    # ⛔ THE UNIVERSE DEFINES THE POPULATION BEING VERIFIED. Without it there is nothing to
+    # verify, and "nothing to verify" is not "nothing failed". Until 2026-08-28 the entire
+    # per-name block below — staleness, adjudication, the coverage gate AND the evidence-health
+    # check — sat behind ``if s_sep is not None and universe:`` with no ``else``, so an empty
+    # universe file produced ZERO failures and a passing verify, and the swap proceeded on a
+    # vacuously-green gate. ``derive_refresh_universe`` refuses to WRITE an empty universe,
+    # which lowers reachability but does not make this gate correct: a truncated, missing or
+    # unreadable file reaches here, and the evidence writer is deliberately non-fatal precisely
+    # because "the verifier is the gate". A gate that passes when its input is absent is not a
+    # gate. Fail closed, first-class, before anything else reads it.
+    if not universe:
+        failures.append(
+            "refresh universe is EMPTY - refusing verification and promotion. The universe "
+            "defines the population being verified; with none, no per-name freshness, "
+            "adjudication, coverage or evidence check can be performed, and an unperformed "
+            "check is not a passed one"
+        )
 
     if s_sep is not None and universe:
         st = per_name_staleness(stage_path, universe, max_lag_days=max_lag_days)
@@ -632,7 +715,7 @@ def verify_staging(
             # The corroboration block is a past observation; it is judged against the
             # cutoff of its own moment, not this run's. See classify_stale_symbol.
             tolerance_days=max_lag_days,
-            as_of=date.today(),
+            as_of=as_of or date.today(),
             evidence=evidence or {},
             operational=operational or {},
         )
@@ -681,11 +764,50 @@ def verify_staging(
         # the whole pool, is a suppressed check rather than a healthy store.
         failures.extend(result["problems"])
 
+        # --- evidence-artifact health, reported whether or not anything is stale ----
+        #
+        # The artifact is a CONTROL. On a run where nothing happens to be stale, a broken or
+        # expiring artifact would otherwise pass silently and then fail on a morning when it
+        # also has names to explain — which is the shape of the 2026-09-10 cliff.
+        run_date = as_of or date.today()
+        expiry = evidence_expiry(
+            evidence or {}, as_of=run_date, max_evidence_age_days=MAX_EVIDENCE_AGE_DAYS
+        )
+        st["evidence"] = {"status": evidence_status, "expiry": expiry}
+        if evidence_status in ("unreadable", "malformed"):
+            failures.append(
+                f"DATA_EXHAUSTION_EVIDENCE_{evidence_status.upper()}: the evidence artifact "
+                "could not be used, so NO symbol could be attributed and an adjudicated "
+                "delisting reads as a freshness failure - repair or regenerate the artifact "
+                "(scripts/factor_evidence.py); do NOT relax the freshness threshold"
+            )
+
         if result["failed_or_unexplained_symbols"]:
             bad = result["failed_or_unexplained_symbols"]
+            # WHY each name is unexplained, not merely THAT it is. `UNEXPLAINED: ['WBS']` —
+            # the line that aborted three consecutive production refreshes on 2026-08-25/26/27
+            # — is the same string whether nobody ever wrote a record for the name or the rule
+            # read a current record and refused it. Those need opposite operator responses:
+            # regenerate the artifact, or investigate the symbol. Diagnosis is computed by the
+            # shared module so this message and the watchdog's alert cannot drift apart.
+            diagnosis = diagnose_unexplained(
+                bad,
+                all_records=evidence_all if evidence_all is not None else (evidence or {}),
+                claimable_records=evidence or {},
+                as_of=run_date,
+                max_evidence_age_days=MAX_EVIDENCE_AGE_DAYS,
+            )
+            st["classification"]["unexplained_diagnosis"] = diagnosis
+            grouped: dict[str, list[str]] = {}
+            for symbol, label in sorted(diagnosis.items()):
+                grouped.setdefault(label, []).append(symbol)
+            detail = "; ".join(
+                f"{label} {syms[:8]} - {EVIDENCE_DIAGNOSIS_DETAIL.get(label, '')}"
+                for label, syms in sorted(grouped.items())
+            )
             msg = (
                 f"{len(bad)} stale universe tickers are UNEXPLAINED "
-                f"(no accepted evidence): {bad[:8]}"
+                f"(no accepted evidence): {bad[:8]}. Diagnosis: {detail}"
             )
             # Keep the consequence in the message: a lagging lastpricedate does not merely
             # rank a name on old data, it removes the name from the pool.
@@ -739,6 +861,13 @@ def main(argv: list[str] | None = None) -> int:
         "RECOMPUTED here, never taken from the evidence file.",
     )
     v.add_argument("--min-coverage", type=float, default=DEFAULT_MIN_COVERAGE)
+    v.add_argument(
+        "--schedule-tz",
+        default=DEFAULT_SCHEDULE_TZ,
+        help="timezone the refresh schedule is expressed in. Evidence ages in DAYS, "
+        "so this must match REFRESH_SCHEDULE_TZ in deploy/aws/factor-freshness.sh or "
+        "the two components age one artifact against two calendars.",
+    )
 
     args = ap.parse_args(argv)
 
@@ -776,10 +905,42 @@ def main(argv: list[str] | None = None) -> int:
             for ln in Path(args.universe).read_text(encoding="utf-8").splitlines()
             if ln.strip()
         ]
-        evidence: dict[str, dict[str, Any]] = {}
-        if args.evidence and Path(args.evidence).exists():
-            raw = json.loads(Path(args.evidence).read_text(encoding="utf-8"))
-            evidence = {e["symbol"]: e for e in raw.get("symbols", []) if e.get("symbol")}
+        # ONE reader, shared with the watchdog. This used to be a bespoke `json.loads` here
+        # that kept EVERY record regardless of what it claimed, while the watchdog used
+        # `load_evidence`, which drops records claiming nothing adjudicable. Same file, two
+        # readers, two different evidence sets — precisely the class of divergence ADR 0051
+        # closed for the classification rules but which survived, unnoticed, in the parsing.
+        evidence_all, evidence, ev_note, evidence_status = load_evidence_records(args.evidence)
+        print(f"verify: evidence status={evidence_status} ({ev_note})")
+
+        # The run date, in the SCHEDULE timezone. `date.today()` in this container is UTC, and
+        # the watchdog ages the same artifact against America/New_York — so between 20:00 and
+        # 00:00 ET the two would differ by a day and could disagree at the expiry boundary
+        # while both believed they were applying one rule.
+        run_date = _schedule_today(args.schedule_tz)
+
+        expiry = evidence_expiry(
+            evidence, as_of=run_date, max_evidence_age_days=MAX_EVIDENCE_AGE_DAYS
+        )
+        if expiry["earliest_expiry_on"]:
+            print(
+                f"verify: evidence expires {expiry['earliest_expiry_on']} "
+                f"({expiry['days_remaining']}d remaining, {expiry['record_count']} record(s))"
+            )
+        if (
+            expiry["days_remaining"] is not None
+            and expiry["days_remaining"] <= EVIDENCE_EXPIRY_WARN_DAYS
+        ):
+            # A WARNING here, not a failure: the artifact is still valid today. The failure
+            # arrives on its own when the records actually expire — this is the notice that
+            # there is still time to regenerate. Every record carries the same observation
+            # timestamp, so they expire together and this is a cliff, not a slope.
+            print(
+                f"verify: EVIDENCE_EXPIRY_WARNING: attribution for {expiry['record_count']} "
+                f"symbol(s) expires on {expiry['earliest_expiry_on']} "
+                f"({expiry['days_remaining']}d) - regenerate with scripts/factor_evidence.py "
+                "before then, or the refresh will begin failing on all of them at once"
+            )
 
         # Operational facts are recomputed from the app DB, never trusted from the
         # evidence file — an attacker or a stale artifact must not be able to
@@ -795,7 +956,10 @@ def main(argv: list[str] | None = None) -> int:
             max_lag_days=args.max_lag_days,
             min_coverage=args.min_coverage,
             evidence=evidence,
+            evidence_all=evidence_all,
+            evidence_status=evidence_status,
             operational=operational,
+            as_of=run_date,
         )
         if args.report:
             Path(args.report).write_text(

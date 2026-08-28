@@ -31,9 +31,18 @@ _SCRIPTS = _REPO_ROOT / "apps" / "backend" / "scripts"
 #: delivering one without the other raises ModuleNotFoundError inside the throwaway
 #: container and the refresh aborts before reading a row — confirmed against the live
 #: image on 2026-08-11, which carried NEITHER file.
+#:
+#: factor_evidence.py joined the set on 2026-08-27. It is the REGENERATOR for
+#: ``_factor_exhaustion_evidence.json``, which until then had no writer anywhere in the
+#: repository: the production artifact was hand-built once, on 2026-08-11, so a name going
+#: attributable-stale afterwards had no record at all and aborted the swap (WBS, on 08-25,
+#: 08-26 and 08-27), and all eleven records were due to expire together on 2026-09-10. It
+#: postdates the deployed image exactly as the other two do, and imports factor_adjudication
+#: as a sibling, so it needs the same delivery.
 MOUNTS = [
     "./apps/backend/scripts/factor_refresh.py:/app/scripts/factor_refresh.py:ro",
     "./apps/backend/scripts/factor_adjudication.py:/app/scripts/factor_adjudication.py:ro",
+    "./apps/backend/scripts/factor_evidence.py:/app/scripts/factor_evidence.py:ro",
 ]
 
 

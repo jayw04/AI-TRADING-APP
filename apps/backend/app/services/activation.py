@@ -36,6 +36,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
+from pathlib import Path
 from typing import Any
 
 import structlog
@@ -49,6 +50,7 @@ from app.db.enums import (
     OrderType,
     RiskScopeType,
     StrategyStatus,
+    StrategyType,
     TimeInForce,
 )
 from app.db.models.account import Account, AccountMode
@@ -56,7 +58,13 @@ from app.db.models.backtest_result import BacktestResult
 from app.db.models.risk_limits import RiskLimits
 from app.db.models.strategy import Strategy
 from app.db.models.user import User
+from app.factor_data.config import resolve_store_path
 from app.security.credential_store import CredentialKind, CredentialStore
+from app.strategies.factor_classification import requires_factor_readiness
+from app.strategies.factor_readiness import (
+    ReadinessVerdict,
+    evaluate_factor_readiness,
+)
 from app.strategies.hold_service import (
     HoldStateInvalid,
     HoldStoreUnavailable,
@@ -64,6 +72,7 @@ from app.strategies.hold_service import (
     assert_no_active_hold,
     record_activation_blocked,
 )
+from app.strategies.loader import StrategyLoader
 from app.utils.time import ensure_aware
 
 logger = structlog.get_logger(__name__)
@@ -89,6 +98,26 @@ class ActivationStatus:
     initiated_at: datetime | None
     completes_at: datetime | None
     seconds_remaining: int
+
+
+class _ClassificationUnavailable:
+    """Sentinel: a strategy's class could not be loaded, so factor consumption is UNKNOWN.
+
+    Deliberately its own type rather than ``None`` or a string. ``None`` already means
+    "not a factor consumer", and collapsing "I checked, it is not governed" into "I could
+    not check" is precisely how an unloadable strategy reached ``StrategyStatus.LIVE`` with
+    the interlock never evaluated. A distinct type makes the two impossible to confuse and
+    forces every caller to handle both.
+    """
+
+    __slots__ = ()
+
+    def __repr__(self) -> str:  # pragma: no cover - diagnostics only
+        return "CLASSIFICATION_UNAVAILABLE"
+
+
+#: The singleton marker. Compare with ``is``.
+CLASSIFICATION_UNAVAILABLE = _ClassificationUnavailable()
 
 
 class ActivationError(RuntimeError):
@@ -142,6 +171,45 @@ class ActivationService:
         account = await self._resolve_strategy_account(strategy, AccountMode.live)
         store = CredentialStore(self._session)
         prereqs: list[Prerequisite] = []
+
+        # 0a. STRUCTURALLY DISPATCHABLE. Checked FIRST, because it is the only prerequisite
+        # that can never become satisfiable by an operator action on the account, the
+        # credentials or the clock.
+        #
+        # ⚠ Added 2026-08-28. ``complete_pending`` became fail-closed on an unclassifiable
+        # strategy class (correctly — the ``None`` path could otherwise promote an unloadable
+        # strategy to LIVE with the factor interlock never evaluated). That turned a
+        # PRE-EXISTING omission here into a durable stranded state: nothing on this list
+        # established that the strategy is dispatchable Python at all, so a PINE/AGENT strategy
+        # or one with a null ``code_path`` (the column is nullable) could enter PENDING_LIVE,
+        # sit through the 24h cooldown, and then be refused by ``complete_pending`` FOREVER on
+        # a 60-second retry — a permanent PENDING_LIVE with no path forward.
+        # ``StrategyEngine.register`` has always guarded this (``row.type != PYTHON`` ->
+        # StrategyLoadError); the activation path never did.
+        #
+        # This is the STRUCTURAL half only: a type or a missing path that can never be
+        # dispatched, rejected before the cooldown starts rather than after it ends. Code that
+        # was valid at initiation and BREAKS during the cooldown is a different case with a
+        # different answer, and is deliberately NOT decided here — see the module note.
+        dispatchable = strategy.type == StrategyType.PYTHON and bool(
+            (strategy.code_path or "").strip()
+        )
+        prereqs.append(
+            Prerequisite(
+                name="strategy_is_dispatchable",
+                satisfied=dispatchable,
+                detail=(
+                    "Python strategy with a code path."
+                    if dispatchable
+                    else (
+                        f"Strategy type {strategy.type.value} with code_path="
+                        f"{strategy.code_path!r} can never be dispatched by the engine, so it "
+                        "cannot complete a live activation. Only PYTHON strategies with a code "
+                        "path are engine-runnable."
+                    )
+                ),
+            )
+        )
 
         # 0. LIVE account exists.
         prereqs.append(
@@ -388,6 +456,63 @@ class ActivationService:
         await self._session.commit()
         logger.info("strategy_activation_canceled", strategy_id=strategy_id, user_id=user_id)
 
+    async def _factor_readiness_for(
+        self, strategy: Strategy
+    ) -> ReadinessVerdict | _ClassificationUnavailable | None:
+        """The governing factor-readiness verdict, or a marker saying why there isn't one.
+
+        Three outcomes, and keeping them three is the point:
+
+        * ``None`` — **not a factor consumer.** Range Trader and every other book that never
+          reads ``ctx.factors``. A correct skip.
+        * :data:`CLASSIFICATION_UNAVAILABLE` — **the class could not be loaded**, so factor
+          consumption is UNKNOWN. Not a skip. The caller must refuse.
+        * a :class:`ReadinessVerdict` — the interlock applies; ``ok`` decides.
+
+        ⚠ The first two used to both return a bare ``None``, justified by "a strategy whose
+        code path is unloadable cannot be registered by the engine either, so it is refused
+        there." **That justification does not hold for ``complete_pending``**, which is the
+        only caller: it never consults the loader or the engine. It reads the row, checks the
+        cooldown and the hold, and writes ``StrategyStatus.LIVE`` itself. So an unloadable
+        strategy took the "not a factor consumer" branch and promoted to LIVE with the
+        interlock never evaluated.
+
+        The exposure was bounded — an unloadable strategy cannot dispatch, so no factor book
+        could be computed — but the safety rested on a later refusal by a caller this path does
+        not have, which is not a property anyone can check by reading this method. Owner review
+        asked for proof that the ``None`` path could not reach a state transition; the proof
+        failed, and this is the repair.
+        ``test_an_unloadable_strategy_cannot_use_the_none_path_to_reach_live`` pins it.
+
+        ⚠ The root is ``Path("strategies_user")``, byte-identical to ``app/lifespan.py`` and
+        ``app/api/v1/strategies.py``. Relative on purpose: those two resolve it against the
+        process CWD, and a second, cleverer resolution here (one derived from ``__file__``,
+        say) would become a DIFFERENT root the day a deployment layout changed — and its
+        failure mode would be this method returning "cannot classify" for every strategy.
+        One convention, so there is nothing to drift.
+        """
+        try:
+            cls = StrategyLoader(Path("strategies_user")).load(strategy.code_path or "")
+        except Exception as exc:
+            logger.warning(
+                "activation_factor_classification_unavailable",
+                strategy_id=strategy.id,
+                code_path=strategy.code_path,
+                error=type(exc).__name__,
+                detail=(
+                    "strategy class could not be loaded, so factor consumption could not be "
+                    "classified - the activation is refused rather than skipped"
+                ),
+            )
+            return CLASSIFICATION_UNAVAILABLE
+        if not requires_factor_readiness(cls, strategy.id):
+            return None
+        return evaluate_factor_readiness(
+            store_path=resolve_store_path(),
+            sealed_path=resolve_store_path().parent / "_factor_refresh_universe_sealed.json",
+            readiness_path=resolve_store_path().parent / "_factor_readiness.json",
+        )
+
     async def complete_pending(self, strategy_id: int) -> bool:
         """Scheduler entry point. Transition PENDING_LIVE → LIVE if 24h elapsed.
         Idempotent: returns False (no change) if the strategy is no longer
@@ -434,6 +559,53 @@ class ActivationService:
             return False
         except (HoldStateInvalid, HoldStoreUnavailable):
             logger.error("activation_hold_unreadable_refused", strategy_id=strategy_id)
+            return False
+
+        # FACTOR-READINESS ACTIVATION INTERLOCK (2026-08-27), same shape as the hold above.
+        #
+        # ⚠ This path is NOT covered by the engine's register-time interlock. The scheduler
+        # calls straight into this method and flips the status to LIVE itself; the engine is
+        # not consulted, so a factor book whose cooldown elapsed during a factor-store outage
+        # would complete into LIVE with the store frozen. The interlock the owner set on
+        # 2026-08-27 forbids IDLE -> PAPER/LIVE while readiness is not PASS, and LIVE is the
+        # consequential half of that.
+        #
+        # Refuse, leave the strategy PENDING_LIVE, and let a later pass complete it once the
+        # factor store recovers — exactly the hold's behaviour, and for the same reason: the
+        # cooldown is not the thing being questioned, the data is. Nothing is liquidated,
+        # cancelled, or reset, and no held position is touched.
+        readiness = await self._factor_readiness_for(strategy)
+        if isinstance(readiness, _ClassificationUnavailable):
+            # UNKNOWN is not a skip. Nothing further along this path consults the loader or
+            # the engine, so a strategy whose class cannot be loaded would otherwise promote
+            # to LIVE with the factor interlock never evaluated. Refuse and leave it
+            # PENDING_LIVE; the code path is the defect to fix, and the cooldown is preserved.
+            logger.warning(
+                "activation_blocked_unloadable_strategy",
+                strategy_id=strategy_id,
+                code_path=strategy.code_path,
+                status_mutated=False,
+                positions_touched=0,
+                detail=(
+                    "PENDING_LIVE->LIVE completion refused: the strategy class could not be "
+                    "loaded, so it cannot be shown to be outside the factor-readiness "
+                    "interlock. Repair the code path; the strategy stays PENDING_LIVE."
+                ),
+            )
+            return False
+        if readiness is not None and not readiness.ok:
+            logger.warning(
+                "activation_blocked_factor_not_ready",
+                strategy_id=strategy_id,
+                status_mutated=False,
+                positions_touched=0,
+                detail=(
+                    "PENDING_LIVE->LIVE completion refused: governing factor readiness is "
+                    "not PASS. The strategy stays PENDING_LIVE and a later pass completes it "
+                    "once the factor store recovers."
+                ),
+                **readiness.as_log(),
+            )
             return False
 
         strategy.status = StrategyStatus.LIVE

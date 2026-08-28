@@ -5,6 +5,7 @@ have no account_id (mapped via user_id+mode → 6 prereqs incl. live_account_exi
 get_positions() is sync list[dict]; submit(req)->Order; liquidation uses MANUAL
 source (works for LIVE + HALTED).
 """
+
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from unittest.mock import MagicMock
@@ -34,19 +35,67 @@ async def _seed_full(session_factory) -> str:
     """Seed everything for all prereqs satisfied. Returns the TOTP secret."""
     async with session_factory() as session:
         session.add(User(id=1, email="t@local", display_name="T", totp_verified_at=_now()))
-        session.add(Account(id=1, user_id=1, broker="alpaca", mode=AccountMode.live,
-                            label="MyLive", created_at=_now()))
-        session.add(RiskLimits(user_id=1, broker_mode=AccountMode.live,
-                               scope_type=RiskScopeType.GLOBAL, max_daily_loss=Decimal("500"),
-                               created_at=_now(), updated_at=_now()))
-        session.add(StrategyRow(id=10, user_id=1, name="momentum_v1", version="0.1.0",
-                                type=StrategyType.PYTHON, status=StrategyStatus.IDLE,
-                                code_path="x.py", params_json={}, symbols_json=["AAPL", "MSFT"],
-                                schedule="event", created_at=_now(), updated_at=_now()))
-        session.add(BacktestResult(strategy_id=10, label="bt", params_json={},
-                                   metrics_json={}, equity_curve_json=[], trades_json=[],
-                                   range_start=_now() - timedelta(days=30), range_end=_now(),
-                                   created_at=_now() - timedelta(days=1)))
+        session.add(
+            Account(
+                id=1,
+                user_id=1,
+                broker="alpaca",
+                mode=AccountMode.live,
+                label="MyLive",
+                created_at=_now(),
+            )
+        )
+        session.add(
+            RiskLimits(
+                user_id=1,
+                broker_mode=AccountMode.live,
+                scope_type=RiskScopeType.GLOBAL,
+                max_daily_loss=Decimal("500"),
+                created_at=_now(),
+                updated_at=_now(),
+            )
+        )
+        session.add(
+            StrategyRow(
+                id=10,
+                user_id=1,
+                name="momentum_v1",
+                version="0.1.0",
+                type=StrategyType.PYTHON,
+                status=StrategyStatus.IDLE,
+                # A REAL, loadable, non-factor-consuming template.
+                #
+                # This was "x.py" — a path that does not exist. It did not
+                # matter until 2026-08-27, when complete_pending began
+                # refusing a PENDING_LIVE->LIVE promotion whose class cannot
+                # be loaded: an unloadable class means factor consumption is
+                # UNKNOWN, and this path never consults the loader or the
+                # engine later to catch it. A fixture that cannot load is now
+                # asserting a promotion that production would refuse.
+                # range_trader declares requires_factor_readiness = False, so
+                # the factor interlock correctly does not apply to it and
+                # these tests still exercise the cooldown, not the interlock.
+                code_path="templates/range_trader.py",
+                params_json={},
+                symbols_json=["AAPL", "MSFT"],
+                schedule="event",
+                created_at=_now(),
+                updated_at=_now(),
+            )
+        )
+        session.add(
+            BacktestResult(
+                strategy_id=10,
+                label="bt",
+                params_json={},
+                metrics_json={},
+                equity_curve_json=[],
+                trades_json=[],
+                range_start=_now() - timedelta(days=30),
+                range_end=_now(),
+                created_at=_now() - timedelta(days=1),
+            )
+        )
         await session.commit()
         store = CredentialStore(session)
         await store.set(1, CredentialKind.ALPACA_LIVE_KEY, "PKLIVE")
@@ -62,8 +111,13 @@ async def test_all_prereqs_satisfied(session_factory):
         prereqs = await ActivationService(session=session).check_prerequisites(10)
     assert all(p.satisfied for p in prereqs)
     assert {p.name for p in prereqs} == {
-        "live_account_exists", "live_broker_credentials", "totp_enrolled",
-        "recent_backtest", "live_risk_limits", "circuit_breaker_clear",
+        "strategy_is_dispatchable",
+        "live_account_exists",
+        "live_broker_credentials",
+        "totp_enrolled",
+        "recent_backtest",
+        "live_risk_limits",
+        "circuit_breaker_clear",
     }
 
 
@@ -74,7 +128,9 @@ async def test_missing_live_account(session_factory):
         await session.delete(acc)
         await session.commit()
     async with session_factory() as session:
-        prereqs = {p.name: p for p in await ActivationService(session=session).check_prerequisites(10)}
+        prereqs = {
+            p.name: p for p in await ActivationService(session=session).check_prerequisites(10)
+        }
     assert prereqs["live_account_exists"].satisfied is False
 
 
@@ -83,7 +139,9 @@ async def test_missing_broker_credentials(session_factory):
     async with session_factory() as session:
         await CredentialStore(session).revoke(1, CredentialKind.ALPACA_LIVE_KEY)
     async with session_factory() as session:
-        prereqs = {p.name: p for p in await ActivationService(session=session).check_prerequisites(10)}
+        prereqs = {
+            p.name: p for p in await ActivationService(session=session).check_prerequisites(10)
+        }
     assert prereqs["live_broker_credentials"].satisfied is False
 
 
@@ -94,7 +152,9 @@ async def test_missing_totp(session_factory):
         user.totp_verified_at = None
         await session.commit()
     async with session_factory() as session:
-        prereqs = {p.name: p for p in await ActivationService(session=session).check_prerequisites(10)}
+        prereqs = {
+            p.name: p for p in await ActivationService(session=session).check_prerequisites(10)
+        }
     assert prereqs["totp_enrolled"].satisfied is False
 
 
@@ -102,13 +162,17 @@ async def test_old_backtest_not_recent(session_factory):
     await _seed_full(session_factory)
     async with session_factory() as session:
         from sqlalchemy import update
+
         await session.execute(
-            update(BacktestResult).where(BacktestResult.strategy_id == 10)
+            update(BacktestResult)
+            .where(BacktestResult.strategy_id == 10)
             .values(created_at=_now() - timedelta(days=10))
         )
         await session.commit()
     async with session_factory() as session:
-        prereqs = {p.name: p for p in await ActivationService(session=session).check_prerequisites(10)}
+        prereqs = {
+            p.name: p for p in await ActivationService(session=session).check_prerequisites(10)
+        }
     assert prereqs["recent_backtest"].satisfied is False
 
 
@@ -119,7 +183,9 @@ async def test_circuit_breaker_tripped(session_factory):
         account.circuit_breaker_tripped_at = _now()
         await session.commit()
     async with session_factory() as session:
-        prereqs = {p.name: p for p in await ActivationService(session=session).check_prerequisites(10)}
+        prereqs = {
+            p.name: p for p in await ActivationService(session=session).check_prerequisites(10)
+        }
     assert prereqs["circuit_breaker_clear"].satisfied is False
 
 
@@ -128,7 +194,10 @@ async def test_initiate_success_sets_pending_live(session_factory):
     code = pyotp.TOTP(secret).now()
     async with session_factory() as session:
         result = await ActivationService(session=session).initiate(
-            strategy_id=10, user_id=1, confirmation_name="momentum_v1", totp_code=code,
+            strategy_id=10,
+            user_id=1,
+            confirmation_name="momentum_v1",
+            totp_code=code,
         )
     assert result.status == StrategyStatus.PENDING_LIVE
     assert result.initiated_at is not None
@@ -141,7 +210,10 @@ async def test_initiate_wrong_confirmation_name(session_factory):
     async with session_factory() as session:
         with pytest.raises(ActivationError, match="Confirmation name"):
             await ActivationService(session=session).initiate(
-                strategy_id=10, user_id=1, confirmation_name="WRONG", totp_code=code,
+                strategy_id=10,
+                user_id=1,
+                confirmation_name="WRONG",
+                totp_code=code,
             )
 
 
@@ -150,7 +222,10 @@ async def test_initiate_wrong_totp(session_factory):
     async with session_factory() as session:
         with pytest.raises(ActivationError, match="TOTP"):
             await ActivationService(session=session).initiate(
-                strategy_id=10, user_id=1, confirmation_name="momentum_v1", totp_code="000000",
+                strategy_id=10,
+                user_id=1,
+                confirmation_name="momentum_v1",
+                totp_code="000000",
             )
 
 
@@ -164,7 +239,10 @@ async def test_initiate_unsatisfied_prereqs_rejected(session_factory):
     async with session_factory() as session:
         with pytest.raises(ActivationError, match="circuit_breaker_clear"):
             await ActivationService(session=session).initiate(
-                strategy_id=10, user_id=1, confirmation_name="momentum_v1", totp_code=code,
+                strategy_id=10,
+                user_id=1,
+                confirmation_name="momentum_v1",
+                totp_code=code,
             )
 
 
@@ -178,7 +256,10 @@ async def test_initiate_wrong_status_rejected(session_factory):
     async with session_factory() as session:
         with pytest.raises(ActivationError, match="IDLE or PAPER"):
             await ActivationService(session=session).initiate(
-                strategy_id=10, user_id=1, confirmation_name="momentum_v1", totp_code=code,
+                strategy_id=10,
+                user_id=1,
+                confirmation_name="momentum_v1",
+                totp_code=code,
             )
 
 
@@ -187,7 +268,10 @@ async def test_cancel_reverts_to_idle(session_factory):
     code = pyotp.TOTP(secret).now()
     async with session_factory() as session:
         await ActivationService(session=session).initiate(
-            strategy_id=10, user_id=1, confirmation_name="momentum_v1", totp_code=code,
+            strategy_id=10,
+            user_id=1,
+            confirmation_name="momentum_v1",
+            totp_code=code,
         )
     async with session_factory() as session:
         await ActivationService(session=session).cancel(strategy_id=10, user_id=1)
@@ -261,7 +345,9 @@ async def test_deactivate_without_liquidation(session_factory):
         await session.commit()
     async with session_factory() as session:
         result = await ActivationService(session=session).deactivate(
-            strategy_id=10, user_id=1, liquidate=False,
+            strategy_id=10,
+            user_id=1,
+            liquidate=False,
         )
     assert result["new_status"] == "idle"
     assert result["liquidation_orders"] == []
@@ -277,10 +363,12 @@ async def test_deactivate_with_liquidation_submits_matching_symbols(session_fact
     # get_positions is sync, returns list[dict]. NVDA is not in symbols_json.
     broker_reg = MagicMock()
     adapter = MagicMock()
-    adapter.get_positions = MagicMock(return_value=[
-        {"symbol": "AAPL", "qty": "10"},
-        {"symbol": "NVDA", "qty": "5"},
-    ])
+    adapter.get_positions = MagicMock(
+        return_value=[
+            {"symbol": "AAPL", "qty": "10"},
+            {"symbol": "NVDA", "qty": "5"},
+        ]
+    )
     broker_reg.get.return_value = adapter
 
     submitted: list = []
@@ -294,7 +382,9 @@ async def test_deactivate_with_liquidation_submits_matching_symbols(session_fact
 
     async with session_factory() as session:
         result = await ActivationService(
-            session=session, broker_registry=broker_reg, order_router=order_router,
+            session=session,
+            broker_registry=broker_reg,
+            order_router=order_router,
         ).deactivate(strategy_id=10, user_id=1, liquidate=True)
 
     assert len(result["liquidation_orders"]) == 1
@@ -304,3 +394,59 @@ async def test_deactivate_with_liquidation_submits_matching_symbols(session_fact
     assert req.side.value == "sell"
     assert req.qty == Decimal("10")
     assert req.confirmation_text == "AAPL"  # MANUAL+LIVE auto-confirmation
+
+
+# --------------------- structural activation eligibility (finding 6 structural half, 2026-08-28)
+
+
+async def test_a_non_python_strategy_is_refused_before_pending_live(session_factory):
+    """A strategy the engine can NEVER dispatch must not enter the 24h cooldown.
+
+    ``complete_pending`` became fail-closed on an unclassifiable strategy class — correctly,
+    since the ``None`` path could otherwise promote an unloadable strategy to LIVE with the
+    factor interlock never evaluated. That turned a pre-existing omission in this prerequisite
+    list into a durable stranded state: nothing established that the strategy is dispatchable
+    Python at all, so a PINE/AGENT strategy could enter PENDING_LIVE, sit through the cooldown,
+    and then be refused FOREVER on a 60-second retry with no path forward.
+    ``StrategyEngine.register`` has always guarded this (``row.type != PYTHON``); the
+    activation path never did.
+
+    Structural only: a type that can never be dispatched, refused before the cooldown starts
+    rather than after it ends.
+    """
+    await _seed_full(session_factory)
+    async with session_factory() as session:
+        row = await session.get(StrategyRow, 10)
+        row.type = StrategyType.PINE
+        await session.commit()
+        prereqs = await ActivationService(session=session).check_prerequisites(10)
+
+    entry = next(p for p in prereqs if p.name == "strategy_is_dispatchable")
+    assert entry.satisfied is False
+    assert "never be dispatched" in entry.detail
+
+
+async def test_a_null_code_path_is_refused_before_pending_live(session_factory):
+    """``code_path`` is nullable and ``load("")`` raises: the same permanent strand."""
+    await _seed_full(session_factory)
+    async with session_factory() as session:
+        row = await session.get(StrategyRow, 10)
+        row.code_path = None
+        await session.commit()
+        prereqs = await ActivationService(session=session).check_prerequisites(10)
+
+    entry = next(p for p in prereqs if p.name == "strategy_is_dispatchable")
+    assert entry.satisfied is False
+
+
+async def test_an_ordinary_python_strategy_remains_dispatchable(session_factory):
+    """POSITIVE CONTROL: the new prerequisite must not refuse a normal activation.
+
+    Without it, the two refusals above are satisfiable by refusing everything.
+    """
+    await _seed_full(session_factory)
+    async with session_factory() as session:
+        prereqs = await ActivationService(session=session).check_prerequisites(10)
+
+    entry = next(p for p in prereqs if p.name == "strategy_is_dispatchable")
+    assert entry.satisfied is True

@@ -61,6 +61,28 @@ DEFAULT_MAX_LAG_DAYS = 4
 DEFAULT_READINESS_MAX_AGE_HOURS = 26
 
 
+class FactorReadinessNotMet(Exception):
+    """Activation of a factor-consuming strategy was refused: readiness is not PASS.
+
+    Raised by ``StrategyEngine.register`` at the activation seam and mapped to a 409 by the
+    API — a conflicting state the caller resolves by restoring factor readiness, not a bug and
+    not a server error.
+
+    ⚠ REFUSES ENTRY ONLY. Raising this leaves the strategy exactly where it was (IDLE), does
+    NOT mark it ERROR, and touches no position and no order. An already-registered strategy
+    short-circuits before the check, so this can never reach into a running book. Factor RED
+    blocks new activation, ranking and rebalance; it is not a liquidation trigger.
+    """
+
+    def __init__(self, strategy_id: int, reason: str) -> None:
+        self.strategy_id = strategy_id
+        self.reason = reason
+        super().__init__(
+            f"strategy {strategy_id} may not be activated: factor readiness is not PASS "
+            f"({reason})"
+        )
+
+
 @dataclass(frozen=True)
 class ReadinessVerdict:
     """The outcome of one gate evaluation. ``ok`` is the only thing dispatch reads."""

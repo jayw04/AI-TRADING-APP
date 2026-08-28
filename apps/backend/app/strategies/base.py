@@ -50,6 +50,27 @@ class Strategy:
     # params_json (registered values override defaults).
     default_params: ClassVar[dict[str, Any]] = {}
 
+    # Does this strategy RANK on factor data (``ctx.factors``)? DECLARED, not inferred.
+    #
+    # ⚠ This exists because inference failed in production. The engine classified a strategy
+    # by AST-parsing its source, and on 2026-08-10 BOTH live factor books (strategies 7 and 8)
+    # logged ``strategy_factor_classification_unavailable`` — the loaded instance's source was
+    # not introspectable — so the factor-readiness veto returned True before evaluating
+    # anything, and 52 orders dispatched on factor data nothing had verified. CI was green
+    # throughout, because the safety-net test classified template FILES on disk, which parse
+    # fine; production dispatches an INSTANCE, which does not.
+    #
+    # A class attribute cannot fail to introspect. ``None`` means "not declared", and the
+    # engine still resolves that by inference so a user strategy written before this attribute
+    # existed keeps working — but every shipped template declares, so no factor book depends
+    # on the inference path any more.
+    #
+    # Set ``True`` on any strategy that reads ``ctx.factors``: the readiness interlock then
+    # governs its dispatch AND its activation. Setting ``False`` on a strategy that does read
+    # ``ctx.factors`` is a declaration error rather than an opt-out — the engine detects the
+    # contradiction, gates anyway, and says so.
+    requires_factor_readiness: ClassVar[bool | None] = None
+
     # Optional UI form schema (P4 §7). When a subclass declares this, the
     # frontend Params tab renders a typed form (integer / number / string /
     # boolean / enum). When ``None`` the frontend falls back to a raw JSON
