@@ -41,7 +41,20 @@ async def _seed_full(session_factory) -> str:
                                created_at=_now(), updated_at=_now()))
         session.add(StrategyRow(id=10, user_id=1, name="momentum_v1", version="0.1.0",
                                 type=StrategyType.PYTHON, status=StrategyStatus.IDLE,
-                                code_path="x.py", params_json={}, symbols_json=["AAPL", "MSFT"],
+                                # A REAL, loadable, non-factor-consuming template.
+                                #
+                                # This was "x.py" — a path that does not exist. It did not
+                                # matter until 2026-08-27, when complete_pending began
+                                # refusing a PENDING_LIVE->LIVE promotion whose class cannot
+                                # be loaded: an unloadable class means factor consumption is
+                                # UNKNOWN, and this path never consults the loader or the
+                                # engine later to catch it. A fixture that cannot load is now
+                                # asserting a promotion that production would refuse.
+                                # range_trader declares requires_factor_readiness = False, so
+                                # the factor interlock correctly does not apply to it and
+                                # these tests still exercise the cooldown, not the interlock.
+                                code_path="templates/range_trader.py",
+                                params_json={}, symbols_json=["AAPL", "MSFT"],
                                 schedule="event", created_at=_now(), updated_at=_now()))
         session.add(BacktestResult(strategy_id=10, label="bt", params_json={},
                                    metrics_json={}, equity_curve_json=[], trades_json=[],

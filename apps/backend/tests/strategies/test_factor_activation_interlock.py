@@ -365,6 +365,56 @@ def test_activation_service_gates_the_live_completion():
     assert gate < promotion, "the readiness gate must precede the LIVE status write"
 
 
+def test_an_unloadable_strategy_cannot_use_the_none_path_to_reach_live():
+    """An unloadable class must NOT be able to complete PENDING_LIVE → LIVE.
+
+    ``_factor_readiness_for`` returns ``None`` for two different situations: "this strategy is
+    not a factor consumer" and "this strategy's class could not be loaded". The first is a
+    correct skip. The second was originally justified by "the loader/engine will refuse it
+    separately" — and for ``complete_pending`` **that justification does not hold**, because
+    this method never consults the loader or the engine. It reads the row, checks the cooldown
+    and the hold, and writes ``StrategyStatus.LIVE`` itself.
+
+    So the refusal has to exist HERE. Depending on a later caller to refuse is depending on a
+    caller this path does not have.
+
+    Asserted on the source rather than by driving the scheduler, because what must hold is that
+    **no reachable path** between classification and the LIVE write is missing a refusal — a
+    behavioural test would only demonstrate the one path it happened to drive.
+    """
+    from pathlib import Path
+
+    source = (
+        Path(__file__).resolve().parents[2] / "app" / "services" / "activation.py"
+    ).read_text(encoding="utf-8")
+
+    start = source.index("    async def complete_pending(")
+    end = source.index("\n    async def ", start + 1)
+    body = source[start:end]
+
+    promotion = body.index("strategy.status = StrategyStatus.LIVE")
+    classification = body.index("_factor_readiness_for")
+    assert classification < promotion
+
+    # Between classifying and promoting, an unloadable class must be refused explicitly.
+    between = body[classification:promotion]
+    assert "activation_blocked_unloadable_strategy" in between, (
+        "complete_pending writes StrategyStatus.LIVE with no refusal for a strategy whose "
+        "class could not be loaded. The None returned by _factor_readiness_for is "
+        "indistinguishable from 'not a factor consumer', and nothing on this path consults "
+        "the loader or the engine to catch it later."
+    )
+
+    # ...and the helper must report the load failure distinguishably, not silently.
+    helper_start = source.index("    async def _factor_readiness_for(")
+    helper_end = source.index("\n    async def ", helper_start + 1)
+    helper = source[helper_start:helper_end]
+    assert "CLASSIFICATION_UNAVAILABLE" in helper, (
+        "_factor_readiness_for must signal 'could not classify' distinguishably from "
+        "'not a factor consumer'; both returning a bare None is what hid this path"
+    )
+
+
 def test_live_completion_block_leaves_the_strategy_pending_not_idle():
     """Refusing must not consume the cooldown. The strategy stays PENDING_LIVE so a later
     pass completes it once the factor store recovers — the operational-hold behaviour, for

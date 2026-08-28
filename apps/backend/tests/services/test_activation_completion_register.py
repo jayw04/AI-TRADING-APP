@@ -26,7 +26,12 @@ async def _seed_pending(session_factory) -> int:
         s.add(Account(id=2, user_id=1, broker="alpaca", mode=AccountMode.live, label="L"))
         row = Strategy(
             user_id=1, name="S1", version="0.1.0", type=StrategyType.PYTHON,
-            status=StrategyStatus.PENDING_LIVE, code_path="s.py",
+            status=StrategyStatus.PENDING_LIVE,
+            # A REAL, loadable, non-factor template (was "s.py", which does not
+            # exist). complete_pending now refuses a PENDING_LIVE->LIVE promotion
+            # whose class cannot be loaded: unloadable means factor consumption is
+            # UNKNOWN, and nothing later on this path consults the loader to catch it.
+            code_path="templates/range_trader.py",
             params_json={}, symbols_json=["AAPL"], schedule="event",
             live_activation_initiated_at=datetime.now(UTC) - timedelta(hours=25),
             created_at=datetime.now(UTC), updated_at=datetime.now(UTC),

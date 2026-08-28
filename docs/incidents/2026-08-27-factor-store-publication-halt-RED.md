@@ -133,6 +133,22 @@ present, because declaring classification is correct either way.
    tree look complete. It is now derived from a named list, and `test_every_execution_seam_is_gated`
    enumerates seams from the AST so a newly-added hook fails the build until it is classified.
 
+7. **Unloadable class fails CLOSED at the LIVE completion.** Review asked for proof that a
+   strategy whose class cannot be loaded could not use `_factor_readiness_for`'s `None` return
+   to transition state. **The proof failed.** `complete_pending` never consults the loader or
+   the engine — it reads the row, checks the cooldown and the hold, and writes
+   `StrategyStatus.LIVE` itself — so the "the engine will refuse it separately" justification
+   did not apply to the one caller that mattered. An unloadable strategy took the "not a factor
+   consumer" branch and promoted to LIVE with the interlock never evaluated.
+
+   Exposure was bounded (an unloadable strategy cannot dispatch, so no factor book could be
+   computed), but the safety rested on a refusal by a caller this path does not have.
+   `_factor_readiness_for` now returns a distinct `CLASSIFICATION_UNAVAILABLE` sentinel — its
+   own type, not `None` and not a string — and `complete_pending` refuses, leaving the strategy
+   PENDING_LIVE. Two pre-existing fixtures used non-existent code paths (`x.py`, `s.py`) and
+   were asserting a promotion production would now refuse; both point at a real loadable
+   non-factor template.
+
 ### ⚠ What the repair does NOT do
 
 **It does not, on its own, guarantee that publication resumes.** A name with provider history
