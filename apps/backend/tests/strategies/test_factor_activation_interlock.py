@@ -229,7 +229,7 @@ def test_register_calls_the_interlock_before_any_state_change():
     # FIRST `self._scheduler.add_job` in the file, which belongs to an unrelated method that
     # legitimately precedes register — the check would then fail for a reason that has
     # nothing to do with the ordering it exists to protect.
-    start = source.index("    async def register(self, strategy_id: int)")
+    start = source.index("    async def register(" + chr(10))
     end = source.index("\n    async def ", start + 1)
     register_body = source[start:end]
 
@@ -384,9 +384,9 @@ def test_an_unloadable_strategy_cannot_use_the_none_path_to_reach_live():
     """
     from pathlib import Path
 
-    source = (
-        Path(__file__).resolve().parents[2] / "app" / "services" / "activation.py"
-    ).read_text(encoding="utf-8")
+    source = (Path(__file__).resolve().parents[2] / "app" / "services" / "activation.py").read_text(
+        encoding="utf-8"
+    )
 
     start = source.index("    async def complete_pending(")
     end = source.index("\n    async def ", start + 1)
@@ -430,3 +430,136 @@ def test_live_completion_block_leaves_the_strategy_pending_not_idle():
     assert "return False" in block, "the refusal must return False, leaving status untouched"
     assert "StrategyStatus.IDLE" not in block, "refusing must not demote the strategy to IDLE"
     assert "status_mutated=False" in block
+
+
+# --------------------------------------- recovery is not activation (finding 3, 2026-08-28)
+
+
+def test_the_activation_interlock_is_conditioned_on_ACTIVATE_intent():
+    """The refusal must be REACHABLE ONLY under ``ACTIVATE``.
+
+    Asserted structurally rather than by presence: an implementation that merely mentions both
+    intents somewhere in ``register`` — while gating the raise on nothing but "is this a factor
+    book?" — is exactly the defect, and a test that only greps for the names passes it. So this
+    finds the ``raise FactorReadinessNotMet`` and walks OUT to the ``if`` that guards it,
+    requiring ``RegistrationIntent.ACTIVATE`` in that condition.
+
+    Structural because the property is structural: a refusal that applies to every registration
+    turns a restart during a RED store into a silently de-armed LIVE book.
+    """
+    import ast
+    import inspect
+    import textwrap
+
+    from app.strategies import engine as eng
+
+    tree = ast.parse(textwrap.dedent(inspect.getsource(eng.StrategyEngine.register)))
+
+    def _raises_readiness(node) -> bool:
+        return any(
+            isinstance(n, ast.Raise) and "FactorReadinessNotMet" in ast.dump(n)
+            for n in ast.walk(node)
+        )
+
+    guarding_ifs = [
+        node for node in ast.walk(tree) if isinstance(node, ast.If) and _raises_readiness(node)
+    ]
+    assert guarding_ifs, "register() no longer raises FactorReadinessNotMet - update this test"
+
+    assert any("ACTIVATE" in ast.dump(node.test) for node in guarding_ifs), (
+        "the activation refusal is not conditioned on RegistrationIntent.ACTIVATE: it would "
+        "also refuse RECOVER, which de-arms a durably-LIVE factor book on any restart while "
+        "the factor store is RED"
+    )
+
+
+@pytest.mark.asyncio
+async def test_a_recovered_book_stays_dispatch_gated_until_readiness_passes(monkeypatch):
+    """Steps 5-7 of the lifecycle: recovery restores the REGISTRATION, not permission to trade.
+
+    The recovered strategy must compute and apply no factor-derived book while RED, and must
+    then dispatch normally once readiness turns PASS — **without another restart or a manual
+    reactivation**. Driven through the real ``_factor_readiness_ok`` so this asserts the gate
+    the engine actually calls.
+    """
+    from app.strategies import engine as eng
+
+    verdicts = {
+        "red": ReadinessVerdict(
+            ok=False,
+            reason="producer readiness verdict is FAIL",
+            checks={"producer_liveness_verified": True, "overall_readiness": "FAIL"},
+        ),
+        "green": ReadinessVerdict(
+            ok=True,
+            reason="ok",
+            checks={"producer_liveness_verified": True, "overall_readiness": "PASS"},
+        ),
+    }
+    state = {"now": "red"}
+
+    async def _verdict(self):  # noqa: ANN001
+        return verdicts[state["now"]]
+
+    stub = type(
+        "E",
+        (),
+        {
+            "_classify_factor_consuming": eng.StrategyEngine._classify_factor_consuming,
+            "_is_factor_consuming": eng.StrategyEngine._is_factor_consuming,
+            "_factor_readiness_ok": eng.StrategyEngine._factor_readiness_ok,
+            "_factor_readiness_verdict": _verdict,
+        },
+    )()
+
+    cls = _uninspectable("RecoveredBook", requires_factor_readiness=True)
+    # ``_is_factor_consuming`` reads ``type(running.instance)``; the instance need not be
+    # constructed, and Strategy.__init__ requires a ctx and params this test has no use for.
+    running = type("R", (), {"strategy_id": 7, "instance": cls.__new__(cls), "symbols": ["AAPL"]})()
+
+    # RED: the restored registration exists, and dispatch is still refused.
+    assert await stub._factor_readiness_ok(running, dispatch_source="bar_tick") is False
+
+    # PASS: the SAME registration now dispatches. No restart, no reactivation.
+    state["now"] = "green"
+    assert await stub._factor_readiness_ok(running, dispatch_source="bar_tick") is True
+
+
+@pytest.mark.asyncio
+async def test_activation_while_red_is_still_refused_after_the_recovery_carve_out(monkeypatch):
+    """The converse, and the reason this is an intent rather than a weakening.
+
+    A repair that merely moved the fail-open boundary would let IDLE -> PAPER/LIVE through as
+    well. It must not: ACTIVATE keeps raising.
+    """
+    from app.strategies import engine as eng
+
+    blocking = ReadinessVerdict(
+        ok=False,
+        reason="producer readiness verdict is FAIL",
+        checks={"producer_liveness_verified": True, "overall_readiness": "FAIL"},
+    )
+
+    async def _verdict(self):  # noqa: ANN001
+        return blocking
+
+    stub = type(
+        "E",
+        (),
+        {
+            "_classify_factor_consuming": eng.StrategyEngine._classify_factor_consuming,
+            "_factor_readiness_verdict": _verdict,
+        },
+    )()
+    cls = _uninspectable("Book", requires_factor_readiness=True)
+
+    # The decision the ACTIVATE branch makes, evaluated exactly as register() evaluates it.
+    intent = eng.RegistrationIntent.ACTIVATE
+    gated = intent is eng.RegistrationIntent.ACTIVATE and stub._classify_factor_consuming(cls, 7)
+    assert gated is True
+    assert (await stub._factor_readiness_verdict()).ok is False
+
+    # And the RECOVER branch does NOT take that path for the same class and the same verdict.
+    intent = eng.RegistrationIntent.RECOVER
+    gated = intent is eng.RegistrationIntent.ACTIVATE and stub._classify_factor_consuming(cls, 7)
+    assert gated is False

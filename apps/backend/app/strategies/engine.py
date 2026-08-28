@@ -36,6 +36,7 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+import enum
 import time
 import uuid
 from dataclasses import dataclass
@@ -139,6 +140,40 @@ def _normalize_crontab_dow(expr: str) -> str:
 
     parts[4] = ",".join(_token(item) for item in dow.split(","))
     return " ".join(parts)
+
+
+class RegistrationIntent(enum.Enum):
+    """WHY a strategy is being registered. The two are governed differently.
+
+    ``ACTIVATE`` — a strategy is being made runnable: ``IDLE -> PAPER/LIVE``, a
+    ``PENDING_LIVE`` completion, a paper variant, an eval-harness clone. The factor-readiness
+    interlock applies: activating a factor book into a frozen store is exactly what the owner
+    forbade on 2026-08-27, and it is refused.
+
+    ``RECOVER`` — a strategy the DATABASE ALREADY CALLS RUNNABLE is being restored into a
+    fresh process after a restart. Nothing is being made runnable; the durable decision was
+    taken earlier and is unchanged. The interlock does NOT apply.
+
+    ⚠ **Why the distinction is load-bearing, and why a bare boolean would not do.** Found in
+    review 2026-08-28. ``_running`` is process-local, so after a restart it is empty and every
+    durable strategy takes the not-yet-registered path. With one rule for both events, a
+    ``LIVE`` factor book that merely survived a backend restart during a RED store was refused
+    registration — ``resume_strategies_on_boot`` swallowed the exception into ``failed_ids``,
+    and **nothing re-registers it when readiness recovers** (``register`` is called only from
+    boot, the API and the activation job). The result is strictly worse than a clean refusal:
+    the control plane keeps saying ``LIVE`` while the execution plane is inert — no ``on_bar``,
+    no ``on_fill``, no stop management — with no operator signal that the two disagree. And
+    ``factor-refresh.sh`` restarts the backend itself, so the RED store and the restart arrive
+    together by construction.
+
+    Blocking new factor-derived activity is this interlock's purpose. Silently de-arming an
+    already-active book is not, and the dispatch gate already prevents the thing that would
+    actually be unsafe: a recovered strategy still computes and applies NO factor-derived book
+    until readiness is PASS.
+    """
+
+    ACTIVATE = "activate"
+    RECOVER = "recover"
 
 
 @dataclass
@@ -329,11 +364,20 @@ class StrategyEngine:
             )
         raise StrategyOnHold(strategy_id, rec.reason_code, rec.rev)
 
-    async def register(self, strategy_id: int) -> RunningStrategy:
+    async def register(
+        self,
+        strategy_id: int,
+        *,
+        intent: RegistrationIntent = RegistrationIntent.ACTIVATE,
+    ) -> RunningStrategy:
         """Load, instantiate, and start dispatching to a strategy.
 
         Idempotent: if the strategy is already registered, returns the
         existing :class:`RunningStrategy`.
+
+        ``intent`` distinguishes the two lifecycle events that both arrive here — see
+        :class:`RegistrationIntent`. It defaults to ``ACTIVATE``, the stricter of the two, so
+        a new call site is gated unless it deliberately says otherwise.
         """
         if strategy_id in self._running:
             return self._running[strategy_id]
@@ -428,7 +472,9 @@ class StrategyEngine:
             #
             # Non-factor strategies are unaffected — Range Trader declares
             # ``requires_factor_readiness = False`` and never evaluates the gate.
-            if self._classify_factor_consuming(cls, strategy_id):
+            if intent is RegistrationIntent.ACTIVATE and self._classify_factor_consuming(
+                cls, strategy_id
+            ):
                 verdict = await self._factor_readiness_verdict()
                 if not verdict.ok:
                     logger.warning(
@@ -449,6 +495,30 @@ class StrategyEngine:
                     # state an operator has to clear by hand once the factor store recovers.
                     # It stays exactly where it was — IDLE — and the caller is told why.
                     raise FactorReadinessNotMet(strategy_id, verdict.reason)
+            elif intent is RegistrationIntent.RECOVER and self._classify_factor_consuming(
+                cls, strategy_id
+            ):
+                # RECOVERY, not activation. Restoring a strategy the DB already calls runnable
+                # after a process restart, and the interlock must NOT convert it into a
+                # LIVE-but-inert one. Logged at INFO on every RED boot because "the engine came
+                # back with the book registered and dispatch held" is the fact an operator
+                # needs, and its absence is what made the failure mode invisible.
+                verdict = await self._factor_readiness_verdict()
+                if not verdict.ok:
+                    logger.info(
+                        "strategy_recovery_registered_while_factor_not_ready",
+                        strategy_id=strategy_id,
+                        strategy_class=getattr(cls, "__name__", "?"),
+                        status_mutated=False,
+                        detail=(
+                            "durably-runnable factor strategy RE-REGISTERED after restart "
+                            "while readiness is FAIL: the control plane and the execution "
+                            "plane now agree, and the DISPATCH gate continues to refuse every "
+                            "factor-derived book until readiness is PASS. Recovery is not "
+                            "activation."
+                        ),
+                        **verdict.as_log(),
+                    )
 
             symbols = list(row.symbols_json) or list(cls.symbols)
             merged_params = {**cls.default_params, **(row.params_json or {})}

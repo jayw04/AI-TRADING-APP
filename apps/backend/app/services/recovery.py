@@ -32,6 +32,7 @@ from app.observability.metrics import (
     recovery_failures_total,
     recovery_success_total,
 )
+from app.strategies.engine import RegistrationIntent
 from app.strategies.hold_service import StrategyOnHold
 
 logger = structlog.get_logger(__name__)
@@ -40,7 +41,7 @@ RESUME = "resume_on_boot"  # the recovery_type label
 
 
 class _Registrar(Protocol):
-    async def register(self, strategy_id: int) -> object: ...
+    async def register(self, strategy_id: int, *, intent: RegistrationIntent = ...) -> object: ...
 
 
 @dataclass(frozen=True)
@@ -63,6 +64,12 @@ async def resume_strategies_on_boot(
 ) -> ResumeSummary:
     """Re-register every ``ENGINE_RUNNABLE_STATUSES`` strategy after a restart.
 
+    ⚠ **This pass runs ONCE per process and has no retry.** Anything it fails to register stays
+    unregistered until an operator acts, while the database goes on calling it runnable — so a
+    refusal here is not a safe default, it is a silent divergence between the control plane and
+    the execution plane. That is why registration is requested with
+    ``RegistrationIntent.RECOVER``.
+
     Per-strategy counters (``recovery_attempts_total`` / ``recovery_success_total`` /
     ``recovery_failures_total`` labelled ``resume_on_boot``) so ``success/(success+failures)`` is
     the clean-resume ratio; one ``recovery_duration_seconds`` observation per pass. Idempotent and
@@ -71,19 +78,28 @@ async def resume_strategies_on_boot(
     started = time.monotonic()
     async with session_factory() as session:
         rows = (
-            await session.execute(
-                select(StrategyRow.id).where(
-                    StrategyRow.status.in_(list(ENGINE_RUNNABLE_STATUSES))
+            (
+                await session.execute(
+                    select(StrategyRow.id).where(
+                        StrategyRow.status.in_(list(ENGINE_RUNNABLE_STATUSES))
+                    )
                 )
             )
-        ).scalars().all()
+            .scalars()
+            .all()
+        )
 
     resumed = 0
     failed_ids: list[int] = []
     for sid in rows:
         recovery_attempts_total.labels(recovery_type=RESUME).inc()
         try:
-            await strategy_engine.register(sid)
+            # RECOVERY, not activation — see ``RegistrationIntent``. The durable decision to
+            # run these strategies was taken before the restart and is not being retaken here,
+            # so the factor-readiness ACTIVATION interlock must not refuse them: a refusal
+            # leaves the row LIVE with no engine registration and nothing to re-register it
+            # when readiness recovers, because this pass runs ONCE. Dispatch stays gated.
+            await strategy_engine.register(sid, intent=RegistrationIntent.RECOVER)
             recovery_success_total.labels(recovery_type=RESUME).inc()
             resumed += 1
         except StrategyOnHold as exc:
@@ -92,8 +108,10 @@ async def resume_strategies_on_boot(
             # the failed_ids alert list. register() already recorded the deduped
             # STRATEGY_ACTIVATION_BLOCKED_BY_HOLD; surface it as its own signal.
             logger.warning(
-                "strategy_resume_skipped_on_hold", strategy_id=sid,
-                reason_code=exc.reason_code, hold_rev=exc.rev,
+                "strategy_resume_skipped_on_hold",
+                strategy_id=sid,
+                reason_code=exc.reason_code,
+                hold_rev=exc.rev,
             )
         except Exception:
             recovery_failures_total.labels(recovery_type=RESUME).inc()

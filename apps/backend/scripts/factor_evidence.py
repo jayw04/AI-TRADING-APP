@@ -143,6 +143,22 @@ def _as_date(value: Any) -> date | None:
         return None
 
 
+def _in_schedule_tz(moment: datetime, tz_name: str) -> date:
+    """``moment``'s calendar date in the refresh schedule's timezone.
+
+    The counterpart to :func:`factor_adjudication.schedule_today`: that one dates *now*, this
+    one dates a supplied instant, and both land on the same calendar. Falls back to UTC when
+    the zone cannot be resolved, matching the shared helper's behaviour rather than inventing
+    a second one.
+    """
+    try:
+        from zoneinfo import ZoneInfo
+
+        return moment.astimezone(ZoneInfo(tz_name)).date()
+    except Exception:  # noqa: BLE001 - tzdata absent; UTC is the honest fallback
+        return moment.astimezone(UTC).date()
+
+
 def effective_last_by_symbol(store: str | Path, universe: Sequence[str]) -> dict[str, date | None]:
     """Per-symbol effective frontier: ``min(max(sep.date), tickers.lastpricedate)``.
 
@@ -549,13 +565,20 @@ def generate(
     # observations postdate its own run date is refused RECORD BY RECORD by the shared rule,
     # which reads as "nothing is attributable" rather than as "the writer is misconfigured".
     # Fail loudly here instead of writing a document that refutes itself symbol by symbol.
-    observed_date = (now or datetime.now(UTC)).astimezone(UTC).date()
+    # ⚠ BOTH DATES ON ONE CALENDAR. ``as_of`` is a schedule-timezone date, so comparing it
+    # against a UTC observation date would reintroduce the two-calendar problem this PR exists
+    # to remove: between roughly 20:00 and 24:00 ET, UTC is already the NEXT day, and an
+    # otherwise-legitimate evening run would be refused as "observed after its own run date".
+    # The 06:00 ET scheduled refresh never sees it, which is exactly why it would have sat
+    # here unnoticed. Same instant, same zone, one comparison.
+    observed_at = now or datetime.now(UTC)
+    observed_date = _in_schedule_tz(observed_at, schedule_tz)
     if observed_date > as_of:
         raise EvidenceError(
             f"observation date {observed_date} is AFTER the run date {as_of} "
-            f"(schedule tz {schedule_tz!r}) - every record would be refused as observed after "
-            "its own run. The run date must be the scheduled refresh date, never the store "
-            "frontier."
+            f"(both in schedule tz {schedule_tz!r}) - every record would be refused as "
+            "observed after its own run. The run date must be the scheduled refresh date, "
+            "never the store frontier."
         )
 
     return build_evidence_document(
