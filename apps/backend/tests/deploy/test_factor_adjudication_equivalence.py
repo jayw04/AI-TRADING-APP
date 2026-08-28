@@ -28,7 +28,7 @@ from __future__ import annotations
 import importlib.util
 import json
 import sys
-from datetime import date, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
 
 import pytest
@@ -495,3 +495,174 @@ def test_a_held_name_is_never_written_off(tmp_path):
     record = doc["symbols"][0]
     assert record["generator_derived_classification"] == fa.FAILED_OR_UNEXPLAINED
     assert "no proven alternate price source" in record["generator_derived_reason"]
+
+
+# ------------------------------------------------- the generate() seam (regression, 2026-08-28)
+#
+# ⚠ EVERY test above calls ``build_evidence_document`` DIRECTLY, and pins ``AS_OF = FRONTIER``
+# with ``OBSERVED_AT`` on that same day. That is precisely the arrangement under which the
+# defect found in review on 2026-08-28 is invisible: ``generate()`` derived its own run date
+# from ``max(stage_effective)`` — the store frontier — while stamping ``adjudicated_at_utc``
+# with the current instant. The refresh runs 06:00 ET, so the frontier is always the PRIOR
+# trading day, every record claimed to be observed after its own run date, and
+# ``classify_stale_symbol`` refused all of them. The generator refused everything it wrote and
+# regeneration could never clear a name.
+#
+# The seam that carried the defect is the one no test crossed. These tests cross it: they call
+# ``generate()`` end to end against real stores, with the production clock shape.
+
+
+def _seam_stores(tmp_path: Path) -> tuple[Path, Path]:
+    """Two DuckDB stores shaped like production on 2026-08-28.
+
+    Staging reaches 2026-08-27. ``WBS`` stops at 2026-08-19 in BOTH stores and in
+    ``tickers.lastpricedate`` — the observed production shape of a name that ceased trading.
+    """
+    import duckdb
+
+    live, stage = tmp_path / "live.duckdb", tmp_path / "stage.duckdb"
+    for path, frontier in ((live, date(2026, 8, 21)), (stage, date(2026, 8, 27))):
+        con = duckdb.connect(str(path))
+        try:
+            con.execute("CREATE TABLE sep (ticker VARCHAR, date DATE, close DOUBLE, volume BIGINT)")
+            con.execute("CREATE TABLE tickers (ticker VARCHAR, lastpricedate DATE)")
+            # A fresh name carrying the store's frontier, so the frontier is not WBS's own date.
+            for d in (frontier - timedelta(days=1), frontier):
+                con.execute("INSERT INTO sep VALUES ('AAPL', ?, 100.0, 1000)", [d])
+            con.execute("INSERT INTO tickers VALUES ('AAPL', ?)", [frontier])
+            # WBS: ceased trading 2026-08-19, in both stores.
+            for d in (date(2026, 8, 18), date(2026, 8, 19)):
+                con.execute("INSERT INTO sep VALUES ('WBS', ?, 77.57, 91317000)", [d])
+            con.execute("INSERT INTO tickers VALUES ('WBS', ?)", [date(2026, 8, 19)])
+        finally:
+            con.close()
+    return live, stage
+
+
+#: The run date these seam tests model — the morning AFTER the staging frontier, which is the
+#: production shape at 06:00 ET and the condition the defect needed.
+SEAM_RUN_DATE = date(2026, 8, 28)
+
+
+def _seam_generate(tmp_path: Path, monkeypatch, **overrides):
+    """``generate()`` end to end, with the production clock: frontier 08-27, run 08-28.
+
+    ⚠ ``as_of`` is deliberately NOT passed. The defect lived in the DEFAULT derivation
+    (``as_of = as_of or ...``), so a test that supplies ``as_of`` explicitly walks straight
+    past it — which is how the original suite missed this. The schedule clock is stubbed
+    instead, so the default path runs and stays deterministic.
+    """
+    live, stage = _seam_stores(tmp_path)
+    monkeypatch.setattr(fe, "schedule_today", lambda *a, **k: SEAM_RUN_DATE)
+    kwargs = {
+        "live_path": live,
+        "stage_path": stage,
+        "universe": ["AAPL", "WBS"],
+        "app_db": None,
+        "probe": fe.StaticProbe(
+            {"WBS": date(2026, 8, 19), "AAPL": date(2026, 8, 27)}, source="alpaca"
+        ),
+        "control_symbol": "AAPL",
+        "now": datetime(2026, 8, 28, 10, 30, 27, tzinfo=UTC),
+        "max_lag_days": TOLERANCE_DAYS,
+    }
+    kwargs.update(overrides)
+    return fe.generate(**kwargs)
+
+
+def test_generate_dates_the_run_by_the_schedule_not_the_store_frontier(tmp_path, monkeypatch):
+    """THE REGRESSION. ``as_of`` is the run date; the frontier is data, not a clock.
+
+    The negative assertion is the point: 2026-08-27 is the staging frontier, and it is exactly
+    what the defective implementation wrote here.
+    """
+    doc = _seam_generate(tmp_path, monkeypatch)
+    assert doc["as_of"] == "2026-08-28", (
+        "as_of must be the scheduled RUN date. '2026-08-27' is the staging frontier - the "
+        "defect this test exists to catch."
+    )
+    assert doc["as_of"] != "2026-08-27"
+    # The metadata clock and the enforcement clock now agree (finding 9 resolves with this).
+    assert doc["expires_on"] == "2026-09-27"
+
+
+def test_generated_wbs_record_survives_the_loader_and_re_derives_exhausted(tmp_path, monkeypatch):
+    """Generator -> artifact -> loader -> adjudicator, on the real WBS shape.
+
+    Every earlier test stops at the document. This one carries it through the two steps that
+    actually decided the production outcome: ``load_evidence_records`` (which DROPS a record
+    claiming anything outside ``CLAIMABLE``) and the verifier's own re-derivation.
+    """
+    doc = _seam_generate(tmp_path, monkeypatch)
+    record = next(r for r in doc["symbols"] if r["symbol"] == "WBS")
+    assert record["expected_classification"] == fa.PROVIDER_EXHAUSTED
+    assert "ceased trading" in record["generator_derived_reason"]
+
+    path = tmp_path / "_factor_exhaustion_evidence.json"
+    path.write_text(json.dumps(doc), encoding="utf-8")
+    all_records, claimable, _note, status = fa.load_evidence_records(path)
+    assert status == "ok"
+    assert "WBS" in all_records
+    assert "WBS" in claimable, (
+        "the generated record was dropped by the loader - it claimed a classification outside "
+        "CLAIMABLE, so adjudication would see no evidence and abort the swap"
+    )
+
+    # The verifier re-derives independently, from live facts, with ITS OWN as_of.
+    verdict, reason = fa.classify_stale_symbol(
+        "WBS",
+        live_last=date(2026, 8, 19),
+        stage_last=date(2026, 8, 19),
+        cutoff=date(2026, 8, 23),
+        tolerance_days=TOLERANCE_DAYS,
+        as_of=date(2026, 8, 28),
+        evidence=claimable["WBS"],
+        held_qty=0.0,
+        open_orders=0,
+        registered_in=[],
+    )
+    assert verdict == fa.PROVIDER_EXHAUSTED, reason
+
+
+def test_generate_refuses_to_write_an_artifact_that_postdates_its_own_run(tmp_path, monkeypatch):
+    """The invariant, enforced: observation date <= run date. Loud, not silent.
+
+    Passing the frontier as ``as_of`` is exactly what the defective default did. It must now
+    raise rather than emit a document that refutes itself record by record.
+    """
+    with pytest.raises(fe.EvidenceError, match="AFTER the run date"):
+        _seam_generate(tmp_path, monkeypatch, as_of=date(2026, 8, 27))
+
+
+def test_the_defective_default_would_have_failed_this_suite(tmp_path):
+    """Falsification: reproduce the OLD behaviour explicitly and prove it is refused.
+
+    A regression test that only exercises the fixed path cannot show the defect was real. This
+    one asserts the precise verdict and message the shipped generator produced in production.
+    """
+    doc = fe.build_evidence_document(
+        non_fresh=["WBS"],
+        live_effective={"WBS": date(2026, 8, 19)},
+        stage_effective={"WBS": date(2026, 8, 19)},
+        rows_after_frontier={"WBS": 0},
+        corroborated={"WBS": date(2026, 8, 19)},
+        control_symbol="AAPL",
+        control_last_date=date(2026, 8, 27),
+        corroboration_source="alpaca",
+        requested={"WBS": True},
+        request_status={"WBS": "ok"},
+        operational={},
+        universe_size=510,
+        cutoff=date(2026, 8, 23),
+        tolerance_days=TOLERANCE_DAYS,
+        as_of=date(2026, 8, 27),  # the staging frontier - the defect
+        observed_at=datetime(2026, 8, 28, 10, 30, 27, tzinfo=UTC),
+    )
+    record = doc["symbols"][0]
+    assert record["expected_classification"] == fa.FAILED_OR_UNEXPLAINED
+    assert "after the run date" in record["generator_derived_reason"]
+
+    path = tmp_path / "_defective.json"
+    path.write_text(json.dumps(doc), encoding="utf-8")
+    _all, claimable, _note, _status = fa.load_evidence_records(path)
+    assert claimable == {}, "the defective artifact must attribute nothing - that was the bug"

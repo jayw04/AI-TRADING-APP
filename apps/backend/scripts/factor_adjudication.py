@@ -45,7 +45,7 @@ from __future__ import annotations
 import json
 import sqlite3
 from collections.abc import Sequence
-from datetime import date, timedelta
+from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
@@ -64,6 +64,37 @@ ATTRIBUTED = (PROVIDER_EXHAUSTED, PROVIDER_NOT_COVERED)
 #: The only classifications an evidence record may claim. Anything else is ignored
 #: rather than trusted — an unrecognised label must not become a silent exemption.
 CLAIMABLE = frozenset(ATTRIBUTED)
+
+#: The timezone the refresh schedule is expressed in. The refresh container runs UTC and the
+#: watchdog computes ET; evidence ages in DAYS, so two clocks over one artifact means four
+#: hours every evening in which one component calls a record expired and the other does not.
+#: One definition, HERE, because this module is the one both of them already share.
+DEFAULT_SCHEDULE_TZ = "America/New_York"
+
+
+def schedule_today(tz_name: str = DEFAULT_SCHEDULE_TZ) -> date:
+    """Today's date in the refresh schedule's timezone. The RUN DATE, on one calendar.
+
+    ⚠ This is the clock for **evidence age**, and it is not the store frontier. Conflating the
+    two is the defect found in review on 2026-08-28: ``factor_evidence.generate`` dated its own
+    run by ``max(stage_effective)`` — the newest SEP row, which at 06:00 ET is always the PRIOR
+    trading day — while stamping ``adjudicated_at_utc`` with the current instant. Every record
+    it wrote therefore claimed to be observed AFTER its own run date, which
+    :func:`classify_stale_symbol` correctly refuses, so the generator refused every record it
+    produced and regeneration could never clear a name. The frontier is a fact about the DATA;
+    it is not a clock.
+
+    Falls back to UTC only when the zone cannot be resolved (no tzdata), and says so, because a
+    silent fallback would reintroduce the two-calendar problem this exists to remove.
+    """
+    try:
+        from zoneinfo import ZoneInfo
+
+        return datetime.now(ZoneInfo(tz_name)).date()
+    except Exception:  # noqa: BLE001 - tzdata absent; UTC is the honest fallback
+        print(f"WARNING could not resolve schedule timezone {tz_name!r}; using UTC")
+        return datetime.now(UTC).date()
+
 
 #: How long a corroboration observation may be relied upon before it must be observed
 #: again. The corroboration block records what an alternate source said AT ONE INSTANT;

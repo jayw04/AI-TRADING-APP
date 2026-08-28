@@ -732,13 +732,27 @@ else:
                   f"({expiry['days_remaining']}d remaining) over "
                   f"{expiry['record_count']} record(s)")
         warn_days = int(os.environ.get("EVIDENCE_EXPIRY_WARN_DAYS", "10"))
+        # NOTE, not PROBLEM. ⚠ This is an ADVANCE notice about evidence that is still VALID,
+        # and every PROBLEM line on this page lands in P_DATA -> DATA_FRESHNESS=FAIL ->
+        # OVERALL_READINESS=FAIL, which under the activation interlock halts dispatch AND
+        # activation of every factor book. Emitting a 10-day warning at that severity turns a
+        # reminder into a scheduled trading halt: the production artifact's earliest expiry is
+        # 2026-09-10, so this fired FAIL from 2026-08-31 against a healthy store and a passing
+        # verifier. The refresh verifier treats the identical condition as a warning
+        # (factor_refresh.py: "A WARNING here, not a failure: the artifact is still valid
+        # today"), and a watchdog STRICTER than the adjudication it reports on is how a live
+        # halt gets manufactured out of a notice. Found in review 2026-08-28.
+        #
+        # Actual expiry below remains a PROBLEM: an expired record attributes nothing, and
+        # that IS a freshness failure.
         if expiry["days_remaining"] is not None and expiry["days_remaining"] <= warn_days:
-            print("PROBLEM DATA_EVIDENCE_EXPIRING: attribution for "
+            print("NOTE DATA_EVIDENCE_EXPIRING: attribution for "
                   f"{expiry['record_count']} symbol(s) expires on "
                   f"{expiry['earliest_expiry_on']} ({expiry['days_remaining']}d) - they "
                   "expire TOGETHER, so the refresh begins failing on all of them at once. "
                   "The refresh regenerates this artifact on every run; if this is firing, "
-                  "that step is not running (scripts/factor_evidence.py)")
+                  "that step is not running (scripts/factor_evidence.py). ADVISORY: the "
+                  "artifact is still valid today and readiness is NOT failed on this.")
         if expiry["expired_count"]:
             print(f"PROBLEM DATA_EVIDENCE_EXPIRED: {expiry['expired_count']} record(s) are "
                   "already past the permitted observation age and can attribute nothing: "

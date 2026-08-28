@@ -164,6 +164,15 @@ Banco Santander and ceased trading. Its production failure diagnosed **`EVIDENCE
 record existed in the `2026-08-11` artifact at all — not `EVIDENCE_PRESENT_REFUSED`. Regeneration
 **is** the governed convergence mechanism for `WBS`, and this PR supplies it.
 
+⛔ **But the candidate implementation was defective, and review caught it before merge.** At
+`ce38edd4`, `factor_evidence.generate` dated its own run by the **staging frontier** while stamping
+`adjudicated_at_utc` with the current instant. At 06:00 ET the frontier is always the prior trading
+day, so every record claimed to be observed *after* its own run date — which
+`classify_stale_symbol` correctly refuses — and `load_evidence_records` dropped all of them.
+**Regeneration on `ce38edd4` would have aborted every refresh exactly as today, so Gate 0B was
+unreachable on that head.** Repaired in this branch: the run date now comes from the governing
+schedule timezone, and the invariant *observation date ≤ run date* is enforced rather than assumed.
+
 **What the repair still does not do: it does not itself CLEAR `WBS` until regeneration runs in
 production.** The classification is resolved; the operational gate is not.
 `scripts/factor_evidence.py` is **not yet deployed**, so the production writer → artifact →

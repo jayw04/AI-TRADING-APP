@@ -62,8 +62,34 @@ registration) are met. WBS becomes attributable, leaves the gating denominator, 
 
 ## 0B — Convergence path
 
+> **⛔ REVIEW CORRECTION 2026-08-28 (`ce38edd4` → repaired).** Production evidence proves `WBS`
+> is `PROVIDER_EXHAUSTED`. Review then found that the candidate generator at `ce38edd4`
+> **incorrectly dated evidence using the staging frontier**, so freshly observed records were
+> rejected as *observed after the run date* and dropped as unclaimable. Gate 0A therefore
+> remains **resolved**; Gate 0B was **unreachable on `ce38edd4`**. The corrected generator must
+> still be deployed and observed end-to-end before Gate 0B can close.
+
 **Mechanism: option 1 is not required; option 2 is not required; option 3 is not required.**
-The general recovery mechanism already exists in the candidate package and needs no new policy:
+The general recovery mechanism is the right one and needs no new policy — but the candidate
+implementation of it was **defective**, and that defect is what review caught:
+
+> **The defect (found 2026-08-28, repaired in this branch).** `factor_evidence.generate` read
+> `as_of = as_of or frontier`, dating its own run by `max(stage_effective)` — the newest SEP row,
+> which at 06:00 ET is always the PRIOR trading day — while stamping `adjudicated_at_utc` with
+> the current instant. `classify_stale_symbol` refuses an observation that postdates its own run,
+> so the generator stamped `FAILED_OR_UNEXPLAINED` on **every record it wrote**, and
+> `load_evidence_records` dropped them all. Reproduced with the real values: frontier `2026-08-27`
+> + observation `2026-08-28` → `FAILED_OR_UNEXPLAINED` / `CLAIMABLE = []`; run date `2026-08-28` +
+> the same observation → `PROVIDER_EXHAUSTED` / `CLAIMABLE = ['WBS']`. **Regeneration on
+> `ce38edd4` would have aborted every refresh exactly as today.**
+>
+> Repaired: `as_of` is the scheduled run date in the governing schedule timezone
+> (`--schedule-tz`, default `America/New_York`), derived from `factor_adjudication.schedule_today`
+> so the generator reaches the verifier's clock without importing the verifier. The invariant
+> *observation date ≤ run date* is now **enforced** — `generate()` raises rather than emit a
+> document that refutes itself. The frontier remains a fact about the data; it is not a clock.
+
+With that repair in place:
 
 > **Regenerate the evidence artifact with `scripts/factor_evidence.py` (PR #698), which supplies the
 > missing writer.** The generator decides nothing — it records observations; the verifier re-derives
@@ -101,5 +127,5 @@ ranking pool on its own once its `lastpricedate` excludes it — exactly as `EA`
 | PR #698 | ENGINEERING GREEN / REVIEW READY — unchanged; no code defect found by this investigation |
 | Factor store | **RED / publication blocked** — unchanged |
 | Gate 0A | **RESOLVED — `WBS` = `PROVIDER_EXHAUSTED` (acquired by SAN, delisted 2026-08-19)** |
-| Gate 0B | **Mechanism identified — regenerate via `scripts/factor_evidence.py`; no new governance needed.** Executes only after PR #698 is reviewed, merged and deployed. |
+| Gate 0B | **OPEN. Mechanism identified and now REPAIRED — regenerate via `scripts/factor_evidence.py`; no new governance needed.** It was **unreachable on `ce38edd4`** (run-date/frontier conflation, above). Executes only after the repaired PR #698 is re-reviewed, merged and deployed. |
 | MERGE / DEPLOY | still **not authorized** — owner's call, and an independent review of #698 is still outstanding |

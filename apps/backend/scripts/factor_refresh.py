@@ -40,7 +40,7 @@ import math
 import sqlite3
 import sys
 from collections.abc import Iterable, Sequence
-from datetime import UTC, date, datetime, timedelta
+from datetime import date, timedelta
 from pathlib import Path
 from typing import Any
 
@@ -512,6 +512,9 @@ if str(Path(__file__).resolve().parent) not in sys.path:
 from factor_adjudication import (  # noqa: E402  (needs the sys.path line above)
     ATTRIBUTED as ATTRIBUTED,
 )
+from factor_adjudication import (  # noqa: E402
+    DEFAULT_SCHEDULE_TZ as _DEFAULT_SCHEDULE_TZ,
+)
 
 # The DIAGNOSTIC surface, re-exported on the same terms. It decides nothing — see
 # ``diagnose_unexplained`` — but it is what lets this gate's abort line and the watchdog's
@@ -567,6 +570,9 @@ from factor_adjudication import (  # noqa: E402
 from factor_adjudication import (  # noqa: E402
     operational_facts as operational_facts,
 )
+from factor_adjudication import (  # noqa: E402
+    schedule_today as schedule_today,
+)
 
 #: How many days before the evidence artifact's expiry the verifier starts saying so. The
 #: refresh runs on weekdays, so a 10-day notice is at least seven opportunities to act — and
@@ -575,27 +581,20 @@ from factor_adjudication import (  # noqa: E402
 EVIDENCE_EXPIRY_WARN_DAYS = 10
 
 #: The timezone the refresh schedule is expressed in. Mirrors ``REFRESH_SCHEDULE_TZ`` in
-#: ``deploy/aws/factor-freshness.sh``; the two must name the same zone or the components age
-#: one artifact against two calendars.
-DEFAULT_SCHEDULE_TZ = "America/New_York"
+#: ``deploy/aws/factor-freshness.sh``. DEFINED IN THE SHARED MODULE and re-exported here, not
+#: restated: this verifier, the watchdog and the evidence generator must age one artifact
+#: against ONE calendar, and three copies of a timezone constant is three chances to drift.
+DEFAULT_SCHEDULE_TZ = _DEFAULT_SCHEDULE_TZ
 
 
 def _schedule_today(tz_name: str = DEFAULT_SCHEDULE_TZ) -> date:
-    """Today's date in the refresh schedule's timezone.
+    """Today's date in the refresh schedule's timezone. Delegates to the shared module.
 
-    The container runs UTC; the watchdog computes ET. Evidence ages in DAYS, so the two
-    clocks differ for four hours every evening — long enough for one component to declare a
-    record expired while the other still accepts it, from the same file. Falls back to UTC
-    only if the zone cannot be resolved (missing tzdata), which is loud in the printed report
-    rather than silent.
+    Kept as a name because this module's call sites and tests use it; the implementation
+    lives in ``factor_adjudication`` so the generator can reach the same clock without
+    importing the verifier. See :func:`factor_adjudication.schedule_today`.
     """
-    try:
-        from zoneinfo import ZoneInfo
-
-        return datetime.now(ZoneInfo(tz_name)).date()
-    except Exception:  # noqa: BLE001 - tzdata absent; UTC is the honest fallback
-        print(f"verify: WARNING could not resolve schedule timezone {tz_name!r}; using UTC")
-        return datetime.now(UTC).date()
+    return schedule_today(tz_name)
 
 
 def verify_staging(

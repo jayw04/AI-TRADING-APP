@@ -88,11 +88,13 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from factor_adjudication import (  # noqa: E402
     ATTRIBUTED,
+    DEFAULT_SCHEDULE_TZ,
     FAILED_OR_UNEXPLAINED,
     MAX_EVIDENCE_AGE_DAYS,
     classify_stale_symbol,
     exemption_ceiling,
     operational_facts,
+    schedule_today,
 )
 
 #: Schema version of the artifact this writer emits. Bumped from the hand-built documents,
@@ -488,6 +490,7 @@ def generate(
     max_lag_days: int = DEFAULT_MAX_LAG_DAYS,
     as_of: date | None = None,
     now: datetime | None = None,
+    schedule_tz: str = DEFAULT_SCHEDULE_TZ,
     ingest_status: str = "ok",
     max_evidence_age_days: int = MAX_EVIDENCE_AGE_DAYS,
 ) -> dict[str, Any]:
@@ -510,7 +513,18 @@ def generate(
         raise EvidenceError("staging store reports no frontier for any universe name")
     frontier = max(frontiers)
     cutoff = frontier - timedelta(days=max_lag_days)
-    as_of = as_of or frontier
+
+    # ⚠ THE RUN DATE IS A CLOCK; THE FRONTIER IS DATA. Until review on 2026-08-28 this read
+    # ``as_of = as_of or frontier``, and the two are not interchangeable: the refresh runs
+    # 06:00 ET, so the newest SEP row is always the PRIOR trading day. Every record written
+    # therefore carried ``adjudicated_at_utc`` = today against ``as_of`` = yesterday, and
+    # ``classify_stale_symbol`` correctly refuses an observation that postdates its own run
+    # ("corroboration observed D, after the run date D-1"). The generator refused every record
+    # it produced, ``load_evidence_records`` dropped them all as unclaimable, and regeneration
+    # could never clear a name — the whole purpose of this script. Reproduced against the real
+    # 2026-08-28 values: frontier 08-27 + observation 08-28 -> FAILED_OR_UNEXPLAINED; run date
+    # 08-28 + the same observation -> PROVIDER_EXHAUSTED.
+    as_of = as_of or schedule_today(schedule_tz)
 
     non_fresh = sorted(
         s
@@ -530,6 +544,19 @@ def generate(
         # Recomputed, never taken from the previous artifact: a held or registered name must
         # not be writable-off by a file.
         operational = operational_facts(app_db, non_fresh)
+
+    # The invariant this script exists to keep, checked rather than trusted: an artifact whose
+    # observations postdate its own run date is refused RECORD BY RECORD by the shared rule,
+    # which reads as "nothing is attributable" rather than as "the writer is misconfigured".
+    # Fail loudly here instead of writing a document that refutes itself symbol by symbol.
+    observed_date = (now or datetime.now(UTC)).astimezone(UTC).date()
+    if observed_date > as_of:
+        raise EvidenceError(
+            f"observation date {observed_date} is AFTER the run date {as_of} "
+            f"(schedule tz {schedule_tz!r}) - every record would be refused as observed after "
+            "its own run. The run date must be the scheduled refresh date, never the store "
+            "frontier."
+        )
 
     return build_evidence_document(
         non_fresh=non_fresh,
@@ -569,6 +596,13 @@ def main(argv: list[str] | None = None) -> int:
     g.add_argument("--control-symbol", default=DEFAULT_CONTROL_SYMBOL)
     g.add_argument("--max-lag-days", type=int, default=DEFAULT_MAX_LAG_DAYS)
     g.add_argument(
+        "--schedule-tz",
+        default=DEFAULT_SCHEDULE_TZ,
+        help="timezone of the refresh SCHEDULE, which dates this run. Must name the same zone "
+        "as REFRESH_SCHEDULE_TZ in deploy/aws/factor-freshness.sh and --schedule-tz in "
+        "factor_refresh.py, or the components age one artifact against two calendars.",
+    )
+    g.add_argument(
         "--ingest-status",
         default="ok",
         help="the exit condition of the ingest that filled --stage. Anything but 'ok' makes "
@@ -599,6 +633,7 @@ def main(argv: list[str] | None = None) -> int:
             probe=probe,
             control_symbol=args.control_symbol,
             max_lag_days=args.max_lag_days,
+            schedule_tz=args.schedule_tz,
             ingest_status=args.ingest_status,
         )
         digest = write_atomic(args.out, doc)

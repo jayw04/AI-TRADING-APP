@@ -210,6 +210,26 @@ is not yet deployed and the production writer → artifact → verifier path rem
 `WBS-DISPOSITION` stays a named precondition of the closure gate. The 2026-09-10 cliff is removed
 regardless.
 
+⛔ **Review correction, 2026-08-28.** The first candidate of this writer (`ce38edd4`) dated its own
+run by the **staging store frontier** rather than by the schedule, while stamping
+`adjudicated_at_utc` with the current instant. Because the refresh runs 06:00 ET the frontier is
+always the prior trading day, so every record it wrote claimed to be observed *after* its own run
+date — refused by `classify_stale_symbol`, then dropped by `load_evidence_records`. **The writer
+refused everything it produced, and Gate 0B was unreachable.** Two things are now part of this
+decision:
+
+* **The run date is a clock; the frontier is data.** `schedule_today` and `DEFAULT_SCHEDULE_TZ` live
+  in `factor_adjudication.py` — the module the verifier, the watchdog and now the generator already
+  share — so one artifact ages against one calendar. The generator reaches that clock **without
+  importing the verifier**.
+* **The invariant is enforced, not assumed.** `generate()` raises when the observation date exceeds
+  the run date, because a document that refutes itself record by record reads to an operator as
+  "nothing is attributable" rather than as "the writer is misconfigured".
+
+The regression pinning this crosses the `generate()` seam end to end. The prior suite could not: it
+called `build_evidence_document` directly and pinned `as_of` to the frontier *and* the observation
+to that same day — precisely the arrangement in which the defect is invisible.
+
 **Rejected — special-casing a ticker.** Restores publication the same morning; leaves an
 exemption nothing measures. Now blocked by CI.
 
