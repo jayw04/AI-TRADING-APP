@@ -32,8 +32,8 @@ The production artifact was hand-built once, on `2026-08-11T19:30:57Z`, holding 
 * **A name that goes attributable-stale after the artifact was written has no record.** It
   therefore adjudicates `FAILED_OR_UNEXPLAINED`, and the staging→live swap aborts. `EA` needed
   a human to add a record on 2026-08-17. `WBS` was the next name: it aborted the 06:00 ET
-  refresh on 2026-08-25, 08-26 and 08-27, freezing the live store at SEP `2026-08-21` while
-  staging sat fresh at `2026-08-26`. There would have been another name after `WBS`.
+  refresh on 2026-08-25, 08-26, 08-27 and 08-28, freezing the live store at SEP `2026-08-21`
+  while staging advanced to `2026-08-27`. There would have been another name after `WBS`.
 * **Every attribution expires simultaneously.** `MAX_EVIDENCE_AGE_DAYS = 30`, and all eleven
   records carry the same observation timestamp, so on `2026-09-10` the refresh begins failing
   on eleven names rather than one. Nothing measured or reported the distance to that date.
@@ -184,14 +184,31 @@ trade sound, and every one of them is tested.
 behaviour and it is a real reduction in availability: a book that could previously be activated
 into a frozen store now cannot be. Non-factor strategies are unaffected.
 
-**⚠ Explicitly NOT claimed — regeneration does not resolve `WBS`.** A name with provider history
-that is *current at the alternate source* adjudicates `FAILED_OR_UNEXPLAINED` with reason
-"coverage regression, not exhaustion", and it does so with perfectly fresh evidence. If `WBS` is
-that shape in production, this ADR's changes do **not** restore publication on their own; they
-change the abort from a bare `UNEXPLAINED` into `EVIDENCE_PRESENT_REFUSED` naming a coverage
-regression, which is a finding an operator must resolve. `WBS-DISPOSITION` is therefore a named
-precondition of the closure gate, not something this change delivers. The 2026-09-10 cliff is
-removed regardless.
+**⚠ Explicitly NOT claimed — the design must serve both branches, and neither is assumed.** A
+stale name resolves to an *attributable* verdict (`PROVIDER_EXHAUSTED` / `PROVIDER_NOT_COVERED`)
+or to a *refusal* (`FAILED_OR_UNEXPLAINED`), and the two need opposite operator responses:
+regenerate the artifact, or investigate the symbol. This ADR claims only that the rule draws that
+line from evidence, without symbol-specific logic, and that the abort now names which side a
+symbol fell on. It does **not** claim in advance which side any particular name is on — that is an
+observation, never an inference.
+
+Both branches are exercised by synthetic names in
+`tests/deploy/test_factor_adjudication_equivalence.py`, so neither rests on a real ticker.
+
+**Production evidence for the exhaustion branch — `WBS`, observed 2026-08-28.** Read-only from the
+live store and a live alternate-source probe: Sharadar and Alpaca both end at `2026-08-19`; the
+store's `actions` table carries `delisted` and `acquisitionby` → `SAN` on that date; the control
+`AAPL` and the acquirer `SAN` are current to `2026-08-27`; there is no holding, open order or
+registration. Webster Financial was acquired by Banco Santander and ceased trading. WBS is
+therefore an **exhaustion** case, and its production failure diagnosed `EVIDENCE_ABSENT` — no
+record existed in the hand-built `2026-08-11` artifact — which is exactly the class the writer
+introduced here addresses.
+
+⚠ **This does not make regeneration a passed gate.** The expected verdict has been reproduced by
+running `classify_stale_symbol` against production-observed values, but `scripts/factor_evidence.py`
+is not yet deployed and the production writer → artifact → verifier path remains unexecuted.
+`WBS-DISPOSITION` stays a named precondition of the closure gate. The 2026-09-10 cliff is removed
+regardless.
 
 **Rejected — special-casing a ticker.** Restores publication the same morning; leaves an
 exemption nothing measures. Now blocked by CI.

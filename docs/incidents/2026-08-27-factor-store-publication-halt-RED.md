@@ -33,15 +33,15 @@ investigate-only.
 
 ## What happened
 
-`workbench-factor-refresh.service` aborted on three consecutive mornings — 2026-08-25, 08-26
-and 08-27 — with:
+`workbench-factor-refresh.service` has aborted on four consecutive mornings — 2026-08-25, 08-26,
+08-27 and 08-28 — with:
 
 ```
 VERIFY_FAILED: ... UNEXPLAINED: ['WBS']
 ```
 
-Staging was fresh (`2026-08-26`, 1254 tickers). The live store was not, and remains at SEP
-`2026-08-21`. The abort is **correct behaviour**: verification is fail-closed and a bad refresh
+Staging is fresh (`2026-08-27` as of the 08-28 run, 1254 tickers). The live store is not: it is
+frozen at SEP `2026-08-21` — **five trading days stale**, the store file dated 2026-08-24. The abort is **correct behaviour**: verification is fail-closed and a bad refresh
 must never reach the live book. Nothing executed incorrectly. What failed is that the condition
 was unresolvable without a human, undiagnosable from the message, and on a fuse.
 
@@ -151,16 +151,31 @@ present, because declaring classification is correct either way.
 
 ### ⚠ What the repair does NOT do
 
-**It does not, on its own, guarantee that publication resumes.** A name with provider history
-that is current at the alternate source adjudicates `FAILED_OR_UNEXPLAINED` with
-"coverage regression, not exhaustion" — and it does so with perfectly fresh evidence.
-Regeneration changes nothing for a name of that shape, because the observations were never the
-problem.
+**⛔ CORRECTED 2026-08-28 — this section previously said the repair "does not resolve `WBS`".**
+That rested on the premise that `WBS` was a *coverage regression* — a name with provider history
+still current at the alternate source. **Production evidence refutes the premise.** Record:
+`docs/incidents/2026-08-28-WBS-disposition.md`.
 
-If `WBS` is that shape in production, the refresh will still abort after this PR — but with
-`EVIDENCE_PRESENT_REFUSED` and a message stating that regenerating evidence will not clear it,
-instead of a bare `UNEXPLAINED` indistinguishable from a missing record. Resolving `WBS` is a
-separate operator action, tracked below as `WBS-DISPOSITION`.
+`WBS` is an **exhaustion** case. Read-only from the live store and a live alternate-source probe on
+2026-08-28: Sharadar and Alpaca both end at `2026-08-19`; the store's `actions` table carries
+`delisted` and `acquisitionby` → `SAN` on that date; control `AAPL` and acquirer `SAN` are current
+to `2026-08-27`; there is no holding, open order or registration. Webster Financial was acquired by
+Banco Santander and ceased trading. Its production failure diagnosed **`EVIDENCE_ABSENT`** — no
+record existed in the `2026-08-11` artifact at all — not `EVIDENCE_PRESENT_REFUSED`. Regeneration
+**is** the governed convergence mechanism for `WBS`, and this PR supplies it.
+
+**What the repair still does not do: it does not itself CLEAR `WBS` until regeneration runs in
+production.** The classification is resolved; the operational gate is not.
+`scripts/factor_evidence.py` is **not yet deployed**, so the production writer → artifact →
+verifier path has never executed. Until it does, `WBS-DISPOSITION` remains a named precondition of
+the closure gate below. The expected verdict — `PROVIDER_EXHAUSTED`, "ceased trading: provider last
+2026-08-19, alpaca last 2026-08-19, control AAPL current to 2026-08-27" — has been reproduced by
+running `classify_stale_symbol` against production-observed values, which is classification proof,
+not operational closure proof.
+
+The coverage-regression shape remains real: a name current at the alternate source is still refused
+with "coverage regression, not exhaustion", and regeneration still would not clear it. It is
+exercised by a synthetic name in the regression pack rather than by `WBS`.
 
 The 2026-09-10 cliff is removed regardless of `WBS`.
 
@@ -174,7 +189,8 @@ inferred, and not pre-filled.
 
 | # | Gate | Evidence required |
 |---|---|---|
-| 0 | `WBS-DISPOSITION` | `WBS` adjudicated to a terminal state: either it leaves the refresh universe on its own (as `EA` did on 08-17), or an owner-authorised convergence repair resolves it. **A precondition of gates 1–6, not a product of this PR.** |
+| 0A | `WBS` classification | **RESOLVED 2026-08-28 — `PROVIDER_EXHAUSTED`.** Production evidence establishes that `WBS` ceased trading on 2026-08-19 following acquisition by `SAN` and delisting. Provider and alternate source terminate at the same frontier; the controls remain current; there are no holdings, orders or registrations. Record: `docs/incidents/2026-08-28-WBS-disposition.md`. |
+| 0B | Governed evidence convergence | **NOT YET OBSERVED IN PRODUCTION.** `scripts/factor_evidence.py` regenerates the missing record; the verifier must independently derive `PROVIDER_EXHAUSTED` from it. No ticker-specific exception is authorized. **A precondition of gates 1–6, not a product of this PR.** ⚠ This does not count regeneration as passed before deployment — the expected verdict has been reproduced against production-observed values, but the production writer → artifact → verifier path remains unexecuted. |
 | 1 | Producer verification PASS | `VERIFY_OK` in `journalctl -u workbench-factor-refresh` |
 | 2 | Successful atomic promotion | staging→live swap completed; `factor_data.prev.duckdb` retained; sealed artifact advanced |
 | 3 | Live SEP advances | live `sep_max` moves from `2026-08-21` to the expected fresh date, read from the live store |
@@ -197,7 +213,7 @@ only gate 6 shows the scheduled path works on its own.
 | CI structural invariants (14 scripts incl. the new one) | **RUN — PASS** |
 | Full backend pytest under CI's matrix | **RUN — PASS.** All 13 checks green on `c101cbf` (PR #698), including `Python FULL (backend)` and `Python (backend)` (the latter executing the new no-ticker invariant on Ubuntu; it had only been run on Windows locally). This item was NOT RUN at PR open and is now evidence rather than an inference. |
 | Container / integration run of `factor_evidence.py` against a real store | **NOT RUN** — requires the box |
-| Live `AlpacaBarsProbe` corroboration fetch | **NOT RUN** — Norton SSL blocks `data.alpaca.markets` on the laptop |
+| Live `AlpacaBarsProbe` corroboration fetch | **CLASS NOT RUN** — it is not deployed; Norton SSL still blocks `data.alpaca.markets` on the laptop. An **equivalent read-only probe** (same endpoint, params and credential loader) was executed on the box on 2026-08-28 and returned `WBS` last bar `2026-08-19`, control `AAPL` `2026-08-27`, `SAN` `2026-08-27`. That evidences the *market fact*, not the class. |
 | Production deployment and gates 0–6 above | **NOT RUN** |
 
 Items marked NOT RUN are **not** inferred to pass. They are the next capable session's work.

@@ -83,20 +83,24 @@ CASES = {
         "rows_after": 0,
         "expect": fa.PROVIDER_EXHAUSTED,
     },
-    # WBS: the name that halted the refresh on 08-25/26/27. It has provider history AND the
-    # alternate source is current, which the rule calls a COVERAGE REGRESSION and refuses.
+    # WBS: the name that halted the refresh on 08-25/26/27/28. These are its OBSERVED
+    # production values, read from the live store and a live alternate-source probe on
+    # 2026-08-28: Sharadar and Alpaca BOTH end at 2026-08-19, and the store's own `actions`
+    # table carries `delisted` + `acquisitionby` -> `SAN` on that date. Webster Financial was
+    # acquired by Banco Santander and ceased trading. Same signature as EA.
     #
-    # ⚠ This expectation is the uncomfortable one and it is deliberate: regenerating evidence
-    # does NOT make a WBS-shaped name attributable. Fresh observations change nothing here,
-    # because the observations were never the problem — a name trading normally elsewhere
-    # while this provider stops carrying it is a real finding that an operator must resolve.
-    # The repair this PR makes is that the abort now SAYS so (EVIDENCE_PRESENT_REFUSED)
-    # instead of emitting the same bare "UNEXPLAINED" it emits for a missing record.
+    # ⚠ CORRECTED 2026-08-28. This row previously modelled WBS as provider_last 2026-08-10 /
+    # alt_last 2026-08-26 -> FAILED_OR_UNEXPLAINED, on the premise that WBS was a coverage
+    # regression that regeneration could not clear. Production evidence refutes that premise:
+    # WBS was never a coverage regression, and its live failure was EVIDENCE_ABSENT (no record
+    # in the 2026-08-11 artifact at all), which regeneration DOES clear. The coverage-regression
+    # shape is real and still exercised — by SYNTH.D below, under a name that asserts nothing
+    # about a real ticker.
     "WBS": {
-        "provider_last": date(2026, 8, 10),
-        "alt_last": date(2026, 8, 26),
+        "provider_last": date(2026, 8, 19),
+        "alt_last": date(2026, 8, 19),
         "rows_after": 0,
-        "expect": fa.FAILED_OR_UNEXPLAINED,
+        "expect": fa.PROVIDER_EXHAUSTED,
     },
     # ---- synthetic cases: the same rules, names that cannot be memorised ----------
     # Never carried by this provider, trades normally elsewhere: a coverage gap, not a
@@ -121,6 +125,18 @@ CASES = {
         "provider_last": date(2026, 8, 1),
         "alt_last": None,
         "rows_after": 3,
+        "expect": fa.FAILED_OR_UNEXPLAINED,
+    },
+    # THE COVERAGE-REGRESSION SHAPE, under a synthetic name. Provider history exists and then
+    # stops while the alternate source stays current: the rule refuses it as "coverage
+    # regression, not exhaustion", and regenerating evidence does NOT make it attributable,
+    # because the observations were never the problem. Held here deliberately — the branch is
+    # real and must stay covered — but under a name that makes no claim about a live ticker.
+    # WBS was believed to be this shape until 2026-08-28; it is not (see the WBS row).
+    "SYNTH.D": {
+        "provider_last": date(2026, 8, 10),
+        "alt_last": date(2026, 8, 26),
+        "rows_after": 0,
         "expect": fa.FAILED_OR_UNEXPLAINED,
     },
 }
@@ -360,11 +376,13 @@ def test_unexplained_ticker_present_is_diagnosed_not_merely_counted(artifact):
         claimable_records=claimable,
         as_of=AS_OF,
     )
-    # A name the artifact has never heard of: regenerate. This is the WBS-on-2026-08-25 state.
+    # A name the artifact has never heard of: regenerate. This is the real WBS-on-2026-08-25
+    # state, confirmed against production on 2026-08-28 — WBS had no record in the 2026-08-11
+    # artifact at all, so it diagnosed EVIDENCE_ABSENT, not EVIDENCE_PRESENT_REFUSED.
     assert diagnosis["NEVER.SEEN"] == fa.EVIDENCE_ABSENT
     # A name with a current record the rule refused: investigate. Regeneration will not help,
-    # and the prose says exactly that.
-    assert diagnosis["WBS"] == fa.EVIDENCE_PRESENT_REFUSED
+    # and the prose says exactly that. SYNTH.D is the coverage-regression shape.
+    assert diagnosis["SYNTH.D"] == fa.EVIDENCE_PRESENT_REFUSED
     assert "NOT CLEAR IT" in fa.EVIDENCE_DIAGNOSIS_DETAIL[fa.EVIDENCE_PRESENT_REFUSED]
     assert "regenerate" in fa.EVIDENCE_DIAGNOSIS_DETAIL[fa.EVIDENCE_ABSENT].lower()
 
