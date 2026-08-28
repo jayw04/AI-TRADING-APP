@@ -728,3 +728,114 @@ def test_a_healthy_non_empty_universe_still_passes(tmp_path):
     assert not any("universe is EMPTY" in f for f in failures), (
         f"a healthy non-empty universe was refused as empty: {failures}"
     )
+
+
+# ---------- the counter's frontier is the SEP frontier (production gate-1 failure, 2026-08-28)
+#
+# Observed in production: `EA` adjudicated FAILED_OR_UNEXPLAINED with "provider returned 1 newer
+# row(s); ingestion missed them" and `rows_after_live_frontier: 1`. EA is a delisted name whose
+# live store holds `sep_max 2026-08-05` and `tickers.lastpricedate 2026-08-04`. The generator
+# anchored the row COUNT to the EFFECTIVE frontier — min(sep_max, lastpricedate) = 08-04 — while
+# counting SEP rows, so the already-ingested 08-05 row sat "after" the frontier permanently.
+#
+# Nothing was missed. The counter was measuring "SEP is ahead of lagging ticker metadata", which
+# is not what `provider_rows_after_live_frontier` means, and the classifier correctly refused a
+# name the evidence had mis-described. Generic defect, generic repair: no ticker is named in the
+# code, and this shape is exercised under a synthetic name too.
+
+
+def _delisted_shape_stores(tmp_path: Path, name: str) -> tuple[Path, Path]:
+    """A store pair in the production `EA` shape, under a caller-chosen ticker.
+
+    sep_max 2026-08-05, tickers.lastpricedate 2026-08-04, delisted — and the 08-05 SEP row is
+    ALREADY PRESENT in both stores, which is the whole point: it is ingested, not missing.
+    """
+    import duckdb
+
+    live, stage = tmp_path / "l.duckdb", tmp_path / "s.duckdb"
+    for path, frontier in ((live, date(2026, 8, 21)), (stage, date(2026, 8, 27))):
+        con = duckdb.connect(str(path))
+        try:
+            con.execute("CREATE TABLE sep (ticker VARCHAR, date DATE, close DOUBLE, volume BIGINT)")
+            con.execute("CREATE TABLE tickers (ticker VARCHAR, lastpricedate DATE)")
+            for d in (frontier - timedelta(days=1), frontier):
+                con.execute("INSERT INTO sep VALUES ('AAPL', ?, 100.0, 1000)", [d])
+            con.execute("INSERT INTO tickers VALUES ('AAPL', ?)", [frontier])
+            for d in (date(2026, 8, 4), date(2026, 8, 5)):  # 08-05 present in BOTH stores
+                con.execute(f"INSERT INTO sep VALUES ('{name}', ?, 120.0, 5000)", [d])
+            con.execute(f"INSERT INTO tickers VALUES ('{name}', ?)", [date(2026, 8, 4)])
+        finally:
+            con.close()
+    return live, stage
+
+
+@pytest.mark.parametrize("ticker", ["EA", "SYNTH.E"])
+def test_a_lagging_lastpricedate_is_not_reported_as_a_missed_ingestion(
+    tmp_path, monkeypatch, ticker
+):
+    """THE REGRESSION. An already-ingested row must never read as one ingestion missed.
+
+    Parametrised over the historical name and a synthetic one, so the repair cannot be satisfied
+    by anything specific to `EA`.
+    """
+    live, stage = _delisted_shape_stores(tmp_path, ticker)
+    monkeypatch.setattr(fe, "schedule_today", lambda *a, **k: date(2026, 8, 28))
+    doc = fe.generate(
+        live_path=live,
+        stage_path=stage,
+        universe=["AAPL", ticker],
+        app_db=None,
+        probe=fe.StaticProbe({ticker: None, "AAPL": date(2026, 8, 27)}, source="alpaca"),
+        control_symbol="AAPL",
+        now=datetime(2026, 8, 28, 21, 6, 18, tzinfo=UTC),
+        max_lag_days=TOLERANCE_DAYS,
+    )
+    record = next(r for r in doc["symbols"] if r["symbol"] == ticker)
+
+    assert record["provider_rows_after_live_frontier"] == 0, (
+        "the already-ingested 2026-08-05 SEP row was counted as 'after the frontier' because "
+        "the counter was anchored to min(sep_max, lastpricedate) instead of the SEP frontier"
+    )
+    assert "ingestion missed" not in (record["generator_derived_reason"] or "")
+    assert record["expected_classification"] == fa.PROVIDER_EXHAUSTED, record[
+        "generator_derived_reason"
+    ]
+
+    # ...and it must survive the loader, which is what the production run could not do.
+    path = tmp_path / "_ev.json"
+    path.write_text(json.dumps(doc), encoding="utf-8")
+    _all, claimable, _note, status = fa.load_evidence_records(path)
+    assert status == "ok" and ticker in claimable
+
+
+def test_a_genuinely_missed_ingestion_is_still_refused(tmp_path, monkeypatch):
+    """POSITIVE CONTROL for the guard the repair must NOT weaken.
+
+    When the staging store really does hold price rows past the live SEP frontier, that IS an
+    ingestion miss and must still be refused. Without this, the regression above is satisfiable
+    by never counting anything.
+    """
+    import duckdb
+
+    live, stage = _delisted_shape_stores(tmp_path, "SYNTH.F")
+    con = duckdb.connect(str(stage))
+    try:  # a real newer row, past the SEP frontier, present only in staging
+        con.execute("INSERT INTO sep VALUES ('SYNTH.F', DATE '2026-08-26', 121.0, 5000)")
+    finally:
+        con.close()
+
+    monkeypatch.setattr(fe, "schedule_today", lambda *a, **k: date(2026, 8, 28))
+    doc = fe.generate(
+        live_path=live,
+        stage_path=stage,
+        universe=["AAPL", "SYNTH.F"],
+        app_db=None,
+        probe=fe.StaticProbe({"SYNTH.F": None, "AAPL": date(2026, 8, 27)}, source="alpaca"),
+        control_symbol="AAPL",
+        now=datetime(2026, 8, 28, 21, 6, 18, tzinfo=UTC),
+        max_lag_days=TOLERANCE_DAYS,
+    )
+    record = next(r for r in doc["symbols"] if r["symbol"] == "SYNTH.F")
+    assert record["provider_rows_after_live_frontier"] == 1
+    assert record["expected_classification"] == fa.FAILED_OR_UNEXPLAINED
+    assert "ingestion missed" in record["generator_derived_reason"]
