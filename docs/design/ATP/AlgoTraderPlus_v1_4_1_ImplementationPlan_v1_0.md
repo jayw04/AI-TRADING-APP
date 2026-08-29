@@ -65,9 +65,32 @@ Only two classes belong in the strategy program:
 
 **Status: ADMITTED — SEALED GOVERNED PARTITION.**
 
-**Corpus: six sealed governed trading days** — 08-19, 08-20, 08-21, 08-25, 08-26, **08-27**.
+**Corpus: seven sealed governed trading days** — 08-19, 08-20, 08-21, 08-25, 08-26, **08-27**, **08-28** *(state sync 2026-08-28, second sync of the day)*.
 
-⛔ **2026-08-28 is day 7 IN FLIGHT, not partition 7.** At the time this sync was prepared the sampler was mid-session (healthy: identity latch verified, both feed partitions present, `ALERTS_TODAY = 0`), with the EOD and freeze stages still ahead. Mid-run health is **not** capture evidence; a day is admitted only from its terminal, 3 files per feed, verified manifest and custody. **Do not amend the count to seven** until that chain completes.
+### 2.2.1 2026-08-28 — the day-7 guard, and its discharge
+
+⭐ **The guard below was correct when written and is now discharged. Both halves are retained deliberately, because the sequence is the governance record.**
+
+**At #699 merge time (`2026-08-28T21:53:46Z`, squash `652b7b75989fa2c4e6f25723f87081b1b4751835`) 08-28 was PENDING**, and this document said so:
+
+> ⛔ *"2026-08-28 is day 7 IN FLIGHT, not partition 7. At the time this sync was prepared the sampler was mid-session (healthy: identity latch verified, both feed partitions present, `ALERTS_TODAY = 0`), with the EOD and freeze stages still ahead. Mid-run health is **not** capture evidence; a day is admitted only from its terminal, 3 files per feed, verified manifest and custody. **Do not amend the count to seven** until that chain completes."*
+
+**Subsequently verified and ADMITTED 2026-08-28 ~17:55 EDT / 21:55Z**, read-only, after the 16:30 EOD and 16:45 freeze windows had passed. Owner ruling on that evidence: **ADMITTED / SEALED GOVERNED PARTITION.** The measured legs:
+
+| Leg | Measured |
+|---|---|
+| sampler terminal | `sampled 395 cycle(s) x 50 symbols x 2 feeds (395/395 scheduled slots)`, **15:59:00 EDT**, `Deactivated successfully` / `Finished`, `ExecMainStatus=0` |
+| rows | **19,750 lines per feed = 395 × 50**, both feeds identical |
+| EOD | 16:30:02→08 — **16,889 iex / 25,917 sip** 1-minute bar rows, status 0 |
+| freeze | 16:45:02→08 — **frozen → verified → mirrored**, both feeds, status 0 |
+| files | **3 per feed** |
+| alerts | `ALERTS_TODAY = 0` |
+| acquisition identity | `PA3BGKRLH2AP` / fp `b56421a28128` |
+| universe pin | `a022e399e216f16328eaecd809126951f6658cb09351281fa02187a0a6faf563` — **unchanged ⇒ the corpus did not split** |
+| manifest vs host | sha256 **MATCH 4/4** payload files; byte sizes OK |
+| **S3 custody** | **6/6 objects** — every `ContentLength` equals the manifest byte count and every returned ETag equals the host MD5, verified independently rather than from the freeze unit's own journal. `ChecksumSHA256` is null, so SHA-256 is host-side only |
+
+⭐ **Pattern worth carrying:** a correctly-written *"not yet"* guard becomes an inaccuracy the moment the condition it guards is met. Pair every such guard with the condition that discharges it, and re-check it whenever that condition could have been satisfied — otherwise the safety text is what goes stale.
 
 The day earns governed-partition status only from the complete chain:
 
