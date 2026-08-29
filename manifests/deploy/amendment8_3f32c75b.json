@@ -1,0 +1,57 @@
+{
+  "adr0043_implementation_commit": "38f40b46906fc91497049924f7a62e7384d67653",
+  "adr0043_original_baseline_commit": "c8b3ac24b839d7b19c40979a9e4be859151dbab7",
+  "approved_target_commit": "3f32c75b1053f8181f98ddf51bbc473364ffd34c",
+  "artifact": {
+    "archive_sha256": "de2b8fc8e9addc004b6028c37094d5d0d615753ee676523591ec7da9626eba50",
+    "archive_size_bytes": 6630944,
+    "s3_bucket": "workbench-backups-219024422756",
+    "s3_etag": "6d963eeec385257b7c8d4430d60212d3",
+    "s3_key": "bootstrap/amendment8/3f32c75b-code.tgz",
+    "s3_version_id": "HyT7TR8otGlmCpdGd1RI60eZxUvf44XI"
+  },
+  "build_marker": {
+    "built_at_utc": "2026-08-27T17:06:05Z",
+    "code_digest": "sha256:813be1b9775fb98e4276a499e8c715b745c7a518decf04072ef5a75999b72610",
+    "embedded_at_archive_root": true,
+    "schema": "workbench-deployed-build-info/2",
+    "sha256": "a387527ff33cfc743171c43cada176a09d573dd16a74c9b63ea6c31508f64fba",
+    "tree_clean": true
+  },
+  "deployment": {
+    "alembic_head": "c8e2a4b1d7f0",
+    "alembic_migration_applied": false,
+    "container_created": "2026-08-27T21:02:21.651018831Z",
+    "container_id": "dfc398ed9ad335aa786c489021da2ac1f75dd33b574c7d198f0076af2fbe0782",
+    "deployed_at_utc": "2026-08-27T21:04:04Z",
+    "host": "ec2-paper",
+    "image_digest": "sha256:84b5d26e75f951441406faff1441d63291ead93a60ec1b3cf4966f5b3968f791",
+    "image_name": "trading-workbench-backend",
+    "path": "backend-only; provision-from-s3.sh NOT used",
+    "runtime_manifest_schema": "workbench-deployment-runtime-manifest/1"
+  },
+  "manifest_schema_version": "1.0",
+  "prior_state_superseded": {
+    "declared_commit": "07a92330108390f8d5299e36b411150c08b9160c",
+    "marker_sha256": "4a8bea125345b447f667a26fcb915cb0e16aa31b6e553ced1833a2d028ab51ad",
+    "note": "declaration-only model: both self-reports named 07a9233 while the running image had been recreated a day later",
+    "preflight_sha256": "2ad345b83aa3c81d3ab5041614e8e6b0d8c647f83affe1d126207ba497b902ba",
+    "running_image_digest": "sha256:ada7a5be76ba642ab1f733aa4ee769127f90b4de2d2fb04aa838e6f1a961a28c"
+  },
+  "runtime_verification": {
+    "first_governing_ready_utc": "2026-08-27T21:04:29Z",
+    "gate6_result": "PASS - build marker == deploy manifest == running runtime",
+    "gates_passed": "6/6",
+    "host_derived_code_digest": "sha256:813be1b9775fb98e4276a499e8c715b745c7a518decf04072ef5a75999b72610",
+    "independent_git_blob_digest": "sha256:813be1b9775fb98e4276a499e8c715b745c7a518decf04072ef5a75999b72610",
+    "preflight_sha256": "138a4f0a849c3a3dd4d08e8ed8a0f7cb9415294e2b8bc2732f36948249770f80",
+    "startup_assertion": "runtime code identity verified: sha256:813be1b9775fb98e4276a499e8c715b745c7a518decf04072ef5a75999b72610"
+  },
+  "shared_key_status": {
+    "authority": "NONE",
+    "classification": "LEGACY / NOT AUTHORIZED FOR GOVERNED DEPLOYMENT",
+    "key": "bootstrap/code.tgz",
+    "note": "stale relative to the deployed runtime; deliberately NOT refreshed. Gate 6 is a fail-closed backstop, not an artifact-selection authority.",
+    "overwritten_by_this_deployment": false
+  }
+}
