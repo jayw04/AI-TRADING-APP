@@ -1,0 +1,22 @@
+{
+  "schema": "versioned-deploy-control/1",
+  "description": "Committed deployment-control record. Bounds WHICH frozen manifests provision-versioned-s3.sh will accept, and which S3 key prefixes may hold a governed deployment artifact. Manifest selection is by NAME ONLY against this allowlist: there is deliberately no path-selectable manifest, so an operator cannot introduce a new artifact identity at runtime. Changing this record requires review, exactly like changing a manifest.",
+
+  "allowed_manifests": [
+    "factor_repair_b94838b6"
+  ],
+
+  "allowed_key_prefixes": [
+    "bootstrap/factor-repair/"
+  ],
+
+  "forbidden_keys": [
+    "bootstrap/code.tgz"
+  ],
+
+  "notes": {
+    "forbidden_keys_reason": "bootstrap/code.tgz is the LEGACY shared mutable key. The Amendment-8 custody record classifies it as NOT AUTHORIZED FOR GOVERNED DEPLOYMENT, authority NONE. It is refused here regardless of any prefix allowance.",
+    "adr0043_separation": "This control record and provision-versioned-s3.sh are deliberately SEPARATE from provision-adr0043-validation.sh and adr0043_validation_deploy.json, which are unchanged. An ADR-0043 validation control must not become the authority for an unrelated deployment, and this record must not become the authority for an ADR-0043 one. The adr0043/ prefix is intentionally absent from allowed_key_prefixes.",
+    "authorization_latch": "VERSIONED_DEPLOY_AUTHORIZED=1 is the swap/start gate. It is deployment-neutral by design; ADR0043_MIGRATION_AUTHORIZED has no effect on this provisioner."
+  }
+}
