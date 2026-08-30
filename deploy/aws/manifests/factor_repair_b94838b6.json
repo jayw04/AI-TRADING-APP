@@ -1,0 +1,38 @@
+{
+  "schema": "versioned-deploy/1",
+  "description": "FROZEN identity of the ONE approved factor-repair deployment object (#698 + #700). Every identity field is read from this committed record; runtime environment values are accepted only as assertions that must equal these exactly. Changing the approved object requires editing this manifest under review.",
+
+  "region": "us-east-1",
+  "bucket": "workbench-backups-219024422756",
+  "key": "bootstrap/factor-repair/b94838b6-code.tgz",
+  "version_id": "5NVWUcMwH_PfHw1k6MiwJH6ohtjT8Vyz",
+  "sha256": "1d49259a505037d408ed6c1781109180d4e5ea680793c16c90201a7195ca1684",
+  "bytes": 6879138,
+
+  "deployed_repository_commit": "b94838b6aa611e02982b3d1ae5ca5333b5f1d80e",
+  "adr0043_implementation_commit": "38f40b46906fc91497049924f7a62e7384d67653",
+  "code_digest": "sha256:a52823f3bf4e7c919c0a549508230d9de66700042837ab4e9eb02fb98e320a7a",
+
+  "provenance": {
+    "contains_pull_requests": [696, 698, 699, 700],
+    "repair_spans": "The factor repair is #698 (regenerate exhaustion evidence; arm the readiness interlock at activation) PLUS #700 (anchor the missed-ingestion counter to the SEP frontier). b94838b6 is the smallest descendant containing both; ce6dbaa6 alone would ship an INCOMPLETE repair.",
+    "pre_state_deployed_commit": "3f32c75b1053f8181f98ddf51bbc473364ffd34c",
+    "adr0043_baseline_rationale": "38f40b46 is the implementation commit recorded in manifests/deploy/amendment8_3f32c75b.json, and is the baseline the deployed Amendment-8 runtime was itself built against. The governed ten-path ADR-0043 set is byte-identical across 38f40b46 -> 3f32c75b, 38f40b46 -> b94838b6, and 3f32c75b -> b94838b6, so this deployment introduces ZERO ADR-0043 delta. The default baseline embedded in build-deploy-archive.sh (ea6db6e6) is stale relative to this custody record.",
+    "alembic_migration_delta": "NONE. apps/backend/alembic/ is byte-identical between 3f32c75b and b94838b6 (50 migration files at both), so the backend CMD's `alembic upgrade head` is a no-op for this deployment. Migration state is still part of the Tier-3 execution surface and is verified, not assumed.",
+    "tier": 3,
+    "tier_rationale": "This is NOT a data-pipeline-only change. It modifies app/strategies/engine.py (dispatch), app/services/activation.py, app/services/recovery.py, app/api/v1/strategies.py and app/strategies/base.py, and arms the factor-readiness interlock at activation, closing a known fail-open gate. Deployment changes live dispatch and activation behaviour and must be authorized as a Tier-3 live behavioural change. A successful factor refresh alone does not prove the Tier-3 portion safe.",
+    "incidental_payload": "#696's MDQ-K calculators (app/research/mdq_eval/*, scripts/mdq_evaluate_k.py) are inside this archive because #696 merged before #698; they are incidental deploy payload, not deployment purpose. Deploying this object grants ZERO K execution authority. The later #707 K-hardening is deliberately excluded.",
+    "research_plane_checker": "check_research_plane_order_path_isolation.sh does not exist at b94838b6. Recorded as UNAVAILABLE AT TARGET / NOT A DEPLOYMENT GATE FOR THIS EPOCH; no replacement checker was invented."
+  },
+
+  "rollback": {
+    "restores_commit": "3f32c75b1053f8181f98ddf51bbc473364ffd34c",
+    "bucket": "workbench-backups-219024422756",
+    "key": "bootstrap/amendment8/3f32c75b-code.tgz",
+    "version_id": "HyT7TR8otGlmCpdGd1RI60eZxUvf44XI",
+    "sha256": "de2b8fc8e9addc004b6028c37094d5d0d615753ee676523591ec7da9626eba50",
+    "bytes": 6630944,
+    "verified_present_utc": "2026-08-30T16:20:00Z",
+    "note": "Recorded so the rollback identity survives the execution session. The provisioner's own rollback restores the PRIOR TREE on the box and does not re-download this object; this record exists for a cold rebuild."
+  }
+}
