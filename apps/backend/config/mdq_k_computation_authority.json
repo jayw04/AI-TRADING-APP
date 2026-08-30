@@ -1,0 +1,16 @@
+{
+  "schema": "mdq-k-computation-authority/1",
+  "approved_review_commit": "a12814c611e2f786694330a2f5a3bf1ce58b8b6a",
+  "approved_governed_source_blobs": {
+    "app/research/capture/admissibility.py": "5eb3c0b593fed82fe224b74eea59f21332bfca3ba5f6d65a25c6aabebc4338d9",
+    "app/research/capture/store.py": "22c3405e5acbba6c7a86ef71468898ec0515126399770b02dfb42373f211e222",
+    "app/research/mdq_eval/__init__.py": "b8a64071f3188cac4a3177fc3664a5a0ffebfbbc2ca4022010251c1599806d27",
+    "app/research/mdq_eval/authority.py": "8531ba798e5072edd753824ee628f0c7c18f7b1c7b7f6f491ed5fe99b7e8e98e",
+    "app/research/mdq_eval/gate.py": "6f293ac9244c469fd6747bfbf0adfe643230c36d41ad99c6be9a347f4751da98",
+    "app/research/mdq_eval/k1_materiality.py": "718de8b47209d2e60c2a5cc880275efc2da68d1404632274b04749d23694181b",
+    "app/research/mdq_eval/k3_completeness.py": "c16ebeaaac0f7a2f0c8b2f142e3ecb885c750c7009bf51e035502bfd7696f6b3",
+    "app/research/mdq_eval/results.py": "2240614de73b52aedc8dc413a3819707218cb133ea4167f0e3826208bdf7f7ed",
+    "app/research/mdq_eval/source_identity.py": "1226629b2a595c32dba6debf272bff830ed2b761823ecaabaad3f82be6e1c44a",
+    "scripts/mdq_evaluate_k.py": "f478c1bb5346fcbf12d55f38d1172f8d3dd35b18f0f5460a48e33e0f3b16a812"
+  }
+}
