@@ -29,13 +29,15 @@ def _write_bars(root, feed: str, session: date, n: int) -> None:
 
     d = root / feed / session.isoformat() / "bars"
     d.mkdir(parents=True, exist_ok=True)
-    rows = [{"symbol": "AAA",
-             "ts": datetime.combine(session, time(9, 30 + i), tzinfo=ET).isoformat()}
-            for i in range(n)]
+    rows = [
+        {"symbol": "AAA", "ts": datetime.combine(session, time(9, 30 + i), tzinfo=ET).isoformat()}
+        for i in range(n)
+    ]
     pd.DataFrame(rows).to_parquet(d / "bars_1min.parquet")
 
 
 # ── evidentiary status cannot be asserted ────────────────────────────────────────────────────────
+
 
 def test_a_result_cannot_claim_to_be_evidentiary(tmp_path):
     """★ THE regression. `KResult(..., evidentiary=True)` must not be constructible at all.
@@ -44,8 +46,7 @@ def test_a_result_cannot_claim_to_be_evidentiary(tmp_path):
     could stamp a number as evidence.
     """
     with pytest.raises(TypeError):
-        KResult(criterion="K3", outcome=KOutcome.PASS, threshold="t", detail="d",
-                evidentiary=True)  # type: ignore[call-arg]
+        KResult(criterion="K3", outcome=KOutcome.PASS, threshold="t", detail="d", evidentiary=True)  # type: ignore[call-arg]
 
 
 def test_raw_token_possession_does_not_confer_evidentiary_status(tmp_path, adjudication):
@@ -56,26 +57,43 @@ def test_raw_token_possession_does_not_confer_evidentiary_status(tmp_path, adjud
     `validate_tokens` ever running. `tokens` is now a read-only property, so there is no such argument.
     """
     with pytest.raises(TypeError):
-        KResult(criterion="K3", outcome=KOutcome.PASS, threshold="t", detail="d",
-                tokens=(adjudication.token(tmp_path, SESSION),))  # type: ignore[call-arg]
+        KResult(
+            criterion="K3",
+            outcome=KOutcome.PASS,
+            threshold="t",
+            detail="d",
+            tokens=(adjudication.token(tmp_path, SESSION),),
+        )  # type: ignore[call-arg]
 
 
 def test_a_hand_built_result_cannot_be_evidentiary_even_with_a_legitimate_scope(
-        tmp_path, adjudication):
+    tmp_path, adjudication
+):
     """★ THE final regression. Holding a real ValidatedScope must not let a caller write their own PASS.
 
     A scope proves the PARTITIONS were admissible. It says nothing about whether an evaluator produced
     this outcome from them. `scope` is therefore not an init field, so the pairing has no syntax —
     and any directly constructed result stays diagnostic.
     """
-    legitimate = adjudication.scope(tmp_path, [SESSION])   # genuinely validated
+    legitimate = adjudication.scope(tmp_path, [SESSION])  # genuinely validated
     with pytest.raises(TypeError):
-        KResult(criterion="K3", outcome=KOutcome.PASS, threshold="t", detail="d",
-                sessions=(SESSION.isoformat(),), scope=legitimate)  # type: ignore[call-arg]
+        KResult(
+            criterion="K3",
+            outcome=KOutcome.PASS,
+            threshold="t",
+            detail="d",
+            sessions=(SESSION.isoformat(),),
+            scope=legitimate,
+        )  # type: ignore[call-arg]
 
     # Constructed without it, the result exists but is diagnostic.
-    hand_built = KResult(criterion="K3", outcome=KOutcome.PASS, threshold="t", detail="d",
-                         sessions=(SESSION.isoformat(),))
+    hand_built = KResult(
+        criterion="K3",
+        outcome=KOutcome.PASS,
+        threshold="t",
+        detail="d",
+        sessions=(SESSION.isoformat(),),
+    )
     assert hand_built.evidentiary is False
     assert hand_built.scope is None
     assert hand_built.tokens == ()
@@ -95,8 +113,11 @@ def test_a_scope_cannot_be_constructed_directly(tmp_path, adjudication):
     from app.research.mdq_eval.results import ValidatedScope
 
     with pytest.raises(TypeError, match="cannot be constructed directly"):
-        ValidatedScope(root=str(tmp_path), sessions=(SESSION.isoformat(),),
-                       tokens=(adjudication.token(tmp_path, SESSION),))
+        ValidatedScope(
+            root=str(tmp_path),
+            sessions=(SESSION.isoformat(),),
+            tokens=(adjudication.token(tmp_path, SESSION),),
+        )
 
 
 def test_scope_is_not_an_init_field_at_all(tmp_path, adjudication):
@@ -111,21 +132,31 @@ def test_scope_is_not_an_init_field_at_all(tmp_path, adjudication):
     assert "scope" in fields
     assert fields["scope"].init is False
 
-    for candidate in (adjudication.scope(tmp_path, [SESSION]),
-                      adjudication.scope(tmp_path, [SESSION]).as_dict(),
-                      "not-a-scope"):
+    for candidate in (
+        adjudication.scope(tmp_path, [SESSION]),
+        adjudication.scope(tmp_path, [SESSION]).as_dict(),
+        "not-a-scope",
+    ):
         with pytest.raises(TypeError, match="unexpected keyword argument 'scope'"):
-            KResult(criterion="K3", outcome=KOutcome.PASS, threshold="t", detail="d",
-                    scope=candidate)  # type: ignore[call-arg]
+            KResult(
+                criterion="K3", outcome=KOutcome.PASS, threshold="t", detail="d", scope=candidate
+            )  # type: ignore[call-arg]
 
 
 def test_a_token_cannot_be_constructed_directly():
     with pytest.raises(TypeError, match="cannot be constructed directly"):
-        AdmissibilityToken(root="/x", session=SESSION, verdict="ADMISSIBLE",
-                           assessed_at="2026-08-27T00:00:00Z", admissibility_digest="d" * 64)
+        AdmissibilityToken(
+            root="/x",
+            session=SESSION,
+            verdict="ADMISSIBLE",
+            assessed_at="2026-08-27T00:00:00Z",
+            adjudication_instance_digest="d" * 64,
+            input_partition_identity="e" * 64,
+        )
 
 
 # ── the gate's own verdict handling ──────────────────────────────────────────────────────────────
+
 
 def test_only_admissible_mints_a_token(tmp_path, adjudication):
     adjudication.set_verdict(Verdict.NOT_ADMISSIBLE)
@@ -143,10 +174,12 @@ def test_undetermined_is_not_a_pass(tmp_path, adjudication):
 def test_the_token_names_the_adjudication_it_came_from(tmp_path, adjudication):
     token = adjudication.token(tmp_path, SESSION)
     assert token.verdict == str(Verdict.ADMISSIBLE)
-    assert len(token.admissibility_digest) == 64
+    assert len(token.adjudication_instance_digest) == 64
+    assert len(token.input_partition_identity) == 64
 
 
 # ── evidence requires a token for exactly this scope ─────────────────────────────────────────────
+
 
 def test_evaluating_without_tokens_refuses(tmp_path):
     _write_bars(tmp_path, "iex", SESSION, 2)
@@ -190,6 +223,7 @@ def test_a_non_token_object_is_refused(tmp_path):
 
 
 # ── evidentiary vs diagnostic is visible in the record ───────────────────────────────────────────
+
 
 def test_a_diagnostic_result_is_labelled_non_evidentiary(tmp_path):
     _write_bars(tmp_path, "iex", SESSION, 2)

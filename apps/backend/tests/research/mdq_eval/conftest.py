@@ -11,6 +11,7 @@ the report, and mint. Everything downstream of the verdict is the real code path
 
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass
 from datetime import date
 from pathlib import Path
@@ -19,7 +20,9 @@ from typing import Any
 import pytest
 
 from app.research.capture.admissibility import Verdict
+from app.research.capture.store import FEEDS
 from app.research.mdq_eval import gate
+from app.research.mdq_eval.authority import APPROVED_COLLECTOR_VERSIONS
 
 
 @dataclass
@@ -33,6 +36,42 @@ class _StubReport:
         return self.payload
 
 
+def write_governed_manifests(root: Path | str, session: date) -> None:
+    """Write manifests that satisfy the B1a manifest-native check, for BOTH feeds.
+
+    Deliberately real rather than monkeypatched: ``require_admissible`` now verifies what the
+    frozen partition actually carries, and a fixture that stubbed that check away would make
+    every downstream assertion vacuous — the same "green test that cannot fail" shape the
+    mint guard exists to prevent.
+    """
+    for feed in FEEDS:
+        pdir = Path(root) / feed / session.isoformat()
+        pdir.mkdir(parents=True, exist_ok=True)
+        (pdir / "manifest.json").write_text(
+            json.dumps(
+                {
+                    "schema": "mdq-capture-manifest/1",
+                    "feed": feed,
+                    "session": session.isoformat(),
+                    "collector_version": APPROVED_COLLECTOR_VERSIONS[0],
+                    "frozen_at": "2026-08-27T21:00:00+00:00",
+                    "provider": "alpaca",
+                    "entitlement": "algo_trader_plus (account-7 login)",
+                    "credential_fingerprint": "0" * 12,
+                    "account_number": "PA000000",
+                    "capture_modes": ["quotes", "bars"],
+                    "universe": ["AAA", "BBB"],
+                    "universe_sha256": "0" * 64,
+                    "files": [
+                        {"path": "quotes/samples.jsonl", "sha256": "1" * 64, "bytes": 10},
+                        {"path": "bars/bars_1min.parquet", "sha256": "2" * 64, "bytes": 20},
+                    ],
+                }
+            ),
+            encoding="utf-8",
+        )
+
+
 @pytest.fixture
 def adjudication(monkeypatch):
     """Control what §7.1 returns, then obtain tokens through the real `require_admissible`."""
@@ -43,8 +82,11 @@ def adjudication(monkeypatch):
         verdict = state.get("verdict", Verdict.ADMISSIBLE)
         return _StubReport(
             verdict=verdict,
-            payload={"session": session.isoformat(), "verdict": str(verdict),
-                     "not_passing": [] if verdict is Verdict.ADMISSIBLE else [{"condition": "stub"}]},
+            payload={
+                "session": session.isoformat(),
+                "verdict": str(verdict),
+                "not_passing": [] if verdict is Verdict.ADMISSIBLE else [{"condition": "stub"}],
+            },
         )
 
     monkeypatch.setattr(gate, "assess_partition", _assess)
@@ -56,6 +98,7 @@ def adjudication(monkeypatch):
 
         @staticmethod
         def token(root: Path | str, session: date):
+            write_governed_manifests(root, session)
             token, _report = gate.require_admissible(root, session, session_close_utc=None)
             return token
 
