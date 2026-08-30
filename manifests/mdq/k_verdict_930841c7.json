@@ -1,0 +1,120 @@
+{
+  "manifest_schema_version": "1.0",
+  "record_type": "mdq-k-governed-execution-custody/1",
+
+  "execution": {
+    "governed_mode": "GOVERNED",
+    "verdict_schema": "mdq-k-verdict/1",
+    "runtime_commit": "930841c7ca3da3d5e8b14474f0a22392e515c906",
+    "approved_review_commit": "a12814c611e2f786694330a2f5a3bf1ce58b8b6a",
+    "authority_record": "apps/backend/config/mdq_k_computation_authority.json",
+    "authority_record_custody_pr": 710,
+    "started_utc": "2026-08-30T15:25:56Z",
+    "ended_utc": "2026-08-30T15:25:59Z",
+    "evaluator_exit_status": 0,
+    "entrypoint": "apps/backend/scripts/mdq_evaluate_k.py",
+    "arguments_used": ["--root", "--session (x7)", "--close (x7)", "--out"],
+    "no_overrides_used": [
+      "--diagnostic",
+      "threshold override",
+      "environment authority",
+      "alternative authority-record path",
+      "force mode",
+      "diagnostic-to-evidentiary promotion",
+      "corpus substitution",
+      "manual token fabrication"
+    ],
+    "session_close_source": "pandas_market_calendars NYSE market_close, the same authority scripts/mdq_collector.py::_session_close_utc uses; all seven sessions were regular closes at 20:00:00Z",
+    "source_identity_verdict": {
+      "governed_source_identity_verified": true,
+      "review_commit_is_ancestor_of_runtime": true,
+      "governed_paths_unchanged_since_review": true,
+      "problems": []
+    }
+  },
+
+  "corpus": {
+    "sessions_requested": ["2026-08-19", "2026-08-20", "2026-08-21", "2026-08-25", "2026-08-26", "2026-08-27", "2026-08-28"],
+    "sessions_consumed": ["2026-08-19", "2026-08-20", "2026-08-21", "2026-08-25", "2026-08-26", "2026-08-27", "2026-08-28"],
+    "sessions_excluded": [],
+    "all_admissible": true,
+    "feeds": ["iex", "sip"],
+    "provenance": "frozen Phase-A partitions synced from custody s3://workbench-backups-219024422756/mdq_capture/ (14 manifests, 42 files); no new, reconstructed, smoke, diagnostic or unadjudicated material entered this execution",
+    "post_freeze_mutation_files": 0
+  },
+
+  "results": {
+    "K1": {
+      "outcome": "NOT_EVALUABLE",
+      "reason": "AUTHORITIES_UNBOUND - limb A and limb B both NOT_EVALUABLE",
+      "limb_a": "needs a governed SCAN-001 / GAPPER decision provider; which decision is authoritative is a registration question the module will not decide",
+      "limb_b": "needs a PREDECLARED list of gate-material IEX observation defects; none exists, and assembling one after the corpus exists would be post-hoc selection barred by the pre-registration quarantine",
+      "note": "NOT_EVALUABLE must never be collapsed into FAIL, zero, or missing. No authority was created, inferred, substituted or newly bound."
+    },
+    "K3": {
+      "arithmetic_outcome": "PASS",
+      "threshold": "(missing_rate_IEX - missing_rate_SIP) / missing_rate_IEX >= 0.50",
+      "missing_rate_iex": 0.37428033274105854,
+      "missing_rate_sip": 0.0,
+      "reduction": 1.0,
+      "grid_keys_U": 187413,
+      "iex_observed_keys": 117268,
+      "sip_observed_keys": 187413,
+      "saturation_interpretation": "reduction = 1.000000 EXACTLY is a STRUCTURAL property of the frozen union-grid definition, NOT a measured 100% performance improvement. The grid is the union of keys observed by EITHER feed; SIP observed the entire union (sip_observed_keys == grid_keys_U) while IEX is a strict subset, so SIP missingness is mechanically zero and the reduction saturates. Do not restate this as a 100% performance improvement.",
+      "g3_credit": "EXCLUDED",
+      "g3_credit_reason": "B1-VERDICT-PERSISTENCE-001 / EXECUTION_PACKAGE_CONFORMANCE_GAP",
+      "retained_as": "integrity and numerical evidence"
+    }
+  },
+
+  "adjudication": {
+    "owner_ruling_date": "2026-08-30",
+    "k3_numerical_classification": "PASS / RETAINED AS INTEGRITY AND NUMERICAL EVIDENCE",
+    "k3_g3_credit": "DENIED for this execution - B1-VERDICT-PERSISTENCE-001",
+    "k1": "NOT_EVALUABLE / AUTHORITIES_UNBOUND, unchanged",
+    "g3_disposition": "HOLD WITH ONE STATED EXTENSION - the extension is NOT exercised or invented by this ruling; it remains available only under the already-frozen extension rule. If no pre-existing legitimate extension path can be invoked, the next disposition is STOP, not an improvised rescue.",
+    "go_status": "GO is impossible on presently admissible evidence; the frozen G3 floor of >=2 criteria both EVALUABLE and PASS is unsatisfied",
+    "first_governed_k_authorization": "CONSUMED / CLOSED - one execution only",
+    "prohibited": ["rerun", "rescue", "addendum-as-substitute", "G10/K2 opening", "K1 authority manufacture", "repair-driven rerun"],
+    "rationale": "The B1a/B1b omission is a pre-specified evidentiary-output conformance defect discovered after the result was known. Relaxing the requirement because K3 passed would be post-hoc governance. A real execution can remain valuable evidence without being silently upgraded into a conforming gate execution."
+  },
+
+  "observed_defect": {
+    "id": "B1-VERDICT-PERSISTENCE-001",
+    "class": "EXECUTION_PACKAGE_CONFORMANCE_GAP",
+    "status": "IDENTIFIED / DEFERRED / NO FIX IN THIS DESIGNATION EPOCH",
+    "statement": "The #707 contract required the governed verdict to state the B1a/B1b qualification. app/research/mdq_eval/gate.py builds these fields, but scripts/mdq_evaluate_k.py persists only report.verdict plus the two token digests, so they are ABSENT from the mdq-k-verdict/1 artifact. Verified by search: zero occurrences in the custodied verdict.",
+    "independently_observed_values": {
+      "per_partition_full_source_tuple_verified": false,
+      "per_partition_full_source_tuple_status": "HISTORICAL_BINDING_UNAVAILABLE",
+      "collector_implementation_invariance_verified": true,
+      "source": "app/research/mdq_eval/gate.py - static literals in the admissibility assessment, not per-run values",
+      "recorded_here_because": "these are recorded OUTSIDE the immutable verdict as an observed defect. The verdict was NOT patched, regenerated, or modified to add them."
+    },
+    "why_not_fixed": "Any fix edits gate.py and/or scripts/mdq_evaluate_k.py, both members of GOVERNED_SOURCE_PATHS. Editing either changes the designated ten-blob tuple and destroys the designated source identity. Belongs to a future designation epoch."
+  },
+
+  "future_designation_debt": [
+    {
+      "id": "B1-VERDICT-PERSISTENCE-001",
+      "summary": "governed verdict omits the B1a/B1b qualification fields"
+    },
+    {
+      "id": "MDQ-K-AUTHORITY-SCHEMA-STRICTNESS-001",
+      "summary": "load_computation_authority accepts extra blob-map keys and does not validate digest syntax"
+    }
+  ],
+
+  "artifact": {
+    "description": "the untouched governed verdict; not modified, patched or regenerated",
+    "sha256": "9e864fad00c0e26bb512bee07e218bcc8b64f8a6adf1e4636a05bcdde0effb77",
+    "size_bytes": 26628,
+    "s3_bucket": "workbench-backups-219024422756",
+    "s3_key": "mdq_evidence/k_verdict/930841c7/mdq_k_verdict_930841c7.json",
+    "s3_version_id": "JqAORQiQCW8hsLDjkkcD4zrp9yUveucF",
+    "s3_etag": "f2e567f6455d02065300ea37ae44bf9c",
+    "bucket_versioning": "Enabled",
+    "roundtrip_verified": true,
+    "roundtrip_note": "the pinned version was fetched back and re-hashed; byte-identical to the local artifact and equal to the required SHA-256"
+  }
+}
