@@ -73,10 +73,26 @@ class AdmissibilityToken:
     session: date
     verdict: str
     assessed_at: str
-    admissibility_digest: str
+    #: Run-specific. Identifies THIS adjudication, not the partition bytes: the hashed report
+    #: carries generated_at, so it differs across runs over identical data. Previously named
+    #: admissibility_digest, which read as a content hash and is not one. Algorithm unchanged.
+    adjudication_instance_digest: str
+    #: Deterministic identity of the adjudicated bytes, from the frozen manifests' per-file
+    #: entries only. Two runs over an unchanged partition produce the SAME value. This is the
+    #: field that answers "did we read the same data", which the run digest cannot.
+    input_partition_identity: str
 
-    def __init__(self, *, root: str, session: date, verdict: str, assessed_at: str,
-                 admissibility_digest: str, _mint: _TokenMint | None = None) -> None:
+    def __init__(
+        self,
+        *,
+        root: str,
+        session: date,
+        verdict: str,
+        assessed_at: str,
+        adjudication_instance_digest: str,
+        input_partition_identity: str,
+        _mint: _TokenMint | None = None,
+    ) -> None:
         if _mint is not _MINT:
             raise TypeError(
                 "AdmissibilityToken cannot be constructed directly; it is minted only by "
@@ -87,7 +103,8 @@ class AdmissibilityToken:
         object.__setattr__(self, "session", session)
         object.__setattr__(self, "verdict", verdict)
         object.__setattr__(self, "assessed_at", assessed_at)
-        object.__setattr__(self, "admissibility_digest", admissibility_digest)
+        object.__setattr__(self, "adjudication_instance_digest", adjudication_instance_digest)
+        object.__setattr__(self, "input_partition_identity", input_partition_identity)
 
     def as_dict(self) -> dict[str, Any]:
         return {
@@ -95,12 +112,20 @@ class AdmissibilityToken:
             "session": self.session.isoformat(),
             "verdict": self.verdict,
             "assessed_at": self.assessed_at,
-            "admissibility_digest": self.admissibility_digest,
+            "adjudication_instance_digest": self.adjudication_instance_digest,
+            "input_partition_identity": self.input_partition_identity,
         }
 
 
-def _mint_token(*, root: str, session: date, verdict: str, assessed_at: str,
-                admissibility_digest: str) -> AdmissibilityToken:
+def _mint_token(
+    *,
+    root: str,
+    session: date,
+    verdict: str,
+    assessed_at: str,
+    adjudication_instance_digest: str,
+    input_partition_identity: str,
+) -> AdmissibilityToken:
     """⛔ INTERNAL. The single construction site, imported by `gate` and by nothing else.
 
     ⚠ Do not import this in tests. A test that mints its own "ADMISSIBLE" token is not exercising the
@@ -109,8 +134,13 @@ def _mint_token(*, root: str, session: date, verdict: str, assessed_at: str,
     the integration itself gets covered.
     """
     return AdmissibilityToken(
-        root=root, session=session, verdict=verdict, assessed_at=assessed_at,
-        admissibility_digest=admissibility_digest, _mint=_MINT,
+        root=root,
+        session=session,
+        verdict=verdict,
+        assessed_at=assessed_at,
+        adjudication_instance_digest=adjudication_instance_digest,
+        input_partition_identity=input_partition_identity,
+        _mint=_MINT,
     )
 
 
@@ -141,8 +171,14 @@ class ValidatedScope:
     sessions: tuple[str, ...]
     tokens: tuple[AdmissibilityToken, ...]
 
-    def __init__(self, *, root: str, sessions: tuple[str, ...],
-                 tokens: tuple[AdmissibilityToken, ...], _mint: _ScopeMint | None = None) -> None:
+    def __init__(
+        self,
+        *,
+        root: str,
+        sessions: tuple[str, ...],
+        tokens: tuple[AdmissibilityToken, ...],
+        _mint: _ScopeMint | None = None,
+    ) -> None:
         if _mint is not _SCOPE_MINT:
             raise TypeError(
                 "ValidatedScope cannot be constructed directly; it is produced only by "
@@ -155,12 +191,16 @@ class ValidatedScope:
         object.__setattr__(self, "tokens", tokens)
 
     def as_dict(self) -> dict[str, Any]:
-        return {"root": self.root, "sessions": list(self.sessions),
-                "tokens": [t.as_dict() for t in self.tokens]}
+        return {
+            "root": self.root,
+            "sessions": list(self.sessions),
+            "tokens": [t.as_dict() for t in self.tokens],
+        }
 
 
-def _mint_scope(*, root: str, sessions: tuple[str, ...],
-                tokens: tuple[AdmissibilityToken, ...]) -> ValidatedScope:
+def _mint_scope(
+    *, root: str, sessions: tuple[str, ...], tokens: tuple[AdmissibilityToken, ...]
+) -> ValidatedScope:
     """⛔ INTERNAL. Imported by `gate.validate_tokens` and by nothing else."""
     return ValidatedScope(root=root, sessions=sessions, tokens=tokens, _mint=_SCOPE_MINT)
 
@@ -214,8 +254,11 @@ class AuthorityRef:
             raise ValueError("an authority binding needs a reference to its governed artifact")
 
     def as_dict(self) -> dict[str, Any]:
-        return {"identifier": self.identifier, "digest": self.digest,
-                "governed_artifact": self.governed_artifact}
+        return {
+            "identifier": self.identifier,
+            "digest": self.digest,
+            "governed_artifact": self.governed_artifact,
+        }
 
 
 @dataclass(frozen=True)
@@ -252,11 +295,13 @@ class InputProvenance:
             "decision_provider_supplied": self.decision_provider_supplied,
             "decision_provider_authority": (
                 self.decision_provider_authority.as_dict()
-                if self.decision_provider_authority else None),
+                if self.decision_provider_authority
+                else None
+            ),
             "defect_list_supplied": self.defect_list_supplied,
             "defect_registry_authority": (
-                self.defect_registry_authority.as_dict()
-                if self.defect_registry_authority else None),
+                self.defect_registry_authority.as_dict() if self.defect_registry_authority else None
+            ),
         }
 
 
