@@ -135,7 +135,8 @@ must refuse LIVE.
   Sharpe, opening-range touch rate per score band) and only then incorporated — the threshold itself
   becomes a research result, not an assumption.
 - **Selection evidence** (review #3, implemented): the audit payload carries a `selection` record —
-  `ranking_version` ("evidence-first-v1"), `n_requested`, `min_score`, `universe_size`,
+  `ranking_version` ("evidence-first-v2-guarded" — was "evidence-first-v1" before the AND-guard;
+  see §Open items), `n_requested`, `min_score`, `universe_size`,
   `qualified_size`, the chosen names with `rank`/`score`/`win_rate`/`sharpe`/`backtested`, and the
   `excluded` names with reasons (`insufficient_data` / `price_below_min` / `adv_below_min` /
   `atr_below_min` / `below_min_score` / `rank_beyond_n`) — making each daily pick a reproducible
@@ -172,8 +173,58 @@ must refuse LIVE.
 - **Recreate the strategy row each day** with the new universe. Rejected: loses strategy identity and
   history, multiplies audit/lineage churn, and orphans signals/backtests tied to the prior row.
 
+## Open items
+
+- **[OPEN 2026-06-29] The shipped ranker implements *hard* evidence-first tiering, not the
+  evidence-*weighted* blend ADR 0029 §6 mandates — and with only one backtested name it produces an
+  unintended NVDA preference.** `rank_candidates` (`apps/backend/app/services/range_insight.py:440–448`)
+  sorts on `(0 if backtested else 1, -win_rate, -sharpe, -structural_score, …)`: **any** name with a
+  realized range backtest sorts *above every* non-backtested name, regardless of structural Range Score.
+  Today NVDA is the **sole** backtested+qualified name (win rate ≈ **27%**, below a coin flip for a
+  mean-reversion fade), so it takes rank #1 **by construction**, not on merit — exactly the "single
+  historical backtest dominates selection" failure ADR 0029 §6 and its "*evidence-weighted, not
+  evidence-first*" rationale (§Rationale) call out. The hard tier is only fair when *many* names carry
+  comparable backtests; with a field of one it is an NVDA pin in all but name.
+  - **Interim guard — IMPLEMENTED 2026-06-29 (owner-requested), AND not OR.** A backtest grants
+    **tier-0 priority only if `win_rate ≥ 0.50` AND `sharpe > 0`** (both floors; the earlier "OR"
+    framing was rejected because NVDA's Sharpe 0.10 > 0 would have kept the boost — see prior result
+    bullet). A name whose realized evidence is weak/losing (NVDA at 27%) falls back to competing on
+    structural Range Score — still selectable if it earns a Top-N slot on structure, but no unearned
+    tier-0 boost; and a guard-failed backtest contributes **nothing** to order (its win_rate/sharpe sort
+    terms are neutralized, so it can't leak a partial boost into the structural tier). Code:
+    `apps/backend/app/services/range_insight.py` — `_evidence_grants_priority()` +
+    `EVIDENCE_PRIORITY_MIN_WIN_RATE = 0.50` / `EVIDENCE_PRIORITY_MIN_SHARPE = 0.0`; `backtested` stays
+    descriptive (a backtest exists) independent of the guard. `RANKING_VERSION` bumped
+    `evidence-first-v1 → evidence-first-v2-guarded` so audit trails distinguish pre/post-guard picks.
+    Tests added in `tests/services/test_range_candidates.py` (weak-evidence demotion, non-positive-Sharpe
+    demotion, no-partial-boost-leak, guard-boundary still-leads); ruff + mypy clean. A reversible stopgap
+    until ADR 0029 §6's composite weighting is built and calibrated (≈ ≥60 trading days), which subsumes it.
+  - **Decision §2 text not yet amended.** §2 still reads "evidence-first (… → structural Range Score)";
+    the shipped behavior is now *guarded* evidence-first. Formalizing §2 (amend in place vs. a superseding
+    v2 ADR) is the remaining governance step — owner's call; the code + this Open item record the actual
+    behavior in the interim.
+  - **Not yet live in the running stack.** App code is baked into the backend image (only
+    `strategies_user/` is bind-mounted), so the guard takes effect on the next `docker compose build
+    backend` + restart — deliberately **not** before today's 09:00 ET fire (per the no-reload-near-rebalance
+    discipline, and unnecessary since today's selected *set* is identical with or without the guard).
+  - **Validation result (2026-06-29, pre-open, 18-name universe):** NVDA ranks **#5 structurally**
+    (Range Score 0.0329) with the evidence boost removed — so it **is** in the structural Top-5, and the
+    selected *set is identical* both ways: **{NVDA, MU, INTC, AMD, TSLA}** (structural order
+    MU·INTC·AMD·TSLA·NVDA; the tier only re-orders NVDA 5→1). Because the sleeve sizes all five equally
+    (`per_position_budget` $4k), the tier has **no material effect on today's trade**, so today's pick is
+    defensible as-is — no pre-open code change required. Two caveats remain: (i) NVDA is the **marginal
+    #5** structurally (tied with TSLA at 0.0329; next name META is 0.0244, "mixed"), so on a different day
+    it could fall out — the evidence tier would still pin it #1 unfairly; (ii) **the proposed `win_rate ≥
+    0.50 OR sharpe > 0` guard would NOT strip NVDA today** — its evidence Sharpe is **0.10 (> 0)**, so the
+    `OR sharpe > 0` clause keeps the tier-0 boost. If the intent is to drop weak/losing evidence, prefer
+    **AND** (win_rate ≥ 0.50 **and** sharpe > 0) or a meaningful Sharpe floor; "OR sharpe > 0" is too
+    permissive (a 27%-win / 0.10-Sharpe name passes it).
+
 ## Re-evaluation triggers
 
+- **The ranker still hard-tiers backtested names above all others once a second range name is backtested**
+  (i.e. the "field of one" condition clears) → revisit whether the interim win-rate/Sharpe guard is still
+  needed, and move toward ADR 0029 §6's composite `w·Historical + (1−w)·CurrentScore`.
 - A desire to auto-rotate a **LIVE** range book → supersede this ADR with one that adds LIVE handling
   plus stronger controls (notification, turnover caps, explicit acknowledgment).
 - The engine gains a sanctioned **runtime symbol-update** API → revisit the stop→start mechanism.
