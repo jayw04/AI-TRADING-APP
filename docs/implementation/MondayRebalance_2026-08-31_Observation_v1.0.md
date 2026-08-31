@@ -55,14 +55,48 @@ rebalance book, and its activity is disjoint from the windows above.
 
 ---
 
-## AFTERNOON — PENDING
+## AFTERNOON — `AFTERNOON-REBALANCE-2026-08-31 = OBSERVED / STRATEGY 11 REMAINED IDLE / ZERO REBALANCE DISPATCH / ZERO NEW AUTHORITY CREATED`
 
-`AFTERNOON-REBALANCE-2026-08-31` covers **strategy 11 momentum-daily (user 4, `50 15 * * mon-fri`,
-15:50 ET)** and is **not yet observed**. ⛔ It must not be folded into the morning result, and the two
-may be rolled up into a broader daily statement **only after both are observed**.
+Independent read-only capture **2026-08-31 15:55:03 EDT / 19:55:03Z**, after the 15:50 window, on
+runtime `b94838b6…`.
 
-Target on a clean observation:
-`AFTERNOON-REBALANCE-2026-08-31 = OBSERVED / STRATEGY 11 REMAINED IDLE / ZERO DISPATCH`
+| item | observed |
+|---|---|
+| strategy 11 `momentum-daily` (user 4, v0.2.0) | **`IDLE`**, schedule `50 15 * * mon-fri` unchanged, `has_pending_reload=1` unchanged |
+| Account 4 | **0 positions · 0 open orders · 0 orders today · 0 orders total** |
+| platform open orders | **0** |
+| orders today, users 3/4/5/6/7 | **0** |
+| all strategy statuses | `1:PAPER` · 2,3,4,5,7,8,9,10,11 `IDLE` — identical to the morning |
+
+**Dispatch evidence, 15:45–15:58:** the only scheduler activity is the engine's generic
+`_dispatch_bar_tick` (`*/5` cron — the Range Trader's tick) and `_dispatch_health_monitor_tick`.
+**No strategy-11 job ran and no rebalance job exists** — strategy 11 is IDLE and therefore not
+registered with the scheduler.
+
+⭐ **Account 4 has `orders total = 0`** — it has never traded. Its HELD status is not a pause on an
+active book; there is no book.
+
+⚠ Strategy 1 Range Trader continued normally (orders today 2 → 3), unrelated to the 15:50 window.
+
+---
+
+## 🏁 FULL-DAY ROLL-UP — both halves now observed
+
+```
+MONDAY-REBALANCE-2026-08-31 = OBSERVED / ALL GOVERNED REBALANCE WINDOWS PASSED
+                            / ZERO REBALANCE DISPATCH / ZERO NEW AUTHORITY CREATED
+```
+
+Every governed rebalance window on 2026-08-31 — **10:00 s2 · 10:08 s4 · 10:16 s5 · 10:24 s7 ·
+10:32 s8 · 10:40 s9 · 15:50 s11** — arrived and produced **no dispatch, no order, and no state
+change**. Strategies 2, 4, 5, 7, 8, 9 and 11 all remained `IDLE` across the whole session. The only
+live strategy, non-factor Range Trader (strategy 1, Account 2), operated normally throughout and is
+disjoint from every window above.
+
+⛔ **This roll-up creates no authority.** It records that scheduled opportunities passed without
+action — which is what the governing decisions required. It is a **separate fact** from
+`FACTOR SYSTEM = GREEN / ACCEPTED / INTERLOCK PROVEN`; GREEN removed a shared technical blocker and
+**activated nothing and selected nobody**.
 
 ---
 
@@ -78,3 +112,14 @@ from operating.
 prerequisite is **unverified** and is exactly the "verify the applicability of the
 one-runtime-epoch/reload rule" item in the read-only activation reconciliation.
 ⛔ **Do not clear `has_pending_reload` or perform a reload** on any strategy.
+
+---
+
+## 🏁 DAY CLOSE
+
+```
+2026-08-31 PAPER GOVERNANCE DAY = CLOSED
+                                / NO GOVERNED IDLE STRATEGY ACTIVATED
+                                / MORNING AND AFTERNOON REBALANCE WINDOWS OBSERVED
+                                / ZERO NEW EXECUTION AUTHORITY CREATED
+```
