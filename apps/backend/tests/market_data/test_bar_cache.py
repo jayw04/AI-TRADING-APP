@@ -108,6 +108,119 @@ async def test_empty_day_marker_skips_refetch(tmp_cache):
         assert fetcher.call_count == 1
 
 
+# ---------- ADR 0033: page-limit truncation must not poison un-returned days ----------
+
+
+def _pager(all_bars: pd.DataFrame, page_limit: int):
+    """Mimic Alpaca: return bars ascending from ``start``, capped at ``page_limit``."""
+
+    def _fetch(symbol, timeframe, start, end):
+        sub = all_bars[(all_bars["t"] >= start) & (all_bars["t"] <= end)].sort_values("t")
+        return sub.head(page_limit).reset_index(drop=True)
+
+    return _fetch
+
+
+async def test_fetch_paginates_past_the_page_limit(tmp_cache, monkeypatch):
+    """A full page (== _PAGE_LIMIT) is treated as possibly truncated: the fetch
+    continues until a short page, reassembling the whole span (ADR 0033 pts 2/3)."""
+    monkeypatch.setattr("app.market_data.bar_cache._PAGE_LIMIT", 5)
+    cache, root = tmp_cache
+    day = datetime(2025, 11, 3, 14, 30, tzinfo=UTC)
+    all_bars = _mk_bars(day, 12)  # 12 one-minute bars → 3 pages of 5/5/2
+    fetcher = MagicMock(side_effect=_pager(all_bars, 5))
+
+    with patch("app.market_data.bar_cache._alpaca_fetch_bars", fetcher):
+        df = await cache.get_bars(
+            "AAPL", "1Min", day, datetime(2025, 11, 3, 14, 45, tzinfo=UTC)
+        )
+
+    assert len(df) == 12                       # all bars reassembled, not just the first page
+    assert fetcher.call_count == 3             # 5 + 5 + 2 → continued past the full pages
+    parquet = root / "AAPL" / "1Min" / "2025-11-03.parquet"
+    assert len(pd.read_parquet(parquet)) == 12
+
+
+async def test_truncated_fetch_leaves_beyond_range_days_missing_not_empty(tmp_cache, monkeypatch):
+    """The poisoning fix (ADR 0033 pt 1): if a full page is followed by a failed
+    continuation, days beyond the covered range are left *missing* (re-fetchable),
+    NOT stamped ``.empty``."""
+    monkeypatch.setattr("app.market_data.bar_cache._PAGE_LIMIT", 5)
+    cache, root = tmp_cache
+    calls: list = []
+
+    def _fetch(symbol, timeframe, start, end):
+        calls.append(start)
+        if len(calls) == 1:
+            return _mk_bars(datetime(2025, 11, 3, 14, 30, tzinfo=UTC), 5)  # full page, day 1 only
+        raise RuntimeError("continuation failed (e.g. Norton trickle socket)")
+
+    with patch("app.market_data.bar_cache._alpaca_fetch_bars", _fetch):
+        await cache.get_bars(
+            "AAPL", "1Min",
+            datetime(2025, 11, 3, tzinfo=UTC),
+            datetime(2025, 11, 5, 23, 59, 59, tzinfo=UTC),
+        )
+
+    d = root / "AAPL" / "1Min"
+    assert (d / "2025-11-03.parquet").exists()          # covered day written
+    for beyond in ("2025-11-04", "2025-11-05"):
+        assert not (d / f"{beyond}.parquet").exists()
+        assert not (d / f"{beyond}.empty").exists()      # NOT poisoned → re-fetchable
+
+    # Prove re-fetchability: a later, working fetch fills the previously-missing days.
+    with patch(
+        "app.market_data.bar_cache._alpaca_fetch_bars",
+        return_value=_mk_bars(datetime(2025, 11, 4, 14, 30, tzinfo=UTC), 3),
+    ) as f2:
+        await cache.get_bars(
+            "AAPL", "1Min",
+            datetime(2025, 11, 4, tzinfo=UTC),
+            datetime(2025, 11, 4, 23, 59, 59, tzinfo=UTC),
+        )
+        assert f2.call_count == 1                        # the day was still missing, so it re-fetched
+
+
+async def test_empty_span_still_marks_all_days_empty(tmp_cache, monkeypatch):
+    """A first-page-empty response is authoritative for a bounded past range:
+    every requested day is genuinely empty and marked (not left dangling)."""
+    monkeypatch.setattr("app.market_data.bar_cache._PAGE_LIMIT", 5)
+    cache, root = tmp_cache
+    fetcher = MagicMock(return_value=_empty_bars_frame())
+    with patch("app.market_data.bar_cache._alpaca_fetch_bars", fetcher):
+        await cache.get_bars(
+            "ZZZZ", "1Min",
+            datetime(2025, 11, 3, tzinfo=UTC),
+            datetime(2025, 11, 5, 23, 59, 59, tzinfo=UTC),
+        )
+    d = root / "ZZZZ" / "1Min"
+    for day in ("2025-11-03", "2025-11-04", "2025-11-05"):
+        assert (d / f"{day}.empty").exists()
+
+
+async def test_empty_day_within_covered_range_is_marked(tmp_cache, monkeypatch):
+    """A genuine gap day *inside* a fully-covered (exhausted) span is still marked
+    ``.empty`` — the fix scopes markers, it does not stop writing legitimate ones."""
+    monkeypatch.setattr("app.market_data.bar_cache._PAGE_LIMIT", 5)
+    cache, root = tmp_cache
+    # A single short page (len 4 < limit → span exhausted) with data on day1 & day3,
+    # nothing on day2.
+    bars = pd.concat([
+        _mk_bars(datetime(2025, 11, 3, 14, 30, tzinfo=UTC), 2),
+        _mk_bars(datetime(2025, 11, 5, 14, 30, tzinfo=UTC), 2),
+    ]).reset_index(drop=True)
+    with patch("app.market_data.bar_cache._alpaca_fetch_bars", return_value=bars):
+        await cache.get_bars(
+            "AAPL", "1Min",
+            datetime(2025, 11, 3, tzinfo=UTC),
+            datetime(2025, 11, 5, 23, 59, 59, tzinfo=UTC),
+        )
+    d = root / "AAPL" / "1Min"
+    assert (d / "2025-11-03.parquet").exists()
+    assert (d / "2025-11-05.parquet").exists()
+    assert (d / "2025-11-04.empty").exists()             # in-range gap → correctly marked
+
+
 async def test_lru_eviction_shrinks_cache_when_over_cap(tmp_cache):
     cache, root = tmp_cache
     # Write three day files; backdate atime/mtime so they're outside the
