@@ -219,6 +219,11 @@ bootstrap of the return/Sharpe distribution + a p-value where appropriate + the 
 
 A study is reproducible forever or it is not evidence (invariant 5).
 
+> **Copy-paste template:** `docs/implementation/evidence/EvidencePackage_Template_v1.0.md` — the fill-in
+> instantiation of this shape, with **Data Integrity** (ADR 0033) and **Evidence Correction Report** as
+> first-class sections and a **Lessons Learned** close. Every completed program's package copies it (paired
+> with the one-page Executive Summary — see `docs/design/RNG-001_Executive_Summary.md`).
+
 **Standard structure:**
 
 ```
