@@ -214,6 +214,22 @@ class Settings(BaseSettings):
     # apps/backend/ (matches db_url / bars_cache_root). Lives under the
     # already-gitignored data/. Never commit the store or raw vendor pulls
     # (size + licensing, ADR 0018 §6).
+    # --- SIP-CACHE-001: the shared SIP operational plane -------------------
+    # Disabled by default. Conservative default per CLAUDE.md: the code ships inert, and the
+    # scheduled producer is enabled deliberately as the §19 step-4 scheduled-refresh proof —
+    # merging Implementation A must not start acquiring SIP data in production by itself.
+    sip_cache_enabled: bool = False
+    # The DESIGNATED producer account (SIP-CACHE-001-PRODUCER-001). Present so the designation is
+    # visible in configuration, NOT so it can be swapped: app.market_data.sip.identity pins the
+    # credential fingerprint independently and refuses anything else. Changing this alone cannot
+    # move acquisition to another account.
+    sip_producer_account_id: int = 7
+    # Placeholder only. The real SIP_LIVE bound is per-consumer and is set by the strategy
+    # execution policy that consumes it (§6); no consumer may inherit this by omission.
+    sip_live_default_max_age_s: float = 30.0
+    sip_eod_min_coverage: float = 1.0
+    sip_cache_retention_days: int = 30
+
     factor_data_db_path: str = "data/factor_data.duckdb"
     # Local DuckDB store for the Research Engine subsystem (P10 Phase 2): the
     # experiment/strategy/dataset/feature/artifact registries + transition log.
