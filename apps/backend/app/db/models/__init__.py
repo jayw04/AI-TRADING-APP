@@ -40,6 +40,7 @@ from app.db.models.scanner_run import ScannerRun
 from app.db.models.scheduler_heartbeat import SchedulerHeartbeat
 from app.db.models.session import Session
 from app.db.models.signal import Signal
+from app.db.models.sip_cache_record import SipCacheRecord
 from app.db.models.strategy import Strategy
 from app.db.models.strategy_proposal import ProposalState, StrategyProposal
 from app.db.models.strategy_revision import StrategyRevision
@@ -96,6 +97,7 @@ __all__ = [
     "Session",
     "ProposalState",
     "Signal",
+    "SipCacheRecord",
     "Strategy",
     "StrategyProposal",
     "StrategyRevision",
