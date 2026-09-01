@@ -390,6 +390,14 @@ jobs:
         if: matrix.p.project == 'backend'
         run: python apps/backend/scripts/check_no_factor_symbol_special_cases.py
 
+      # Two planes, two properties. Research may read whatever it needs and may be wrong; the
+      # order path must never be steered by an artifact nobody governed. AST + bounded transitive
+      # closure, so capability cannot be laundered through a sibling module and a string or
+      # comment never counts as an import.
+      - name: Research-plane isolation invariant check (backend)
+        if: matrix.p.project == 'backend'
+        run: python apps/backend/scripts/check_research_plane_isolation.py
+
   # The FULL Python suite, one matrix entry PER PROJECT that must run FULL this event (see the FULL
   # matrix). pytest + coverage for each; the backend entry additionally runs the risk/P2/P3 branch-
   # coverage gates. Runs on every push / dispatch / schedule AND on a PR for each project the classifier
