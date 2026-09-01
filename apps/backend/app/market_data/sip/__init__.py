@@ -8,6 +8,11 @@ Implementation A ships the producer/cache foundation only. Consumer APIs and the
 reference-price integration are Implementation B, gated on their own review.
 """
 
+from app.market_data.sip.api import (
+    SipConsumerService,
+    SipLiveBoundRequired,
+    build_consumer_service,
+)
 from app.market_data.sip.identity import PRODUCER, ProducerIdentityError
 from app.market_data.sip.profiles import SipProfile
 from app.market_data.sip.readiness import (
@@ -16,6 +21,7 @@ from app.market_data.sip.readiness import (
     SipReadinessState,
 )
 from app.market_data.sip.schema import CACHE_SCHEMA_VERSION, SipRecord
+from app.market_data.sip.views import SipDataView, SipPlaneStatus, SipProfileStatus
 
 __all__ = [
     "CACHE_SCHEMA_VERSION",
@@ -25,5 +31,11 @@ __all__ = [
     "SipProfile",
     "SipReadiness",
     "SipReadinessState",
+    "SipConsumerService",
+    "SipDataView",
+    "SipLiveBoundRequired",
+    "SipPlaneStatus",
+    "SipProfileStatus",
     "SipRecord",
+    "build_consumer_service",
 ]
