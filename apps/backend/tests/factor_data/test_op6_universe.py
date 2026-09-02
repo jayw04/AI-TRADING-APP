@@ -204,3 +204,72 @@ def test_book_and_benchmark_share_one_screened_universe(momentum_store):
     assert rep.equity_curve and seen
     # every observed universe is identical between the two consumers on a given date
     assert all(len(u) == 8 for u in seen)
+
+
+# ---- the low_vol score seam (second consumer of the same provider) ------------
+
+
+def test_low_vol_scores_default_universe_fn_is_behaviourally_unchanged(momentum_store):
+    """No `universe_fn` must reproduce the historical low_vol cross-section exactly."""
+    from app.factor_data.factors.low_vol import low_vol_scores
+
+    base = low_vol_scores(momentum_store, date(2020, 6, 30), n=25, lookback_days=60, min_names=5)
+    explicit = low_vol_scores(
+        momentum_store,
+        date(2020, 6, 30),
+        n=25,
+        lookback_days=60,
+        min_names=5,
+        universe_fn=lambda s, d: universe_asof(s, d, n=25),
+    )
+    pd.testing.assert_frame_equal(base, explicit)
+
+
+def test_low_vol_scores_universe_fn_governs_the_cross_section(momentum_store):
+    """The provider decides WHICH names are scored; `n` is not consulted when it is given."""
+    from app.factor_data.factors.low_vol import low_vol_scores
+
+    full = low_vol_scores(momentum_store, date(2020, 6, 30), n=25, lookback_days=60, min_names=5)
+    subset = universe_asof(momentum_store, date(2020, 6, 30), n=25)[:20]
+    restricted = low_vol_scores(
+        momentum_store,
+        date(2020, 6, 30),
+        n=25,
+        lookback_days=60,
+        min_names=5,
+        universe_fn=lambda s, d: subset,
+    )
+    assert set(restricted.index) <= set(subset)
+    assert set(restricted.index) < set(full.index)
+    # per-name scores are independent of the rest of the cross-section
+    common = restricted.index.intersection(full.index)
+    pd.testing.assert_series_equal(restricted.loc[common, "score"], full.loc[common, "score"])
+
+
+def test_c3_book_and_benchmark_can_share_one_provider_end_to_end(momentum_store):
+    """The C3 wiring: one provider object feeds BOTH low_vol scoring and the benchmark."""
+    from app.factor_data.factors.low_vol import low_vol_scores
+
+    calls: list[date] = []
+
+    def provider(s, d):
+        calls.append(d)
+        return universe_asof(s, d, n=25)[:20]
+
+    rep = run_momentum_backtest(
+        momentum_store,
+        date(2019, 6, 1),
+        date(2020, 6, 30),
+        n=25,
+        score_fn=lambda s, d: low_vol_scores(
+            s, d, n=25, lookback_days=60, min_names=5, universe_fn=provider
+        ),
+        universe_fn=provider,
+        top_quantile=0.20,
+    )
+    assert rep.equity_curve and rep.baseline_curve
+    # every held name came from the provider's universe on that rebalance date
+    for h in rep.holdings:
+        assert set(h.tickers) <= set(universe_asof(momentum_store, h.rebalance_date, n=25)[:20])
+    # both consumers called the SAME provider on every used rebalance date
+    assert set(rep.rebalances) <= set(calls)
