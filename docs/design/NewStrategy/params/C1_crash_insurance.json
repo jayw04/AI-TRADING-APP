@@ -8,14 +8,14 @@
     "OP3_min_worst_month_improvement_pp": 2,
     "OP4_depth": "CAP-020 frozen depth (B-1); swept only as a named sensitivity"
   },
-  "acceptance_status": "C1-CRISIS-ACCEPTANCE-CONFORMANCE-001 = CONFIRMED / FROZEN OP-2 (>=3 of 4 crises) UNREACHABLE / BLOCKING. Acceptance values above are UNCHANGED pending an explicit owner ruling (Amendment A, C1 options). NO EXECUTION AUTHORITY.",
+  "acceptance_status": "OWNER RULING 2026-09-01 (amendment \u00a77 ruling 3 = OPTION B): C1 = NOT EVALUABLE UNDER CURRENT GOVERNED CORPUS. C1-CRISIS-ACCEPTANCE-CONFORMANCE-001 = TERMINAL FOR THIS TRANCHE / REQUIRED 3-OF-4 EVIDENCE UNAVAILABLE / NOT EVALUABLE. OP-2 is NOT weakened; acceptance values above are retained verbatim. NOT EVALUABLE != REJECTED. NO EXECUTION AUTHORITY; do not rerun with PYTHONUTF8=1 to obtain a result that cannot satisfy the governing rule.",
   "binding_commit": "c674753fc85f029b980cccc480f4108683ebc0e7",
   "candidate": "C1",
   "crisis_evaluability": {
-    "covid_2020": "EVALUABLE (33 days inside boundary)",
-    "dotcom_2000_2002": "UNAVAILABLE UNDER CONFORMANT PRICE HISTORY (0 days inside boundary)",
-    "drawdown_2022": "EVALUABLE (282 days inside boundary)",
-    "gfc_2007_2009": "UNAVAILABLE UNDER CONFORMANT PRICE HISTORY (0 days inside boundary)",
+    "covid_2020": "FROZEN CRISIS = EVALUABLE (33 days inside boundary)",
+    "dotcom_2000_2002": "FROZEN CRISIS = UNAVAILABLE UNDER CONFORMANT PRICE HISTORY (0 days inside boundary)",
+    "drawdown_2022": "FROZEN CRISIS = EVALUABLE (282 days inside boundary)",
+    "gfc_2007_2009": "FROZEN CRISIS = UNAVAILABLE UNDER CONFORMANT PRICE HISTORY (0 days inside boundary)",
     "note": "All four frozen windows retained verbatim in stress_regimes_peak_trough. B-1 ENVIRONMENTS implements only covid_2020/bear_2022/bull_2023_24."
   },
   "custody_merge_commit": "26cf4627e1a7745d65d0f4ad02389bbe873341d9",
@@ -84,6 +84,7 @@
     ]
   },
   "stress_window_provenance": "Canonical S&P 500 peak/trough dates, fixed BEFORE the run. Not fitted, not selected from results.",
+  "tranche_disposition": "NOT EVALUABLE / INSUFFICIENT GOVERNED CRISIS HISTORY. Future path = a prospective successor program on a corpus covering dotcom/GFC, or a newly frozen crisis-validation framework; a two-crisis successor is NOT equivalent to this C1 program.",
   "window": {
     "end": "2026-07-02",
     "start": "1997-12-31"
