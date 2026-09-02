@@ -1,0 +1,59 @@
+{
+  "acceptance": {
+    "OP5_corr_threshold": 0.3,
+    "pass_if": "dSharpe CI excludes zero OR (DD reduction AND corr<0.3 vs Strategy 8 and Range Trader AND CI-separated portfolio improvement)",
+    "reject_if": "reproduces +0.04 with CI spanning zero AND no portfolio benefit",
+    "revise_if": "directionally positive but under-powered on the ~10.4y window"
+  },
+  "benchmarks": [
+    "equal_weight",
+    "momentum"
+  ],
+  "binding_commit": "c674753fc85f029b980cccc480f4108683ebc0e7",
+  "candidate": "C2",
+  "custody_merge_commit": "26cf4627e1a7745d65d0f4ad02389bbe873341d9",
+  "dataset": {
+    "bytes": 678440960,
+    "path": "/opt/workbench/data/factor_data.deepen.duckdb",
+    "sha256": "bafc6007f20f6edb8c9fcc7c60b5f77a6d5bb5021a060f8d0bfa7191b768c97a"
+  },
+  "estimator": {
+    "block": 21,
+    "fn": "app.factor_data.evidence.paired_sharpe_diff_ci",
+    "n_resamples": 2000,
+    "provenance": "REGISTERED DEFAULTS from the bound B-4 artifact and ProgramSpec (bootstrap=2000, seed=17). NOT chosen by the operator.",
+    "seed": 17,
+    "sha256": "aa050f84293368ad55c494bc1fa1a8fb487726ac55963792b19e4c122f1a8bfb"
+  },
+  "factors": {
+    "combination": "scripts/multifactor_retest.py equal-weight z-score means (VALUE, QUALITY, multifactor)",
+    "combination_sha256": "6caa411b010e47b5587b6d728fce8e36554dc2eeef34d052be8439b2b8e48a60",
+    "definitions": "app/factor_data/factors/sf1.py SF1_VALUE_FACTORS + SF1_QUALITY_FACTORS",
+    "definitions_sha256": "2563518759d57c5e98299174330fc3aee38ca24e5f363b075b1ac6cd873bd62e"
+  },
+  "frozen_before_any_result": true,
+  "frozen_spec": "docs/design/NewStrategy/NewStrategy_FrozenResearchSpecs_2026-09-01_v1_2_FINAL.md",
+  "frozen_spec_sha256": "47a2e26201b6c68ab8105ee08f0169fe64cdd3bca67f63d864b4efa85af34998",
+  "history_boundary": "pre-2016 permanently out of scope; NOT a STOP trigger; STOP only on an in-window datekey integrity defect",
+  "pit": {
+    "dimension_allowed": [
+      "ARQ",
+      "ART"
+    ],
+    "dimension_forbidden": [
+      "MRQ",
+      "MRT",
+      "MRY"
+    ],
+    "floor": "2016-01-29",
+    "forbidden_key": "calendardate",
+    "key": "datekey",
+    "usage_rule": "usable at the first rebalance strictly AFTER datekey"
+  },
+  "program": "MF-001 V2 value + quality",
+  "research_code_commit": "26cf4627e1a7745d65d0f4ad02389bbe873341d9",
+  "window": {
+    "end": "2026-07-02",
+    "start": "2016-01-29"
+  }
+}
