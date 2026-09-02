@@ -15,6 +15,7 @@ Methodology-Transfer discipline). Prices-only, no order path / broker / DB / LLM
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from datetime import date
 
 import pandas as pd
@@ -35,6 +36,7 @@ def low_vol_scores(
     n: int = 500,
     lookback_days: int = DEFAULT_VOL_LOOKBACK_DAYS,
     min_names: int = DEFAULT_MIN_NAMES,
+    universe_fn: Callable[[FactorDataStore, date], list[str]] | None = None,
 ) -> pd.DataFrame:
     """Point-in-time cross-sectional low-volatility scores for the universe as of `as_of`.
 
@@ -48,12 +50,18 @@ def low_vol_scores(
     realized vol on `as_of` — standardizing a handful of names is noise, not a
     signal (mirrors ``momentum_scores``). Deterministic: identical store + args
     yield an identical frame (ties in ``score`` broken by ticker ascending).
+
+    ``universe_fn`` is the explicit universe-provider seam (C3 / OP-6, 2026-09-01): when
+    supplied it replaces ``universe_asof(store, as_of, n)`` as the cross-section and ``n``
+    is not consulted; omitted, behaviour is byte-for-byte the historical one. The vol
+    primitive, the ``min_names`` guard and the ordering are untouched by the seam.
     """
     # Reused lazily: keep the (numpy/structlog-heavy) backtest module out of the
     # base factor-accessor import path; it loads only when a low-vol book scores.
     from app.factor_data.backtest import _trailing_vol
 
-    tickers = universe_asof(store, as_of, n=n)
+    tickers = (universe_fn(store, as_of) if universe_fn is not None
+               else universe_asof(store, as_of, n=n))
     vols: dict[str, float] = {}
     for ticker in tickers:
         v = _trailing_vol(store, ticker, as_of, lookback_days)
