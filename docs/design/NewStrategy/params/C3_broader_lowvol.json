@@ -1,0 +1,130 @@
+{
+  "acceptance": {
+    "pass_if": "H1 standalone dSharpe CI EXCLUDES zero AND defensive DD advantage preserved",
+    "reject_if": "CI spans zero and DD advantage does not improve",
+    "revise_if": "CI spans zero but DD advantage strengthens"
+  },
+  "binding_commit": "c674753fc85f029b980cccc480f4108683ebc0e7",
+  "candidate": "C3",
+  "costs_bps_sweep": [
+    0,
+    10,
+    25,
+    50
+  ],
+  "custody_merge_commit": "26cf4627e1a7745d65d0f4ad02389bbe873341d9",
+  "dataset": {
+    "bytes": 678440960,
+    "path": "/opt/workbench/data/factor_data.deepen.duckdb",
+    "sha256": "bafc6007f20f6edb8c9fcc7c60b5f77a6d5bb5021a060f8d0bfa7191b768c97a"
+  },
+  "estimator": {
+    "block": 21,
+    "fn": "app.factor_data.evidence.paired_sharpe_diff_ci",
+    "n_resamples": 2000,
+    "provenance": "REGISTERED DEFAULTS from the bound B-4 artifact and ProgramSpec (bootstrap=2000, seed=17). NOT chosen by the operator.",
+    "seed": 17,
+    "sha256": "aa050f84293368ad55c494bc1fa1a8fb487726ac55963792b19e4c122f1a8bfb"
+  },
+  "executable_history_boundary": {
+    "derivation": "NewStrategy Amendment A (2026-09-01): earliest date after which the bound dataset continuously satisfies DEFAULT_MIN_NAMES=20 PIT-eligible names at every weekly rebalance (493/493 conformant); return-blind; owner-accepted 2026-09-01",
+    "end": "2026-06-12",
+    "start": "2017-01-06",
+    "status": "ACCEPTED / COMMON TO C1-C2-C3",
+    "warmup_note": "low_vol lookback_days=252 means the first computable rebalance falls ~252 trading days after the boundary start; thin/unavailable rebalances are skipped by the bound mechanism, not padded"
+  },
+  "execution_package": {
+    "composes_only": [
+      "B-3 low_vol_scores (lookback 252, quantile 0.20, equal_weight, weekly)",
+      "B-5+seam run_momentum_backtest",
+      "OP-6 op6_universe_asof",
+      "B-4 paired_sharpe_diff_ci (seed 17, 2000, block 21)"
+    ],
+    "driver": "research-out/2026-09-01/C3_package/c3_decisive_driver.py",
+    "driver_sha256": "c9d0d71c97d961a2a143430b7f853d7cc5368188077413ac2d514676358e282d",
+    "falsifier_comparator": "Strategy-8 reference book = B-3 LOW_001 definition on the bound store (universe_asof n=200, top-quintile low-vol, equal-weight, 10 bps), computed IN THE SAME EXECUTION, before any C3 number is read; correlation = Pearson on date-aligned (inner-join) daily returns; overlap = mean over common rebalance dates of sum_i min(w_i)",
+    "falsifier_comparator_status": "DECLARED EXECUTION INPUT \u2014 pending explicit owner acceptance (Amendment A \u00a74.4); the live Strategy 8 trades the 1,254-ticker live-store universe, so this is the frozen-definition proxy, not the live book",
+    "nominal_window": [
+      "2017-01-06",
+      "2026-06-12"
+    ],
+    "preflight_refuses_unless": [
+      "dataset bytes + sha256 == pin",
+      "param artifact sha256 == value passed",
+      "git HEAD == bound commit AND worktree clean",
+      "PYTHONUTF8=1"
+    ],
+    "primary_cost_bps": 10.0,
+    "primary_cost_provenance": "inherited ProgramSpec.turnover_cost_bps default (LOW-001 registered); sweep 0/10/25/50 is diagnostic",
+    "sensitivities_flag": "--with-sensitivities (screen $4/$1M, $6/$3M, unscreened full tape) \u2014 NAMED SENSITIVITY / NOT A VERDICT",
+    "status": "PREPARED, NOT EXECUTED",
+    "verdict_legs": {
+      "PASS": "H1 CI excludes zero AND book maxDD shallower than OP-6 equal-weight",
+      "REJECT": "CI spans zero AND dd advantage does not exceed the LOW-001 record",
+      "REVISE": "CI spans zero AND dd advantage vs eqw > LOW-001 record 0.3024"
+    },
+    "walk_forward_windows": 5
+  },
+  "execution_status": "NOT EXECUTED. No C3 result of any kind generated. Owner 2026-09-01: C3 = PROSPECTIVE DECISIVE CANDIDATE / UNEXECUTED; decisive execution AUTHORIZED only after PR #723 and PR #724 are merged, the OP-6 + universe_fn implementation identity is bound, this artifact's identity is final, the execution code commit is bound, the dataset digest is re-verified, and the worktree is clean.",
+  "falsifier": {
+    "compared_against": "Strategy 8 (low-volatility, id=8)",
+    "either": "SAME-FACTOR REDUNDANCY / no independent-diversification claim / do not tune around it",
+    "holdings_redundancy_overlap_gt": 0.85,
+    "return_redundancy_corr_gt": 0.85
+  },
+  "frozen_before_any_result": true,
+  "frozen_spec": "docs/design/NewStrategy/NewStrategy_FrozenResearchSpecs_2026-09-01_v1_2_FINAL.md",
+  "frozen_spec_sha256": "47a2e26201b6c68ab8105ee08f0169fe64cdd3bca67f63d864b4efa85af34998",
+  "program": "LOW-002 broader-universe low volatility",
+  "research_code_commit": "26cf4627e1a7745d65d0f4ad02389bbe873341d9",
+  "signal": {
+    "baseline": "equal_weight",
+    "construction": "quantile",
+    "factor": "low_vol",
+    "lookback_days": 252,
+    "sha256": "65521ae18014d0c5a588a56ffd72b3e7bbea615b67984e2218ab815f21922212",
+    "source": "app/research/factor_lab/configs.py LOW_001 ProgramSpec (B-3), UNCHANGED",
+    "top_quantile": 0.2,
+    "weighting": "equal_weight"
+  },
+  "universe": {
+    "OP6_tradability_screen": {
+      "adv_field": "median(close * volume) over trailing 63 calendar days >= 2,000,000 \u2014 the existing governed dollar_volume_universe convention, preserved (owner ruling 2026-09-01)",
+      "implementation": "app/research/factor_lab/op6_universe.py::op6_universe_asof",
+      "implementation_bytes": 4004,
+      "implementation_commit": "feat/c3-op6-universe-provider @ 561ff932 (PR #723, rebased onto origin/main 75ebb066; final merge commit stamped at execution qualification)",
+      "implementation_sha256": "7c1db96462e529aea27a5a7dea344c37712fe7419fe1ee15fd45bff45754dd71",
+      "measured": "PIT at each rebalance",
+      "min_close_usd": 5,
+      "min_median_dollar_adv_63d_usd": 2000000,
+      "pit": "lifetime straddle firstpricedate <= as_of <= lastpricedate, mirrors dollar_volume_universe (survivorship-free)",
+      "price_floor_field": "closeunadj (actually-traded nominal price) >= 5.0 \u2014 owner ruling 2026-09-01",
+      "security_type": "common stock, primary listing only",
+      "security_type_encoding": "tickers.category IN ('Domestic Common Stock','Domestic Common Stock Primary Class') AND exchange <> 'OTC'",
+      "tests": "tests/factor_data/test_op6_universe.py",
+      "tests_count": 18,
+      "tests_sha256": "6b30d57e10f8c9f5f0509b8e945f01b08da26750ddc66b1081fa88c148f77cc5"
+    },
+    "frozen_before_results": true,
+    "low001_baseline_tickers": 1254,
+    "source_store_tickers": 10492,
+    "widening_factor": 8.4
+  },
+  "universe_provider_seam": {
+    "b5_binding_note": "B-5 (f02a90fa...) is the pre-seam run_momentum_backtest; the seam is a narrowly scoped enabling amendment (owner ruling 2026-09-01 \u00a79), not a re-binding of MOM-001 economics. C1's insured book stays bound to B-5 semantics: universe_fn=None reproduces it exactly.",
+    "backtest_py_bytes_after_seam": 29944,
+    "backtest_py_sha256_after_seam": "bfc8ccb705b80ae98d1ac7bdfb474c8fdc6619bf30eabd5417f7d03153b4ba3e",
+    "default": "None -> universe_asof(store, d, n=n) (historical behaviour; equality of both curves asserted by test)",
+    "hook": [
+      "run_momentum_backtest(..., universe_fn=Callable[[FactorDataStore, date], list[str]] | None)",
+      "low_vol_scores(..., universe_fn=Callable[[FactorDataStore, date], list[str]] | None)"
+    ],
+    "invariant": "ONE provider object (op6_universe_asof) is passed as universe_fn to BOTH low_vol_scores (book cross-section) and run_momentum_backtest (equal-weight benchmark): C3 STRATEGY UNIVERSE == C3 BENCHMARK UNIVERSE == OP-6 SCREENED UNIVERSE. No runtime replacement of imported symbols.",
+    "low_vol_py_bytes_after_seam": 4043,
+    "low_vol_py_sha256_after_seam": "958ad06ba4ce4d5282a1322b960e8e4ace8b699c444fc5c620e53c7d0956b4b2"
+  },
+  "window": {
+    "end": "2026-07-02",
+    "start": "1997-12-31"
+  }
+}

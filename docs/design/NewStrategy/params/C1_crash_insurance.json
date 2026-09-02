@@ -1,0 +1,92 @@
+{
+  "acceptance": {
+    "OP1_max_calm_cagr_drag_pp_yr": 1.5,
+    "OP2_min_crises_meeting": 3,
+    "OP2_min_stress_maxdd_reduction_pp": 8,
+    "OP2_none_worsened": true,
+    "OP3_cvar5_sign_consistent": true,
+    "OP3_min_worst_month_improvement_pp": 2,
+    "OP4_depth": "CAP-020 frozen depth (B-1); swept only as a named sensitivity"
+  },
+  "acceptance_status": "OWNER RULING 2026-09-01 (amendment \u00a77 ruling 3 = OPTION B): C1 = NOT EVALUABLE UNDER CURRENT GOVERNED CORPUS. C1-CRISIS-ACCEPTANCE-CONFORMANCE-001 = TERMINAL FOR THIS TRANCHE / REQUIRED 3-OF-4 EVIDENCE UNAVAILABLE / NOT EVALUABLE. OP-2 is NOT weakened; acceptance values above are retained verbatim. NOT EVALUABLE != REJECTED. NO EXECUTION AUTHORITY; do not rerun with PYTHONUTF8=1 to obtain a result that cannot satisfy the governing rule.",
+  "binding_commit": "c674753fc85f029b980cccc480f4108683ebc0e7",
+  "candidate": "C1",
+  "crisis_evaluability": {
+    "covid_2020": "FROZEN CRISIS = EVALUABLE (33 days inside boundary)",
+    "dotcom_2000_2002": "FROZEN CRISIS = UNAVAILABLE UNDER CONFORMANT PRICE HISTORY (0 days inside boundary)",
+    "drawdown_2022": "FROZEN CRISIS = EVALUABLE (282 days inside boundary)",
+    "gfc_2007_2009": "FROZEN CRISIS = UNAVAILABLE UNDER CONFORMANT PRICE HISTORY (0 days inside boundary)",
+    "note": "All four frozen windows retained verbatim in stress_regimes_peak_trough. B-1 ENVIRONMENTS implements only covid_2020/bear_2022/bull_2023_24."
+  },
+  "custody_merge_commit": "26cf4627e1a7745d65d0f4ad02389bbe873341d9",
+  "dataset": {
+    "bytes": 678440960,
+    "path": "/opt/workbench/data/factor_data.deepen.duckdb",
+    "sha256": "bafc6007f20f6edb8c9fcc7c60b5f77a6d5bb5021a060f8d0bfa7191b768c97a"
+  },
+  "environment_requirements": {
+    "PYTHONUTF8": "1",
+    "reason": "C1-EXECUTION-DEFECT-001: cp1252 console encoding could not print U+0394; environment repair only, no logic/data/parameter/estimator/acceptance change"
+  },
+  "estimator": {
+    "block": 21,
+    "fn": "app.factor_data.evidence.paired_sharpe_diff_ci",
+    "n_resamples": 2000,
+    "provenance": "REGISTERED DEFAULTS from the bound B-4 artifact and ProgramSpec (bootstrap=2000, seed=17). NOT chosen by the operator.",
+    "seed": 17,
+    "sha256": "aa050f84293368ad55c494bc1fa1a8fb487726ac55963792b19e4c122f1a8bfb"
+  },
+  "executable_history_boundary": {
+    "derivation": "NewStrategy Amendment A (2026-09-01): earliest date after which the bound dataset continuously satisfies DEFAULT_MIN_NAMES=20 PIT-eligible names at every weekly rebalance (493/493 conformant); return-blind; owner-accepted 2026-09-01",
+    "end": "2026-06-12",
+    "start": "2017-01-06",
+    "status": "ACCEPTED / COMMON TO C1-C2-C3"
+  },
+  "execution_record": {
+    "decisive_result_observed": false,
+    "first_launch_2026-09-01T18:42Z": "C1-EXECUTION-DEFECT-001 console encoding crash on the headline print; all four books computed; no report artifact written; only the benchmark row reached the log"
+  },
+  "frozen_before_any_result": true,
+  "frozen_spec": "docs/design/NewStrategy/NewStrategy_FrozenResearchSpecs_2026-09-01_v1_2_FINAL.md",
+  "frozen_spec_sha256": "47a2e26201b6c68ab8105ee08f0169fe64cdd3bca67f63d864b4efa85af34998",
+  "insured_book": {
+    "b5_sha256": "f02a90fa5c56d14990868bfd2d618d46e1e9141760a477142e838ef3ad4eb42f",
+    "primary": "MOM-001 registered construction (B-5) run_momentum_backtest, unchanged",
+    "secondary_diagnostic": "equal-weight universe book"
+  },
+  "mechanism": {
+    "note": "CAP-020 200d-trend gross de-risk, UNCHANGED",
+    "sha256": "8890c4bebb8c1707d6f455282ece3a70ca2d7b50cdc8bac229dd2ca10ccfd2cb",
+    "source": "apps/backend/scripts/cap020_regime_validation.py"
+  },
+  "program": "FI-003 / CAP-022 crash-insurance overlay",
+  "required_stability": [
+    "trend-window neighbourhood sweep sign-preserved",
+    "leave-one-crisis-out: benefit survives excluding each named crisis"
+  ],
+  "research_code_commit": "26cf4627e1a7745d65d0f4ad02389bbe873341d9",
+  "stress_regimes_peak_trough": {
+    "covid_2020": [
+      "2020-02-19",
+      "2020-03-23"
+    ],
+    "dotcom_2000_2002": [
+      "2000-03-24",
+      "2002-10-09"
+    ],
+    "drawdown_2022": [
+      "2022-01-03",
+      "2022-10-12"
+    ],
+    "gfc_2007_2009": [
+      "2007-10-09",
+      "2009-03-09"
+    ]
+  },
+  "stress_window_provenance": "Canonical S&P 500 peak/trough dates, fixed BEFORE the run. Not fitted, not selected from results.",
+  "tranche_disposition": "NOT EVALUABLE / INSUFFICIENT GOVERNED CRISIS HISTORY. Future path = a prospective successor program on a corpus covering dotcom/GFC, or a newly frozen crisis-validation framework; a two-crisis successor is NOT equivalent to this C1 program.",
+  "window": {
+    "end": "2026-07-02",
+    "start": "1997-12-31"
+  }
+}
