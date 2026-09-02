@@ -755,6 +755,23 @@ class StrategyEngine:
         await self._notify_bar_stream_changed()
         return running
 
+    # SIP-CACHE-001 B3: optional demand registry. When wired, every transition out of
+    # ACTIVE revokes the strategy's demand leases immediately; lease expiry and the
+    # scheduler-tick reconciliation are the backstop if this process dies first.
+    _demand_registry: Any | None = None
+
+    def set_demand_registry(self, registry: Any | None) -> None:
+        self._demand_registry = registry
+
+    async def _revoke_demand(self, strategy_id: int, reason: str) -> None:
+        registry = self._demand_registry
+        if registry is None:
+            return
+        try:
+            await registry.revoke_for_strategy(strategy_id, reason=reason)
+        except Exception:
+            logger.exception("sip_demand_revoke_failed", strategy_id=strategy_id)
+
     async def unregister(
         self,
         strategy_id: int,
@@ -809,6 +826,7 @@ class StrategyEngine:
                 payload={"reason": reason},
             )
             await session.commit()
+        await self._revoke_demand(strategy_id, f"strategy_unregistered:{reason}")
 
         if closed_run_id is not None and closed_ended_at is not None:
             # SQLite drops tz on round-trip even with DateTime(timezone=True);
