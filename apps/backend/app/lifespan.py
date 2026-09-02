@@ -849,6 +849,67 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
             strategy_engine.set_bar_stream_service(bar_stream_service)
             await bar_stream_service.start()
 
+            # 11a. SIP-CACHE-001 B3: governed demand plane + refresh jobs. Guarded by
+            # sip_cache_enabled (default False) so the default startup is unchanged;
+            # inside, register_sip_jobs() registers nothing unless the per-profile flag
+            # AND every required capacity value are set. No acquisition happens here.
+            if settings.sip_cache_enabled:
+                from pathlib import Path as _Path
+
+                from app.market.session import default_market_session
+                from app.market_data.sip.cache import SipOperationalCache
+                from app.market_data.sip.demand import (
+                    ConsumerRegistry,
+                    DemandPlaneConfig,
+                    DemandUnion,
+                    NoFreshnessPolicy,
+                    artifact_sha256,
+                )
+                from app.market_data.sip.producer import SipProducer
+                from app.market_data.sip.scheduler import (
+                    SipRefreshDeps,
+                    register_sip_jobs,
+                )
+
+                _sip_config = DemandPlaneConfig.from_settings(settings)
+                sip_registry = ConsumerRegistry(
+                    session_factory, config=_sip_config, policy=NoFreshnessPolicy()
+                )
+                _artifact = _Path(settings.sip_consumer_registry_path)
+                if _artifact.exists():
+                    _verified = await sip_registry.verify_artifact(
+                        artifact_sha256(_artifact.read_bytes())
+                    )
+                else:
+                    _verified = False
+                    logger.error("sip_registry_artifact_missing", path=str(_artifact))
+                sip_union = DemandUnion(session_factory)
+                strategy_engine.set_demand_registry(sip_registry)
+                app.state.sip_registry = sip_registry
+                app.state.sip_union = sip_union
+                if _verified and settings.scheduler_enabled:
+                    _sip_deps = SipRefreshDeps(
+                        session_factory=session_factory,
+                        registry=sip_registry,
+                        union=sip_union,
+                        producer=SipProducer(session_factory),
+                        cache=SipOperationalCache(session_factory),
+                        market_session=default_market_session(),
+                        config=_sip_config,
+                        eod_settle_margin_s=settings.sip_eod_settle_margin_s or 0,
+                        eod_refresh_attempts=settings.sip_eod_refresh_attempts or 1,
+                        eod_min_coverage=settings.sip_eod_min_coverage,
+                        live_retention_hours=settings.sip_live_retention_hours,
+                        eod_retention_days=settings.sip_cache_retention_days,
+                        scheduler=scheduler.scheduler,
+                    )
+                    register_sip_jobs(scheduler.scheduler, settings, _sip_deps)
+                else:
+                    logger.info(
+                        "sip_scheduler_inert",
+                        reason="registry not verified or scheduler disabled",
+                    )
+
             # Stash for request handlers / tests
             app.state.alpaca_adapter = adapter
             app.state.asset_sync = asset_sync

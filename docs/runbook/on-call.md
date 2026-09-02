@@ -289,3 +289,26 @@ WAL checkpoint; rotate host logs via logrotate (out of scope for the workbench).
 **Check:** the metric name against §8.3 (the twelve `workbench_*` metrics).
 Cross-reference your Prometheus alerting rules. Alert-rule tuning is out of
 scope for this playbook.
+
+## "I see `SIP_DEMAND_*` / `SIP_READINESS_TRANSITION` / `SIP_ACQUISITION_FAILURE` events" (SIP-CACHE-001 B3)
+
+**What they are:** the governed SIP demand plane (B3). Three points are audited separately and must
+never be read as one: `SIP_DEMAND_REQUESTED` (a consumer asked), `SIP_DEMAND_ADMITTED` /
+`SIP_DEMAND_RENEWED` (the plane accepted the obligation), `SIP_DEMAND_SERVED` (data was actually
+acquired for that lease on a refresh). **A request is never proof of acquisition.** Consumer
+readiness is computed from `SERVED` evidence in `sip_cache_records`, never from `ADMITTED`.
+
+| Event | Meaning | Action |
+|---|---|---|
+| `SIP_CONSUMER_GRANT_ISSUED` / `_REVOKED` | An operator applied `config/sip_consumer_registry.v1.json` via `scripts/sip_apply_consumer_registry.py`. Payload carries the artifact sha256 and `applied_by`. | None unless unexpected — registrations come **only** from that artifact. An issuance with no matching PR to the artifact is an incident. |
+| `SIP_DEMAND_REJECTED` | A lease was refused; `payload.rejection` names why (`FRESHNESS_UNBOUND`, `PLANE_CAP_EXCEEDED`, `CONSUMER_CAP_EXCEEDED`, `PLANE_CAP_UNCONFIGURED`, `REASON_NOT_ALLOWED_FOR_PROFILE`, `GRANT_INVALID`, …). Rejected leases are **not** persisted and do not affect other consumers. | `FRESHNESS_UNBOUND`: the consumer has no governed SIP_LIVE freshness policy — expected until Strategy 9's policy is frozen; do **not** add a default. `*_UNCONFIGURED`: a required capacity setting is `None` in the prod overlay — governed value needed, never a guess. `PLANE_CAP_EXCEEDED`: the submission was refused whole; nothing was truncated. `GRANT_INVALID`: something tried to publish with a forged grant — treat as a security finding. |
+| `SIP_DEMAND_EXPIRED` / `SIP_DEMAND_REVOKED` / `SIP_DEMAND_WITHDRAWN` | Lease lifecycle. `REVOKED` with `reason=strategy_unregistered:*` is the engine hook; `reason=strategy_not_runnable` is the scheduler-tick reconciliation (the backstop when the runtime died first). | None. Expiry is the safety backstop by design. |
+| `SIP_DEMAND_UNION_MATERIALIZED` | The scheduler computed a profile's union (symbol count, strictest bound, lease ids). | None. Absent while both refresh jobs are disabled (the default). |
+| `SIP_READINESS_TRANSITION` | Per-profile readiness changed (`PASS` / `STALE` / `INCOMPLETE` / `ENTITLEMENT_FAIL` / `ABSENT`). Recomputed from the cache every evaluation; never inherited across restart. | `ENTITLEMENT_FAIL`: the **designated** producer (account 7 / fp `b56421a28128`) was refused SIP. Plane-wide, both profiles. **Never** substitute another credential, never revoke/rotate account 7 to "test", never read the MDQ archive. Recovery is a subsequent successful designated-producer request. |
+| `SIP_ACQUISITION_FAILURE` | A refresh failed for demanded symbols; `failure_class` is `entitlement` or the exception class — never the provider message wholesale, never a key. | Check the provider status / entitlement; the next tick retries (LIVE) or the next attempt within the session window (EOD, bounded by `sip_eod_refresh_attempts`). |
+
+**Enablement reminder:** both refresh jobs are **disabled by default** (`sip_eod_refresh_enabled` /
+`sip_live_refresh_enabled`, each also requiring `sip_cache_enabled`) and refuse to register while
+any required capacity value is `None`. Seeing the jobs registered on the box without a governed
+enablement decision is an incident. Enabling them is the SIP-CACHE-001 §19 step-4 proof and is
+**not** implied by any B3 merge.

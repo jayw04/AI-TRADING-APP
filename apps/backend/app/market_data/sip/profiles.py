@@ -10,11 +10,12 @@ and measured from the provider's ``source_timestamp``.
 ``SIP_LIVE`` and satisfy its readiness independently — a ``PASS`` on one profile says nothing about
 the other, and the readiness evaluator refuses to emit a single global verdict.
 
-⚠ **The ``SIP_LIVE`` maximum age is deliberately not frozen here.** It is consumer-specific and is
-set by the strategy execution policy that consumes it. The parameter exists from the first commit so
-the mechanism is never retrofitted; only the value is deferred. ``DEFAULT_LIVE_MAX_AGE_S`` below is
-an explicitly conservative placeholder for tests and for the producer's own polling cadence — it is
-**not** an authorized execution tolerance, and no consumer may inherit it by omission.
+⚠ **The ``SIP_LIVE`` maximum age is deliberately not defined here — or anywhere platform-side.**
+It is consumer-specific and is supplied only by the governed execution policy of the consumer that
+declares it (B3 Decision 3/5, ``app.market_data.sip.demand.FreshnessPolicyProvider``). The parameter
+exists from the first commit so the mechanism is never retrofitted; the value has no default, no
+inheritance, and no best-effort fallback. A LIVE consumer without a governed bound is refused
+``FRESHNESS_UNBOUND``.
 """
 
 from __future__ import annotations
@@ -28,9 +29,6 @@ class SipProfile(StrEnum):
     EOD = "SIP_EOD"
     LIVE = "SIP_LIVE"
 
-
-#: Conservative placeholder. See the module docstring: not an authorized execution tolerance.
-DEFAULT_LIVE_MAX_AGE_S = 30
 
 #: ``SIP_EOD`` tolerance, in completed trading days. 1 = "the last completed session".
 DEFAULT_EOD_MAX_AGE_TRADING_DAYS = 1

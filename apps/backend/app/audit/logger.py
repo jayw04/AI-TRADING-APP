@@ -226,6 +226,25 @@ class AuditAction(StrEnum):
     # no orders, no state change beyond the scanner_runs row.
     SCANNER_RUN = "SCANNER_RUN"
 
+    # SIP-CACHE-001 B3 (owner ruling 2026-09-02, B3 Decision 4). Demand is audited at
+    # three distinct points — REQUESTED (a consumer asked), ADMITTED (the plane accepted
+    # the obligation), SERVED (data was actually acquired for it) — because a published
+    # request is never proof that market data was acquired. Payloads carry identities
+    # and policy values, never secrets. Scenarios: docs/runbook/on-call.md.
+    SIP_CONSUMER_GRANT_ISSUED = "SIP_CONSUMER_GRANT_ISSUED"
+    SIP_CONSUMER_GRANT_REVOKED = "SIP_CONSUMER_GRANT_REVOKED"
+    SIP_DEMAND_REQUESTED = "SIP_DEMAND_REQUESTED"
+    SIP_DEMAND_ADMITTED = "SIP_DEMAND_ADMITTED"
+    SIP_DEMAND_REJECTED = "SIP_DEMAND_REJECTED"
+    SIP_DEMAND_RENEWED = "SIP_DEMAND_RENEWED"
+    SIP_DEMAND_WITHDRAWN = "SIP_DEMAND_WITHDRAWN"
+    SIP_DEMAND_EXPIRED = "SIP_DEMAND_EXPIRED"
+    SIP_DEMAND_REVOKED = "SIP_DEMAND_REVOKED"
+    SIP_DEMAND_UNION_MATERIALIZED = "SIP_DEMAND_UNION_MATERIALIZED"
+    SIP_DEMAND_SERVED = "SIP_DEMAND_SERVED"
+    SIP_READINESS_TRANSITION = "SIP_READINESS_TRANSITION"
+    SIP_ACQUISITION_FAILURE = "SIP_ACQUISITION_FAILURE"
+
 
 class AuditLogger:
     """Static helper for writing ``audit_log`` rows.
