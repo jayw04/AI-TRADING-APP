@@ -536,6 +536,7 @@ def run_momentum_backtest(
     vol_lookback_days: int = DEFAULT_VOL_LOOKBACK_DAYS,
     max_sector_pct: float | None = None,
     score_fn: Callable[[FactorDataStore, date], pd.DataFrame] | None = None,
+    universe_fn: Callable[[FactorDataStore, date], list[str]] | None = None,
 ) -> MomentumBacktestReport:
     """Weekly long-only top-quintile momentum backtest, survivorship-free.
 
@@ -577,6 +578,13 @@ def run_momentum_backtest(
 
     rebalances_all = _iso_week_last_trading_days(all_days)
 
+    # Universe provider seam (ADR-0051 research plane / OP-6). The default is the historical
+    # top-`n` dollar-volume universe, so callers that pass nothing are behaviourally unchanged.
+    # A caller supplying `universe_fn` governs the EQUAL-WEIGHT BASELINE universe; pairing it with
+    # a matching `score_fn` makes book and benchmark share one screened universe.
+    _universe = universe_fn if universe_fn is not None else (
+        lambda s, d: universe_asof(s, d, n=n))
+
     # Cache momentum scores per usable rebalance; record (and skip) thin ones.
     scores_by_date: dict[date, list[str]] = {}  # ranked tickers, best first
     universe_by_date: dict[date, list[str]] = {}
@@ -592,7 +600,7 @@ def run_momentum_backtest(
                 df = momentum_scores(store, d, n=n, lookback_days=lookback_days,
                                      skip_days=skip_days, min_names=min_names)
             scores_by_date[d] = list(df.index)
-            universe_by_date[d] = universe_asof(store, d, n=n)
+            universe_by_date[d] = _universe(store, d)
             rebalances.append(d)
         except (FactorUnavailable, UniverseUnavailable):
             skipped.append(d)
