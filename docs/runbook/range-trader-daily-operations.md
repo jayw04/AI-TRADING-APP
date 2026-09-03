@@ -125,6 +125,76 @@ WHERE s.strategy_id = 1 ORDER BY s.received_at DESC LIMIT 20;
 
 ---
 
+## 5. Buy/Sell-vs-High/Low history — the two membership rules
+
+`GET /api/v1/range-execution` → `range_execution_records` is **read-through**: querying a window
+materializes and *freezes* any completed day it does not already hold. Rows are never recomputed, so
+a wrong row is permanent until someone deletes it. Two defects have been fixed here; both were
+capable of writing permanent garbage from nothing more than an ordinary history query.
+
+| | Defect | Fixed by |
+|---|---|---|
+| 1 | **Cross-window roster union** — one symbol list for the whole window meant a query spanning a Top-5 rotation minted frozen blank rows for every rotated name on days it was never held | #390 → **#638** |
+| 2 | **Pre-history roster fallback** — with no signal evidence, membership fell back to the *current* roster, so a window opening before the first signal named whoever holds the rotating slot today | **#639** |
+
+The governing rule now is: **no membership evidence → no historical row creation.** A day's book is
+established only from that day's `range_levels` signals, or carried forward along a chain rooted in
+them. `capture_window` skips any day it cannot establish, and a fail-closed invariant
+(`range_capture_membership_overflow`) stops it adding to a date that already exceeds its
+evidence-backed membership.
+
+### ⚠ Do not remove the prune script's `evidence_based` guard
+
+**This is a deletion-safety boundary, not a leftover.** In
+`scripts/prune_range_execution_phantom_rows.py`:
+
+```python
+if not evidence_based(r.et_date):
+    skipped_no_evidence.add(r.et_date)
+    continue
+```
+
+Since #639, `_membership_by_day` returns the **empty set** for a day whose membership cannot be
+established. Empty means **"no evidence"** — it does *not* mean "the book held zero symbols". Every
+row on such a day therefore fails the `r.symbol in members` membership test and, without this guard,
+would be classified as a phantom and deleted.
+
+Concretely: the `range_levels` emit began **2026-07-06**. The 35 rows covering 2026-06-24..07-02 are
+real, owner-approved reconstructions of days the strategy genuinely traded. Remove the guard and a
+routine prune over a window that includes them **deletes all 35**.
+
+The asymmetry is deliberate and worth stating plainly: **capture and deletion are both conservative,
+but for different reasons.** Capture skips an unknown day because inventing membership fabricates
+history. Deletion skips an unknown day because assuming membership destroys it. Neither may fall
+back to the current roster.
+
+⚠ There is **no test covering the prune script**, so CI will not catch the guard's removal — see
+`tests/services/test_range_execution.py` for the capture-side coverage and treat the guard as
+change-controlled until equivalent coverage exists.
+
+### Verifying this path safely
+
+`capture_window` **commits whenever it inserts** and has no dry-run mode. Any validation of it must
+be **provably read-only or run against an isolated database copy** — never "a stub with benign
+inputs". On 2026-08-18 a validation stub that fabricated bars for every calendar day defeated the
+trading-day filter (which keys off bar presence) and wrote 50 weekend rows into the live database.
+
+The safe equivalent asserts the same property without a write path, by asking what capture *would*
+do: if no member-day in the window lacks a row, capture inserts zero regardless of the bar cache.
+
+```python
+# read-only: never calls capture_window, so it cannot commit
+levels  = await _levels_by_day(s, strat_id, d_from, d_to)
+members = await _membership_by_day(s, strat_id, levels, d_from, d_to)
+# then compare members[day] against the (symbol, et_date) rows already on file
+```
+
+Expected healthy state: **0 blank rows, 0 weekend rows, exactly 5 symbols on every day**, and no
+date whose symbols exceed `members[date]`. A newly-closed session showing up as 5 populated rows on
+the next query is normal read-through capture, not corruption.
+
+---
+
 ## Related
 - Strategy: `apps/backend/strategies_user/templates/range_trader.py`
 - Endpoint: `apps/backend/app/api/v1/range_levels.py` · Panel:
@@ -133,3 +203,7 @@ WHERE s.strategy_id = 1 ORDER BY s.received_at DESC LIMIT 20;
   gets stranded overnight by another book's loss.
 - Design: `docs/design/RangeTrading_Logic_and_Research_v0.1.md`,
   `docs/design/Range_BuySell_Formula_Study.md`.
+- History capture: `apps/backend/app/services/range_execution.py` · prune
+  `apps/backend/scripts/prune_range_execution_phantom_rows.py` · backfill
+  `apps/backend/scripts/backfill_range_execution_levels.py` (§5 above — read it before touching
+  either script).
