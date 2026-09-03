@@ -83,8 +83,10 @@ class EdgarClient:
         r.raise_for_status()
         return r.json()
 
-    def get_text(self, url: str) -> str:
+    def get_text(self, url: str, *, headers: dict[str, str] | None = None) -> str:
+        """GET text; optional extra headers (e.g. a Range header to read only an SGML
+        header block from a large full-submission archive file)."""
         self._throttle()
-        r = self._client.get(url)
+        r = self._client.get(url, headers=headers)
         r.raise_for_status()
         return r.text
