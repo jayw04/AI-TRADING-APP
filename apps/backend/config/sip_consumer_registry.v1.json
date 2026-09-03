@@ -1,0 +1,12 @@
+{
+  "schema_version": 1,
+  "title": "SIP-CACHE-001 consumer registry (B3 Decision 1 — explicit governed registration)",
+  "notes": [
+    "This artifact is the ONLY source of SIP consumer registrations. Nothing is seeded by discovery.",
+    "Apply with: python scripts/sip_apply_consumer_registry.py --expect-sha256 <sha> --applied-by <who> --apply",
+    "Every consumer that is allowed a profile MUST carry a positive symbol cap for it (B3 Decision 2).",
+    "The SIP_LIVE freshness bound is never stated here; freshness_policy_ref names the governed execution policy that supplies it (B3 Decision 3).",
+    "Ships EMPTY: Strategy 9's entry requires governed cap values and a frozen freshness policy, neither of which exists yet."
+  ],
+  "consumers": []
+}

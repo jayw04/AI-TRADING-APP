@@ -222,3 +222,35 @@ The §4 migration's `downgrade()` restores the plaintext `users.totp_secret` /
 an **emergency-only** path: after a downgrade, treat the DB as a
 "secrets-in-plaintext / data-is-leaked" state and rotate every credential
 immediately. It requires `WORKBENCH_MASTER_KEY` to decrypt.
+
+## 7. Workbench login password rotation — hash-only (CREDENTIAL-ROTATION-TOOL-CUSTODY-001)
+
+Governed tool: `scripts/rotate_user_passwords.py`. Two commands that never share an entry point:
+`rotate` (writes files, touches no database) and `verify` (read-only, writes nothing). Plaintext is
+generated in-process, written once to a 0600 file under `certs/` (gitignored), and never appears on
+stdout, in a log line, on a command line, or in anything that reaches SSM. The only thing that
+travels laptop -> box is the bcrypt hash.
+
+**Procedure (per exposed account, on the laptop, backend venv):**
+
+1. `python scripts/rotate_user_passwords.py rotate --users <id> --reason "<incident or finding id>"`
+   writes `certs/workbench_logins.md` (plaintext, 0600) and `certs/.rotation_hashes.json` (hashes).
+   The command prints counts and SHA-256 *fingerprints* of the hashes only.
+2. Transport the **hash** to the box (SSM/SSH session, never the argv of a logged command) and apply
+   it inside the backend container: `UPDATE users SET password_hash = :hash WHERE id = :id`.
+3. Revoke the account's existing sessions (section 3, leak scenarios) so the old credential cannot
+   ride on a live token.
+4. Export `{user_id: password_hash}` for the rotated ids from the box to `certs/stored_hashes.json`
+   and run `python scripts/rotate_user_passwords.py verify --stored-hashes certs/stored_hashes.json`.
+   `VERIFIED` proves the hash the box holds is the one this laptop generated, without moving plaintext.
+5. Resynchronize every governed local consumer of that password (`sudo workbench-sync-app-credential
+   --user <id> --verify` on the box; the human types the password once at a hidden TTY prompt).
+6. **Acceptance rule: login-tested, not file-updated.** The rotation is complete only when a real
+   login with the new credential succeeds for each consumer. A rewritten file, a green `verify`, or
+   an applied hash on its own is not completion; until the login test passes, every governed local
+   password file is invalid and the old credential is treated as live-compromised.
+
+What this tool does **not** do: it does not connect to any database, does not read `.env`, does not
+accept a password on the command line, and does not decide *which* accounts are exposed; that is the
+incident record's job. It is not, by itself, containment for an already-exposed credential;
+containment is the full sequence above, in order.

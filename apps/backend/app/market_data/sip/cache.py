@@ -14,6 +14,7 @@ the MDQ archive, never by substituting a credential, never by relaxing a toleran
 
 from __future__ import annotations
 
+from collections.abc import Iterable
 from datetime import UTC, date, datetime, timedelta
 from typing import Any
 
@@ -181,21 +182,56 @@ class SipOperationalCache:
             out.append(_to_record(row))
         return out
 
-    async def prune(self, retention_days: int, *, now: datetime | None = None) -> int:
+    async def prune(
+        self,
+        retention_days: int,
+        *,
+        now: datetime | None = None,
+        keep_newest_for: Iterable[str] | None = None,
+    ) -> int:
         """Delete rows whose ``trading_date`` is older than ``retention_days``.
 
         Bounded retention (§8). Deliberately keyed on ``trading_date`` rather than insertion time so
         a re-observed old session is still pruned on its own schedule.
+
+        ``keep_newest_for`` (B3): symbols under an ACTIVE demand lease. Their newest row is never
+        removed, so retention cannot delete data a registered consumer still depends on.
         """
         if retention_days <= 0:
             return 0
         cutoff = ((now or datetime.now(UTC)) - timedelta(days=retention_days)).date()
+        protected = set(keep_newest_for or ())
         async with self._sf() as s:
-            result = await s.execute(
-                delete(SipCacheRecord).where(SipCacheRecord.trading_date < cutoff)
-            )
-            await s.commit()
-        removed = int(result.rowcount or 0)
+            if not protected:
+                result = await s.execute(
+                    delete(SipCacheRecord).where(SipCacheRecord.trading_date < cutoff)
+                )
+                await s.commit()
+                removed = int(result.rowcount or 0)
+            else:
+                rows = (
+                    (
+                        await s.execute(
+                            select(SipCacheRecord).where(SipCacheRecord.trading_date < cutoff)
+                        )
+                    )
+                    .scalars()
+                    .all()
+                )
+                newest: dict[tuple[str, str], date] = {}
+                for r in (await s.execute(select(SipCacheRecord))).scalars().all():
+                    key = (r.symbol, r.profile)
+                    if r.symbol in protected and (
+                        key not in newest or r.trading_date > newest[key]
+                    ):
+                        newest[key] = r.trading_date
+                removed = 0
+                for r in rows:
+                    if newest.get((r.symbol, r.profile)) == r.trading_date:
+                        continue
+                    await s.delete(r)
+                    removed += 1
+                await s.commit()
         if removed:
             logger.info("sip_cache_pruned", removed=removed, cutoff=str(cutoff))
         return removed

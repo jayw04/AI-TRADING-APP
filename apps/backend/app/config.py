@@ -224,11 +224,34 @@ class Settings(BaseSettings):
     # credential fingerprint independently and refuses anything else. Changing this alone cannot
     # move acquisition to another account.
     sip_producer_account_id: int = 7
-    # Placeholder only. The real SIP_LIVE bound is per-consumer and is set by the strategy
-    # execution policy that consumes it (§6); no consumer may inherit this by omission.
-    sip_live_default_max_age_s: float = 30.0
+    # There is deliberately NO platform-level SIP_LIVE freshness value here (B3 Decision 5).
+    # The bound is per-consumer and comes only from that consumer's governed execution policy
+    # via FreshnessPolicyProvider; a LIVE consumer without one is refused FRESHNESS_UNBOUND.
     sip_eod_min_coverage: float = 1.0
     sip_cache_retention_days: int = 30
+    # --- SIP-CACHE-001 B3: demand plane + scheduler (inert by default) -----------
+    # Per-profile scheduler flags. Both default False; both ALSO require
+    # sip_cache_enabled. Enabling a refresh job is the separate §19 step-4 proof.
+    sip_eod_refresh_enabled: bool = False
+    sip_live_refresh_enabled: bool = False
+    # Capacity policy is NOT chosen by infrastructure (owner ruling, B3 Decision 2).
+    # Every value below is None until governed; None fails closed: leases for that
+    # profile are refused and the scheduler reports NOT READY. No silent default.
+    sip_live_plane_symbol_cap: int | None = None
+    sip_eod_plane_symbol_cap: int | None = None
+    sip_live_max_lease_s: float | None = None
+    sip_eod_max_lease_days: int | None = None
+    # Producer capability floor/ceiling for the LIVE cadence (rate-limit protection).
+    # A capability limit, not a freshness policy.
+    sip_live_min_interval_s: float | None = None
+    sip_live_max_interval_s: float | None = None
+    sip_live_retention_hours: int | None = None
+    # Seconds after the calendar close before the EOD snapshot is taken.
+    sip_eod_settle_margin_s: int | None = None
+    sip_eod_refresh_attempts: int | None = None
+    # Versioned registry artifact (B3 Decision 1). Applied by the governed script;
+    # verified (hash) at startup; never seeded by discovery.
+    sip_consumer_registry_path: str = "config/sip_consumer_registry.v1.json"
 
     factor_data_db_path: str = "data/factor_data.duckdb"
     # Local DuckDB store for the Research Engine subsystem (P10 Phase 2): the
