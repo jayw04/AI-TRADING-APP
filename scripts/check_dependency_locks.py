@@ -43,6 +43,10 @@ GOVERNED_PLATFORM = "x86_64-unknown-linux-gnu"
 GOVERNED_UV_VERSION = "0.12.0"
 GOVERNED_REQUIRES_PYTHON = ">=3.12,<3.13"
 GOVERNED_EXTRAS = ("dev",)
+# Resolution cutoff — see scripts/regenerate_dependency_locks.py for why this is part of the
+# governed tuple and how it may be advanced. Without it, `--recompile` below compares against
+# a moving index and can never be satisfied for longer than it takes upstream to publish.
+GOVERNED_EXCLUDE_NEWER = "2026-07-29T18:00:00Z"
 
 PROJECTS: dict[str, str] = {
     "backend": "apps/backend",
@@ -101,18 +105,44 @@ def unhashed(text: str) -> list[str]:
     return bad
 
 
+def generator_header(project: str, directory: str) -> str:
+    """The header the generator prepends to every constraints file.
+
+    Imported from the generator rather than re-implemented so the gate and the generator
+    cannot drift apart on the header format — a drift that would silently make the parity
+    comparison below unsatisfiable again.
+    """
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
+    from regenerate_dependency_locks import header
+
+    return header(project, directory)
+
+
 def recompile_one(project: str, directory: str, out: Path) -> tuple[bool, str]:
+    """Re-resolve into ``out``, reproducing exactly what the generator commits.
+
+    ``uv`` runs with --no-header and therefore emits only the resolved body, while the
+    committed file is ``header(...) + body``. Comparing the bare body against the committed
+    file is unsatisfiable by construction, so the governed header is prepended here before
+    the caller's byte comparison.
+    """
+    raw = out.with_name(out.name + ".raw")
     cmd = [
         "uv", "pip", "compile", f"{directory}/pyproject.toml",
         *sum([["--extra", e] for e in GOVERNED_EXTRAS], []),
         "--python-version", GOVERNED_PYTHON,
         "--python-platform", GOVERNED_PLATFORM,
         "--generate-hashes", "--no-header",
-        "--output-file", str(out),
+        "--exclude-newer", GOVERNED_EXCLUDE_NEWER,
+        "--output-file", str(raw),
     ]
     p = subprocess.run(cmd, cwd=REPO_ROOT, capture_output=True, text=True)
     if p.returncode != 0:
         return False, f"uv pip compile failed: {p.stderr.strip()[:300]}"
+    out.write_text(
+        generator_header(project, directory) + raw.read_text(encoding="utf-8"),
+        encoding="utf-8",
+    )
     return True, ""
 
 
@@ -156,7 +186,8 @@ def main(argv: list[str] | None = None) -> int:
 
         for label, value in (("python", GOVERNED_PYTHON_FULL),
                              ("platform", GOVERNED_PLATFORM),
-                             ("uv", GOVERNED_UV_VERSION)):
+                             ("uv", GOVERNED_UV_VERSION),
+                             ("exclude-newer cutoff", GOVERNED_EXCLUDE_NEWER)):
             if value not in text:
                 errors.append(
                     f"{cpath.name}: header does not record the governed {label} ({value}); "
