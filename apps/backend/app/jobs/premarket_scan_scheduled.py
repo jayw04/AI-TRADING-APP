@@ -33,26 +33,23 @@ async def run_premarket_scan_scheduled(
     gappers file missing/stale, etc.). Logs completion; never raises into the scheduler.
     """
     if factor_store is None:
-        logger.warning(
-            "premarket_scan_scheduled_skipped",
-            reason="factor_store_unavailable"
-        )
+        logger.warning("premarket_scan_scheduled_skipped", reason="factor_store_unavailable")
         return None
 
     try:
         from app.services.premarket_evidence import record_premarket_scan
 
         record = record_premarket_scan(
-            factor_store.con,
+            factor_store,  # the store itself: run_premarket_scan reads ``store.con``
             asof=date.today(),
             directory=directory,
-            top_n=15
+            top_n=15,
         )
         logger.info(
             "premarket_scan_scheduled_complete",
             asof=record.get("asof"),
             candidates=record.get("funnel", {}).get("candidate_count"),
-            path=record.get("_path")
+            path=record.get("_path"),
         )
         return record
     except Exception:
