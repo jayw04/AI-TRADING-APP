@@ -100,9 +100,11 @@ def test_backup_prunes_past_retention(tmp_path: Path) -> None:
     _make_db(src)
     stale = dest / "workbench-2026-07-01.sqlite"
     stale.write_bytes(b"stale")
-    old_mtime = (datetime.now(UTC) - timedelta(days=40)).timestamp()
-    os.utime(stale, (old_mtime, old_mtime))
     now = datetime(2026, 8, 26, 6, 0, tzinfo=UTC)
+    # Age the file against the simulated clock the run uses, not the wall clock, so the test
+    # does not stop pruning once the real date drifts past the simulated one.
+    old_mtime = (now - timedelta(days=40)).timestamp()
+    os.utime(stale, (old_mtime, old_mtime))
     result = run_sqlite_backup(db_path=src, backup_dir=dest, today_utc=now, retention_days=30)
     assert result["pruned"] == 1
     assert not stale.exists()
