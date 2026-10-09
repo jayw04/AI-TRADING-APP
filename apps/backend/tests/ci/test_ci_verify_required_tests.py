@@ -248,17 +248,22 @@ def test_cli_exit_code_is_the_process_exit_code(tmp_path: Path) -> None:
 
 
 def test_committed_manifest_is_valid_and_covers_the_named_tests() -> None:
+    """The committed manifest lists ONLY tests that exist in the PR that carries it (PR 2 here)."""
     reqs = load_manifest(REAL_MANIFEST)
     ids = {r.node_id.split("::", 1)[1] for r in reqs}
-    for needed in (
+    assert ids == {
         "test_symlink_target_refused_and_nothing_written_through_it",
         "test_dangling_symlink_target_refused",
         "test_symlinked_manifest_refused",
         "test_canary_symlinks_work_on_linux",
-        "test_f9_symlink_alias_shares_the_lock",
-        "test_canary_lock_backend_matches_the_platform",
-        "test_the_real_backend_excludes_a_second_holder",
-    ):
-        assert needed in ids
-    assert all(r.pending_pr == "3" for r in reqs if r.phase == "pr3")
-    assert all(r.pending_pr is None for r in reqs if r.phase == "pr2")
+    }
+    assert all(r.phase == "pr2" and r.pending_pr is None for r in reqs)
+    backend = REAL_MANIFEST.parents[1]
+    for r in reqs:
+        test_file = backend / r.node_id.split("::", 1)[0]
+        assert test_file.is_file(), (
+            f"manifest lists a test file absent from this checkout: {r.node_id}"
+        )
+        assert f"def {r.node_id.split('::', 1)[1].split('[')[0]}" in test_file.read_text(
+            encoding="utf-8"
+        )
