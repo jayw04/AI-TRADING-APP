@@ -9,14 +9,16 @@ must not be able to choose for itself:
   authorized run evaluates all frozen exit candidates and baselines together). These are run
   counts, NOT trade-count minimums (the D17 sample-size numbers are a separate, undecided matter).
 
-Both are bound to a reviewed git change: editing the committed file is a normal PR. Every value
+Both are intended to change only through a reviewed git change (a process control, not enforced by
+this code). Every value
 ships UNSET (``null``); this module never invents, defaults or approves one. An unset or partly
-set manifest means "not approved", and every consumer (``freeze_spec``, the results guard)
-refuses to proceed on it.
+set manifest means "not approved", and every consumer (``freeze_spec`` here; the results guard in the PR that
+adds governance) refuses to proceed on it.
 
-Where it lives: a FIXED repo-relative path (:data:`MANIFEST_RELPATH`). Callers cannot name a
-different file in production; tests inject a synthetic file through the explicit ``path``
-parameter of :func:`load_manifest` only.
+Where it lives: a FIXED repo-relative path (:data:`MANIFEST_RELPATH`). The CLI and the default
+loader read only that path. ``load_manifest(path)`` and ``freeze(..., manifest_path=)`` are public
+Python APIs that accept a path as a TEST SEAM; they are not a defence against a caller who can
+run arbitrary Python (Level 2).
 
 Threat model (Level 1: accidental misuse, casual bypass, crashes, wrong paths). What this defends:
 a spec or a registry that carries a genesis id the owner did not approve (a new directory with a
@@ -165,7 +167,11 @@ def parse_manifest(payload: Any) -> GovernanceManifest:
             f"missing={sorted(_KEYS - keys)} unknown={sorted(keys - _KEYS)}"
         )
     version = payload["schema_version"]
-    if isinstance(version, bool) or version != MANIFEST_SCHEMA_VERSION:
+    if (
+        not isinstance(version, int)
+        or isinstance(version, bool)
+        or version != MANIFEST_SCHEMA_VERSION
+    ):
         raise ManifestInvalidError(f"schema_version must be {MANIFEST_SCHEMA_VERSION}")
     genesis = payload["approved_registry_genesis_id"]
     if genesis is not None and not is_canonical_uuid4(genesis):
@@ -179,6 +185,8 @@ def parse_manifest(payload: Any) -> GovernanceManifest:
         if not isinstance(approved_on_raw, str):
             raise ManifestInvalidError("approved_on must be null or an ISO date string")
         try:
+            if len(approved_on_raw) != 10:
+                raise ValueError("expected YYYY-MM-DD")
             approved_on = date.fromisoformat(approved_on_raw)
         except ValueError as exc:
             raise ManifestInvalidError(f"approved_on is not an ISO date: {exc}") from exc

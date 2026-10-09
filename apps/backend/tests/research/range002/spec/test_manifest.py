@@ -323,3 +323,30 @@ def test_loads_strict_refuses_float_overflow_to_infinity(text):
 
 def test_loads_strict_still_accepts_ordinary_floats():
     assert loads_strict("[1.5, 1e3, 0.0, -2.5e-3]") == [1.5, 1000.0, 0.0, -0.0025]
+
+
+def test_schema_version_float_and_basic_date_forms_are_refused(tmp_path):
+    import json
+
+    from app.research.range002.spec.manifest import ManifestInvalidError, load_manifest
+
+    base = {
+        "schema_version": 1,
+        "approved_registry_genesis_id": None,
+        "approved_by": None,
+        "approved_on": None,
+        "p3_attempt_limits": {"p3a": None, "p3b": None},
+        "notes": "x",
+    }
+    for mutate in (
+        {"schema_version": 1.0},
+        {
+            "approved_registry_genesis_id": "12345678-1234-4234-8234-123456789abc",
+            "approved_by": "someone",
+            "approved_on": "20000101",
+        },
+    ):
+        path = tmp_path / "m.json"
+        path.write_text(json.dumps({**base, **mutate}), encoding="utf-8")
+        with pytest.raises(ManifestInvalidError):
+            load_manifest(path)
