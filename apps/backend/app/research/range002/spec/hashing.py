@@ -65,6 +65,13 @@ def _reject_constant(name: str) -> Any:
     raise CanonicalisationError(f"non-finite constant {name} is not allowed")
 
 
+def _parse_finite_float(text: str) -> float:
+    value = float(text)
+    if not math.isfinite(value):  # "1e999" overflows to inf without going through parse_constant
+        raise CanonicalisationError(f"non-finite number {text!r} (float overflow) is not allowed")
+    return value
+
+
 def loads_strict(raw: bytes | str) -> Any:
     """Parse governed JSON: duplicate keys and NaN/Infinity are refused (a repeat key could hide
     a value from a reviewer). Shared by the spec loader and the exposure ledger so both files obey
@@ -72,7 +79,10 @@ def loads_strict(raw: bytes | str) -> Any:
     try:
         text = raw.decode("utf-8") if isinstance(raw, bytes) else raw
         return json.loads(
-            text, object_pairs_hook=_no_duplicate_keys, parse_constant=_reject_constant
+            text,
+            object_pairs_hook=_no_duplicate_keys,
+            parse_constant=_reject_constant,
+            parse_float=_parse_finite_float,
         )
     except CanonicalisationError:
         raise

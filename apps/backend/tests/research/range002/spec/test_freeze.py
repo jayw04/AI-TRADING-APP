@@ -16,7 +16,7 @@ from app.research.range002.spec.loader import (
     load_frozen,
 )
 
-from ._fixtures import complete_payload, set_path
+from ._fixtures import SYNTH_MANIFEST_PATH, complete_payload, set_path
 
 BACKEND_DIR = Path(__file__).resolve().parents[4]
 CLI_SCRIPT = BACKEND_DIR / "scripts" / "research" / "range002" / "freeze_spec.py"
@@ -30,7 +30,33 @@ def _load_cli():
     return module
 
 
-cli = _load_cli()
+class _Cli:
+    """The freeze tool with the synthetic manifest injected (production reads only the fixed
+    committed path; the explicit ``manifest_path`` parameter exists for tests)."""
+
+    def __init__(self, module, manifest_path):
+        self._m = module
+        self._manifest_path = manifest_path
+
+    def main(self, argv):
+        return self._m.main(argv, manifest_path=self._manifest_path)
+
+    def freeze(self, draft, out, **kw):
+        kw.setdefault("manifest_path", self._manifest_path)
+        return self._m.freeze(draft, out, **kw)
+
+    def __getattr__(self, name):
+        return getattr(self._m, name)
+
+    def __setattr__(self, name, value):  # monkeypatch.setattr(cli, "load_frozen", ...) patches
+        if name in ("_m", "_manifest_path"):  # the real module, as before the proxy existed
+            object.__setattr__(self, name, value)
+        else:
+            setattr(self._m, name, value)
+
+
+raw_cli = _load_cli()
+cli = _Cli(raw_cli, SYNTH_MANIFEST_PATH)
 
 
 def _write(path: Path, payload: dict) -> Path:

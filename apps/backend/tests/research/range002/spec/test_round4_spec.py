@@ -29,11 +29,11 @@ from app.research.range002.spec.schema import (
     draft_skeleton,
 )
 
-from ._fixtures import complete_payload, set_path
+from ._fixtures import SYNTH_GENESIS_ID, complete_payload, set_path
 from .test_freeze import cli
 
-GENESIS_32 = "0123456789abcdef" * 2
-GENESIS_64 = "ab" * 32
+GENESIS_32 = "0123456789abcdef" * 2  # legacy 32-hex shape: now REJECTED
+GENESIS_64 = "ab" * 32  # legacy 64-hex shape: now REJECTED
 
 
 def _problems(payload: dict) -> str:
@@ -65,7 +65,22 @@ def test_registry_genesis_id_key_is_required_not_defaulted():
 
 @pytest.mark.parametrize(
     "bad",
-    ["xyz", "", "AB" * 16, "ab" * 15, "ab" * 20, "ab" * 33, "g" * 32, 12345, " " + "a" * 31],
+    [
+        "xyz",
+        "",
+        12345,
+        GENESIS_32,  # the legacy hex shapes are no longer accepted
+        GENESIS_64,
+        SYNTH_GENESIS_ID.upper(),  # not lowercase
+        SYNTH_GENESIS_ID.replace("-", ""),  # no hyphens
+        "{" + SYNTH_GENESIS_ID + "}",
+        "urn:uuid:" + SYNTH_GENESIS_ID,
+        " " + SYNTH_GENESIS_ID,
+        SYNTH_GENESIS_ID + "\n",
+        "5eed5eed-5eed-1eed-9eed-5eed5eed5eed",  # version 1, not 4
+        "5eed5eed-5eed-4eed-1eed-5eed5eed5eed",  # bad variant
+        "00000000-0000-0000-0000-000000000000",  # nil UUID
+    ],
 )
 def test_registry_genesis_id_rejects_malformed_values(bad):
     payload = complete_payload()
@@ -73,8 +88,8 @@ def test_registry_genesis_id_rejects_malformed_values(bad):
     assert "governance.registry_genesis_id" in _problems(payload)
 
 
-@pytest.mark.parametrize("good", [GENESIS_32, GENESIS_64])
-def test_registry_genesis_id_accepts_32_or_64_hex(good):
+@pytest.mark.parametrize("good", [SYNTH_GENESIS_ID, "0badc0de-0bad-4ade-8bad-0badc0de0bad"])
+def test_registry_genesis_id_accepts_canonical_uuid4(good):
     payload = complete_payload()
     set_path(payload, "governance.registry_genesis_id", good)
     FrozenSpec.from_draft(parse_draft(payload))
@@ -83,7 +98,7 @@ def test_registry_genesis_id_accepts_32_or_64_hex(good):
 def test_registry_genesis_id_is_in_the_spec_hash():
     a = complete_payload()
     b = complete_payload()
-    set_path(b, "governance.registry_genesis_id", GENESIS_32)
+    set_path(b, "governance.registry_genesis_id", "0badc0de-0bad-4ade-8bad-0badc0de0bad")
     assert loader.spec_sha256(parse_draft(a)) != loader.spec_sha256(parse_draft(b))
 
 

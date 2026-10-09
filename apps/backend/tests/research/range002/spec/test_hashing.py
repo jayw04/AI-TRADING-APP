@@ -15,7 +15,7 @@ from app.research.range002.spec.hashing import (
 )
 from app.research.range002.spec.loader import parse_draft, spec_sha256
 
-from ._fixtures import P0_PATHS, complete_payload, get_path, set_path
+from ._fixtures import OTHER_GENESIS_ID, P0_PATHS, complete_payload, get_path, set_path
 
 
 def test_key_order_does_not_change_canonical_bytes():
@@ -101,7 +101,7 @@ def test_changing_any_p0_field_changes_the_hash(path):
     elif path == "governance.economic_thesis_sha":
         edited["governance"]["economic_thesis_sha"] = "cd" * 32
     elif path == "governance.registry_genesis_id":
-        edited["governance"]["registry_genesis_id"] = "cd" * 16
+        edited["governance"]["registry_genesis_id"] = OTHER_GENESIS_ID
     elif path == "execution.bar_timestamp_convention":
         edited["execution"]["bar_timestamp_convention"] = "end"
     elif path == "execution.crossed_before_arm_policy":

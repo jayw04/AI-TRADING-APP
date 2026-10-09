@@ -1,0 +1,11 @@
+{
+  "schema_version": 1,
+  "approved_registry_genesis_id": null,
+  "approved_by": null,
+  "approved_on": null,
+  "p3_attempt_limits": {
+    "p3a": null,
+    "p3b": null
+  },
+  "notes": "UNSET. RANGE-002 governance manifest (Round 5 N-A). approved_registry_genesis_id, approved_by, approved_on and p3_attempt_limits are OWNER decisions and are deliberately null: nothing may freeze a spec or authorize a decisive run until the owner fills them in through a reviewed git change. Approval is all-or-nothing for the genesis triple. Level 1 only: a copied registry keeps its genesis id and filesystem edits of this file are Level 2 limitations."
+}

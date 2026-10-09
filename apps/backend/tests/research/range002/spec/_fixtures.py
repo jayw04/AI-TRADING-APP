@@ -2,8 +2,17 @@
 
 from __future__ import annotations
 
+import atexit
 import copy
+import json
+import os
+import shutil
+import sys
+import tempfile
+from pathlib import Path
 from typing import Any
+
+import pytest
 
 from app.research.range002.spec.schema import draft_skeleton
 
@@ -16,7 +25,8 @@ SIGNOFF = {
 }
 
 #: Synthetic registry genesis id; governance test helpers enroll registries carrying exactly this id.
-SYNTH_GENESIS_ID = "5eed" * 8
+SYNTH_GENESIS_ID = "5eed5eed-5eed-4eed-9eed-5eed5eed5eed"  # canonical lowercase UUIDv4
+OTHER_GENESIS_ID = "0badc0de-0bad-4ade-8bad-0badc0de0bad"  # a different valid UUIDv4
 
 CANDIDATES = [
     {"id": "X1", "family": "time", "params": {}},
@@ -121,3 +131,61 @@ def complete_payload(*, signed: bool = True) -> dict[str, Any]:
     if signed:
         payload["signoff"] = dict(SIGNOFF)
     return payload
+
+
+# --- synthetic governance manifest (Round 5 N-A). Never a real approval: tests inject it through
+# the explicit ``manifest_path`` parameter; production code reads only the committed fixed path.
+SYNTH_P3A_LIMIT = 9  # equals _P0_VALUES["p3.max_p3a_attempts"]
+SYNTH_P3B_LIMIT = 8  # equals _P0_VALUES["p3.max_p3b_attempts"]
+
+
+def synthetic_manifest_payload(**overrides: Any) -> dict[str, Any]:
+    payload: dict[str, Any] = {
+        "schema_version": 1,
+        "approved_registry_genesis_id": SYNTH_GENESIS_ID,
+        "approved_by": "SYNTH-OWNER",
+        "approved_on": "2000-01-01",
+        "p3_attempt_limits": {"p3a": SYNTH_P3A_LIMIT, "p3b": SYNTH_P3B_LIMIT},
+        "notes": "synthetic test manifest",
+    }
+    payload.update(overrides)
+    return payload
+
+
+def write_manifest(path: Path, payload: dict[str, Any] | None = None) -> Path:
+    path.write_text(
+        json.dumps(synthetic_manifest_payload() if payload is None else payload),
+        encoding="utf-8",
+        newline="\n",
+    )
+    return path
+
+
+_SYNTH_DIR = tempfile.mkdtemp(prefix="range002-synth-manifest-")
+atexit.register(shutil.rmtree, _SYNTH_DIR, ignore_errors=True)
+#: A pre-written, approved synthetic manifest matching SYNTH_GENESIS_ID and the synthetic limits.
+SYNTH_MANIFEST_PATH = write_manifest(Path(_SYNTH_DIR) / "manifest.json")
+
+
+# --- links: a skip must never hide a test on Linux (CI) ------------------------------------------
+def _link_unavailable(what: str, exc: BaseException) -> None:
+    if sys.platform.startswith("linux"):
+        pytest.fail(f"{what} creation failed on Linux, where it must work (never skipped): {exc!r}")
+    pytest.skip(f"SKIPPED (not passed): {what} unavailable on {sys.platform}: {exc!r}")
+
+
+def make_symlink(link: Path, target: Path) -> None:
+    """Create a symlink. Skips ONLY off Linux when the OS/user cannot; on Linux a failure FAILS
+    the test, so a green Linux job proves the symlink-dependent test actually executed."""
+    try:
+        link.symlink_to(target)
+    except (OSError, NotImplementedError) as exc:
+        _link_unavailable("symlink", exc)
+
+
+def make_hardlink(link: Path, target: Path) -> None:
+    """Same policy as :func:`make_symlink`, for hard links."""
+    try:
+        os.link(target, link)
+    except (OSError, NotImplementedError) as exc:
+        _link_unavailable("hard link", exc)

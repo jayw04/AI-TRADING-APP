@@ -32,6 +32,8 @@ from pydantic import (
     model_validator,
 )
 
+from app.research.range002.spec.genesis import is_canonical_uuid4
+
 EXIT_FAMILIES: tuple[str, ...] = ("time", "fixed_r", "trailing", "scale_out")
 MAX_EXIT_CANDIDATES = 8
 
@@ -41,7 +43,6 @@ _NON_P0_NULLABLE = frozenset({"registration.trial_ledger_id"})
 
 _ID_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_\-]{0,31}$")
 _SHA_RE = re.compile(r"^[0-9a-f]{64}$")
-_GENESIS_RE = re.compile(r"^(?:[0-9a-f]{32}|[0-9a-f]{64})$")
 
 
 class UnsetP0FieldsError(ValueError):
@@ -444,8 +445,8 @@ class Governance(_OpenFieldsModel):
     exposure_signed: OpenValue  # P0: D01
     # Round 4 (N1): the genesis id of the one run registry this spec may open runs in. Created by
     # RunRegistry.enroll_new and copied here by the owner BEFORE freezing; unset at draft, no
-    # default. 32-hex (a 128-bit random id) or 64-hex. Level 1: it binds a spec to a registry
-    # file's genesis row; it does not authenticate who enrolled that registry.
+    # default. A canonical lowercase UUIDv4 string (uuid.uuid4()). Level 1: an identity marker
+    # that binds a spec to a registry file's genesis row; it is NOT authentication.
     registry_genesis_id: str | None  # P0
 
     @field_validator("economic_thesis_sha")
@@ -458,8 +459,8 @@ class Governance(_OpenFieldsModel):
     @field_validator("registry_genesis_id")
     @classmethod
     def _genesis_ok(cls, v: str | None) -> str | None:
-        if v is not None and not _GENESIS_RE.fullmatch(v):
-            raise ValueError("must be a lowercase 32-hex or 64-hex registry genesis id")
+        if v is not None and not is_canonical_uuid4(v):
+            raise ValueError("must be a canonical lowercase UUIDv4 registry genesis id")
         return v
 
 

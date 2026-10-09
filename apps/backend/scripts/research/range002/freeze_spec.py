@@ -5,7 +5,10 @@
     freeze_spec.py DRAFT --out FROZEN        validate, refuse unless complete, write frozen spec
     freeze_spec.py --verify FROZEN           re-load a frozen spec and report its status
 
-Freezing REFUSES (exit 2) unless every P0 field is set AND the human sign-off fields (owner,
+Freezing REFUSES (exit 2) unless the committed, OWNER-APPROVED governance manifest
+(docs/implementation/evidence/range_002/RANGE-002_governance_manifest.json, fixed path) names a
+registry genesis id equal to the spec's and pre-registered P3 attempt limits equal to the spec's
+(Round 5 N-A; an unset/null manifest refuses), unless every P0 field is set AND the human sign-off fields (owner,
 trading_expert, independent_validator, date) are already present in the draft. This tool never
 fabricates a sign-off and never picks a value for an open decision (rule R9). It computes
 ``signoff.spec_sha256`` itself, never overwrites an existing frozen file, and does no data access.
@@ -30,6 +33,7 @@ from app.research.range002.spec.loader import (  # noqa: E402
     load_frozen,
     spec_sha256,
 )
+from app.research.range002.spec.manifest import ManifestError, load_manifest  # noqa: E402
 from app.research.range002.spec.schema import (  # noqa: E402
     FrozenSpec,
     SignoffMissingError,
@@ -53,14 +57,26 @@ def _write_new(path: Path, text: str) -> None:
         fh.write(text)
 
 
-def freeze(draft_path: Path, out_path: Path) -> str:
-    """Return the spec_sha256 of the written frozen file, or raise."""
+def freeze(draft_path: Path, out_path: Path, *, manifest_path: Path | None = None) -> str:
+    """Return the spec_sha256 of the written frozen file, or raise.
+
+    ``manifest_path`` is a TEST seam only; the CLI never exposes it, so production always reads
+    the committed governance manifest at its fixed repo-relative path. Freezing is refused unless
+    that manifest is owner-approved (non-null genesis) and the spec's registry genesis id and
+    P3A/P3B attempt limits equal the manifest's. Level 1 gate: editing the manifest on disk is a
+    Level 2 limitation (the committed file is protected by git review, not by this tool).
+    """
     if out_path.is_symlink() or out_path.exists():
         raise FileExistsError(
             f"{out_path} exists; a frozen spec is immutable and never overwritten"
         )
+    manifest = load_manifest(manifest_path)  # ManifestError subclasses fail closed
+    manifest.require_genesis()
+    manifest.require_limits()
     spec = load_draft(draft_path)
     FrozenSpec.from_draft(spec)  # UnsetP0FieldsError naming every unset P0 field
+    manifest.check_genesis(spec.governance.registry_genesis_id, what="spec")
+    manifest.check_limits(spec.p3.max_p3a_attempts, spec.p3.max_p3b_attempts)
     missing = spec.missing_signoff_fields()
     if missing:
         raise SignoffMissingError(missing)
@@ -87,7 +103,7 @@ def freeze(draft_path: Path, out_path: Path) -> str:
     return digest
 
 
-def main(argv: list[str] | None = None) -> int:
+def main(argv: list[str] | None = None, *, manifest_path: Path | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawTextHelpFormatter)
     ap.add_argument("draft", nargs="?", type=Path, help="draft spec to freeze")
     ap.add_argument("--out", type=Path, help="frozen spec path to create (must not exist)")
@@ -108,7 +124,7 @@ def main(argv: list[str] | None = None) -> int:
             return EXIT_OK if view.is_signed else EXIT_REFUSED
         if not args.draft or not args.out:
             ap.error("DRAFT and --out are required to freeze")
-        digest = freeze(args.draft, args.out)
+        digest = freeze(args.draft, args.out, manifest_path=manifest_path)
         print(f"frozen {args.out}\nspec_sha256={digest}")
         return EXIT_OK
     except (
@@ -116,6 +132,7 @@ def main(argv: list[str] | None = None) -> int:
         SignoffMissingError,
         SpecSchemaError,
         SpecHashMismatchError,
+        ManifestError,
         FileExistsError,
     ) as exc:
         print(f"REFUSED: {exc}", file=sys.stderr)
