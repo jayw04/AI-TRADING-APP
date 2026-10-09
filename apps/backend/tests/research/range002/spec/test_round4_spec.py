@@ -131,6 +131,24 @@ def test_attempt_limit_fields_reject_non_positive_or_non_int(field, bad):
 
 
 @pytest.mark.parametrize("field", ["max_p3a_attempts", "max_p3b_attempts"])
+@pytest.mark.parametrize("bad", [10_001, 10**9])
+def test_attempt_limit_fields_reject_values_above_the_technical_bound(field, bad):
+    payload = complete_payload()
+    set_path(payload, f"p3.{field}", bad)
+    with pytest.raises((SpecSchemaError, ValueError)):
+        parse_draft(payload)
+
+
+@pytest.mark.parametrize("field", ["max_p3a_attempts", "max_p3b_attempts"])
+def test_attempt_limit_at_the_technical_bound_still_validates(field):
+    from app.research.range002.spec.limits import MAX_ATTEMPT_LIMIT
+
+    payload = complete_payload()
+    set_path(payload, f"p3.{field}", MAX_ATTEMPT_LIMIT)
+    assert getattr(parse_draft(payload).p3, field) == MAX_ATTEMPT_LIMIT
+
+
+@pytest.mark.parametrize("field", ["max_p3a_attempts", "max_p3b_attempts"])
 def test_attempt_limit_key_is_required_not_defaulted(field):
     payload = complete_payload()
     del payload["p3"][field]

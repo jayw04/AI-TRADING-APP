@@ -33,6 +33,7 @@ from pydantic import (
 )
 
 from app.research.range002.spec.genesis import is_canonical_uuid4
+from app.research.range002.spec.limits import MAX_ATTEMPT_LIMIT
 
 EXIT_FAMILIES: tuple[str, ...] = ("time", "fixed_r", "trailing", "scale_out")
 MAX_EXIT_CANDIDATES = 8
@@ -407,6 +408,14 @@ class P3(_OpenFieldsModel):
     # of that phase for this spec hash (failed and aborted included) exceeds it.
     max_p3a_attempts: OptPosInt  # P0
     max_p3b_attempts: OptPosInt  # P0
+
+    @field_validator("max_p3a_attempts", "max_p3b_attempts")
+    @classmethod
+    def _within_technical_bound(cls, v: int | None) -> int | None:
+        # Technical upper bound only (see spec/limits.py); the value itself is an owner decision.
+        if v is not None and v > MAX_ATTEMPT_LIMIT:
+            raise ValueError(f"must be <= {MAX_ATTEMPT_LIMIT} (technical bound), got {v}")
+        return v
 
 
 class Gates(_OpenFieldsModel):

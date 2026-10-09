@@ -350,3 +350,38 @@ def test_schema_version_float_and_basic_date_forms_are_refused(tmp_path):
         path.write_text(json.dumps({**base, **mutate}), encoding="utf-8")
         with pytest.raises(ManifestInvalidError):
             load_manifest(path)
+
+
+@pytest.mark.parametrize("value", [10_001, 10**9])
+def test_manifest_attempt_limit_above_technical_bound_is_refused(tmp_path, value):
+    from app.research.range002.spec.manifest import ManifestInvalidError, load_manifest
+
+    doc = {
+        "schema_version": 1,
+        "approved_registry_genesis_id": None,
+        "approved_by": None,
+        "approved_on": None,
+        "p3_attempt_limits": {"p3a": value, "p3b": None},
+        "notes": "x",
+    }
+    path = tmp_path / "m.json"
+    path.write_text(json.dumps(doc), encoding="utf-8")
+    with pytest.raises(ManifestInvalidError):
+        load_manifest(path)
+
+
+def test_manifest_attempt_limit_at_technical_bound_is_a_valid_value(tmp_path):
+    from app.research.range002.spec.limits import MAX_ATTEMPT_LIMIT
+    from app.research.range002.spec.manifest import load_manifest
+
+    doc = {
+        "schema_version": 1,
+        "approved_registry_genesis_id": None,
+        "approved_by": None,
+        "approved_on": None,
+        "p3_attempt_limits": {"p3a": MAX_ATTEMPT_LIMIT, "p3b": 1},
+        "notes": "x",
+    }
+    path = tmp_path / "m.json"
+    path.write_text(json.dumps(doc), encoding="utf-8")
+    assert load_manifest(path).max_p3a_attempts == MAX_ATTEMPT_LIMIT

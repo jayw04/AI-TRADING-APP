@@ -39,6 +39,7 @@ from typing import Any
 
 from app.research.range002.spec.genesis import is_canonical_uuid4
 from app.research.range002.spec.hashing import CanonicalisationError, content_sha256, loads_strict
+from app.research.range002.spec.limits import MAX_ATTEMPT_LIMIT
 
 #: Repo-relative location of the committed manifest. Not caller-supplied in production.
 MANIFEST_RELPATH = "docs/implementation/evidence/range_002/RANGE-002_governance_manifest.json"
@@ -143,8 +144,10 @@ class GovernanceManifest:
 def _limit(value: Any, name: str) -> int | None:
     if value is None:
         return None
-    if isinstance(value, bool) or not isinstance(value, int) or value < 1:
-        raise ManifestInvalidError(f"p3_attempt_limits.{name} must be null or an integer >= 1")
+    if isinstance(value, bool) or not isinstance(value, int) or not 1 <= value <= MAX_ATTEMPT_LIMIT:
+        raise ManifestInvalidError(
+            f"p3_attempt_limits.{name} must be null or an integer in 1..{MAX_ATTEMPT_LIMIT}"
+        )
     return value
 
 
