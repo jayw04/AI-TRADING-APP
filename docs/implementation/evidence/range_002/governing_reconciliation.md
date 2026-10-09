@@ -6,7 +6,7 @@
 | Work package | WP0.1 completion; owner instruction 5 (reconcile before P0 sign-off) |
 | Documents compared | (1) Research design v0.4 (`Teams/Strategies/RANGE-002_开盘区间突破延续策略_验证与实施方案_v0.4.docx`, read in full, Chinese), (2) Implementation Plan v0.4 (`docs/implementation/evidence/range_002/RANGE-002_Implementation_Plan_v0.4.md`), (3) ADR 0014 (v1.1), (4) ADR 0033, (5) ADR 0037, (6) the RNG-001 Rejection Summary Report (`docs/implementation/evidence/range_002/RNG-001_Rejection_Summary_Report_2026-10-09.md`) and the primary evidence it cites |
 | Data accessed | None. Document review only. |
-| Status | **Conflicts listed for owner approval. No code, spec value or gate has been changed to resolve any of them.** Updated 2026-10-09 with C13 (exit-rule change) and the Addendum A1 draft. |
+| Status | **Conflicts listed for owner approval. No code, spec value or gate has been changed to resolve any of them.** Updated 2026-10-09 with C13 (exit-rule change) and the Addendum A1 draft; further updated with C14 (confirmatory hypothesis count) and C15 (non-equivalence check dependency). |
 
 Precedence stated in the plan: research design v0.4 wins over the plan. ADR texts were not available when the plan was written; they have now been read.
 
@@ -50,6 +50,8 @@ Still needing owner action after these rulings: signature of Addendum A1 (C7, C1
 | C11 | Bootstrap "platform convention adopted from MR-002" is not supported by the design or by code | Plan claim | Medium (owner item 3 already addresses) |
 | C12 | RNG-001 replay (chain 1) needs IEX 5-minute data and the code state of git `9e43abe`; environment constraints are unstated | Feasibility | Medium |
 | C13 | Exit rule changed after review: design v0.4 fixes variants A/B; plan v0.5 selects one exit from a frozen candidate set and splits P3 | Strategy-rule change (owner-accepted direction) | High (needs Addendum A1 signature before P0) |
+| C14 | "m = 1" (exit configurations) vs two required corrected confirmatory tests (G4, G5) in design §5.3/§6 | Internal inconsistency in A1/plan wording | Medium (D02 owner value) |
+| C15 | P0 exit gate requires the non-equivalence check to pass, but the check does not exist and its criterion 1 needs signal history that exists before the gate only in the exposed RNG-001 IEX archive | Sequencing/feasibility gap | High (D09 owner decisions) |
 
 Details below. Items marked **OWNER** need a ruling.
 
@@ -114,6 +116,7 @@ Details below. Items marked **OWNER** need a ruling.
 - The design's P0 sign-off list has decisions 01–12. The plan adds D13–D16 (economic thesis, order/latency contract, cost accounting, diagnostics/shadow acceptance) and D17–D18 (P3 criteria, gate basis).
 - The plan argues D13–D16 refine design decisions 05–07 and the §4 cost row, and that D17/D18 fill gaps the design leaves open. I agree with D17/D18: the design §7 says P3 needs "pre-approved development-period criteria" and never gives them, and §6 does not state the trade set the gates are computed on.
 - **OWNER:** confirm the sign-off sheet is D01–D18, and that D13–D16 need no design addendum. Nothing in this reconciliation is a P0 decision.
+- **Ruling and update.** The owner ruled (C7) to retain D01–D18 and prepare a governing-design addendum covering D13–D18, extended to D19 (C13). The "no design addendum" reading above is superseded: plan §0A and §10.1 now say D13–D16 are refined in Addendum A1, and A1 §4 lists D01–D19. Values still need owner sign-off.
 
 ### C8 — CAP-025
 
@@ -176,7 +179,22 @@ No conflict found here changes a gate threshold or a strategy rule, and none was
 
 - **Source.** Fund-manager review of the investment-committee version: the take-profit should be chosen from historical price behaviour (trailing, scale-out) rather than a hand-set 2R. The owner accepted the direction.
 - **Conflict.** Design v0.4 fixes variants A (time exit) and B (2R target), and the plan defers to the design. The plan therefore cannot adopt the change on its own authority.
-- **Resolution path.** Addendum A1 Amendments 1–3: a frozen candidate set of ≤ 8 exits (time, fixed-R, trailing, scale-out, in R units); P3a selection on 2016–2019 by a pre-frozen rule executed on sealed results; P3b confirmation on 2020–2021; P4 tests the selected exit once (m = 1). New decision D19; D02 and D17 rewritten. Plan v0.5 implements this.
+- **Resolution path.** Addendum A1 Amendments 1–3: a frozen candidate set of ≤ 8 exits (time, fixed-R, trailing, scale-out, in R units); P3a selection on 2016–2019 by a pre-frozen rule executed on sealed results; P3b confirmation on 2020–2021; P4 tests the selected exit once (one exit configuration; see C14 for the confirmatory hypothesis count). New decision D19; D02 and D17 rewritten. Plan v0.5 implements this.
 - **Until A1 is signed:** design v0.4 governs. PR 2 builds the schema to accept the A1 `exits` block with all values unset; no spec is frozen under either form.
 - **Effect on gates:** none. G0–G10 thresholds are unchanged.
 - **Integrity note.** No RANGE-002 data or results were seen by the reviewer, the owner or the agent. The proposal is recorded in the hypothesis-lineage (WP0.11) and AI-provenance (WP0.8) records.
+
+## 6. Post-ruling findings C14 and C15 (2026-10-09, wording reconciliation; no value or gate changed)
+
+### C14 — Confirmatory hypothesis count at P4
+
+- **Conflict.** A1 Amendment 2/3, plan X5, WP4.2 and the D02 row said "P4 family m = 1". Design v0.4 §5.3 requires a main test of positive net mean R and a paired difference vs the matched random baseline with a corrected lower bound > 0, and §6 lists G4 and G5 as separate "Required" gates. Plan §5.1A names two confirmatory comparisons (selected exit vs zero, and vs the random baseline).
+- **Reading.** "m = 1" is true of exit configurations (one selected exit). The number of confirmatory hypotheses in the Holm family is not stated by the design and is not fixed by A1.
+- **Resolution (wording only).** A1, plan (X5, WP3.3, WP4.2, G4/G5, §5.1A, §10 D02, App. A) and the D02 sheet now separate the two counts and leave the hypothesis count as a D02 owner value with options: Holm over {G4, G5}; G4 as the family with G5 a separate required gate at its own alpha; fixed sequence. The preparer's recommendation (not a decision) is Holm over {G4, G5}.
+- **OWNER:** state the D02 option and hypothesis count.
+
+### C15 — Non-equivalence check at the P0 gate
+
+- **Gap.** The P0 exit gate requires "the non-equivalence check passes". (1) No such check exists: ADR 0037 defines no test, the C2 specification is pending approval and no code may be written before it is (C2). (2) Criterion 1 (signal distinctness) needs signal history, but SIP data is pulled only in P1, after the gate. Before the gate the only history is the exposed RNG-001 IEX 5-minute archive.
+- **Resolution (documentation only).** Plan WP0.5, the P0 exit gate, A1 §6 and the D09 sheet record the dependency with owner options: (a) use the exposed IEX archive (timestamps and direction only; granularity differs from the 1-minute SIP design); (b) reorder so that the numeric overlap on SIP signal timestamps is computed after the P1 pull (edits the P0 gate; needs an A1 amendment); (c) an owner-authorized early return-blind SIP pull limited to criterion 1. None is selected. The owner also states what satisfies the gate clause while no tool exists.
+- **OWNER:** choose the history for criterion 1 and the handling of the gate clause under D09.

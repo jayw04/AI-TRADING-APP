@@ -29,7 +29,7 @@
 | X2 | **P3 split into P3a (selection, 2016–2019) and P3b (confirmation, 2020–2021).** A deterministic, pre-frozen selection rule picks one exit in P3a; only that exit runs in P3b and P4. | Selecting and confirming on the same data repeats the RNG-001 VWAP-fix failure (full sample PF 1.53, first half 0.68). | WP4.1, §5.2 |
 | X3 | Selection runs **inside the sealed store**; the selection record is hashed into the ledger **before** any human or agent views candidate results. | Prevents choosing by eye or overriding the rule after seeing numbers. | WP4.0, WP4.1 |
 | X4 | P3a STOP rule uses a **selection-aware test** (max-statistic bootstrap over all K candidates), not the best candidate's naive p-value. | Picking the best of K inflates apparent significance. | WP3, D17 |
-| X5 | P4 hypothesis family becomes **m = 1** (the selected exit). All K candidates stay in the trial ledger. | Selection happened on separate data; P4 tests one frozen rule. | WP4.2, §5.1, D02 |
+| X5 | P4 tests **one exit configuration** (the selected exit; exit-configuration count = 1). All K candidates stay in the trial ledger. The number of **confirmatory hypotheses** in the P4 Holm family (G4 alone, or G4 and G5 together) is a separate D02 owner value, not fixed by this row. | Selection happened on separate data; P4 tests one frozen rule. Design §5.3 and §6 still require both a mean-R test (G4) and a paired-baseline test (G5). | WP3.3, WP4.2, §5.1, D02 |
 | X6 | Exit mechanics for trailing and scale-out added to the fill model (bar-close updates effective next bar; partial exits; same-bar worst case). | New exit types create new look-ahead traps on 1-minute bars. | WP2.2A, WP2.7 |
 | X7 | New decision **D19** (candidate set, parameters, selection statistic, tie tolerance, complexity order); D02 and D17 rewritten. | Owner values required. | §10 |
 | X8 | Adaptive (day-by-day, model-driven) exit switching is **out of scope**, logged to the successor backlog. | It is a different strategy class needing its own validation. | §1.2, §2.6 |
@@ -58,7 +58,7 @@ v0.3's structure and safety additions are kept. v0.4 fixes the following.
 
 | v0.3 proposal | v0.4 source | Status in v0.4 plan |
 |---|---|---|
-| D13 economic thesis + trading-expert sign-off | §10.3 roles (trading expert verifies hypothesis and trade logic); §3.3 AI provenance | **Within v0.4.** Required P0 artifact; non-binding diagnostics stay non-binding. No addendum needed. |
+| D13 economic thesis + trading-expert sign-off | §10.3 roles (trading expert verifies hypothesis and trade logic); §3.3 AI provenance | **Within v0.4.** Required P0 artifact; non-binding diagnostics stay non-binding. Refined in Addendum A1 (Amendment 3, ruling C7); values still need owner sign-off (§10.1). |
 | D14 data availability, latency, order type, order state machine, tie-break, EOD protocol | §5.2 (order effective time, trigger ≠ fill, partial fills, cancel delay, duplicates, restart recovery); decision 05 | **Within v0.4 decision 05.** Values still need owner sign-off because they change simulated fills. |
 | D15 cost accounting mode (all-in vs itemized) | §4 cost row ("逐笔列出价差、佣金/费用、冲击、滑点的计入方式，避免重复或遗漏") | **Within v0.4.** Must be frozen at P0. |
 | D16 diagnosis taxonomy, P5 shadow run, execution-quality evidence | §9.2 P5 template (comparable cost items, aggregation, tail rules; operational quality); decision 07 | **Within v0.4 decision 07.** The taxonomy is explanatory only. |
@@ -191,7 +191,7 @@ Code must reject a spec with more than 8 candidates, a candidate outside the fou
 | Exit logic | Sell near resistance | Stop at OR low; one exit selected from a frozen candidate set (time / fixed-R / trailing / scale-out) |
 | Filters | VWAP bands / VWAP reclaim + SPY gate | None |
 
-This table is the **input** to the ADR 0037 automated check (WP0.5). It is not the verdict. Registration is blocked until the check passes.
+This table is the **input** to the non-equivalence check (WP0.5; the check does not exist yet, see C2 and WP0.5). It is not the verdict. Registration is blocked until the check passes.
 
 ### 2.4 Economic thesis — required before expensive data/engineering work (NEW)
 
@@ -322,16 +322,16 @@ Each work package lists its tasks, the files involved, the acceptance criteria, 
 | WP0.2 | **Spec schema.** Pydantic (or the repo's equivalent) schema for every key in §2.1 and §5. Every `P0:` field is required and has no default. Unknown keys are rejected. More than 8 exit candidates, an unknown exit family, or a missing selection field is rejected. | Loading a spec with a missing `P0:` field fails with a named error. Loading a valid spec gives a canonical JSON with a stable `spec_sha256`. Tests cover key order, whitespace and float formatting so the hash stays stable. |
 | WP0.3 | **Freeze tool.** `freeze_spec.py` writes `RANGE-002_frozen_spec_v1.yaml` plus `spec_sha256`, applicable initial toolchain SHA and owner sign-off fields. **Engine code does not yet exist at P0**; its SHA is pinned after P2 in a signed append-only execution manifest rather than mutating the frozen research spec. The frozen research spec is immutable after sign-off. | A frozen spec with an empty sign-off cannot be used by `results_guard`. Editing a frozen file changes the hash and every later run refuses it. The P2 execution manifest references the original unchanged spec SHA. |
 | WP0.4 | **Results guard.** The single entry point for any computation that produces returns. A **runtime authorization capability** is required by the engine/statistics entry points; static CI import rules are a second line of defense, not the only guard. It checks: (a) the spec is frozen and signed; (b) the requested partition is authorized for this phase; (c) the partition does not overlap the exposure ledger; (d) a trial-ledger row was written first; (e) for P4, a valid unused holdout token exists. It fails closed. Partition types are a closed set: `DEVELOPMENT_SELECTION` (P3a), `DEVELOPMENT_CONFIRMATION` (P3b), `HOLDOUT`, `PAPER`, and `REPLAY_RNG001` (exposed 2026 data, engine validation only; its outputs can never be cited as RANGE-002 evidence). | Unit tests show refusal for each failure case. Integration tests prove direct imports, scripts, notebook-like access, batch jobs and unregistered runs cannot obtain a valid results capability. CI import-lint also covers known entry points. |
-| WP0.5 | **ADR 0037 non-equivalence check.** Owner ruling C2: ADR 0037 defines no test; use the ATP v0.14 §3A.2 three-criterion framework (signal distinctness on timestamps/direction only, materially different reject condition, non-reducible mechanism). Numeric overlap limit and reviewer sign-offs stay open under D09. **No code until the full specification is approved.** Then run it against the RANGE-002 spec. Commit `nonequivalence.md` with the §2.3 table, the check output, and the ORM-001 relationship (D09). | The check output is attached. If the check flags equivalence, **stop** (§9). |
+| WP0.5 | **ADR 0037 non-equivalence check.** Owner ruling C2: ADR 0037 defines no test; use the ATP v0.14 §3A.2 three-criterion framework (signal distinctness on timestamps/direction only, materially different reject condition, non-reducible mechanism). Numeric overlap limit and reviewer sign-offs stay open under D09. **No code until the full specification is approved.** Then run it against the RANGE-002 spec. Commit `nonequivalence.md` with the §2.3 table, the check output, and the ORM-001 relationship (D09). **Status and dependency (documented, unresolved).** The automated check does not exist: ADR 0037 defines no non-equivalence test and the ATP v0.14 §3A.2 specification is pending approval (C2), so the P0 exit gate clause "the non-equivalence check passes" cannot be met by a tool until that specification is approved and this check is built. Criterion 1 (signal distinctness) needs signal history, but the licensed SIP history arrives only in P1 (after the P0 gate) and the only history available before the P0 gate is the exposed RNG-001 IEX 5-minute archive. **Which history criterion 1 is computed on, and how the gate clause is satisfied, are D09 owner decisions; none is selected here.** Options for the owner: (a) compute criterion 1 on the exposed RNG-001 IEX 5-minute archive (signal timestamps and direction only, no returns; the granularity differs from the SIP 1-minute design and the limitation is recorded in `nonequivalence.md`); (b) change the ordering so that criteria 2 and 3 and the criterion 1 specification are signed at P0 and the numeric overlap on SIP signal timestamps is computed after the P1 pull and before P2 (this edits the P0 exit gate and needs an Addendum A1 amendment); (c) an owner-authorized early, return-blind SIP pull limited to what criterion 1 needs (needs C12, D03 licence and F1/F5 first). | The check output is attached. If the check flags equivalence, **stop** (§9). |
 | WP0.6 | **Exposure ledger.** Record exposed data: RNG-001 backtest window 2026-01-02 → 06-12, the entry study (18 names, 126 sessions, through July 2026), E-vwap+gate splits, and any AI-session contact with 2016–2025 data (who, when, what was seen). | Machine-readable `exposure_ledger.yaml` that `results_guard` consumes. The 2022–2025 contact audit is signed (D01). If 2022–2025 is materially exposed, **stop**: the holdout must be replaced by owner decision. |
 | WP0.7 | **Trial ledger entry.** Register RANGE-002 in the existing ledger, declaring prior exposure and the K-candidate exit family. | Ledger row exists with spec hash, the K candidates, and planned runs (P3a ×1 covering all K, P3b ×1, P4 ×1). |
 | WP0.8 | **AI provenance record.** Record the model identifiers, prompt/input summaries, and generated-code SHAs that contributed to the spec and engine, plus the human who confirmed the final logic. | `ai_provenance.md` committed and linked from the spec. |
 | WP0.9 | **Economic thesis sign-off (NEW).** Research lead and experienced trading reviewer write why first upward OR breakout might have a net continuation edge and what would disprove it. | `economic_thesis.md` records mechanism, competing explanations, predeclared diagnostics and signatures; no return-derived examples added after P3. |
-| WP0.10 | **Return-blind feasibility (NEW).** Verify order support, SIP minute-history rights, quote/timestamp limitations, market calendar, cost attribution, storage budget and research-capacity bounds. | `feasibility_report.md` gives PASS/BLOCK/UNKNOWN with evidence and cannot contain performance metrics. |
+| WP0.10 | **Return-blind feasibility (NEW).** Verify order support, SIP minute-history rights, quote/timestamp limitations, market calendar, cost attribution, storage budget and research-capacity bounds. Broker capability is established from documentation. **Any probe order, including on paper, requires explicit written owner authorization for that probe (R14); without it the item stays UNKNOWN.** | `feasibility_report.md` gives PASS/BLOCK/UNKNOWN with evidence and cannot contain performance metrics. |
 | WP0.11 | **Candidate-selection audit (NEW).** Document all prior breakout studies, exit ideas (including the earlier A/B pair and the fund-manager proposal), rejected hypotheses and access to development/holdout results; distinguish historical exposure from newly proposed assumptions. | `hypothesis_lineage.yaml` linked to exposure ledger; all related runs and AI-assisted ideation accounted for. |
 | WP0.12 | **Portfolio/order contract.** Agree tie-break, buying power reservation, order type, fill latency, simulated arming and crossed-before-arm policy (WP2.1A), stop activation, same-minute causality, late-day cancellations and failure states (D14). | Executable state-machine schema and deterministic fixtures approved before engine implementation. |
 
-**P0 exit gate.** The spec is frozen and signed, with `spec_sha256` recorded. The non-equivalence check passes. The exposure ledger is signed. Decisions D01–D19 (§10) are recorded in the spec; Addendum A1 (D13–D19 and the exit change) is signed. WP0.9–0.12 are signed and any economic/technical feasibility blockers are resolved.
+**P0 exit gate.** The spec is frozen and signed, with `spec_sha256` recorded. The non-equivalence check passes (the check does not exist until the C2 specification is approved and PR 4 is built; criterion 1 also needs signal history that exists before the gate only in the exposed RNG-001 IEX archive; the owner resolves this under D09, see WP0.5). The exposure ledger is signed. Decisions D01–D19 (§10) are recorded in the spec; Addendum A1 (D13–D19 and the exit change) is signed. WP0.9–0.12 are signed and any economic/technical feasibility blockers are resolved. The sign-off packet pins the SHA-256 of every document signed (this plan, Addendum A1, the design DOCX per C10, the decision sheets, `governing_reconciliation.md`, `recon.md`).
 
 ### WP1 — Data (phase P1, return-blind)
 
@@ -550,9 +550,10 @@ Output per-account daily equity and buying-power series, geometric annualized re
 
 For adjusted confidence intervals: specify the **actual** approved procedure. Do not call an unadjusted bootstrap CI “Holm-adjusted.” **Recommended default for D06 (owner to confirm):**
 
+- **Family size.** Here `m` is the number of **confirmatory hypotheses** in the P4 family declared in D02, not the number of exit configurations (which is 1: the selected exit). Design v0.4 §5.3 and §6 require two corrected tests, a mean net R > 0 test (G4) and a paired-difference-vs-random-baseline test (G5); whether they form one Holm family (m = 2) or G4 is the family and G5 a separate required gate is a D02 owner value (options in the D02 sheet). Until D02 is signed, the formulas below are written for a general `m`.
 - **G4.** For each hypothesis in the P4 family, compute the one-sided bootstrap p-value `p = share of resampled means ≤ 0` for mean net R per trade. Apply Holm at α = 0.05 (one-sided). Report the matching adjusted lower bound: the hypothesis tested at step k uses the `1 − α/(m − k + 1)` lower quantile.
-- **G5 estimand.** On each resample of trading days, compute `mean net R per RANGE-002 trade − mean net R per random-entry trade`, using only trades on the resampled days for both series. This pairs at the day level without requiring both to trade on the same symbol-day. Days with RANGE-002 trades but no valid random draw are counted and reported, not dropped silently.
-- If D02 chooses a fixed-sequence (A then B) procedure instead of Holm, the gate function must implement that procedure exactly and label it so.
+- **G5 estimand.** On each resample of trading days, compute `mean net R per RANGE-002 trade − mean net R per random-entry trade`, using only trades on the resampled days for both series. This pairs at the day level without requiring both to trade on the same symbol-day. Days with RANGE-002 trades but no valid random draw are counted and reported, not dropped silently. The adjustment applied to the G5 bound follows D02 (inside the same Holm family as G4, or at its own pre-declared α); design §6 requires an adjusted lower bound > 0 for G5 either way.
+- If D02 chooses a fixed-sequence procedure (for example G4 then G5; the former A-then-B order no longer exists under Addendum A1) instead of Holm, the gate function must implement that procedure exactly and label it so.
 
 #### WP3.4 Diagnostic interpretation without overfitting (NEW)
 
@@ -607,7 +608,7 @@ Export one machine-generated `edge_attribution.json` per candidate with counts a
 - Precondition: the exposure audit (WP0.6) confirms 2022–2025 is independent.
 - `holdout_token.py` issues one token per spec hash. `run_p4.py` consumes it atomically, using a two-phase durable write (read intent, then read verified) so that a crash cannot silently allow a second opening.
 - Only the selected exit is run. The strategy-definition, event-engine and statistics code hashes must match the approved P3 manifest; tooling/evidence-wrapper changes require a documented non-semantic review rather than silently changing the strategy. If v0.4 requires byte-identical overall code SHA, **that stricter requirement prevails**.
-- The P4 family is **m = 1** (the selected exit), fixed in D02. The trial ledger still records all K P3a candidates, and the P4 report states K.
+- P4 runs **one exit configuration** (the selected exit). The number of confirmatory hypotheses in the P4 Holm family (G4 and G5 together, or G4 alone with G5 as a separate gate) is the D02 owner value, fixed at P0. The trial ledger still records all K P3a candidates, and the P4 report states K and the family composition.
 - Output: the audit pack and a verdict from the closed enum in §5.2 (`PASS_HISTORICAL_PENDING_PROSPECTIVE`, `REJECT`, or an `INCONCLUSIVE_*` value).
 
 ### WP5 — Prospective paper trading (phase P5)
@@ -653,8 +654,8 @@ All gates must pass. They are evaluated by `gates.py` from the audit pack, not b
 | G1 | Sample | ≥ 300 trades in 2022–2025 | Required |
 | G2 | Profit factor | ≥ 1.30 at base cost | Required |
 | G3 | Stress cost | Mean net return > 0 at 15 bps per side | Required |
-| G4 | Significance | Holm-adjusted one-sided test of mean net R > 0 passes at α = 0.05, day-clustered block bootstrap (method per D06; WP3.3) | Required |
-| G5 | Random baseline | Mean net R above random entry; adjusted lower CI bound of the paired difference > 0 | Required |
+| G4 | Significance | Holm-adjusted one-sided test of mean net R > 0 passes at α = 0.05, day-clustered block bootstrap (method per D06; WP3.3); family composition per D02 | Required |
+| G5 | Random baseline | Mean net R above random entry; adjusted lower CI bound of the paired difference > 0 (adjustment and family membership per D02) | Required |
 | G6 | Yearly consistency | ≥ 3 of 4 calendar years with profit factor > 1.0 | Proposed (D04) |
 | G7 | Regime robustness | Profit does not come from a single regime or a single half; criterion set in P0 | Required (D12) |
 | G8 | Max drawdown | No worse than the pre-registered comparator; comparator, equity sampling and account sizing require D10 sign-off | Platform gate (D10) |
@@ -671,7 +672,7 @@ All gates must pass. They are evaluated by `gates.py` from the audit pack, not b
 - **Year and regime consistency:** when a calendar year has too few trades for meaningful PF, report its count and P0-specified validity rule; do not count undefined years as passing.
 - **Risk acceptance:** define a drawdown comparator using identical capital, costs, equity sampling and exposure; report gap losses and stress tail even if PF passes.
 - **Net economic value:** don't claim a winning strategy solely because historical PF passes. P5 still requires prospective evidence and risk/operational controls. Report capacity/turnover and investor-relevant net return separately from gate status.
-- **Statistical family:** freeze which comparisons count as confirmatory (P4: the selected exit vs zero, and vs the random baseline); report multiplicity-adjusted evidence. Distinguish confidence intervals and tests mathematically instead of tagging an arbitrary lower CI `Holm-adjusted`.
+- **Statistical family:** freeze which comparisons count as confirmatory (P4: the selected exit vs zero, and vs the random baseline; family composition and adjustment are the D02 value); report multiplicity-adjusted evidence. Distinguish confidence intervals and tests mathematically instead of tagging an arbitrary lower CI `Holm-adjusted`.
 
 ### 5.2 Verdict states (closed set)
 
@@ -789,6 +790,7 @@ Stop work and report to the owner with evidence if any of these occur:
 15. Platform score or performance claims are generated from a return-blind gate, synthetic data, or an otherwise unauthorized research stage.
 16. A P3 or P4 run is requested while D17 (P3 criteria), D18 (gate basis) or D19 (exit candidates and selection) is unsigned, or while Addendum A1 is unsigned.
 17. Anyone asks to add, drop or re-parameterize an exit candidate, or to override `select_exit`, after P0 freeze.
+18. A paper or live order, including a broker capability probe, is placed or planned before the R14 conditions are met without explicit written owner authorization for that probe.
 
 ---
 
@@ -799,22 +801,24 @@ Code reads these from the frozen spec. **The agent must not choose them.**
 | ID | Decision | Spec keys | Blocks |
 |---|---|---|---|
 | D01 | Register RANGE-002; sign the exposure conclusions and holdout applicability | `governance.exposure_signed` | P0 exit |
-| D02 | Hypothesis family: P4 = the selected exit only (m = 1); P3a selection-aware test over K; confirm PF ≥ 1.30 and stress > 0 (replaces the former A/B ordering) | `stats.hypothesis_family` | P3 |
+| D02 | Hypothesis family: P4 tests the selected exit only (exit-configuration count = 1); **the number of confirmatory hypotheses in the Holm family (G4 and G5 together, G4 alone with G5 as a separate gate, or a fixed sequence) is an owner value, options in the D02 sheet**; P3a selection-aware test over K; confirm PF ≥ 1.30 and stress > 0 (replaces the former A/B ordering) | `stats.hypothesis_family` | P3 |
 | D03 | N (proposal 100), PIT timing, SIP vendor and licence, data budget | `universe.n`, `data.vendor` | P1 |
 | D04 | Yearly gate (≥ 3 of 4 years with profit factor > 1.0) if 2022–2025 is used | `gates.yearly` | P4 |
 | D05 | R_pre/R_fill rules, gap fills, same-bar order, tick size, half-day exit, halt rule | `fill.*`, `risk.*`, `exit.*` | P2 |
 | D06 | Baselines, block bootstrap parameters, adjustment method, confidence level, seeds | `controls.*`, `stats.*` | P2 |
-| D07 | New paper account; P5 slippage, drawdown and degradation tolerance; extension rules | `p5.*` | P5 |
+| D07 | New paper account policy (the account ID cannot exist before WP5.1 unless the owner rules otherwise); P5 slippage, drawdown and degradation tolerance; extension rules | `p5.*` | P5 |
 | D08 | Research lead, trading-expert reviewer, independent validator, sole P6 approver | `governance.roles` | P0 |
 | D09 | ADR 0037 statement; relationship to ORM-001 (merge / shared ledger and family / independent) | `governance.related_programs` | P0 |
 | D10 | Win rate as diagnostic (deviation) or > 50% gate; drawdown comparator | `gates.win_rate`, `gates.max_dd` | P4 |
-| D11 | Writer meets ADR 0033 points 1–3, or a new monthly-chunked, fail-closed RANGE-002 SIP loader is used; the shared `BarCache` is not modified (owner ruling 2026-10-09, C5) | `data.fetch_mode` | P1 |
+| D11 | Writer meets ADR 0033 points 1–3, or a new monthly-chunked, fail-closed RANGE-002 SIP loader is used; the shared `BarCache` is not modified (owner ruling 2026-10-09, C5). The approach is resolved by ruling; the spec value `data.fetch_mode` and the D11 signature are still required for the P0 gate | `data.fetch_mode` | P1 |
 | D12 | Regime definition and the single-regime-dependence criterion | `stats.regime.*` | P2 |
-| D17 | **P3 criteria.** P3a: eligibility minimum trades, PF > 1.0, and the selection-aware STOP level. P3b: options (a) same G1–G8 thresholds as P4 with G1 scaled to two years (e.g. ≥ 150 trades); (b) a looser screen; (c) significance only. Recommended: (a). | `p3.criteria` | P3 |
-| D19 | **Exit candidates and selection rule** (v0.5): the candidate list and parameters (≤ 8), complexity order, selection score, tie tolerance δ, eligibility rules. Proposed by the trading expert, signed by the owner | `exits.*` | P0 |
+| D17 | **P3 criteria.** P3a: eligibility minimum trades, PF > 1.0, and the selection-aware STOP level. P3b: options (a) same G1–G8 thresholds as P4 with G1 scaled to two years (e.g. ≥ 150 trades); (b) a looser screen; (c) significance only. Recommended: (a). **Sample-size note:** P3b covers 2 of the design's 6 development years and runs the selected exit only, so its trade count and power are lower than the design §7 single 2016–2021 run; the owner states the P3b trade minimum explicitly. | `p3.criteria` | P3 |
 | D18 | **Gate computation basis** (portfolio-constrained fills vs signal-level) and **trade definition** for G1 | `gates.basis`, `gates.trade_unit` | P3 |
+| D19 | **Exit candidates and selection rule** (v0.5): the candidate list and parameters (≤ 8), complexity order, selection score, tie tolerance δ, eligibility rules. Proposed by the trading expert, signed by the owner | `exits.*` | P0 |
 
-### 10.1 Detailed decisions D13–D16 (within v0.4 scope; owner values required)
+D13–D16 are listed in §10.1 below; the full P0 list is D01–D19 (Addendum A1 Amendment 3).
+
+### 10.1 Detailed decisions D13–D16 (refine v0.4 decisions; covered by Addendum A1; owner values required)
 
 | ID | Decision (v0.4 parent) | Why it is needed | Spec keys / artifacts |
 |---|---|---|---|
@@ -823,7 +827,7 @@ Code reads these from the frozen spec. **The agent must not choose them.**
 | D15 | Approve cost accounting decomposition and whether base/stress bps are all-in or additive to fill-price slippage (v0.4 §4 cost row). Recommended: all-in bps applied as a P&L debit, with fills at the modeled price and no extra slippage, so nothing is charged twice; gap-through fills stay adverse because they are price events, not costs | Prevent both optimistic undercharging and double-charging | `costs.accounting_mode`, `costs.components` |
 | D16 | Approve explanatory diagnosis taxonomy, P5 shadow verification and minimum broker execution-quality evidence (v0.4 decision 07) | Improve future strategy discovery while preserving frozen gates | `diagnostics.taxonomy`, `p5.shadow_acceptance` |
 
-**Interpretation (v0.4).** The §0A reconciliation shows D13–D16 refine decisions v0.4 already requires (decisions 05–07 and the cost-itemization rule). No design addendum is needed. Each still needs an owner value before P0 exit, because D14 and D15 change simulated fills and costs. This document does **not** authorize a new strategy rule, an alternative holdout, or a revised acceptance threshold.
+**Interpretation (v0.5).** The §0A reconciliation shows D13–D16 refine decisions v0.4 already requires (decisions 05–07 and the cost-itemization rule). Per owner ruling C7, they are nevertheless recorded in Addendum A1 (Amendment 3 lists D13–D19 as the P0 list's additions or refinements), and A1 must be signed before P0 sign-off. Each still needs an owner value before P0 exit, because D14 and D15 change simulated fills and costs. This document does **not** authorize a new strategy rule, an alternative holdout, or a revised acceptance threshold.
 
 ---
 
@@ -963,7 +967,7 @@ controls:
   naive_orb: {definition: null}
 stats:
   bootstrap: {method: null, cluster: trading_day, mean_block_len: null, reps: null, seed: null}   # P0: D06 (ruling C11: method unset)
-  hypothesis_family: null        # P0: D02 (P4: selected exit, m = 1)
+  hypothesis_family: null        # P0: D02 (P4: one exit configuration; confirmatory hypothesis count per D02)
   adjustment: holm               # or fixed_sequence per D02
   alpha_one_sided: 0.05          # P0: D06
   regime: {definition: null, criterion: null}     # P0: D12
@@ -991,7 +995,7 @@ gates:
   max_dd: null                   # P0: D10
   redundancy_corr_max: 0.85
 p5:
-  account_id: null               # P0: D07
+  account_id: null               # D07 policy at P0; the ID is recorded in the P5 execution manifest (WP5.1) unless the owner rules otherwise
   min_days: 60
   min_trades: 100
   max_cost_ratio: 1.5
