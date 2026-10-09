@@ -461,7 +461,9 @@ jobs:
       # `Python FULL (backend)`, which `Python CI Gate` already requires on any backend-flagged PR.
       # Cost control: runs only on (a) a PR that touches a RANGE-002 path (see the `range002` filter)
       # or (b) a manual dispatch, and only when the tests and the manifest exist in the checkout
-      # (hashFiles), so it costs nothing until PR 2 lands and nothing on unrelated PRs. PR 3 tests that
+      # (hashFiles, pull_request ONLY: TRANSITIONAL -- a dispatch is never skipped, it runs and fails
+      # if the tests/manifest are absent; remove the hashFiles guards once PR 2 has landed, owner to
+      # record that step), so it costs nothing until PR 2 lands and nothing on unrelated PRs. PR 3 tests that
       # do not exist yet are reported PENDING (never PASSED) and tolerated here (--allow-pending); a
       # manual dispatch runs in strict acceptance mode and fails while any entry is PENDING.
       # `-vv` because pyproject addopts carries `-q` (net -q -vv = one -v). No cache provider write.
@@ -470,9 +472,9 @@ jobs:
         if: >-
           ${{ !cancelled() && matrix.pf.project == 'backend'
           && (github.event_name == 'workflow_dispatch'
-          || (github.event_name == 'pull_request' && needs.changes.outputs.range002 == 'true'))
+          || (github.event_name == 'pull_request' && needs.changes.outputs.range002 == 'true'
           && hashFiles('apps/backend/ci/range002_required_linux_tests.json') != ''
-          && hashFiles('apps/backend/tests/research/range002/**/*.py') != '' }}
+          && hashFiles('apps/backend/tests/research/range002/**/*.py') != '')) }}
         working-directory: ${{ matrix.pf.dir }}
         run: |
           set +e
@@ -500,7 +502,7 @@ jobs:
         if: ${{ always() && steps.range002.outcome != 'skipped' }}
         uses: actions/upload-artifact@v4
         with:
-          name: range002-linux-acceptance-${{ github.sha }}
+          name: range002-linux-acceptance-${{ github.sha }}-${{ github.run_attempt }}
           path: |
             ${{ matrix.pf.dir }}/range002-junit.xml
             ${{ matrix.pf.dir }}/range002-required-tests.txt
