@@ -11,6 +11,7 @@ fail is not evidence.
 from __future__ import annotations
 
 import ast
+import dataclasses
 from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
 from pathlib import Path
@@ -175,7 +176,11 @@ async def test_cache_prune_is_bounded(session_factory) -> None:
         entitlement_identity="x",
         credential_identity_fingerprint="y",
     )
-    await cache.upsert([old, _rec("NEW", ts=now)])
+    new = _rec("NEW", ts=now)
+    # Pruning is keyed on trading_date; keep NEW inside the retention window of ``now`` rather
+    # than relying on the fixed module-level TD, which ages out of a 30-day window.
+    new = dataclasses.replace(new, trading_date=now.date())
+    await cache.upsert([old, new])
     assert await cache.prune(retention_days=30, now=now) == 1
     assert await cache.get("OLD", SipProfile.EOD) is None
     assert await cache.get("NEW", SipProfile.LIVE) is not None
