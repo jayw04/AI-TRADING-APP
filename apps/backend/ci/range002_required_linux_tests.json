@@ -1,0 +1,25 @@
+{
+  "schema": 1,
+  "purpose": "RANGE-002 Linux acceptance: every listed test must be collected AND PASSED on Linux (not skipped, missing, failed or errored). Verified by scripts/ci_verify_required_tests.py. Node ids are relative to apps/backend. phase=pr2 tests exist with PR 2; phase=pr3 tests arrive with PR 3 and carry pending_pr until then (PENDING is reported, never counted as a pass).",
+  "tests": [
+    { "id": "tests/research/range002/spec/test_freeze_hardening.py::test_symlink_target_refused_and_nothing_written_through_it", "phase": "pr2" },
+    { "id": "tests/research/range002/spec/test_freeze_hardening.py::test_dangling_symlink_target_refused", "phase": "pr2" },
+    { "id": "tests/research/range002/spec/test_freeze_hardening.py::test_canary_symlinks_work_on_linux", "phase": "pr2" },
+    { "id": "tests/research/range002/spec/test_manifest.py::test_symlinked_manifest_refused", "phase": "pr2" },
+    { "id": "tests/research/range002/governance/test_round3.py::test_f9_symlink_alias_shares_the_lock", "phase": "pr3", "pending_pr": "3" },
+    { "id": "tests/research/range002/governance/test_round3.py::test_f9_hardlink_alias_shares_the_lock", "phase": "pr3", "pending_pr": "3" },
+    { "id": "tests/research/range002/governance/test_round5_lock_backend.py::test_canary_lock_backend_matches_the_platform", "phase": "pr3", "pending_pr": "3" },
+    { "id": "tests/research/range002/governance/test_round5_lock_backend.py::test_the_real_backend_excludes_a_second_holder", "phase": "pr3", "pending_pr": "3" },
+    { "id": "tests/research/range002/governance/test_round5_lock_backend.py::test_fcntl_branch_runs_on_any_platform[False]", "phase": "pr3", "pending_pr": "3" },
+    { "id": "tests/research/range002/governance/test_round5_lock_backend.py::test_fcntl_branch_runs_on_any_platform[True]", "phase": "pr3", "pending_pr": "3" },
+    { "id": "tests/research/range002/governance/test_round5_lock_backend.py::test_four_processes_append_concurrently_through_the_real_backend", "phase": "pr3", "pending_pr": "3" },
+    { "id": "tests/research/range002/governance/test_round5_lock_backend.py::test_namespace_lock_is_exclusive_through_the_real_backend", "phase": "pr3", "pending_pr": "3" },
+    { "id": "tests/research/range002/governance/test_hashchain_lock.py::test_threads_with_stale_views_never_fork_the_chain", "phase": "pr3", "pending_pr": "3" },
+    { "id": "tests/research/range002/governance/test_hashchain_lock.py::test_processes_serialize_appends_without_forking", "phase": "pr3", "pending_pr": "3" },
+    { "id": "tests/research/range002/governance/test_hashchain_lock.py::test_second_writer_with_same_stale_view_serialises_after_the_first", "phase": "pr3", "pending_pr": "3" },
+    { "id": "tests/research/range002/governance/test_hashchain_lock.py::test_lock_is_exclusive_and_fails_closed_on_timeout", "phase": "pr3", "pending_pr": "3" },
+    { "id": "tests/research/range002/governance/test_hashchain_lock.py::test_append_blocked_by_a_held_lock_is_refused_not_forked", "phase": "pr3", "pending_pr": "3" },
+    { "id": "tests/research/range002/governance/test_round5_nd_enroll_race.py::test_exactly_one_enrollment_wins_each_round[different]", "phase": "pr3", "pending_pr": "3" },
+    { "id": "tests/research/range002/governance/test_round5_nd_enroll_race.py::test_exactly_one_enrollment_wins_each_round[same]", "phase": "pr3", "pending_pr": "3" }
+  ]
+}
