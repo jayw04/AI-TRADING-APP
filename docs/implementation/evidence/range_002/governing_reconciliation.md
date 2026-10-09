@@ -4,9 +4,9 @@
 |---|---|
 | Date | 2026-10-09 |
 | Work package | WP0.1 completion; owner instruction 5 (reconcile before P0 sign-off) |
-| Documents compared | (1) Research design v0.4 (`Teams/Strategies/RANGE-002_开盘区间突破延续策略_验证与实施方案_v0.4.docx`, read in full, Chinese), (2) Implementation Plan v0.4 (`docs/implementation/RANGE-002_Implementation_Plan_v0.4.md`), (3) ADR 0014 (v1.1), (4) ADR 0033, (5) ADR 0037, (6) the RNG-001 Rejection Summary Report (`docs/reports/RNG-001_Rejection_Summary_Report_2026-10-09.md`) and the primary evidence it cites |
+| Documents compared | (1) Research design v0.4 (`Teams/Strategies/RANGE-002_开盘区间突破延续策略_验证与实施方案_v0.4.docx`, read in full, Chinese), (2) Implementation Plan v0.4 (`docs/implementation/evidence/range_002/RANGE-002_Implementation_Plan_v0.4.md`), (3) ADR 0014 (v1.1), (4) ADR 0033, (5) ADR 0037, (6) the RNG-001 Rejection Summary Report (`docs/implementation/evidence/range_002/RNG-001_Rejection_Summary_Report_2026-10-09.md`) and the primary evidence it cites |
 | Data accessed | None. Document review only. |
-| Status | **Conflicts listed for owner approval. No code, spec value or gate has been changed to resolve any of them.** |
+| Status | **Conflicts listed for owner approval. No code, spec value or gate has been changed to resolve any of them.** Updated 2026-10-09 with C13 (exit-rule change) and the Addendum A1 draft. |
 
 Precedence stated in the plan: research design v0.4 wins over the plan. ADR texts were not available when the plan was written; they have now been read.
 
@@ -22,7 +22,7 @@ The owner reviewed this document and approved WP0.1 for the normal documentation
 | C4 | **Approve a dedicated RANGE-002 SIP intraday coverage validator**, separate from daily `dataset_health` | Part of P1 loader design (PR 5) |
 | C5 | **D11 = a new monthly-chunked, fail-closed SIP loader.** Do not modify the shared production cache | Plan D11 and WP1.1 wording updated |
 | C6 | **Holm for RANGE-002.** ADR 0037's BH-FDR framework remains scoped to EAD programs | No plan change needed (already Holm) |
-| C7 | **Retain D01–D18** and **prepare a governing-design addendum covering D13–D18 before P0 sign-off** | New deliverable, not started. Needs the owner's instruction on form and author |
+| C7 | **Retain D01–D18** and **prepare a governing-design addendum covering D13–D18 before P0 sign-off** | **Drafted 2026-10-09** as `RANGE-002_Design_Addendum_A1.md` (markdown addendum to design v0.4), extended to D19 and the exit change (C13). Awaiting owner signature |
 | C8 | Implement the funnel from the CAP-025 charter; **do not claim an existing wrapper** | Plan `funnel.py` row reworded |
 | C9 | Include **simulated order evidence in P3/P4 audit packs** | Plan §7 `orders.csv` row updated |
 | C10 | Store the authoritative research-design DOCX in **controlled S3 with a versioned SHA-256 manifest**; a **non-authoritative Markdown extraction** is allowed | **Not done.** The S3 manifest tooling (`manifests/s3/`, publish/verify scripts) is not in the repository, and the github-ops policy forbids a hand-rolled manifest scheme. The DOCX remains local and untracked until that tooling lands or the owner directs otherwise. No Markdown extraction is committed yet |
@@ -31,7 +31,7 @@ The owner reviewed this document and approved WP0.1 for the normal documentation
 
 Wording changes made to the plan under these rulings (text only, no gate or strategy value touched): C3 row, C5 (D11 and WP1.1), C8, C9, C11, plus the earlier path mapping. Nothing was changed in the design docx.
 
-Still needing owner action after these rulings: the form of the D13–D18 addendum (C7), the D09 numeric limit and sign-offs (C2), the DOCX custody mechanism given the missing S3 tooling (C10), and naming the research environment (C12).
+Still needing owner action after these rulings: signature of Addendum A1 (C7, C13), the D09 numeric limit and sign-offs (C2), the DOCX custody mechanism given the missing S3 tooling (C10), and naming the research environment (C12).
 
 ## 1. Summary
 
@@ -49,6 +49,7 @@ Still needing owner action after these rulings: the form of the D13–D18 addend
 | C10 | Plan action 11.3.2 says to commit the design `.docx` to Git; repo policy sends Office binaries to S3 with a manifest | Plan vs repo policy | Low |
 | C11 | Bootstrap "platform convention adopted from MR-002" is not supported by the design or by code | Plan claim | Medium (owner item 3 already addresses) |
 | C12 | RNG-001 replay (chain 1) needs IEX 5-minute data and the code state of git `9e43abe`; environment constraints are unstated | Feasibility | Medium |
+| C13 | Exit rule changed after review: design v0.4 fixes variants A/B; plan v0.5 selects one exit from a frozen candidate set and splits P3 | Strategy-rule change (owner-accepted direction) | High (needs Addendum A1 signature before P0) |
 
 Details below. Items marked **OWNER** need a ruling.
 
@@ -170,3 +171,12 @@ Also consistent: ADR 0014's `INSUFFICIENT_EVIDENCE` principle and the plan's `IN
 | P0 sign-off | C1–C3, C5–C7, C10 rulings. No signature is implied by this document. |
 
 No conflict found here changes a gate threshold or a strategy rule, and none was resolved by changing code or the frozen-spec skeleton.
+
+## 5. Post-ruling change C13 — exit selection (2026-10-09)
+
+- **Source.** Fund-manager review of the investment-committee version: the take-profit should be chosen from historical price behaviour (trailing, scale-out) rather than a hand-set 2R. The owner accepted the direction.
+- **Conflict.** Design v0.4 fixes variants A (time exit) and B (2R target), and the plan defers to the design. The plan therefore cannot adopt the change on its own authority.
+- **Resolution path.** Addendum A1 Amendments 1–3: a frozen candidate set of ≤ 8 exits (time, fixed-R, trailing, scale-out, in R units); P3a selection on 2016–2019 by a pre-frozen rule executed on sealed results; P3b confirmation on 2020–2021; P4 tests the selected exit once (m = 1). New decision D19; D02 and D17 rewritten. Plan v0.5 implements this.
+- **Until A1 is signed:** design v0.4 governs. PR 2 builds the schema to accept the A1 `exits` block with all values unset; no spec is frozen under either form.
+- **Effect on gates:** none. G0–G10 thresholds are unchanged.
+- **Integrity note.** No RANGE-002 data or results were seen by the reviewer, the owner or the agent. The proposal is recorded in the hypothesis-lineage (WP0.11) and AI-provenance (WP0.8) records.
