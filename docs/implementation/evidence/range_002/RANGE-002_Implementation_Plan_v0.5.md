@@ -512,6 +512,8 @@ If chain 1 cannot reproduce the archived results, investigate and document the c
 - Pin a broker-specific order-type capability report: native stop-market vs stop-limit, accepted time-in-force, extended-hours flags, stop/target linkage, auto-cancellation, expiration and reject semantics. Do not infer support from an SDK method name.
 - **Acceptance:** `data_to_order_latency_contract.md`, executable protocol fixtures and a signed order-capability check. If broker cannot support the chosen semantics, stop for owner decision rather than simulate a different strategy unnoticed.
 
+**Guard-coverage proof (required for every PR that adds a compute module).** Test coverage of the guard itself does not show that the modules it protects cannot be reached without it. Each PR that adds code under `engine/`, `stats/`, `controls/` or `audit/` must include (a) the import-lint passing non-vacuously against the real tree, with every public return-producing entry point decorated `@requires_capability` and no entry point listed in `PURE_FUNCTIONS` unless it demonstrably computes no return; (b) for each such entry point, a negative test that calling it without a capability, with a capability for a different spec hash or partition, or with a copied/forged capability raises `InvalidCapabilityError`; (c) a test that enumerates the public functions of every compute module and fails if one is neither gated nor declared pure, so a newly added function cannot slip in unclassified. Reviewers reject the PR without this evidence. The same applies to the P5 executor's signal path.
+
 **P2 exit gate.** All tests pass (WP2.1–WP2.11), chain 1 reproduces (or the cause is documented and approved by written governance ruling), and the synthetic and return-blind controls pass. Historical negative-control returns are computed only inside the guarded P3 run's sealed control stage (WP4.0), not as an earlier P2 preview. The engine version SHA is pinned in the signed execution manifest, which references the immutable P0 spec.
 
 ### WP3 — Statistics and diagnostics (built in P2, used in P3–P5)
@@ -966,7 +968,7 @@ controls:
   random_entry: {repetitions: null, seed: null, invalid_draw_policy: null}   # P0: D06
   naive_orb: {definition: null}
 stats:
-  bootstrap: {method: null, cluster: trading_day, mean_block_len: null, reps: null, seed: null}   # P0: D06 (ruling C11: method unset)
+  bootstrap: {method: null, cluster: trading_day, block_len: null, reps: null, ci_type: null, confidence_level: null, seed: null}   # P0: D06 (ruling C11: method unset; block_len is fixed or mean length depending on the method)
   hypothesis_family: null        # P0: D02 (P4: one exit configuration; confirmatory hypothesis count per D02)
   adjustment: holm               # or fixed_sequence per D02
   alpha_one_sided: 0.05          # P0: D06
@@ -1007,6 +1009,7 @@ diagnostics:
 governance:
   economic_thesis_sha: null      # P0: D13
   roles: null                    # P0: D08
+  exposure_signed: null          # P0: D01 (owner's signed exposure/holdout conclusion; pins the exposure-ledger sha256)
 signoff:
   owner: null
   trading_expert: null
