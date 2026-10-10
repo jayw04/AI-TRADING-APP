@@ -31,6 +31,12 @@ Nightlies are STILL red; the streak that began 2026-08-30 continues (about 41 co
 | Classifier | `scripts/check_dependency_locks.py` is a GLOBAL path | Re-verified with `apps/backend/scripts/ci_classify_changes.py`: a change set of `scripts/check_dependency_locks.py` plus its runbook and test flags all four projects (`backend_code`, `mcp_server_code`, `mcp_workbench_code`, `agent_code`, `adr0043_gate` all true). So defect B's PR is a FULL run for all four projects, same as defect A's. |
 | Protection | `Python CI Gate` is the single required check | Re-read: classic protection on `main` unchanged (strict, `Python CI Gate`, `enforce_admins: true`, no review requirement); no rulesets. |
 
+### 0.2a Status update (2026-10-10, later the same day)
+
+- Fix A is now a local PR candidate: branch `ci/nightly-fix-a-classify-env` (f1d6b7ff) with regression tests. An independent review of it has been commissioned by the coordinator; nothing is pushed.
+- Fix B: the owner prefers B2 only if it fails whenever reproducibility cannot be proven, otherwise B3 or a further ruling. A fail-closed B2 specification (behaviour table with distinct exit codes 10-16, drift analysis versus B3, 31 offline tests, Linux first-run commands) and an updated UNAPPLIED patch are on local branch `ci/nightly-fix-b-lock-recheck` (12a02485). Real-uv behaviour is NOT verified (uv is not installed on the preparing machine). No script is changed on that branch.
+- The RANGE-002 guard-removal PR candidate (`ci/range002-remove-hashfiles-guards-v2`, 4cb14752) now also drops `--allow-pending`.
+
 ### 0.3 Packaging: revised recommendation
 
 v0.1 recommended ONE PR for both fixes to save one global FULL run. Revised, Recommendation (not a decision): **TWO narrow PRs, A first, then B, neither combined with any RANGE-002 PR.**
