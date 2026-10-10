@@ -22,7 +22,7 @@
 | `GET .../branches/main/protection` | Required status check `Python CI Gate` (`app_id` 15368), `strict: true`; `enforce_admins: true`; no force pushes; no deletions; `required_signatures` false; linear history false; conversation resolution false; **no `required_pull_request_reviews`** | NO |
 | `GET .../rulesets` | `[]` | NO |
 | `GET .../collaborators` | `jayw04` only | NO |
-| `GET repos/jayw04/AI-TRADING-APP` | public; user-owned; squash, merge and rebase merge all allowed; `allow_auto_merge` false; `delete_branch_on_merge` false; secret scanning, push protection and Dependabot security updates all `disabled` (new observation, not in v0.1) | secret-scanning fields newly recorded |
+| `GET repos/jayw04/AI-TRADING-APP` | public; user-owned; squash, merge and rebase merge all allowed; `allow_auto_merge` false; `delete_branch_on_merge` false; secret scanning and push protection were `disabled` at my read and have since been ENABLED by the coordinator (section 0.4); Dependabot security updates still disabled | secret-scanning fields changed after this read |
 | `GET .../actions/permissions` and `/workflow` | Actions enabled, `allowed_actions: all`, `sha_pinning_required: false`; default workflow token `read`; `can_approve_pull_request_reviews: false` (so a workflow cannot approve PRs; option C therefore needs a repository-wide setting write) | newly recorded |
 | CODEOWNERS / Dependabot config in the tree | none | NO |
 
@@ -51,38 +51,25 @@ The deadline for capturing and hashing them was therefore **about 2026-11-08** (
 
 The recommendation in section 1.4 is unchanged: A if a second person exists, otherwise D recorded by ADR, with B only as a labelled process step. The new fact is only timing: two consequential governance PRs have now merged without an enforced second reviewer. If the owner wants the ruleset in force before the next consequential PR (for example the Level 2 implementation PRs or a spec-freeze PR), the dry run (section 1.9, step 4) needs to start well before it, because it should observe a week of real PRs. This is a sequencing remark, not a decision.
 
-### 0.4 Secret scanning and push protection (verified read-only; NOT changed)
+### 0.4 Secret scanning and push protection (ENABLED by the coordinator under owner approval)
 
-Read-only facts, 2026-10-10 (`gh api repos/jayw04/AI-TRADING-APP`; caller has admin):
+State history (2026-10-10):
 
-| Setting (`security_and_analysis`) | Status |
-|---|---|
-| `secret_scanning` | **disabled** |
-| `secret_scanning_push_protection` | **disabled** |
-| `secret_scanning_non_provider_patterns` | disabled |
-| `secret_scanning_validity_checks` | disabled |
-| `dependabot_security_updates` | disabled (Dependabot alerts endpoint also returns 404, i.e. alerts are off) |
+| Setting (`security_and_analysis`) | Before (my read-only check) | After (coordinator's verification, reported to me; I did not re-query) |
+|---|---|---|
+| `secret_scanning` | disabled | **enabled** |
+| `secret_scanning_push_protection` | disabled | **enabled** |
+| `secret_scanning_non_provider_patterns` | disabled | still disabled |
+| `secret_scanning_validity_checks` | disabled | still disabled |
+| `dependabot_security_updates` | disabled | still disabled |
 
-`GET .../secret-scanning/alerts` returns `404 "Secret scanning is disabled on this repository."` Code scanning has no analysis. Private vulnerability reporting is `enabled: false`. Availability: the repository is **public** and all five secret-scanning keys are present in the API response (the API omits keys for features the plan or repository cannot use), which indicates the feature is available for this repository; for public repositories GitHub offers secret scanning and push protection at no charge. The authoritative confirmation is the toggle becoming editable in the UI; I could not test by writing.
+Alerts at the coordinator's check: **0**. Before enabling, `GET .../secret-scanning/alerts` returned 404 "Secret scanning is disabled"; after enabling it returns the alert list. This section records the change as made by the coordinator; this document and its author changed no setting.
 
-Exact change the owner would make (not performed here):
+Behaviour now in force: secret scanning covers the history and new pushes of this public repository; **push protection blocks a push that contains a detected secret** until it is removed or a bypass reason is recorded (false positive, used in tests, will fix later); bypasses are audited. False positives are possible for fixtures and high-entropy test strings. Enabling does not delete a secret already pushed: any real finding means the credential must be rotated first and cleaned up second. It adds no Actions minutes. Reversible in Settings > Code security.
 
-- UI: repository **Settings** > **Code security** (older UI: *Code security and analysis*) > **Secret scanning**: Enable; then **Push protection**: Enable. Optionally enable Dependabot alerts and security updates, and private vulnerability reporting, on the same page.
-- API (needs admin; `gh auth` token with repo admin rights):
+Verification step (Recommendation (not a decision)): (1) re-read the settings with `gh api repos/jayw04/AI-TRADING-APP --jq .security_and_analysis` and confirm the two keys read `enabled`; (2) list alerts with `gh api repos/jayw04/AI-TRADING-APP/secret-scanning/alerts --jq 'length'` (count only); (3) only with the owner's approval, test push protection on a throwaway branch with a pattern GitHub documents as a test value, never a real credential, then delete the branch.
 
-```text
-PATCH /repos/jayw04/AI-TRADING-APP
-{
-  "security_and_analysis": {
-    "secret_scanning": { "status": "enabled" },
-    "secret_scanning_push_protection": { "status": "enabled" }
-  }
-}
-```
-
-Behaviour and risk: secret scanning scans the existing history and new pushes of a public repository and raises alerts (visible to admins; for provider patterns the provider may be notified). Push protection **blocks a push that contains a detected secret** until the pusher removes it or records a bypass reason (false positive, used in tests, will fix later); bypass is audited. False positives are possible (test fixtures, synthetic keys, high-entropy strings); the repository contains test and fixture material, so expect to meet some. It does not delete a secret already pushed: any alert on an existing secret means the credential must be rotated (CLAUDE.md: credentials are Fernet-encrypted at rest and not in the repository, so the expected alert count is zero). Enabling is reversible in the same place. It adds no Actions minutes and is not a workflow change.
-
-Recommended verification step (Recommendation (not a decision)): after enabling, (1) confirm the two settings read `enabled` via the same GET; (2) review the initial alert list (`GET .../secret-scanning/alerts`) and rotate anything real; (3) on a throwaway branch, push a commit containing a documented non-secret test token pattern from the provider's published test strings to see a push-protection block (do this only with the owner's approval, and use a pattern GitHub documents as a test value, never a real credential). Because it changes repository settings, it needs the owner's explicit approval.
+Reviewing alerts privately (rules): review alerts only in the GitHub UI (Security > Secret scanning) as the repository admin, or via the API restricted to non-secret fields, for example `--jq '.[] | {number, state, secret_type, created_at, html_url}'`, which omits the `secret` field. **Never copy a discovered secret into a report, PR, issue, chat, commit message or log**; refer to an alert by number and type only. For a real finding: rotate or revoke the credential at the provider first (see the platform's credential rotation runbook; credential rotations are audit-logged per CLAUDE.md), then resolve the alert as "revoked", and only then consider history cleanup. For a false positive: resolve it as "false positive" or "used in tests" with a short reason. Dependabot alerts and security updates, non-provider patterns and validity checks remain off; enabling them is a separate owner decision.
 
 ---
 
@@ -369,7 +356,7 @@ Alternatives considered: A second human reviewer plus ruleset Variant 1; a machi
 Approval: Owner: ______________________  Date: ____________   (blank; nothing is approved)
 ```
 
-Recommendation (not a decision): adopt option A when a person is available; until then option D by ADR is the honest state. Adopting option D requires an ADR through the normal ADR process; this text is a draft only.
+Owner ruling (relayed 2026-10-10): **Option D is chosen for now.** The full ADR draft, with blank approval fields and a placeholder number, is `ADR_PROPOSED_Single_Owner_Review_Risk_Acceptance_DRAFT.md` in this directory and supersedes the short text above. It is not an ADR until adopted through the normal ADR process. Option A remains the target when a second qualified reviewer exists.
 
 ---
 
