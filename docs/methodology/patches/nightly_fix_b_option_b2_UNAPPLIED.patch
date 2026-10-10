@@ -1,13 +1,13 @@
 diff --git a/apps/backend/tests/ci/test_check_dependency_locks.py b/apps/backend/tests/ci/test_check_dependency_locks.py
 new file mode 100644
-index 00000000..8eae1086
+index 00000000..80f35f8a
 --- /dev/null
 +++ b/apps/backend/tests/ci/test_check_dependency_locks.py
-@@ -0,0 +1,77 @@
-+"""Unit tests for scripts/check_dependency_locks.py re-resolution helpers (nightly defect B).
+@@ -0,0 +1,232 @@
++"""Unit tests for the fail-closed re-resolution proof in scripts/check_dependency_locks.py (nightly B2).
 +
 +The root `scripts/` package is not on the backend import path, so the module is loaded by file path.
-+Offline only: no uv, no network.
++Offline only: uv is replaced by a fake `run`; no network.
 +"""
 +
 +from __future__ import annotations
@@ -28,6 +28,28 @@ index 00000000..8eae1086
 +
 +BODY = "foo==1.0 \\\n    --hash=sha256:" + "a" * 64 + "\n    # via bar\n"
 +HEADER = "# GENERATED FILE - DO NOT EDIT BY HAND.\n#\n# more header\n#\n"
++COMMITTED = HEADER + BODY
++
++
++def _ok(cmd, **kw):  # a fake uv that rewrites the seeded output unchanged
++    return subprocess.CompletedProcess(cmd, 0, "", "")
++
++
++def _writer(text):
++    def run(cmd, **kw):
++        Path(cmd[cmd.index("--output-file") + 1]).write_text(text, encoding="utf-8")
++        return subprocess.CompletedProcess(cmd, 0, "", "")
++
++    return run
++
++
++def _code(fn) -> int:
++    with pytest.raises(cdl.RecheckFailure) as ei:
++        fn()
++    return ei.value.code
++
++
++# ---- header stripping ---------------------------------------------------------------------------
 +
 +
 +def test_strip_header_removes_only_the_leading_block() -> None:
@@ -48,41 +70,174 @@ index 00000000..8eae1086
 +    assert cdl.PIN_RE.match(body), "header stripping must land exactly on the first pinned package"
 +
 +
-+def test_recompile_seeds_uv_with_the_committed_body_and_never_upgrades(
-+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-+) -> None:
++# ---- the one passing case -----------------------------------------------------------------------
++
++
++def test_seeded_reresolution_equal_to_committed_body_passes(tmp_path: Path) -> None:
++    cdl.recheck_one("backend", "apps/backend", COMMITTED, tmp_path, run=_ok)  # no exception
++
++
++def test_uv_is_seeded_with_the_committed_body_and_never_asked_to_upgrade(tmp_path: Path) -> None:
 +    seen: dict[str, object] = {}
 +
-+    def run(cmd: list[str], **kwargs: object) -> subprocess.CompletedProcess[str]:
++    def run(cmd, **kw):
 +        out = Path(cmd[cmd.index("--output-file") + 1])
 +        seen["seed"] = out.read_text(encoding="utf-8")
 +        seen["cmd"] = cmd
++        seen["timeout"] = kw.get("timeout")
 +        return subprocess.CompletedProcess(cmd, 0, "", "")
 +
-+    monkeypatch.setattr(cdl.subprocess, "run", run)
-+    ok, _ = cdl.recompile_one("backend", "apps/backend", tmp_path / "o.txt", seed=BODY)
++    cdl.recheck_one("backend", "apps/backend", COMMITTED, tmp_path, run=run)
 +    cmd = seen["cmd"]
-+    assert ok and seen["seed"] == BODY
 +    assert isinstance(cmd, list)
-+    assert "--upgrade" not in cmd and "-U" not in cmd
-+    assert "--no-header" in cmd
++    assert seen["seed"] == BODY
++    assert not {"--upgrade", "-U", "--upgrade-package", "-P"} & set(cmd)
++    assert "--no-header" in cmd and "--generate-hashes" in cmd
++    assert seen["timeout"] == cdl.COMPILE_TIMEOUT_SECONDS
 +
 +
-+def test_recompile_without_seed_does_not_touch_the_output_path(
-+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-+) -> None:
-+    monkeypatch.setattr(
-+        cdl.subprocess, "run", lambda cmd, **k: subprocess.CompletedProcess(cmd, 0, "", "")
++# ---- every failure mode is a distinct, non-zero failure (missing evidence is never success) ------
++
++
++def test_absent_seed_fails(tmp_path: Path) -> None:
++    assert _code(lambda: cdl.recheck_one("b", "apps/backend", None, tmp_path, run=_ok)) == (
++        cdl.EXIT_SEED_UNAVAILABLE
 +    )
-+    out = tmp_path / "o.txt"
-+    cdl.recompile_one("backend", "apps/backend", out)
-+    assert not out.exists()
 +
 +
-+def test_offline_structural_gate_still_passes() -> None:
++@pytest.mark.parametrize("text", ["", "\n\n", HEADER, HEADER + "\n  \n"])
++def test_empty_or_header_only_seed_fails(tmp_path: Path, text: str) -> None:
++    assert _code(lambda: cdl.recheck_one("b", "apps/backend", text, tmp_path, run=_ok)) == (
++        cdl.EXIT_SEED_UNAVAILABLE
++    )
++
++
++def test_seed_without_pins_fails(tmp_path: Path) -> None:
++    junk = HEADER + "not a pin line\n"
++    assert _code(lambda: cdl.recheck_one("b", "apps/backend", junk, tmp_path, run=_ok)) == (
++        cdl.EXIT_SEED_UNAVAILABLE
++    )
++
++
++def test_uv_missing_fails(tmp_path: Path) -> None:
++    def run(cmd, **kw):
++        raise FileNotFoundError("uv")
++
++    assert _code(lambda: cdl.recheck_one("b", "apps/backend", COMMITTED, tmp_path, run=run)) == (
++        cdl.EXIT_UV_MISSING
++    )
++
++
++def test_compile_error_and_network_failure_fail(tmp_path: Path) -> None:
++    def run(cmd, **kw):
++        return subprocess.CompletedProcess(cmd, 2, "", "error: Failed to fetch: connection refused")
++
++    assert _code(lambda: cdl.recheck_one("b", "apps/backend", COMMITTED, tmp_path, run=run)) == (
++        cdl.EXIT_COMPILE_FAILED
++    )
++
++
++def test_timeout_fails(tmp_path: Path) -> None:
++    def run(cmd, **kw):
++        raise subprocess.TimeoutExpired(cmd, 1)
++
++    assert _code(lambda: cdl.recheck_one("b", "apps/backend", COMMITTED, tmp_path, run=run)) == (
++        cdl.EXIT_TIMEOUT
++    )
++
++
++@pytest.mark.parametrize("text", ["", "\n", "# only a comment\n"])
++def test_empty_output_fails(tmp_path: Path, text: str) -> None:
++    assert _code(
++        lambda: cdl.recheck_one("b", "apps/backend", COMMITTED, tmp_path, run=_writer(text))
++    ) == (cdl.EXIT_EMPTY_OUTPUT)
++
++
++def test_missing_output_file_fails(tmp_path: Path) -> None:
++    def run(cmd, **kw):
++        Path(cmd[cmd.index("--output-file") + 1]).unlink()
++        return subprocess.CompletedProcess(cmd, 0, "", "")
++
++    assert _code(lambda: cdl.recheck_one("b", "apps/backend", COMMITTED, tmp_path, run=run)) == (
++        cdl.EXIT_EMPTY_OUTPUT
++    )
++
++
++def test_different_resolution_fails(tmp_path: Path) -> None:
++    changed = BODY.replace("foo==1.0", "foo==1.1")
++    assert _code(
++        lambda: cdl.recheck_one("b", "apps/backend", COMMITTED, tmp_path, run=_writer(changed))
++    ) == (cdl.EXIT_DIFFERS)
++
++
++def test_whitespace_only_difference_still_fails(tmp_path: Path) -> None:
++    assert _code(
++        lambda: cdl.recheck_one("b", "apps/backend", COMMITTED, tmp_path, run=_writer(BODY + "\n"))
++    ) == (cdl.EXIT_DIFFERS)
++
++
++def test_exit_codes_are_distinct_and_nonzero() -> None:
++    codes = [
++        cdl.EXIT_SEED_UNAVAILABLE,
++        cdl.EXIT_UV_MISSING,
++        cdl.EXIT_COMPILE_FAILED,
++        cdl.EXIT_TIMEOUT,
++        cdl.EXIT_EMPTY_OUTPUT,
++        cdl.EXIT_DIFFERS,
++        cdl.EXIT_UV_VERSION,
++    ]
++    assert len(set(codes)) == len(codes) and 0 not in codes and 1 not in codes
++
++
++# ---- uv version check ---------------------------------------------------------------------------
++
++
++def test_governed_uv_version_passes() -> None:
++    def run(cmd, **kw):
++        return subprocess.CompletedProcess(cmd, 0, f"uv {cdl.GOVERNED_UV_VERSION} (abc 2026)\n", "")
++
++    cdl.check_uv_version(run=run)
++
++
++def test_other_uv_version_fails() -> None:
++    def run(cmd, **kw):
++        return subprocess.CompletedProcess(cmd, 0, "uv 0.99.0 (abc)\n", "")
++
++    assert _code(lambda: cdl.check_uv_version(run=run)) == cdl.EXIT_UV_VERSION
++
++
++def test_uv_version_missing_fails() -> None:
++    def run(cmd, **kw):
++        raise FileNotFoundError("uv")
++
++    assert _code(lambda: cdl.check_uv_version(run=run)) == cdl.EXIT_UV_MISSING
++
++
++# ---- main() wiring -------------------------------------------------------------------------------
++
++
++def test_main_offline_gate_still_passes() -> None:
 +    assert cdl.main([]) == 0
++
++
++def test_main_recompile_without_uv_is_a_distinct_failure(monkeypatch: pytest.MonkeyPatch) -> None:
++    def run(cmd, **kw):
++        raise FileNotFoundError("uv")
++
++    monkeypatch.setattr(cdl.subprocess, "run", run)
++    assert cdl.main(["--recompile"]) == cdl.EXIT_UV_MISSING
++
++
++def test_main_recompile_never_returns_success_when_the_proof_cannot_run(
++    monkeypatch: pytest.MonkeyPatch,
++) -> None:
++    def run(cmd, **kw):
++        return subprocess.CompletedProcess(cmd, 1, "", "network unreachable")
++
++    monkeypatch.setattr(cdl.subprocess, "run", run)
++    assert cdl.main(["--recompile"]) != 0
 diff --git a/scripts/check_dependency_locks.py b/scripts/check_dependency_locks.py
-index ef3d0c7e..486b8d60 100644
+index ef3d0c7e..f37eea81 100644
 --- a/scripts/check_dependency_locks.py
 +++ b/scripts/check_dependency_locks.py
 @@ -15,8 +15,11 @@ Checks, in order of cost:
@@ -91,18 +246,19 @@ index ef3d0c7e..486b8d60 100644
       — the cheap, offline half of drift detection.
 -  6. With ``--recompile`` (nightly / on demand, needs network + uv): re-resolve and require
 -     the output to be byte-identical to what is committed.
-+  6. With ``--recompile`` (nightly / on demand, needs network + uv): re-resolve WITHOUT
-+     upgrading (the committed pins seed the resolver as preferences) and require the body to be
-+     byte-identical to the committed body (the generated header is excluded from the comparison).
-+     This proves the committed graph is still a valid, reproducible resolution of the manifests;
-+     it deliberately does not flag newer upstream releases (the monthly refresh owns those).
++  6. With ``--recompile`` (nightly / on demand, needs network + uv): FAIL-CLOSED proof that a
++     non-upgrading re-resolution, seeded by the committed pins, reproduces the committed body
++     byte-for-byte (header excluded). Missing evidence (no seed, uv absent or wrong version,
++     compile error, timeout, empty output) is a distinct non-zero exit, never a pass or skip.
++     Newer upstream releases do not fail it (the seed preserves pins).
  
  Usage:
    python scripts/check_dependency_locks.py              # offline structural gate (PR CI)
-@@ -55,6 +58,19 @@ PIN_RE = re.compile(r"^([A-Za-z0-9][A-Za-z0-9._-]*)==(\S+)", re.M)
- BACKSLASH = chr(92)
+@@ -101,7 +104,73 @@ def unhashed(text: str) -> list[str]:
+     return bad
  
  
+-def recompile_one(project: str, directory: str, out: Path) -> tuple[bool, str]:
 +def strip_header(text: str) -> str:
 +    """Drop the leading generated header (comment and blank lines before the first pin).
 +
@@ -116,37 +272,137 @@ index ef3d0c7e..486b8d60 100644
 +    return "".join(lines[i:])
 +
 +
- def norm(name: str) -> str:
-     """PEP 503 normalisation — `Foo_Bar.baz` and `foo-bar-baz` are the same project."""
-     return re.sub(r"[-_.]+", "-", name).lower()
-@@ -101,7 +117,13 @@ def unhashed(text: str) -> list[str]:
-     return bad
- 
- 
--def recompile_one(project: str, directory: str, out: Path) -> tuple[bool, str]:
-+def recompile_one(
-+    project: str, directory: str, out: Path, seed: str | None = None
-+) -> tuple[bool, str]:
-+    if seed is not None:
-+        # uv treats an existing output file as preferred versions (no --upgrade passed), so a
-+        # re-resolve reproduces the committed pins instead of drifting to newer releases.
-+        out.write_text(seed, encoding="utf-8")
++# Distinct exit codes for the fail-closed re-resolution proof (0 = proven, 1 = structural errors).
++# Missing evidence is NEVER success: every one of these is a failure.
++EXIT_SEED_UNAVAILABLE = 10  # committed file missing/unreadable/has no pins: nothing to seed or compare
++EXIT_UV_MISSING = 11  # `uv` cannot be executed
++EXIT_COMPILE_FAILED = 12  # uv exited non-zero (resolver error, index/network failure, ...)
++EXIT_TIMEOUT = 13  # uv did not finish within the timeout
++EXIT_EMPTY_OUTPUT = 14  # uv succeeded but wrote no output file or an empty/pin-less one
++EXIT_DIFFERS = 15  # a non-upgrading, seeded re-resolution is not byte-identical to the committed body
++EXIT_UV_VERSION = 16  # the uv on PATH is not the governed version, so the comparison is meaningless
++COMPILE_TIMEOUT_SECONDS = 600
++
++
++class RecheckFailure(Exception):
++    def __init__(self, code: int, message: str) -> None:
++        super().__init__(message)
++        self.code = code
++        self.message = message
++
++
++def check_uv_version(run=subprocess.run) -> None:
++    try:
++        p = run(["uv", "--version"], capture_output=True, text=True, timeout=60)
++    except (FileNotFoundError, PermissionError) as exc:
++        raise RecheckFailure(EXIT_UV_MISSING, f"uv cannot be executed: {exc}") from exc
++    except subprocess.TimeoutExpired as exc:
++        raise RecheckFailure(EXIT_TIMEOUT, "uv --version timed out") from exc
++    if p.returncode != 0:
++        raise RecheckFailure(EXIT_UV_MISSING, f"uv --version failed: {p.stderr.strip()[:200]}")
++    if GOVERNED_UV_VERSION not in p.stdout.split():
++        raise RecheckFailure(
++            EXIT_UV_VERSION,
++            f"uv is {p.stdout.strip()!r}, governed version is {GOVERNED_UV_VERSION}",
++        )
++
++
++def recheck_one(
++    project: str,
++    directory: str,
++    committed_text: str | None,
++    td: Path,
++    run=subprocess.run,
++    timeout: int = COMPILE_TIMEOUT_SECONDS,
++) -> None:
++    """Prove a non-upgrading re-resolution seeded by the committed pins reproduces the committed body.
++
++    Returns None only when the proof holds; raises RecheckFailure otherwise (fail closed)."""
++    if committed_text is None:
++        raise RecheckFailure(EXIT_SEED_UNAVAILABLE, "committed constraints file is unavailable")
++    seed = strip_header(committed_text)
++    if not seed.strip() or not PIN_RE.search(seed):
++        raise RecheckFailure(EXIT_SEED_UNAVAILABLE, "committed constraints body is empty or has no pins")
++    out = td / f"{project}.txt"
++    # uv treats an existing output file as preferred versions (no --upgrade is ever passed).
++    out.write_text(seed, encoding="utf-8")
      cmd = [
          "uv", "pip", "compile", f"{directory}/pyproject.toml",
          *sum([["--extra", e] for e in GOVERNED_EXTRAS], []),
-@@ -178,12 +200,12 @@ def main(argv: list[str] | None = None) -> int:
-         with tempfile.TemporaryDirectory() as td:
-             for project, directory in PROJECTS.items():
-                 out = Path(td) / f"{project}.txt"
+@@ -110,10 +179,26 @@ def recompile_one(project: str, directory: str, out: Path) -> tuple[bool, str]:
+         "--generate-hashes", "--no-header",
+         "--output-file", str(out),
+     ]
+-    p = subprocess.run(cmd, cwd=REPO_ROOT, capture_output=True, text=True)
++    try:
++        p = run(cmd, cwd=REPO_ROOT, capture_output=True, text=True, timeout=timeout)
++    except (FileNotFoundError, PermissionError) as exc:
++        raise RecheckFailure(EXIT_UV_MISSING, f"uv cannot be executed: {exc}") from exc
++    except subprocess.TimeoutExpired as exc:
++        raise RecheckFailure(EXIT_TIMEOUT, f"uv pip compile timed out after {timeout}s") from exc
+     if p.returncode != 0:
+-        return False, f"uv pip compile failed: {p.stderr.strip()[:300]}"
+-    return True, ""
++        raise RecheckFailure(EXIT_COMPILE_FAILED, f"uv pip compile failed: {p.stderr.strip()[:300]}")
++    try:
++        got = out.read_text(encoding="utf-8")
++    except OSError as exc:
++        raise RecheckFailure(EXIT_EMPTY_OUTPUT, f"uv wrote no readable output: {exc}") from exc
++    if not got.strip() or not PIN_RE.search(got):
++        raise RecheckFailure(EXIT_EMPTY_OUTPUT, "uv output is empty or has no pins")
++    if got != seed:
++        raise RecheckFailure(
++            EXIT_DIFFERS,
++            "seeded re-resolution DIFFERS from the committed body - the committed graph is not "
++            "reproducible; regenerate and review the diff",
++        )
+ 
+ 
+ def main(argv: list[str] | None = None) -> int:
+@@ -174,22 +259,33 @@ def main(argv: list[str] | None = None) -> int:
+                     f"{directory}/pyproject.toml but is not pinned — regenerate the constraints file"
+                 )
+ 
++    recheck_codes: list[int] = []
+     if args.recompile and not errors:
+-        with tempfile.TemporaryDirectory() as td:
+-            for project, directory in PROJECTS.items():
+-                out = Path(td) / f"{project}.txt"
 -                ok, why = recompile_one(project, directory, out)
-+                committed_body = strip_header(constraints_path(project).read_text(encoding="utf-8"))
-+                ok, why = recompile_one(project, directory, out, seed=committed_body)
-                 if not ok:
-                     errors.append(f"{project}: {why}")
-                     continue
+-                if not ok:
+-                    errors.append(f"{project}: {why}")
+-                    continue
 -                committed = constraints_path(project).read_text(encoding="utf-8")
 -                if out.read_text(encoding="utf-8") != committed:
-+                if out.read_text(encoding="utf-8") != committed_body:
-                     errors.append(
-                         f"{project}: re-resolution DIFFERS from the committed file — "
-                         "the committed graph is not reproducible; regenerate and review the diff"
+-                    errors.append(
+-                        f"{project}: re-resolution DIFFERS from the committed file — "
+-                        "the committed graph is not reproducible; regenerate and review the diff"
+-                    )
++        try:
++            check_uv_version()
++        except RecheckFailure as exc:
++            errors.append(exc.message)
++            recheck_codes.append(exc.code)
++        else:
++            with tempfile.TemporaryDirectory() as td:
++                for project, directory in PROJECTS.items():
++                    try:
++                        committed = constraints_path(project).read_text(encoding="utf-8")
++                    except OSError:
++                        committed = None
++                    try:
++                        recheck_one(project, directory, committed, Path(td))
++                    except RecheckFailure as exc:
++                        errors.append(f"{project}: {exc.message}")
++                        recheck_codes.append(exc.code)
+ 
+     if errors:
++        if recheck_codes:
++            # distinct, first-failure exit code (project order); every failure is still printed
++            print("dependency-lock gate FAILED (re-resolution proof, fail closed):", file=sys.stderr)
++            for e in errors:
++                print(f"  - {e}", file=sys.stderr)
++            return recheck_codes[0]
+         print("dependency-lock gate FAILED:", file=sys.stderr)
+         for e in errors:
+             print(f"  - {e}", file=sys.stderr)
