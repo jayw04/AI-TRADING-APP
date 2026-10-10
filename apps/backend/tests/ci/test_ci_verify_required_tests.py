@@ -275,6 +275,19 @@ def test_committed_manifest_is_valid_and_covers_the_named_tests() -> None:
         "test_append_blocked_by_a_held_lock_is_refused_not_forked",
         "test_exactly_one_enrollment_wins_each_round[different]",
         "test_exactly_one_enrollment_wins_each_round[same]",
+        "test_a5_symlinked_token_directory_is_one_identity",
+        "test_a5_symlinked_registry_directory_is_one_identity_one_lock_one_chain",
+        "test_a5_symlink_planted_over_a_file_name_is_never_written_through",
+        "test_a5_token_directory_redirected_through_a_link_cannot_reopen_the_holdout",
+        "test_l2_killed_chain_lock_holder_frees_the_lock_and_leaves_the_chain_intact",
+        "test_l2_killed_namespace_lock_holder_frees_the_lock_and_enrollment_still_works",
+        "test_l2_sigkill_during_an_append_loop_never_leaves_a_torn_or_forked_chain",
+        "test_l3_forked_child_cannot_append_while_the_parent_holds_the_lock",
+        "test_l3_lock_released_by_the_parent_is_not_kept_by_a_live_forked_child",
+        "test_l3_killed_parents_lock_stays_held_while_a_forked_descendant_lives",
+        "test_l3_capability_cannot_be_serialised_into_another_process",
+        "test_l3_capability_in_a_forked_child_is_valid_only_while_its_run_is_open",
+        "test_l3_forked_child_handle_appends_under_the_lock_without_forking_the_chain",
     }
     assert ids == pr2 | pr3
     assert len(reqs) == len(pr2) + len(pr3)
