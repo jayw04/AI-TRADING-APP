@@ -29,14 +29,17 @@ import multiprocessing
 import multiprocessing.reduction
 import os
 import pickle
+import queue
 import random
+import select
 import signal
 import subprocess
 import sys
+import threading
 import time
 from collections.abc import Callable
 from pathlib import Path
-from typing import Any
+from typing import Any, NoReturn
 
 import pytest
 
@@ -80,6 +83,7 @@ from .conftest import (
 BACKEND_DIR = Path(__file__).resolve().parents[4]
 _SIGKILL = getattr(signal, "SIGKILL", signal.SIGTERM)  # SIGKILL on POSIX; unused on Windows
 IS_WINDOWS = sys.platform == "win32"
+_REAP_S = 15.0
 ACQUIRE_BUDGET_S = 5.0  # "promptly": the OS frees the lock at once; the budget only bounds a hang
 
 needs_fork = pytest.mark.skipif(
@@ -92,34 +96,143 @@ def _env() -> dict[str, str]:
     return {**os.environ, "PYTHONPATH": str(BACKEND_DIR)}
 
 
-def _spawn(script: str, *args: str) -> subprocess.Popen[str]:
-    return subprocess.Popen(
-        [sys.executable, "-c", script, *args],
-        cwd=BACKEND_DIR,
-        env=_env(),
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-        text=True,
-    )
+CHILD_WAIT_S = 30.0  # every wait on a child is bounded by this; generous so slow CI never flakes
 
 
-def _hard_kill(proc: subprocess.Popen[str]) -> None:
-    """SIGKILL on POSIX; ``TerminateProcess`` (``Popen.kill``) on Windows. Neither runs any
-    cleanup in the victim, so the lock can only be freed by the OS."""
-    if IS_WINDOWS:
-        proc.kill()
-    else:
-        os.kill(proc.pid, _SIGKILL)
-    proc.wait(timeout=15)
+class _Child:
+    """A real subprocess whose every wait is BOUNDED.
 
+    stdout and stderr are drained by reader threads, so a read can time out (``queue.get``
+    with a timeout) instead of blocking forever on a hung child, and a chatty child can never
+    fill a pipe. On a timeout or an early EOF the child and its descendants are killed and
+    reaped, and the test fails with what was expected, the last lines seen, the return code and
+    stderr. On POSIX the child leads its own process group so the whole tree can be killed.
+    """
 
-def _expect_ready(proc: subprocess.Popen[str]) -> None:
-    assert proc.stdout is not None
-    line = proc.stdout.readline().strip()
-    if line != "READY":
-        _hard_kill(proc)
-        assert proc.stderr is not None
-        pytest.fail(f"child did not become READY (got {line!r}): {proc.stderr.read()}")
+    def __init__(self, script: str, *args: str) -> None:
+        extra: dict[str, Any] = {} if IS_WINDOWS else {"start_new_session": True}
+        self.proc: subprocess.Popen[str] = subprocess.Popen(
+            [sys.executable, "-c", script, *args],
+            cwd=BACKEND_DIR,
+            env=_env(),
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            **extra,
+        )
+        self.seen: list[str] = []  # stdout lines consumed so far, stripped
+        self.err: list[str] = []
+        self._lines: queue.Queue[str | None] = queue.Queue()
+        self._threads = [
+            threading.Thread(target=self._pump_out, daemon=True),
+            threading.Thread(target=self._pump_err, daemon=True),
+        ]
+        for thread in self._threads:
+            thread.start()
+
+    def _pump_out(self) -> None:
+        stream = self.proc.stdout
+        assert stream is not None
+        try:
+            for line in stream:
+                self._lines.put(line)
+        except (OSError, ValueError):
+            pass
+        finally:
+            self._lines.put(None)  # EOF marker
+
+    def _pump_err(self) -> None:
+        stream = self.proc.stderr
+        assert stream is not None
+        try:
+            for line in stream:
+                self.err.append(line)
+        except (OSError, ValueError):
+            pass
+
+    def _fail(self, message: str) -> NoReturn:
+        code = self.proc.poll()
+        tail = "".join(self.err)[-2000:]
+        self.close()
+        pytest.fail(
+            f"{message}; last stdout lines={self.seen[-10:]!r}; child returncode={code!r}; "
+            f"child stderr tail={tail!r}"
+        )
+
+    def next_line(self, expecting: str, timeout: float = CHILD_WAIT_S) -> str:
+        try:
+            line = self._lines.get(timeout=timeout)
+        except queue.Empty:
+            self._fail(f"timed out after {timeout}s waiting for {expecting}")
+        if line is None:
+            self._lines.put(None)  # keep the EOF marker for any later reader
+            with contextlib.suppress(subprocess.TimeoutExpired):
+                self.proc.wait(timeout=5)  # so the diagnostics carry the real return code
+            self._fail(f"child closed stdout (exited) while waiting for {expecting}")
+        assert line is not None
+        text = line.strip()
+        self.seen.append(text)
+        return text
+
+    def expect_ready(self) -> None:
+        line = self.next_line("READY")
+        if line != "READY":
+            self._fail(f"child did not become READY (got {line!r})")
+
+    def hard_kill(self) -> None:
+        """SIGKILL on POSIX; ``TerminateProcess`` (``Popen.kill``) on Windows. Neither runs any
+        cleanup in the victim, so the lock can only be freed by the OS. Kills this process only
+        (a forked descendant survives)."""
+        if self.proc.poll() is None:
+            with contextlib.suppress(ProcessLookupError, PermissionError):
+                if IS_WINDOWS:
+                    self.proc.kill()
+                else:
+                    os.kill(self.proc.pid, _SIGKILL)
+        try:
+            self.proc.wait(timeout=_REAP_S)
+        except subprocess.TimeoutExpired:
+            pytest.fail(f"child pid {self.proc.pid} did not die within {_REAP_S}s of a hard kill")
+
+    def drain(self) -> list[str]:
+        """After the child died: collect the rest of its stdout (bounded) and return all lines."""
+        self._threads[0].join(timeout=_REAP_S)
+        while True:
+            try:
+                line = self._lines.get_nowait()
+            except queue.Empty:
+                break
+            if line is None:
+                break
+            self.seen.append(line.strip())
+        return self.seen
+
+    def close(self) -> None:
+        """Kill the child AND its descendants, reap them, release the pipes. Idempotent."""
+        if IS_WINDOWS:
+            subprocess.run(
+                ["taskkill", "/F", "/T", "/PID", str(self.proc.pid)],
+                capture_output=True,
+                timeout=_REAP_S,
+                check=False,
+            )
+            with contextlib.suppress(OSError):
+                self.proc.kill()
+        else:
+            with contextlib.suppress(ProcessLookupError, PermissionError):
+                os.killpg(self.proc.pid, _SIGKILL)
+        with contextlib.suppress(subprocess.TimeoutExpired):
+            self.proc.wait(timeout=_REAP_S)
+        for thread in self._threads:
+            thread.join(timeout=_REAP_S)
+        if not any(thread.is_alive() for thread in self._threads):
+            for stream in (self.proc.stdout, self.proc.stderr):
+                if stream is not None:
+                    stream.close()
+
+    def kill(self) -> None:
+        self.hard_kill()
+        self.close()
 
 
 def _chain_with(path: Path, n: int) -> HashChainFile:
@@ -322,16 +435,16 @@ def test_l2_killed_chain_lock_holder_frees_the_lock_and_leaves_the_chain_intact(
     path = tmp_path / "chain.jsonl"
     _chain_with(path, 3)
     before = path.read_bytes()
-    proc = _spawn(_HOLDER, "chain", str(path))
+    child = _Child(_HOLDER, "chain", str(path))
     try:
-        _expect_ready(proc)
+        child.expect_ready()
         with (
             pytest.raises(RegistryIntegrityError, match="writer lock"),
             file_lock(path, timeout=0.3),
         ):
             pytest.fail("the live holder must exclude us")
     finally:
-        _hard_kill(proc)
+        child.kill()
     started = time.monotonic()
     with file_lock(path, timeout=ACQUIRE_BUDGET_S):
         pass
@@ -347,13 +460,13 @@ def test_l2_killed_namespace_lock_holder_frees_the_lock_and_enrollment_still_wor
     tmp_path: Path,
 ) -> None:
     gov = tmp_path / "gov"
-    proc = _spawn(_HOLDER, "namespace", str(gov))
+    child = _Child(_HOLDER, "namespace", str(gov))
     try:
-        _expect_ready(proc)
+        child.expect_ready()
         with pytest.raises(RegistryNamespaceBusyError), namespace_lock(gov, timeout=0.3):
             pytest.fail("the live holder must exclude us")
     finally:
-        _hard_kill(proc)
+        child.kill()
     assert (gov / hashchain.NAMESPACE_LOCK_NAME).is_file()  # the (empty) lock file stays ...
     started = time.monotonic()
     with namespace_lock(gov, timeout=ACQUIRE_BUDGET_S):  # ... and is not a stale lock
@@ -386,14 +499,17 @@ def test_l2_sigkill_during_an_append_loop_never_leaves_a_torn_or_forked_chain(
     floor = 1
     for round_no in range(20):
         delay = rng.uniform(0.0, 0.12)
-        proc = _spawn(_APPENDER, str(path))
+        child = _Child(_APPENDER, str(path))
         try:
-            _expect_ready(proc)
+            child.expect_ready()
+            # reliability: wait (bounded) for the first acknowledged append so every round
+            # really exercises the append loop on a slow runner; the random delay then decides
+            # where in the loop the SIGKILL lands.
+            child.next_line("the first acknowledged append (an integer line)")
             time.sleep(delay)
         finally:
-            _hard_kill(proc)
-        assert proc.stdout is not None
-        acked = [ln for ln in proc.stdout.read().split() if ln.isdigit()]
+            child.kill()
+        acked = [ln for ln in child.drain() if ln.isdigit()]
         context = f"seed={seed} round={round_no} delay={delay:.4f}"
         raw = path.read_bytes()
         assert raw.endswith(b"\n"), f"torn tail ({context})"
@@ -436,15 +552,52 @@ def _fork(body: Callable[[], Any]) -> tuple[int, int]:
     return pid, read_fd
 
 
-def _reap(pid: int, read_fd: int) -> Any:
-    chunks = []
+def _kill_forked(pid: int) -> None:
+    """SIGKILL a forked child and reap it (bounded). Used on a timeout and in cleanup."""
+    with contextlib.suppress(ProcessLookupError):
+        os.kill(pid, _SIGKILL)
+    deadline = time.monotonic() + _REAP_S
+    while time.monotonic() < deadline:
+        try:
+            done, _ = os.waitpid(pid, os.WNOHANG)  # type: ignore[attr-defined,unused-ignore]
+        except ChildProcessError:  # already reaped
+            return
+        if done:
+            return
+        time.sleep(0.01)
+
+
+def _reap(pid: int, read_fd: int, timeout: float = CHILD_WAIT_S) -> Any:
+    """Read the forked child's result and reap it; EVERY wait is bounded. On a timeout the child
+    is killed and reaped and the test fails with the diagnostics."""
+    deadline = time.monotonic() + timeout
+    chunks: list[bytes] = []
+    try:
+        while True:
+            remaining = deadline - time.monotonic()
+            if remaining <= 0 or not select.select([read_fd], [], [], remaining)[0]:
+                _kill_forked(pid)
+                pytest.fail(
+                    f"forked child pid {pid} produced no complete result within {timeout}s "
+                    f"(expected its JSON result then EOF); bytes read so far="
+                    f"{b''.join(chunks)[-500:]!r}"
+                )
+            data = os.read(read_fd, 65536)
+            if not data:
+                break
+            chunks.append(data)
+    finally:
+        os.close(read_fd)
     while True:
-        data = os.read(read_fd, 65536)
-        if not data:
+        done, _ = os.waitpid(pid, os.WNOHANG)  # type: ignore[attr-defined,unused-ignore]
+        if done:
             break
-        chunks.append(data)
-    os.close(read_fd)
-    os.waitpid(pid, 0)
+        if time.monotonic() > deadline:
+            _kill_forked(pid)
+            pytest.fail(
+                f"forked child pid {pid} closed its pipe but did not exit within {timeout}s"
+            )
+        time.sleep(0.01)
     return json.loads(b"".join(chunks).decode("utf-8")) if chunks else None
 
 
@@ -505,7 +658,10 @@ def test_l3_lock_released_by_the_parent_is_not_kept_by_a_live_forked_child(
 
     def child() -> Any:
         os.close(go_write)
-        os.read(go_read, 1)  # wait (bounded by the parent) until the parent says go
+        # wait until the parent says go -- bounded: the child never outlives a failed parent
+        if not select.select([go_read], [], [], CHILD_WAIT_S)[0]:
+            return {"appended": False, "reason": "no go signal from the parent"}
+        os.read(go_read, 1)
         _quick_open(registry, 7)
         return {"appended": True}
 
@@ -513,13 +669,20 @@ def test_l3_lock_released_by_the_parent_is_not_kept_by_a_live_forked_child(
         pid, fd = _fork(child)
     os.close(go_read)
     try:
-        started = time.monotonic()
-        with file_lock(path, timeout=ACQUIRE_BUDGET_S):  # the child is alive and holds a dup fd
-            pass
-        assert time.monotonic() - started < ACQUIRE_BUDGET_S, "inherited descriptor kept the lock"
-    finally:
-        os.write(go_write, b"g")
-        os.close(go_write)
+        try:
+            started = time.monotonic()
+            with file_lock(path, timeout=ACQUIRE_BUDGET_S):  # the child is alive, holds a dup fd
+                pass
+            assert time.monotonic() - started < ACQUIRE_BUDGET_S, (
+                "inherited descriptor kept the lock"
+            )
+        finally:
+            os.write(go_write, b"g")
+            os.close(go_write)
+    except BaseException:
+        _kill_forked(pid)  # never leave the forked child behind on a failure
+        os.close(fd)
+        raise
     result = _reap(pid, fd)
     assert result == {"appended": True}, result
     records = read_chain(path)
@@ -553,16 +716,15 @@ def test_l3_killed_parents_lock_stays_held_while_a_forked_descendant_lives(
     path = tmp_path / "chain.jsonl"
     _chain_with(path, 2)
     before = path.read_bytes()
-    proc = _spawn(_FORKING_HOLDER, str(path))
+    child = _Child(_FORKING_HOLDER, str(path))
     descendant = 0
     try:
-        assert proc.stdout is not None
-        lines = [proc.stdout.readline().split() for _ in range(2)]
+        lines = [child.next_line(f"line {n} of CHILD <pid> / PARENT").split() for n in (1, 2)]
         for words in lines:
             if words and words[0] == "CHILD":
                 descendant = int(words[1])
         assert descendant > 0, f"no descendant pid in {lines}"
-        _hard_kill(proc)  # SIGKILL the lock holder; the forked descendant survives
+        child.hard_kill()  # SIGKILL the lock holder; the forked descendant survives
         os.kill(descendant, 0)  # still alive
         with (
             pytest.raises(RegistryIntegrityError, match="writer lock"),
@@ -572,8 +734,7 @@ def test_l3_killed_parents_lock_stays_held_while_a_forked_descendant_lives(
         with pytest.raises(RegistryIntegrityError, match="writer lock"):
             _append_bounded(path)
     finally:
-        if proc.poll() is None:
-            _hard_kill(proc)
+        child.kill()  # holder (if still alive) AND the whole process group, then reap + close
         if descendant:
             with contextlib.suppress(ProcessLookupError):
                 os.kill(descendant, _SIGKILL)

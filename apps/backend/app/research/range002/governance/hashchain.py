@@ -36,6 +36,18 @@ whoever can rewrite the whole file can recompute every hash; truncating the *tai
 a valid shorter chain (a handle detects this only against the count/head it has itself
 seen; ``head_hash`` is surfaced so a caller could anchor it externally -- not implemented,
 owner decision pending); a process that does not use this module is not bound by the lock.
+
+Directory links (Level 1 limitation, NOT confinement): chain and namespace paths.
+File-level symlink/hardlink aliases of the chain file share one lock. Governance
+DIRECTORIES that are symlinks or junctions are FOLLOWED: the chain, namespace lock,
+genesis enrolment and token files are written wherever the link points, which may be
+OUTSIDE the originally specified filesystem path. The same target is the same identity
+(one registry identity, one lock, one chain, one attempt budget), so an alias cannot
+create an independent registry identity, reset the attempt budget or reopen an
+exhausted holdout. NO directory confinement is provided or claimed. An empty redirected
+token directory looks fresh to the token store, but the registry remains the authority
+and refuses a second holdout opening. An attacker who controls governance filesystem
+paths is Level 2. Contrast PR 2, which refuses symlinked specs and manifests.
 """
 
 from __future__ import annotations

@@ -112,6 +112,14 @@ default, no warn-and-continue):
 A capability is bound to its run: ``require_capability`` consults the registry
 and rejects it once the run is no longer OPEN.
 
+A capability object is created by :func:`authorize` in this process OR inherited by
+``fork``: a forked child holds a copy of the parent's capability and can exercise it for the
+parent's run, spec, phase and partition for as long as that run remains OPEN in the
+registry. Closing the run revokes it everywhere, because the registry file is checked on
+every use. Pickling and copying are refused, so ``spawn`` and ordinary subprocesses cannot
+receive one. The capability is therefore RUN-bound, not PROCESS-bound. Hostile in-process
+code and stronger capability isolation are Level 2 and out of scope.
+
 The static import-lint (``tests/.../test_import_lint.py``) is a DEVELOPER SAFEGUARD against
 accidental omissions, not an adversary-resistant boundary. Known bypasses it does NOT catch:
 re-exporting a guarded callable through a private lambda; a dict (or other container) of
@@ -300,8 +308,16 @@ class ResultsCapability:
 
 
 def require_capability(capability: object) -> ResultsCapability:
-    """Raise unless ``capability`` was issued by :func:`authorize` in this process AND its run
-    is still OPEN in the registry it was issued against (same spec hash, phase, partition)."""
+    """Raise unless ``capability`` is a genuine capability object -- created by :func:`authorize`
+    in this process or inherited by ``fork`` -- AND its run is still OPEN in the registry it was
+    issued against (same spec hash, phase, partition).
+
+    A forked child holds a copy of the parent's capability and can exercise it for the parent's
+    run, spec, phase and partition for as long as that run remains OPEN; closing the run revokes
+    it everywhere because the registry file is checked on every use. Pickling and copying are
+    refused, so ``spawn`` and ordinary subprocesses cannot receive one. The capability is
+    RUN-bound, not PROCESS-bound; hostile in-process code and stronger capability isolation
+    are Level 2 and out of scope."""
     registry = _BOUND_REGISTRIES.get(capability) if type(capability) is ResultsCapability else None
     if type(capability) is not ResultsCapability or registry is None:
         raise InvalidCapabilityError(
