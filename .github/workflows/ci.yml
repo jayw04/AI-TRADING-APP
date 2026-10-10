@@ -83,6 +83,8 @@ jobs:
       adr0043_gate: ${{ steps.classify.outputs.adr0043_gate }}
       # the FULL matrix: exactly the projects whose FULL suite must run this event.
       py_full: ${{ steps.pyfull.outputs.py_full }}
+      # 'true' when a RANGE-002 path (code, tests, required-test manifest, verifier, ci.yml) changed.
+      range002: ${{ steps.filter.outputs.range002 }}
     steps:
       - uses: actions/checkout@v4
       - uses: dorny/paths-filter@v3
@@ -118,6 +120,14 @@ jobs:
               - 'apps/frontend/package.json'
               - 'apps/frontend/pnpm-lock.yaml'
             workflow:
+              - '.github/workflows/ci.yml'
+            # RANGE-002 Linux acceptance evidence (consumed ONLY by the extra step at the end of
+            # `python-full`; it does not feed the classifier, the FULL matrix or any other job).
+            range002:
+              - 'apps/backend/app/research/range002/**'
+              - 'apps/backend/tests/research/range002/**'
+              - 'apps/backend/ci/range002_required_linux_tests.json'
+              - 'apps/backend/scripts/ci_verify_required_tests.py'
               - '.github/workflows/ci.yml'
 
       # Decide, PER PROJECT, whether the FULL suite must run. On a PR the unit-tested classifier inspects
@@ -442,6 +452,62 @@ jobs:
         if: matrix.pf.project == 'backend'
         working-directory: ${{ matrix.pf.dir }}
         run: python scripts/check_p3_coverage.py
+
+      # RANGE-002 Linux acceptance evidence. The plain `pytest -q` above is green whether or not the
+      # symlink / hardlink and POSIX fcntl tests EXECUTED (a skip, or a test that was never collected,
+      # leaves the job green). This re-runs ONLY tests/research/range002 with JUnit output and then
+      # fails unless every test in apps/backend/ci/range002_required_linux_tests.json was collected
+      # AND PASSED (skipped / missing / errored / failed all fail it). It GATES: a failure here fails
+      # `Python FULL (backend)`, which `Python CI Gate` already requires on any backend-flagged PR.
+      # Cost control: runs only on (a) a PR that touches a RANGE-002 path (see the `range002` filter)
+      # or (b) a manual dispatch, and only when the tests and the manifest exist in the checkout
+      # (hashFiles, pull_request ONLY: TRANSITIONAL -- a dispatch is never skipped, it runs and fails
+      # if the tests/manifest are absent; remove the hashFiles guards once PR 2 has landed, owner to
+      # record that step), so it costs nothing until PR 2 lands and nothing on unrelated PRs. PR 3 tests that
+      # do not exist yet are reported PENDING (never PASSED) and tolerated here (--allow-pending); a
+      # manual dispatch runs in strict acceptance mode and fails while any entry is PENDING.
+      # `-vv` because pyproject addopts carries `-q` (net -q -vv = one -v). No cache provider write.
+      - name: RANGE-002 Linux acceptance (range002 tests + required-test verifier)
+        id: range002
+        if: >-
+          ${{ !cancelled() && matrix.pf.project == 'backend'
+          && (github.event_name == 'workflow_dispatch'
+          || (github.event_name == 'pull_request' && needs.changes.outputs.range002 == 'true'
+          && hashFiles('apps/backend/ci/range002_required_linux_tests.json') != ''
+          && hashFiles('apps/backend/tests/research/range002/**/*.py') != '')) }}
+        working-directory: ${{ matrix.pf.dir }}
+        run: |
+          set +e
+          pytest tests/research/range002 -p no:cacheprovider -rs -vv \
+            -o junit_family=xunit2 --junitxml=range002-junit.xml
+          pytest_rc=$?
+          allow="--allow-pending"
+          [ "$GITHUB_EVENT_NAME" = "workflow_dispatch" ] && allow=""
+          python scripts/ci_verify_required_tests.py \
+            --junit range002-junit.xml --manifest ci/range002_required_linux_tests.json \
+            --root . $allow --table-out range002-required-tests.txt
+          verify_rc=$?
+          {
+            echo '### RANGE-002 Linux required tests'
+            echo '```'
+            cat range002-required-tests.txt 2>/dev/null || echo "(no table written)"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+          echo "pytest_rc=$pytest_rc verifier_rc=$verify_rc"
+          if [ "$pytest_rc" -ne 0 ] || [ "$verify_rc" -ne 0 ]; then
+            echo "::error::RANGE-002 Linux acceptance failed (pytest_rc=$pytest_rc verifier_rc=$verify_rc)"
+            exit 1
+          fi
+      - name: Upload RANGE-002 Linux evidence
+        if: ${{ always() && steps.range002.outcome != 'skipped' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: range002-linux-acceptance-${{ github.sha }}-${{ github.run_attempt }}
+          path: |
+            ${{ matrix.pf.dir }}/range002-junit.xml
+            ${{ matrix.pf.dir }}/range002-required-tests.txt
+          if-no-files-found: warn
+          retention-days: 30
 
   # Stable, ALWAYS-RUN aggregate = the single required status check for main. It guards ALL Python
   # projects (hence "Python CI Gate", not "Backend CI Gate"). Never skipped (so branch protection can
