@@ -1,0 +1,31 @@
+# RANGE-002 Level 2 Design Index v0.1
+
+> **Status: DESIGN ONLY -- NOT IMPLEMENTED.** Level 2 controls described in the indexed documents (signed approvals H4, execution boundary M1, external anchoring M3, copied-registry detection, holdout recovery, exposure severity policy, torn-tail recovery) are not implemented. The merged PR #738 (`b31b5f7b`) and PR #739 (`d61f313a`) provide Level 1 only. Nothing in the indexed documents is signed, approved or selected by the owner; all owner decision tables are blank.
+
+> **NOTE (2026-10-10, refreshed):** Current code facts (2026-10-10): PR #737 (docs), PR #738 (spec infrastructure) and PR #739 (Level 1 governance infrastructure) are MERGED; `main` is `d61f313a`, whose tree is identical to the reviewed PR 3 head `808d10fb` (tree `8b04684f`). The spec manifest `governance`/`manifest` fields are all-null (nothing is frozen or signed). The Linux acceptance verifier and its 33-id required-test manifest are on `main`. The run-registry/exposure ledger is strict JSON (not YAML); `MAX_ATTEMPT_LIMIT` = 10,000 is a technical ceiling only (not a policy value); attempt budgets are per (genesis, phase) across windows; phase P5 is refused at Level 1. Owner-accepted Level 1 properties (unchanged by this document): a fork-inherited capability is run-bound and is not a security boundary; directory aliases yield a consistent identity but no confinement; a torn registry tail fails closed and locks out (no governed recovery path; see the Registry Recovery Procedure design). Review finding R1-L1b (distinct signatories) is an accepted Level 1 limitation; its distinct-role follow-up (`57dadd52`) is a separate item. No Level 2 control (signed approvals, execution boundary, external anchoring, recovery tool) is implemented or enabled. The mapping below is unchanged; the optional docstring sentence suggested by the delta reviewer for `hashchain.py` is a code item and is not part of this documentation PR.
+
+Date: 2026-10-10. This index only maps deferred findings to the design text that addresses them. It adds no requirement and records no decision.
+
+Abbreviations: **ASV** = `RANGE-002_Approval_Signing_and_Verification_Design_v0.1.md`; **EBA** = `RANGE-002_Execution_Boundary_and_Registry_Anchoring_Design_v0.1.md`; **RRP** = `RANGE-002_Registry_Recovery_Procedure_v0.1.md`; **L1AT** = `RANGE-002_Level1_Acceptance_Test_Plan_v0.1.md`.
+
+## Mapping
+
+| Deferred finding | Addressed in (design only) | Status | Open owner questions |
+|---|---|---|---|
+| H4 sign-off binding (approval is three typed strings today) | ASV sections 0, 3, 4 (signing contract), 5 (key custody), 6 (two-phase freeze), 7 (verification, rotation, revocation), 8 (fail closed), 9 (roles) | DESIGN ONLY | ASV section 15; ASV section 16 (decision table, blank) |
+| M1 capability / execution boundary (process-local capability is not a security boundary) | EBA Part B, sections B2 (what process-local controls do not defend), B3, B4 (broker as separate principal), B6 (run authorization), B8 (ACL layout), B9, B10 (phased options) | DESIGN ONLY | EBA "Open owner questions"; EBA "Decision table" (blank) |
+| M3 anchoring / truncation (a valid shorter chain is accepted at Level 1) | EBA Part C, sections C3 (anchor targets), C4 (checkpoint record), C5 (cadence), C6 (verification algorithm), C7, C8 (outage recovery); L1AT row T-2 records the Level 1 outcome | DESIGN ONLY | EBA "Open owner questions" (Q-C series) |
+| NF2 copied or forged registry using the public genesis | EBA section C2 (facts: row 1 chains to the all-zero genesis hash, so a foreign chain is internally valid), C4 (`genesis_row_hash` in the checkpoint), C6 step 5 (chain identity), C11 test 5; L1AT rows I-6, I-7 (Level 1 behaviour only) | DESIGN ONLY | EBA "Open owner questions" (Q-C series) |
+| NF3 manifest read from the executing checkout | Partially addressed: EBA B2 (anyone who can edit the repository defeats in-tree controls), B4 and B6 (broker verifies bound hashes against its own state); ASV sections 6-7 (signed, offline-verified approvals pin the spec digest). No section is written specifically for NF3; confirm the mapping with the owner | DESIGN ONLY | EBA "Open owner questions"; ASV section 15 |
+| Holdout recovery (defect-only) | EBA Part D (standalone review checklist, sections D1-D6); RRP section 9 (interaction with holdout state) | DESIGN ONLY | EBA Q-D series; RRP section 13 |
+| Exposure severity policy (all overlap stays BLOCKING until a signed policy exists) | EBA Part F; ASV section 10 (exposure ledger bound to the approved spec) | DESIGN ONLY | EBA "Open owner questions"; ASV Q-A6, Q-A7 |
+| Torn-tail recovery, N6, NF8 | RRP sections 1-13 (N6: no governed path after a torn run-registry tail); EBA section C9 (torn-tail handling under anchoring); L1AT section 5.8 (T-series, Level 1 observations). The finding label NF8 is not described in these documents; its mapping here is an assumption to confirm with the owner | DESIGN ONLY | RRP section 13 (Q-R series) |
+| R1-L1b distinct signatories (note) | ASV section 9 (separation-of-duties options SoD-A to SoD-D, requirement matrix). Note: a technical check cannot prove two keys are two people; the designs state this limit | DESIGN ONLY | ASV section 15; ASV decision table |
+| Fork-inherited capability (owner-accepted Level 1 property) | A Level 2 boundary design could close this: EBA B2 and B4 (capability held by a separate principal, not by an inheritable in-process object). Level 1 behaviour is owner-accepted and unchanged | DESIGN ONLY | EBA "Open owner questions" |
+| Directory-alias confinement (owner-accepted Level 1 property) | A Level 2 boundary design could close this: EBA B8 (least-privilege file/ACL layout), C6 step 4 (file identity and permissions), B14 and C11 (filesystem negative tests); L1AT rows I-5 and X-F9 (Level 1 alias behaviour). Level 1 behaviour is owner-accepted and unchanged | DESIGN ONLY | EBA "Open owner questions" |
+
+## What this index does not do
+
+- It does not state or imply that any listed control is implemented, enabled, tested or approved.
+- It does not select any option, name any person, or fill any decision table.
+- It does not change any code, workflow, manifest, gate, threshold or the Level 1 acceptance position.
