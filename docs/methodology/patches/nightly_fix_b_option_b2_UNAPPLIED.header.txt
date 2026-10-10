@@ -1,0 +1,26 @@
+UNAPPLIED PATCH - nightly defect B, option B2 (reproducibility guard). NOT a decision.
+===========================================================================================
+Status : prepared 2026-10-10 against origin/main d61f313a. Nothing here is applied, pushed or decided.
+Why    : `Fresh resolution proof (uncached)` compares `uv pip compile --no-header` output byte-for-byte
+         with committed constraints files that start with a 19-line generated header, so it can never
+         pass (red since #543). Stripping the header is necessary but NOT sufficient: a fresh unconstrained
+         resolve also drifts with every upstream release, so the job would stay red. Seeding uv with the
+         committed pins (B2) makes the proof mean "the committed graph is still a valid, reproducible
+         resolution of the manifests".
+Policy : the owner has not chosen between B2 (this patch; reproducibility guard, no lock regeneration),
+         B3 (`--exclude-newer <date>` recorded in the lock header; true dated byte-identity; regenerates
+         all four constraints files and changes the governed tuple) or B1/B4 (see
+         docs/methodology/CI_Nightly_Remediation_Proposal_v0.2.md section 3.3). This fix CANNOT be made
+         policy-neutral: any change that turns the job green encodes one of those choices, and the
+         header-stripping half alone leaves it red. Hence this is kept as a patch, not a code change.
+Verified: the patch's unit tests (strip_header, seeding with a mocked subprocess, offline gate) pass
+         locally (10 tests). NOT verified (uv is not installed on the preparing machine): that uv 0.12.0
+         reuses an existing --output-file as preferences without --upgrade and reproduces the committed
+         body byte-for-byte on Linux x86_64 / CPython 3.12.13 for all four projects. Do that first
+         (WSL or a throwaway container); if it fails, fall back to B3.
+Scope  : scripts/check_dependency_locks.py + apps/backend/tests/ci/test_check_dependency_locks.py (new).
+         Also edit docs/runbook/dependency-locks.md (Verification section) to say "a non-upgrading
+         re-resolution (committed pins as preferences, header excluded)"; not included below.
+Cost   : scripts/check_dependency_locks.py is a GLOBAL classifier path: FULL for all four projects,
+         about 30-35 runner minutes. 2-hour walk-away. Merge not approved.
+Apply  : git apply --check docs/methodology/patches/nightly_fix_b_option_b2_UNAPPLIED.patch
