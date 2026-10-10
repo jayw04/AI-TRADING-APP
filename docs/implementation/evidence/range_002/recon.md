@@ -4,10 +4,10 @@
 |---|---|
 | Work package | WP0.1 (RANGE-002 Implementation Plan v0.4, §4) |
 | Date | 2026-10-09 |
-| Repo HEAD | `5b23707f` (branch `fix/time-bomb-tests`; working tree dirty, see "Untracked inputs") |
+| Repo HEAD | `5b23707f` at original recon (branch `fix/time-bomb-tests`); document later committed on `docs/range002-wp0-1-recon` (PR 736) |
 | Data accessed | None. Read-only code and document inspection. No returns computed, no broker or data-provider access. |
 | Status | **Owner-reviewed 2026-10-09; direction approved with the decisions in §0.** Ready for review and merge. Nothing in this document is a P0 sign-off. |
-| Companion | `governing_reconciliation.md` (design v0.4 / plan v0.4 / ADR 0014, 0033, 0037 reconciliation; conflicts C1–C12 awaiting owner rulings) |
+| Companion | `governing_reconciliation.md` (design v0.4 / plan v0.4 / ADR 0014, 0033, 0037 reconciliation; conflicts C1–C15; owner rulings C1–C12 recorded in its §0, C13 pending Addendum A1 signature, C14 and C15 are owner items under D02 and D09) |
 
 ## 0. Owner decisions on this recon (2026-10-09)
 
@@ -17,7 +17,7 @@
 | 2 | D11, SIP loader | **Approved: build a new RANGE-002-specific SIP historical loader; do not modify `BarCache`; no change to production market-data behavior.** Required: explicit SIP feed with no IEX fallback; monthly chunking with pagination and truncation detection; historical completeness checks; idempotent retry and resume; data-source identification, timestamps and SHA-256 manifests; delisted coverage where the licensed source supports it | P1 work (PR 5). Open point C4: `dataset_health` is daily-only, so the loader needs its own intraday completeness check. Licensed SIP history depth and delisted coverage are still unverified (stop condition §9.3) |
 | 3 | D06, bootstrap | **Proceed with the design of a day-clustered block-bootstrap module**, using existing utilities as references. **Do not claim it already exists in MR-002.** Method, block length, repetitions, confidence levels and hypothesis adjustments **remain open owner decisions** | Plan wording to be corrected (reconciliation C11). Design reference only: `factor_data/evidence.py`, `market_projection/validate.py` |
 | 4 | D09, non-equivalence | Review ADR 0037 and the RNG-001 evidence **before** defining criteria. Implement a **deterministic check with explicit evidence and documented review outcomes**. A difference in strategy names or parameters is not proof of non-equivalence | Review done: ADR 0037 defines no test (C2). Proposed criteria basis and constraints are in `governing_reconciliation.md` C2, awaiting approval. No code until approved |
-| 5 | Governing documents | Read the complete design v0.4 and reconcile it with the plan and ADR 0014, 0033, 0037 **before P0 sign-off**. Report conflicts for owner approval; **do not resolve governing conflicts by changing code** | Done: `governing_reconciliation.md`. 12 findings, none resolved in code |
+| 5 | Governing documents | Read the complete design v0.4 and reconcile it with the plan and ADR 0014, 0033, 0037 **before P0 sign-off**. Report conflicts for owner approval; **do not resolve governing conflicts by changing code** | Done: `governing_reconciliation.md`. 15 findings (C13 added for the exit-rule change; C14, C15 for wording and gate-sequencing items), none resolved in code |
 | 6 | WP0.1 completion | Update this file; complete the documentation review; prepare WP0.1 for review and merge | This update |
 | 7 | PR 2 | After WP0.1 is merged: spec schema, canonical hashing, freeze tool. For unresolved D01–D18: required fields and validation errors, **values unresolved**. **Do not freeze or sign the spec, authorize historical computations, or enter P1** until approvals and prerequisites are complete | Not started. Waiting for the WP0.1 merge |
 
@@ -156,11 +156,11 @@ The plan says to use the repo's convention and record the mapping.
 
 ## 5. Untracked inputs (not in Git)
 
-- `docs/implementation/RANGE-002_Implementation_Plan_v0.4.md` (the plan; file is named `.MD` in the request)
+- `docs/implementation/evidence/range_002/RANGE-002_Implementation_Plan_v0.4.md` (the plan; file is named `.MD` in the request)
 - `Teams/Strategies/RANGE-002_Implementation_Plan_v0.3_Developer_Agent_Enhanced.md`
 - `Teams/Strategies/RANGE-002_开盘区间突破延续策略_验证与实施方案_v0.4.docx` (research design v0.4, which **wins on conflicts**)
 - `Teams/Strategies/RANGE-001 Failure Analysis & RANGE-002 Proposal.docx`
-- `docs/reports/RNG-001_Rejection_Summary_Report_2026-10-09.md`
+- `docs/implementation/evidence/range_002/RNG-001_Rejection_Summary_Report_2026-10-09.md`
 
 The research design v0.4 docx has since been **read in full** (text extracted to the session scratchpad only; the docx was not copied or modified) and reconciled; see `governing_reconciliation.md`. Plan action 11.3.2 says to commit the docx; repo policy sends Office binaries to S3 with a manifest, so custody is an open owner item (§6 item 10).
 
@@ -173,25 +173,26 @@ The research design v0.4 docx has since been **read in full** (text extracted to
 | 3 | Bootstrap convention | **Open, by design**: module design may proceed; every parameter is an owner decision. Plan wording fix (C11) pending | D06 |
 | 4 | Non-equivalence check | **Open**: ADR 0037 review done; criteria proposal awaiting approval (C2). No code yet | D09, WP0.5 |
 | 5 | SIP 1-minute historical rights and depth to 2016, delisted coverage | **Open**: not checkable from code; needs vendor and licence confirmation. Blocks P1, not PR 2 | D03, WP1.3, §9.3 |
-| 6 | Compare ADR 0014/0033/0037 to the plan's §0A matrix; read the design docx | **Done**, with findings C1–C12 in `governing_reconciliation.md`, all awaiting owner rulings | WP0.1, §9.10 |
+| 6 | Compare ADR 0014/0033/0037 to the plan's §0A matrix; read the design docx | **Done**, with findings C1–C15 in `governing_reconciliation.md`; C1–C12 ruled 2026-10-09, C13 pending Addendum A1 signature, C14 (D02) and C15 (D09 / non-equivalence gate clause) open for the owner | WP0.1, §9.10 |
 | 7 | RANGE-002 entry in `app/research/programs.py` | **Open**: at registration | WP0.7 |
 | 8 | Intraday coverage check (`dataset_health` is daily-only) | **New, open** (C4) | WP1.1, WP1.8 |
 | 9 | Host for SIP pulls and the RNG-001 replay (Norton blocks the laptop; the laptop is standby-only) | **New, open** (C12) | WP1.2, WP2.6 |
 | 10 | Design `.docx` custody (S3 + manifest vs Git) | **New, open** (C10) | github-ops policy |
+| 11 | Exit selection (plan v0.5, Addendum A1): `select_exit`, `max_stat_bootstrap`, trailing and scale-out exit mechanics, per-candidate portfolio simulation | **New, open**: all NOT-FOUND, build in `range002/stats/selection.py` and `range002/engine/`. No reusable module identified | D19, D17, WP2.2A, WP3 |
 
 ## 7. Handoff (plan §11.3A)
 
 ```
-Work package: WP0.1 (no PR opened; nothing committed)
+Work package: WP0.1 (PR 736, docs-only; updated afterwards for plan v0.5 / Addendum A1 in a follow-up PR)
 Code and files changed: docs/implementation/evidence/range_002/recon.md and governing_reconciliation.md (new);
-  docs/implementation/RANGE-002_Implementation_Plan_v0.4.md (path references only, untracked file); all uncommitted
+  docs/implementation/evidence/range_002/RANGE-002_Implementation_Plan_v0.4.md (path references only, untracked file); all uncommitted
 Source-spec references: research design v0.4 (read in full), Implementation Plan v0.4, ADR 0014 v1.1, ADR 0033, ADR 0037
 Data accessed: none
 Governance authorization: owner decisions of 2026-10-09 (section 0)
 Tests executed: none (documentation only)
 Evidence artifacts: this file and governing_reconciliation.md
 Risk/safety assessment: no broker credentials touched, no account used, no order capability added
-Open decisions or blockers: D01-D18 unresolved; reconciliation findings C1-C12; section 6 items 3-5 and 7-10
+Open decisions or blockers: D01-D19 unresolved; Addendum A1 unsigned (C7, C13); section 6 items 3-5 and 7-10
 Owner rulings on C1-C12: recorded in governing_reconciliation.md section 0 (2026-10-09); WP0.1 approved for documentation-only review and merge
-Recommended next action: open the documentation PR, observe the 1-hour walk-away, merge when the required check is green on the exact head; then PR 2 (spec schema, hashing, freeze tool) using synthetic fixtures only, with D01-D18 values unset
+Recommended next action: merge PR 736, then one follow-up docs PR carrying Addendum A1, plan v0.5 and the C13/item-11 updates; then PR 2 (spec schema, hashing, freeze tool) using synthetic fixtures only, with D01-D19 values unset and the A1 `exits` block accepted
 ```
