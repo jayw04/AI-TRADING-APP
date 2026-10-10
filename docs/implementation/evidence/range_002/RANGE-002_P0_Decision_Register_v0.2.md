@@ -1612,6 +1612,10 @@ The recommendation combines (i) with (iii) as the only legitimate route to any r
 
 **RECOMMENDED / PROPOSED -- NOT APPROVED: Option B.** It keeps `spec_sha256` stable, makes the deferral an explicit hashed owner decision, and requires no change to the freeze tool. It must be implemented and reviewed **before** any real freeze, because the schema defines the hash. A fourth course, the owner stating a value for the field now, is not recommended: the account cannot exist, and a placeholder would be an invented value.
 
+### 22.3 Owner choice (directive; recorded as direction, no signed record yet)
+
+Owner choice: option B. `p5.account_id` is REPLACED by the P0 field `p5.account_binding`, a closed single-value literal `deferred_to_p5_activation` (D07), null until the owner sets it. The real account id lives only in a separate P5 activation record that names the same `spec_sha256`, the account id and an owner approval reference. The spec's free-form (OpenValue) fields, for example `p5.cost_ratio_contract`, `p5.shadow_acceptance`, `p5.degradation_tolerance` and `governance.roles`, are never an account source: they accept arbitrary JSON, so the activation record is the sole authority. Plan v0.5 Appendix A wording on Agent C's docs branch: `account_binding: null  # P0: D07 (closed marker "deferred_to_p5_activation"; the account id is NOT in the spec: it is bound to this spec_sha256 by the separate P5 activation record, WP5.1)`. The register still counts this as a **direction**, not an approved decision, until a signed record exists.
+
 ## 23. A1 VS DESIGN v0.4 VS THE MERGED SCHEMA - UNRESOLVED INCONSISTENCY
 
 ### 23.1 What the documents say
@@ -2009,7 +2013,7 @@ These records supersede the blank forms in section 11 for content; section 11 re
 
 - Decision: How `p5.account_id` is satisfied at freeze.
 - Value (owner states; BLANK): ____
-- Proposed value: PROPOSED / NOT APPROVED: option B (section 22)
+- Proposed value: owner choice (direction, no signed record): option B (section 22.3): `p5.account_id` replaced by `p5.account_binding` = `deferred_to_p5_activation`; the activation record is the sole account authority; free-form spec fields are never an account source
 - Evidence required: Owner decision; implementation PR reviewed before any freeze
 - Approver(s) by role: Owner; independent validator reviews the schema change
 - Documents to pin: DOC-SHEETS, DOC-PLAN, DOC-REG. SHA-256 of each: BLANK
@@ -2043,7 +2047,7 @@ D02 (after D06); D17 and D19 (after D06 and D18, signed together, D19 after trad
 ### 26.4 Decisions REQUIRING DESIGN CHANGES or rulings that change documents or code
 
 - **C-DR**: Plan wording amendments (20.3) and, for any rerun, an unbuilt Level 2 recovery procedure.
-- **`p5.account_id`**: schema change (option B recommended) before any freeze.
+- **`p5.account_id`**: schema change (option B, owner choice) before any freeze; implemented in a local, unpushed schema candidate.
 - **A1 / v0.4 / merged schema**: written reconciliation; code changes if anything other than the A1 form is intended.
 - **SoD-B**, if chosen: amendment of the distinct-role safeguard.
 - **C-EVID**: a plan / A1 amendment or an owner-authorized early return-blind pull, if D05 5a/5b are to be evidence-based.
@@ -2529,7 +2533,7 @@ Technical direction for drafting; **not signatures**. "Verified against" names t
 - **Direction.** Record that ruling C5 (dedicated RANGE-002 monthly-chunked, fail-closed SIP loader; no change to the shared `BarCache`) satisfies design decision 11.
 - **Verified against.** `governing_reconciliation.md` C5 (loader attributes: explicit SIP, monthly chunks, pagination and truncation detection, completeness checks, idempotent resume, manifests, delisted coverage); Plan WP1.1 (written ADR 0033 finding; test: a simulated 10,000-row page triggers continuation or failure), WP1.2 (loader runs only in the approved isolated environment, C12; feed asserted `sip`; `data_manifest.json` with per-file SHA-256), WP1.3 (history to 2016-01-01 and delisted coverage, else stop), WP1.8 (coverage >= 98%), R6 (no silent IEX fallback); Plan line 815 (D11); schema `data.fetch_mode: str | None`.
 - **Finding to flag.** The Sheets D11 say the `fetch_mode` enumeration string "is defined in PR 2". The merged schema defines **no** enumeration (a free string, null in the skeleton); the test fixture uses a synthetic placeholder only. The enumeration is therefore **undefined in every source**.
-- **Open owner items.** (1) The `data.fetch_mode` value and its allowed vocabulary: **OWNER MUST DEFINE** (no document or schema defines it; no value is proposed). (2) Prerequisites to record before the loader is built: C12 environment named; D03 vendor, licence and budget; F1 (history), F2 (delisted), F5 (licence for stored research use), F6 (pagination and rate limits); P0 exit before PR 5. The WP1.1 finding already exists in `recon.md`.
+- **Open owner items.** (1) The `data.fetch_mode` value and its allowed vocabulary: **OWNER MUST DEFINE** (no document or schema defines it; this register proposes none). Proposal only, not in the schema candidate: Agent C's batch proposal s4.3 offers the single value `monthly_chunked_sip` (or, as an alternative, two values that split research and broker custody); `bar_cache` and `auto` are never valid. Any enumeration needs the owner's approval. (2) Prerequisites to record before the loader is built: C12 environment named; D03 vendor, licence and budget; F1 (history), F2 (delisted), F5 (licence for stored research use), F6 (pagination and rate limits); P0 exit before PR 5. The WP1.1 finding already exists in `recon.md`.
 - **Approver.** Owner. **C5 satisfies decision 11 (yes/no):** ________ **`fetch_mode` value / vocabulary:** ________ **Signature:** BLANK **Date:** BLANK **SHA-256:** BLANK
 
 ### 46.4 D15 - All-in cost accounting with binding stress test
@@ -2605,7 +2609,7 @@ The register grew in layers. This table records, for each ruling, the sections t
 
 ## 49. READ-ONLY CROSS-CHECK OF THE AGENT C SCHEMA CANDIDATE `5bc2b493`
 
-Source: local commit `5bc2b493` on `feat/range002-schema-batch` ("local candidate", not pushed, not approved), its schema diff and its review checklist, read with `git show` only. Nothing was changed.
+Source: local commit `5bc2b493` on `feat/range002-schema-batch` ("local candidate", not pushed, not approved), its schema diff and its review checklist, read with `git show` only. Nothing was changed. **Update:** Agent C's later independent review produced fix commit `76730911` (branch `feat/range002-schema-batch`) and docs commit `9574d484` (branch `docs/range002-p1-p2-backlog`, read-only here). Where this section and those commits differ, the later commits control: the per-candidate `rank` was withdrawn, and the OD mappings were corrected as stated below.
 
 ### 49.1 Consistent with the register
 
@@ -2617,11 +2621,22 @@ Source: local commit `5bc2b493` on `feat/range002-schema-batch` ("local candidat
 
 ### 49.2 Findings requiring owner attention
 
-1. **Mandatory-field count changes.** The candidate adds 20 settable leaf paths plus `exits.candidates[*].rank` and replaces `p5.account_id`. After it merges, the P0 fields the freeze tool requires are no longer the 66 listed in s4.5 / s14. Section 49.3 maps every new path to an owning decision so nothing is unowned.
-2. **Complexity rank: Plan vs candidate.** Plan s2.2 gives a complexity rank **per family** (E1 = 1, E2a / E2b = 2, E3a / E3b = 3, E4a / E4b = 4, so two candidates share a rank). The candidate requires a **unique** integer `rank` per candidate, ordered by `exits.complexity_order` across families and "free within one family". The Plan does not say how to break ties inside a family. **The owner (D19) must define the within-family order; no value is proposed.** The independent validator should confirm that `select_exit`'s tie rule uses these unique ranks.
+1. **Mandatory-field count changes.** The candidate adds **20 owner-valued new leaf paths** and replaces `p5.account_id` with `p5.account_binding` (the per-candidate `rank` was withdrawn and is not counted). After it merges, the P0 fields the freeze tool requires are no longer the 66 listed in s4.5 / s14 (arithmetic: 66 - 1 + 1 + 20 = 86, to be re-verified on the merged schema). Section 49.3 maps every new path to an owning decision so nothing is unowned. Two fixed, non-owner members (`stage1_criteria.invariants`, `.on_fail`) are not owner values.
+2. **Within-family tie-break (escalated, unset).** Plan s2.2 orders complexity by **family** (E1 = 1, E2a / E2b = 2, E3a / E3b = 3, E4a / E4b = 4). The first candidate draft added a unique per-candidate `rank`; that was **withdrawn** after review, because it would silently add a within-family tie-break rule. Complexity stays family-level (`exits.complexity_order`). The within-family tie-break (for example E2a vs E2b) is therefore an **unset owner-approval item at D19**; the options named in Agent C's proposal are an unresolved tie is `INCONCLUSIVE`, first in candidate-list order, or smaller parameter. No option is selected here. Fail-closed requirement: `select_exit` must refuse an unresolved within-family tie. The independent validator reviews it (s34.4).
 3. **Name clash: "adjustment".** `data.adjustment` is the corporate-action price basis (Plan WP1.6), whereas the "adjustment" in the A1 D06 row and `stats.adjustment` mean multiplicity adjustment. Different decisions; keep them distinct in the sign-off records.
-4. **New D06 content.** The candidate gives the stage-1 control a definition (`time_shuffle`, `no_information`, `stage1_criteria`, including an optional statistical negative-control test with an alpha). The Plan describes the controls (WP4.0) but fixes none of these parameters, and the register's D06 block did not list them. They are new D06 owner decisions (the candidate labels one "OD-2"); the validator packet (s34.1) must be extended accordingly.
-5. **"Six owner-only values outside the schema."** The checklist lists budget cap (D03), lineage constants adoption ("OD-1"), redundancy comparison set ("OD-3"), diagnostic windows (D13), halt evidence source ("OD-4") and risk units (D05 5j). The "OD-n" identifiers are defined only in Agent C's documents (not on this branch); they are mapped to register decisions below but their owners must be confirmed. They have no spec field, so the freeze tool will not require them: each needs a signed record under its decision before it becomes binding.
+4. **New D06 controls need individual definition and independent statistical review.** The candidate gives the stage-1 control (`time_shuffle`, `no_information`, `stage1_criteria` including an optional negative-control test with an alpha) and the random-entry `population` a hashed definition. The Plan describes the controls (WP4.0, WP2.5) but fixes none of these parameters. Each is a D06 owner decision (the candidate labels one "OD-2"). Before any value is entered, each control needs an **individual written definition**, its **acceptance behaviour** (what passes, what fails, what the run does on failure) and **independent statistical review by the D08 validator**. A value in a frozen spec shows that the owner chose it, not that the choice is sound; hashing approves nothing. The validator packet (s34.1) is extended accordingly.
+
+5. **Six owner decisions with no spec field (corrected mapping).** Agent C's batch proposal lists them as O-1 budget cap, O-7 lineage constants ("OD-1"), O-13 redundancy comparison set ("OD-3"), O-15 diagnostic windows, O-16 halt evidence ("OD-4") and O-17 risk units. They have no spec field, so the freeze tool will not require them; each needs a signed record under its decision before it becomes binding. Corrected owners, verified against the Sheets and Plan:
+
+| Item | Corrected owner | Note |
+|---|---|---|
+| O-1 budget cap | D03 | unchanged |
+| O-7 lineage refusal constants (OD-1) | D03, **explicit sub-item**: "lineage refusal constants adopted as-is, values echoed in the data manifest" | acceptable only with that sub-item |
+| O-13 redundancy comparison set for G10 (OD-3) | **UNRESOLVED** | G10 (correlation with approved strategies <= 0.85) is a **binding** promotion constraint (Plan s5.1). D13 covers only the thesis, naive ORB and non-binding diagnostics; D10 covers only win rate and the drawdown comparator; no Sheet mentions redundancy. Authority is not preserved by mapping it to D13. Kept visible as an unowned item for the owner to assign |
+| O-15 diagnostic windows | D13 | unchanged |
+| O-16 halt evidence source (OD-4) | **D05 5h** (halt rule), plus the feasibility items for data availability | not 5j |
+| O-17 risk units | D05 5j | unchanged |
+
 6. **PR #740 overlap.** The candidate and PR #740 both touch `schema.py` / fixtures; sequencing is in the checklist s5 (not repeated here). Both must land before any real freeze.
 
 ### 49.3 New mandatory paths in the candidate and their owning decisions
@@ -2638,10 +2653,10 @@ Source: local commit `5bc2b493` on `feat/range002-schema-batch` ("local candidat
 | `controls.time_shuffle.{method,min_shift_days,reps}` | D06 | owner must define; no value proposed |
 | `controls.no_information.{kind,lo,hi,reps}` | D06 | owner must define; no value proposed |
 | `controls.stage1_criteria.{negative_control_mode,negative_control_alpha}` | D06 (candidate label "OD-2") | owner must define; no value proposed |
-| `exits.candidates[*].rank` (unique) | D19 | owner must define the within-family order |
+| (no field) within-family tie-break | D19 | unset escalation; owner approval required; `select_exit` fails closed on an unresolved tie; per-candidate `rank` withdrawn |
 | `p5.account_binding` | D07 | single permitted value `deferred_to_p5_activation`; the owner confirms |
 
-Result: every new path has an owning decision; none is unowned. The six owner-only values of 49.2 item 5 have owners (D03, D13, D05 5j) but "OD-1 / OD-3 / OD-4" need the owner's confirmation of what they are and which register decision records them.
+Result: every new path has an owning decision (20 owner-valued leaf paths plus the P5 marker). The six no-field decisions are mapped in 49.2 item 5; **OD-3 (G10 redundancy set) remains unowned.**
 
 ## 50. OWNER-READY SHEET COMPLETENESS CHECK (D04, D10, D11, D15, D16, C10)
 
@@ -2668,7 +2683,7 @@ All items are unsigned. "Decides" names the role with authority (design s10.3, A
 5. **E1 step 1.** Decides: owner (with trading-expert reviewer and independent validator). Evidence: the s32.1 text; Plan R1 / s2.5 basis. No acquisition authorization is part of this item.
 
 **Step 2 - statistics specification**
-6. **D06.** Decides: owner; independent validator confirms. Evidence: validator's synthetic calibration report; the day-block length, bootstrap method and test statistic, null procedure, repetitions, alpha, interval type, seeds; the random-entry population, time-shuffle, no-information and stage-1 criteria definitions (49.3).
+6. **D06.** Decides: owner; independent validator confirms. Evidence: validator's synthetic calibration report; the day-block length, bootstrap method and test statistic, null procedure, repetitions, alpha, interval type, seeds; for each of the random-entry population, time-shuffle, no-information and stage-1 criteria: an individual written definition, its acceptance behaviour and independent statistical review by the validator (49.2 item 4).
 
 **Step 3**
 7. **D02.** Decides: owner; validator confirms. Evidence: D06 signed; family-wise error check of the Holm family; choice of option and the hypothesis count (recommended option (a), count 2, NOT APPROVED).
@@ -2676,20 +2691,20 @@ All items are unsigned. "Decides" names the role with authority (design s10.3, A
 **Step 4**
 8. **D18** (gate basis and trade unit). Decides: owner; validator reviews. Evidence: none return-blind; read with D05 5j.
 9. **D17** (P3a eligibility, STOP level; P3b criteria and minimum). Decides: owner; validator reviews. Evidence: D06 and D18 signed; the validator's power and false-advance analysis; an owner statement on the consequence of an unattainable trade minimum under a single attempt.
-10. **D19** (exit set, complexity order including the within-family order, selection score, tie tolerance, eligibility, STOP test). Decides: owner; trading expert reviews the set; validator reviews the selection rule. Evidence: D17 minimum; trading-expert review; validator review of `select_exit` and the max-statistic test; the unique `rank` per candidate.
+10. **D19** (exit set, complexity order at family level, the within-family tie-break, selection score, tie tolerance, eligibility, STOP test). Decides: owner; trading expert reviews the set; validator reviews the selection rule. Evidence: D17 minimum; trading-expert review; validator review of `select_exit` and the max-statistic test; the within-family tie-break, which is an unset owner-approval item (49.2 item 2; `select_exit` must fail closed on an unresolved tie).
 
 **Step 5 - ready sheets**
 11. **D04.** Decides: owner. Evidence: choice of confirm / alter; the minimum trades per year.
 12. **D10.** Decides: owner. Evidence: win-rate gate kept or a written deviation; comparator and equity-sampling definitions.
-13. **D11.** Decides: owner. Evidence: the `data.fetch_mode` enumeration (owner must define); C12 named; D03 licence and F1 / F2 / F5 / F6.
+13. **D11.** Decides: owner. Evidence: the `data.fetch_mode` enumeration (owner must define; `monthly_chunked_sip` is a proposal only); C12 named; D03 licence and F1 / F2 / F5 / F6.
 14. **D15.** Decides: owner. Evidence: accounting mode; component definitions.
 15. **D16.** Decides: owner. Evidence: taxonomy adopted; shadow sample duration.
 16. **C10.** Decides: owner. Evidence: DOCX version and SHA-256; custody location and retention; derived-copy permission.
 
 **Step 6 - audits, feasibility and thesis**
 17. **D01.** Decides: owner; validator co-sign recommended. Evidence: the signed WP0.6 contact audit including AI-session history; the exposure ledger; the owner's ruling on daily-layer contact; `hypothesis_lineage.yaml`.
-18. **D03.** Decides: owner. Evidence: F1, F2, F5; vendor plan and licence; budget cap; N and PIT timing statement; `data.adjustment`, `coverage_min`, `exclusion_bound`.
-19. **D05** (5a-5j and the new paths). Decides: owner; trading expert reviews. Evidence: the E1 summaries (if E1 step 2 is later authorized) or an owner ruling to decide 5a / 5b without data; F3 / F4; numeric risk limits, initial equity and basis, over-budget rule, minute-reconciliation parameters.
+18. **D03.** Decides: owner. Evidence: F1, F2, F5; vendor plan and licence; budget cap; N and PIT timing statement; `data.adjustment`, `coverage_min`, `exclusion_bound`; the D03 sub-item "lineage refusal constants adopted as-is, values echoed in the data manifest" (OD-1).
+19. **D05** (5a-5j, including 5h the halt rule and halt evidence source (OD-4), and the new paths). Decides: owner; trading expert reviews. Evidence: the E1 summaries (if E1 step 2 is later authorized) or an owner ruling to decide 5a / 5b without data; F3 / F4; numeric risk limits, initial equity and basis, over-budget rule, minute-reconciliation parameters.
 20. **D09 / C2 overlap limit, reviewers, history and gate-clause handling.** Decides: owner; trading expert and validator review criteria 2 and 3. Evidence: records of both programs; the overlap computed on the chosen history (no returns); the D13 mechanism text.
 21. **D12.** Decides: owner; validator reviews. Evidence: calendar and SPY daily-close session counts per regime and half; minimum trades per cell; share cap.
 22. **D13.** Decides: owner; research lead and trading expert author and verify. Evidence: the human-written economic thesis and its SHA-256; naive-ORB definition; diagnostics classification.
@@ -2706,4 +2721,18 @@ All items are unsigned. "Decides" names the role with authority (design s10.3, A
 31. **Remaining P0 artefacts** (WP0.8 provenance, WP0.10 feasibility report, WP0.11 lineage, WP0.12 order contract, non-equivalence record). Decides: owner with the named reviewers. Evidence: the signed artefacts.
 32. **Sign-off packet.** Decides: owner. Evidence: SHA-256 of every pinned document at named commits (s25.1); the validator attestations; the final spec draft with the genesis id and limits equal to the manifest; then the real `freeze_spec`.
 
+Unnumbered, unresolved mapping (does not change the 32-item sequence): **OD-3, the G10 redundancy comparison set, has no owning decision.** The owner assigns it (for example by extending a named decision) before any freeze; until then it stays visible.
+
 **Standing recommendation: NO-GO.** No decision is approved (0).
+
+## 52. EFFECT OF THESE CORRECTIONS (limited reconciliation)
+
+| Question | Answer | Reasons |
+|---|---|---|
+| Do the corrections change **decision authority**? | **No**, with one gap made visible | The deciding roles for D03, D05, D06, D07, D11, D13 and D19 are unchanged (owner decides; trading expert, validator review as before). OD-4 moves within D05 (5j to 5h), and OD-1 gains a named D03 sub-item, both inside existing authority. OD-3 (G10 redundancy set) has **no** owning decision: that is a pre-existing gap now stated, not a change |
+| Do they change **dependencies**? | **Yes, in three places** | (a) D19 depends on an owner approval of the within-family tie-break (previously described as a unique rank field); (b) each new D06 control needs a written definition, acceptance behaviour and validator review before a value is entered; (c) D05 5h now also carries the halt evidence source and the feasibility items for data availability. The 32-item sequence and the step order are unchanged |
+| Do they change **freeze fields**? | **Yes, relative to the earlier text of this register; no change in what the owner must decide** | The per-candidate `rank` is not a field (withdrawn), so the earlier "20 leaf paths plus rank" is corrected to 20 owner-valued leaf paths plus `p5.account_binding` replacing `p5.account_id`. Relative to `main` the required P0 set grows from 66 to 86 (66 - 1 + 1 + 20; re-verify on the merged schema). The six no-field decisions add no freeze field |
+
+Verdict: **materially changed** in three places (the `rank` withdrawal and the resulting D19 tie-break escalation; the unresolved OD-3 ownership; the OD-4 move to D05 5h with the OD-1 D03 sub-item) and **editorial** elsewhere (Plan Appendix A and D07 wording, the s22 / Record C-P5 text, the D11 proposal-only value). Terminology was aligned with Agent C's documents ("owner choice", "deferral marker", "activation record", "owner approval", "unset"); the register still labels owner choices recorded here as directions, not approvals.
+
+Invariants preserved: **0 formally approved decisions**; every signature, name, date and SHA-256 field remains BLANK; the 32-item sequence in s51 is unchanged; the standing recommendation is NO-GO; no enrollment, freeze, data access or signing occurred.
