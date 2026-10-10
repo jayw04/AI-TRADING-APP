@@ -619,7 +619,7 @@ Starts only after a P4 `PASS_HISTORICAL_PENDING_PROSPECTIVE` verdict **and** wri
 
 | ID | Task | Acceptance criteria |
 |---|---|---|
-| WP5.1 | Provision a **new** paper account for RANGE-002 (D07). It is not user 2 and not any existing strategy account. | The account ID is recorded in the signed execution manifest. A test asserts the executor refuses any other account. |
+| WP5.1 | Provision a **new** paper account for RANGE-002 (D07). It is not user 2 and not any existing strategy account. | The account ID is recorded in the signed execution manifest and in the separate P5 activation record, which names the same `spec_sha256` and an owner approval reference (under proposed option B the frozen spec would carry only the marker `p5.account_binding`; the merged schema still has `p5.account_id`). Under proposed option B the spec's free-form fields would never be an account source. A test asserts the executor refuses any other account. |
 | WP5.2 | `executor.py`: builds the PIT universe daily, computes the OR at 10:00 from SIP, and places a buy-stop at OR high + 1 tick with a protective stop at OR low **only after the entry fill is acknowledged and sized**. Uses the identical frozen spec hash and does not reimplement the rules. Signal logic is imported from `engine/`; timestamps enforce data availability and brokerage latency. | A shared-code test shows the executor and the backtest generate identical signals on a replayed day. |
 | WP5.3 | Orders go through the authenticated OrderRouter and risk engine. Each order carries an explicit reference price (the trigger price) so the notional gate prices it. Unpriced orders must fail closed. | An integration test on paper shows a stop order passes the notional gate with a reference price and is refused without one. |
 | WP5.4 | Daily-flat watchdog: hard flat at the flat time. An independent check runs 2 minutes later and alerts if any position remains. | Alert on any residual position. Zero unplanned overnight positions **when the market remains executable**; a halt/market closure creates an explicit incident and retained-risk alert, never a fictitious fill. |
@@ -808,7 +808,7 @@ Code reads these from the frozen spec. **The agent must not choose them.**
 | D04 | Yearly gate (≥ 3 of 4 years with profit factor > 1.0) if 2022–2025 is used | `gates.yearly` | P4 |
 | D05 | R_pre/R_fill rules, gap fills, same-bar order, tick size, half-day exit, halt rule | `fill.*`, `risk.*`, `exit.*` | P2 |
 | D06 | Baselines, block bootstrap parameters, adjustment method, confidence level, seeds | `controls.*`, `stats.*` | P2 |
-| D07 | New paper account policy (the account ID cannot exist before WP5.1 unless the owner rules otherwise); P5 slippage, drawdown and degradation tolerance; extension rules | `p5.*` | P5 |
+| D07 | New paper account policy (the account ID cannot exist before WP5.1; under proposed option B the spec would record only the hashed deferral marker `p5.account_binding`, option B of the P0 decision register section 22, PROPOSED / NOT APPROVED and not yet signed; the merged schema still has `p5.account_id`; the real ID would be bound later by the P5 activation record); P5 slippage, drawdown and degradation tolerance; extension rules | `p5.*` | P5 |
 | D08 | Research lead, trading-expert reviewer, independent validator, sole P6 approver | `governance.roles` | P0 |
 | D09 | ADR 0037 statement; relationship to ORM-001 (merge / shared ledger and family / independent) | `governance.related_programs` | P0 |
 | D10 | Win rate as diagnostic (deviation) or > 50% gate; drawdown comparator | `gates.win_rate`, `gates.max_dd` | P4 |
@@ -997,7 +997,7 @@ gates:
   max_dd: null                   # P0: D10
   redundancy_corr_max: 0.85
 p5:
-  account_id: null               # D07 policy at P0; the ID is recorded in the P5 execution manifest (WP5.1) unless the owner rules otherwise
+  account_binding: null          # P0: D07 (PROPOSED, option B; merged schema has p5.account_id) (closed marker "deferred_to_p5_activation"; the account id is NOT in the spec: it is bound to this spec_sha256 by the separate P5 activation record, WP5.1)
   min_days: 60
   min_trades: 100
   max_cost_ratio: 1.5
