@@ -1421,9 +1421,19 @@ The merged tool checks only that three strings are present; the local follow-up 
 7. No AI agent holds a role, signs or authors the validator's findings (R9). An AI summary does not substitute for the validator's own review.
 8. The validator reviews the exact pinned bytes (SHA-256) and records the review date.
 
-### 15.5 Cross-reference placeholder for Workstream B
+### 15.5 Validator-independence requirements (cross-reference to Workstream B)
 
-**[RESERVED - Workstream B independence-confirmation requirements. The coordinator will reconcile; this register does not wait for B.]** Items to be merged here: B's required attestations, any additional separation tests, and the evidence B expects from the validator. Until reconciled, section 15.4 stands as the preparer's proposal only and no sign-off may rely on it as approved.
+The software safeguard for sign-off roles (R1-L1b follow-up, local commit `3f05d17a` on `fix/range002-signoff-distinct-roles-rebased`, base `d61f313a`, **not merged**) checks only that the three role identifier strings are pairwise distinct after Unicode normalisation. It does **not** establish that the signers are different humans, and it does not authenticate identity (homoglyphs, aliases, email-versus-display-name and, until the open finding F1 is resolved, invisible characters are not caught).
+
+Real independence confirmation is a procedural requirement, specified in `RANGE-002_Validator_Independence_Requirements_v0.1.md` (local branch `docs/range002-validator-independence`, commit `7421ca62`, **not merged**). Cite these sections of that document:
+
+- **V-1** what the string check proves and does not prove.
+- **V-2** (V-2.1 to V-2.10) the ten procedural confirmations the owner could require: named natural persons, attestations of no authorship of the engine or spec code, no prior exposure to RANGE-002 results, separate accounts and credentials, separate key custody, a recorded conflicts statement, and who verifies.
+- **V-3** who verifies; **V-4** what software can and cannot check.
+- **V-5** mapping to the D08 separation-of-duties options SoD-A to SoD-D. Note: the all-pairs distinctness rule rejects owner == trading_expert, so SoD-B (same person as owner and expert, with a recorded waiver) cannot be expressed without amending the safeguard (Workstream B finding F4); the owner must confirm that is intended.
+- **V-6** what is deferred to Level 2 signing; **V-7** Level 1 gaps; **V-8** the blank owner selection table; **V-9** open questions.
+
+Open owner decisions arising from the independent review of the safeguard (Workstream B): F1 (strip zero-width and other format/control code points before comparison: recommended before the first real freeze), F4 (SoD-B expressibility), and whether to add two test ids to the required Linux manifest. The safeguard must receive separate merge authorization before any real freeze. Nothing in this section is a decision, signature or approval.
 
 ---
 
