@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import math
 import re
+import unicodedata
 from collections.abc import Callable, Iterable, Sequence
 from datetime import date
 from typing import Annotated, Any, Literal
@@ -63,6 +64,38 @@ class SignoffMissingError(ValueError):
     def __init__(self, fields: Sequence[str]) -> None:
         self.fields: tuple[str, ...] = tuple(fields)
         super().__init__("sign-off field(s) missing: " + ", ".join(self.fields))
+
+
+class SignoffRolesNotDistinctError(ValueError):
+    """Two or more sign-off role identifiers are equal after normalisation.
+
+    Level 1: distinct role identifier strings only. Identifiers are unauthenticated free text;
+    real separation of duties needs the signing design (Level 2).
+    """
+
+    def __init__(self, groups: Sequence[Sequence[str]]) -> None:
+        self.groups: tuple[tuple[str, ...], ...] = tuple(tuple(g) for g in groups)
+        super().__init__(
+            "sign-off role identifiers are not distinct (equal after normalisation): "
+            + "; ".join(" == ".join(f"signoff.{r}" for r in g) for g in self.groups)
+        )
+
+
+class SignoffRoleCharactersError(ValueError):
+    """A sign-off role identifier contains invisible or control characters.
+
+    Part of the Level 1 deterministic Unicode policy for role identifiers (unauthenticated free
+    text; this is not identity verification). Invisible characters could make two otherwise equal
+    identifiers compare as distinct, so they are refused rather than silently stripped. Code
+    points are reported as ``U+XXXX``, never echoed raw.
+    """
+
+    def __init__(self, roles: Sequence[tuple[str, Sequence[str]]]) -> None:
+        self.roles: tuple[tuple[str, tuple[str, ...]], ...] = tuple((r, tuple(c)) for r, c in roles)
+        super().__init__(
+            "sign-off role identifier(s) contain invisible or control characters: "
+            + "; ".join(f"signoff.{r} ({', '.join(c)})" for r, c in self.roles)
+        )
 
 
 # --------------------------------------------------------------------------- helpers
@@ -473,6 +506,57 @@ class Governance(_OpenFieldsModel):
         return v
 
 
+SIGNOFF_ROLE_FIELDS: tuple[str, ...] = ("owner", "trading_expert", "independent_validator")
+
+
+# Deterministic Unicode policy for role identifiers (Level 1). Characters in these general
+# categories are refused outright (never stripped): Cc controls, Cf format characters (zero-width
+# space/joiners, bidi marks, soft hyphen, U+180E, tag characters, BOM) and Cs surrogates. Real
+# whitespace (``str.isspace``: tab, newline, NBSP, U+2028, ...) is exempt and handled by the
+# whitespace collapse. Categories alone miss a few default-ignorable code points that render as
+# nothing (they are Mn or Lo), so those are listed explicitly.
+_INVISIBLE_CATEGORIES: frozenset[str] = frozenset({"Cc", "Cf", "Cs"})
+_INVISIBLE_EXTRA: frozenset[int] = frozenset(
+    {0x034F, 0x115F, 0x1160, 0x17B4, 0x17B5, 0x2800, 0x3164, 0xFFA0}  # CGJ, fillers, braille blank
+    | set(range(0x180B, 0x180E))  # Mongolian free variation selectors
+    | {0x180F}
+    | set(range(0xFE00, 0xFE10))  # variation selectors 1-16
+    | set(range(0xE0100, 0xE01F0))  # variation selectors 17-256
+)
+
+
+def _invisible_code_points(value: str | None) -> list[str]:
+    """Distinct ``U+XXXX`` labels, in order of appearance, of invisible/control code points.
+
+    Checked on the raw value (NFKC never produces an invisible code point from a visible one:
+    verified over every code point). Part of the Level 1 policy; not identity verification.
+    """
+    found: dict[str, None] = {}
+    for ch in value or "":
+        if ch.isspace():
+            continue
+        if unicodedata.category(ch) in _INVISIBLE_CATEGORIES or ord(ch) in _INVISIBLE_EXTRA:
+            found.setdefault(f"U+{ord(ch):04X}", None)
+    return list(found)
+
+
+def _normalize_role_identifier(value: str | None) -> str:
+    """NFKC, casefold, NFKC, strip and collapse internal whitespace. Blank/None -> ``""``.
+
+    Deterministic Unicode policy (Level 1): invisible/control code points are not normalised away
+    but refused earlier (see ``_signoff_invisible_char_roles``); whitespace is collapsed.
+
+    Distinct role identifier strings only: identifiers are unauthenticated free text, and this is
+    NOT identity verification. Confusable lookalikes (e.g. Cyrillic vs Latin letters), aliases and
+    name-order variants are not unified. Real separation of duties needs the signing design
+    (Level 2).
+    """
+    text = unicodedata.normalize("NFKC", value or "").casefold()
+    # casefold can emit characters that re-normalise (e.g. ligatures); NFKC again, then collapse.
+    text = unicodedata.normalize("NFKC", text)
+    return " ".join(text.split())
+
+
 class Signoff(_Model):
     owner: str | None
     trading_expert: str | None
@@ -486,6 +570,39 @@ class Signoff(_Model):
         if v is not None and not _SHA_RE.fullmatch(v):
             raise ValueError("must be a lowercase 64-hex sha256")
         return v
+
+
+def _signoff_invisible_char_roles(signoff: Signoff) -> list[tuple[str, tuple[str, ...]]]:
+    """Roles whose identifier contains invisible or control code points, with ``U+XXXX`` labels.
+
+    Refused (not stripped) so an invisible character cannot make two equal identifiers look
+    distinct. Identifiers are unauthenticated free text; this is not identity verification.
+    """
+    out: list[tuple[str, tuple[str, ...]]] = []
+    for name in SIGNOFF_ROLE_FIELDS:
+        found = _invisible_code_points(getattr(signoff, name))
+        if found:
+            out.append((name, tuple(found)))
+    return out
+
+
+def _non_distinct_signoff_roles(signoff: Signoff) -> list[tuple[str, ...]]:
+    """Groups of owner / trading_expert / independent_validator equal after normalisation.
+
+    Distinct role identifier strings only; identifiers are unauthenticated free text, so this is
+    not identity verification (real separation of duties needs the signing design, Level 2).
+    Blank roles are skipped here: they are reported as missing by
+    ``DraftSpec.missing_signoff_fields``.
+
+    Module-level and underscore-named on purpose: the range002 import lint requires every public
+    callable to be reviewed; this is shared by the freeze tool and the loader.
+    """
+    by_norm: dict[str, list[str]] = {}
+    for name in SIGNOFF_ROLE_FIELDS:
+        norm = _normalize_role_identifier(getattr(signoff, name))
+        if norm:
+            by_norm.setdefault(norm, []).append(name)
+    return [tuple(names) for names in by_norm.values() if len(names) > 1]
 
 
 # --------------------------------------------------------------------------- top level
@@ -743,6 +860,8 @@ __all__ = [
     "ExitSelection",
     "FrozenSpec",
     "SignoffMissingError",
+    "SignoffRoleCharactersError",
+    "SignoffRolesNotDistinctError",
     "UnsetP0FieldsError",
     "draft_skeleton",
     "validate_partition_layout",
