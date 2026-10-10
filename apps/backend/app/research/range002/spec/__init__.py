@@ -17,6 +17,8 @@ from app.research.range002.spec.schema import (
     DraftSpec,
     FrozenSpec,
     SignoffMissingError,
+    SignoffRoleCharactersError,
+    SignoffRolesNotDistinctError,
     UnsetP0FieldsError,
     draft_skeleton,
 )
@@ -25,6 +27,8 @@ __all__ = [
     "DraftSpec",
     "FrozenSpec",
     "SignoffMissingError",
+    "SignoffRoleCharactersError",
+    "SignoffRolesNotDistinctError",
     "SpecHashMismatchError",
     "SpecSchemaError",
     "SpecView",
