@@ -2047,7 +2047,7 @@ D02 (after D06); D17 and D19 (after D06 and D18, signed together, D19 after trad
 ### 26.4 Decisions REQUIRING DESIGN CHANGES or rulings that change documents or code
 
 - **C-DR**: Plan wording amendments (20.3) and, for any rerun, an unbuilt Level 2 recovery procedure.
-- **`p5.account_id`**: schema change (option B, owner choice) before any freeze; implemented in a local, unpushed schema candidate.
+- **`p5.account_id`**: schema change under proposed option B (PROPOSED / NOT APPROVED; owner direction, unsigned) before any freeze; implemented in a local, unpushed schema candidate only; the merged schema still requires `p5.account_id`.
 - **A1 / v0.4 / merged schema**: written reconciliation; code changes if anything other than the A1 form is intended.
 - **SoD-B**, if chosen: amendment of the distinct-role safeguard.
 - **C-EVID**: a plan / A1 amendment or an owner-authorized early return-blind pull, if D05 5a/5b are to be evidence-based.
@@ -2601,7 +2601,7 @@ The register grew in layers. This table records, for each ruling, the sections t
 | D08 | s1.2 rows D08 and D08-SoD, s10 D08 block, s15, s18, s27, s43 | s27 / s43 | Earlier text recommended "SoD-A target, SoD-C minimum" and discussed SoD-B. The proposed policy is SoD-A + SoD-C; SoD-B removed. Inline notes added to s15.3 and s18.2. Names, attestations and the engineer list are BLANK everywhere |
 | C-DR | s3.3, s3.5, s12, s20, s28, s39 | s39 | s20.3 and s28 wording tables are superseded by s39 (recovery unavailable without a separately designed, implemented and approved mechanism; an owner authorization alone cannot reset the budget; an unrecoverable defect permanently ends the phase). Inline note added to s20.3. The limits 1 / 1 are consistent throughout |
 | A1 | s1.2 row A1, s10 A1 block, s23, s29, s40, s41 | s40 / s41 | Consistent: proceed with the P3a / P3b architecture; no signature before the reconciliation memo and the independent methodology review exist |
-| P5 | s1.2 row D07, s10 D07 block, s14, s22, s31, s42 | s31 / s42 | `p5.account_id` conflict is resolved on paper by option B. Inline notes added to s14 and s22. The schema candidate `5bc2b493` is consistent (s49). The D07 text in s10 still cites the old conflict as history |
+| P5 | s1.2 row D07, s10 D07 block, s14, s22, s31, s42 | s31 / s42 | `p5.account_id` conflict has a proposed resolution on paper: option B (PROPOSED / NOT APPROVED; owner direction, unsigned). Inline notes added to s14 and s22. The local schema candidate (reviewed, fix commit 76730911; the original `5bc2b493` is superseded by it) implements option B for review only and is not merged. The D07 text in s10 still cites the old conflict as history |
 | E1 | s24, s32, s44 | s44 (step 1 only) | Consistent: Amendment E1 step 1 approves rules only; no acquisition authorization is requested or exists; D05 5a / 5b stay undecided |
 | Genesis | s2, s21, s30, s45 | s45 | Unenrolled everywhere; no id exists |
 | Go / no-go | s17, s26, s37, s47 | s50 | NO-GO throughout; 0 decisions approved |
