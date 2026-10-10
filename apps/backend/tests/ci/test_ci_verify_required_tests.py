@@ -248,16 +248,39 @@ def test_cli_exit_code_is_the_process_exit_code(tmp_path: Path) -> None:
 
 
 def test_committed_manifest_is_valid_and_covers_the_named_tests() -> None:
-    """The committed manifest lists ONLY tests that exist in the PR that carries it (PR 2 here)."""
+    """The committed manifest lists ONLY tests that exist in the PR that carries it: PR 2's four
+    spec tests plus PR 3's governance tests (this PR extends the manifest in its own diff)."""
     reqs = load_manifest(REAL_MANIFEST)
     ids = {r.node_id.split("::", 1)[1] for r in reqs}
-    assert ids == {
+    pr2 = {
         "test_symlink_target_refused_and_nothing_written_through_it",
         "test_dangling_symlink_target_refused",
         "test_symlinked_manifest_refused",
         "test_canary_symlinks_work_on_linux",
     }
-    assert all(r.phase == "pr2" and r.pending_pr is None for r in reqs)
+    pr3 = {
+        "test_f9_symlink_alias_shares_the_lock",
+        "test_f9_hardlink_alias_shares_the_lock",
+        "test_f9_readers_are_not_blocked_by_the_writer_lock",
+        "test_canary_lock_backend_matches_the_platform",
+        "test_the_real_backend_excludes_a_second_holder",
+        "test_fcntl_branch_runs_on_any_platform[False]",
+        "test_fcntl_branch_runs_on_any_platform[True]",
+        "test_four_processes_append_concurrently_through_the_real_backend",
+        "test_namespace_lock_is_exclusive_through_the_real_backend",
+        "test_threads_with_stale_views_never_fork_the_chain",
+        "test_processes_serialize_appends_without_forking",
+        "test_second_writer_with_same_stale_view_serialises_after_the_first",
+        "test_lock_is_exclusive_and_fails_closed_on_timeout",
+        "test_append_blocked_by_a_held_lock_is_refused_not_forked",
+        "test_exactly_one_enrollment_wins_each_round[different]",
+        "test_exactly_one_enrollment_wins_each_round[same]",
+    }
+    assert ids == pr2 | pr3
+    assert len(reqs) == len(pr2) + len(pr3)
+    assert {r.phase for r in reqs if r.node_id.split("::", 1)[1] in pr2} == {"pr2"}
+    assert {r.phase for r in reqs if r.node_id.split("::", 1)[1] in pr3} == {"pr3"}
+    assert all(r.pending_pr is None for r in reqs)
     backend = REAL_MANIFEST.parents[1]
     for r in reqs:
         test_file = backend / r.node_id.split("::", 1)[0]
