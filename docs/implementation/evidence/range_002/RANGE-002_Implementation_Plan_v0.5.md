@@ -808,7 +808,7 @@ Code reads these from the frozen spec. **The agent must not choose them.**
 | D04 | Yearly gate (≥ 3 of 4 years with profit factor > 1.0) if 2022–2025 is used | `gates.yearly` | P4 |
 | D05 | R_pre/R_fill rules, gap fills, same-bar order, tick size, half-day exit, halt rule | `fill.*`, `risk.*`, `exit.*` | P2 |
 | D06 | Baselines, block bootstrap parameters, adjustment method, confidence level, seeds | `controls.*`, `stats.*` | P2 |
-| D07 | New paper account policy (the account ID cannot exist before WP5.1; the spec records only the hashed deferral marker `p5.account_binding`, owner choice of option B in the P0 decision register section 22, and the real ID is bound later by the P5 activation record); P5 slippage, drawdown and degradation tolerance; extension rules | `p5.*` | P5 |
+| D07 | New paper account policy (the account ID cannot exist before WP5.1; the spec records only the hashed deferral marker `p5.account_binding`, option B of the P0 decision register section 22, PROPOSED / NOT APPROVED and not yet signed, and the real ID would be bound later by the P5 activation record); P5 slippage, drawdown and degradation tolerance; extension rules | `p5.*` | P5 |
 | D08 | Research lead, trading-expert reviewer, independent validator, sole P6 approver | `governance.roles` | P0 |
 | D09 | ADR 0037 statement; relationship to ORM-001 (merge / shared ledger and family / independent) | `governance.related_programs` | P0 |
 | D10 | Win rate as diagnostic (deviation) or > 50% gate; drawdown comparator | `gates.win_rate`, `gates.max_dd` | P4 |
