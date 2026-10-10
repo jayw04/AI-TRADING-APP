@@ -1320,7 +1320,7 @@ Thresholds and open items: section 4.1. Locked in code by equality validators: G
 
 ## 14. FREEZE-FIELD TRACE
 
-> **Superseded in part (Part VI, s48):** this trace is the list at `main` `d61f313a`. The local schema candidate `5bc2b493` replaces `p5.account_id` with `p5.account_binding` and adds mandatory paths; s49 lists them with owners. The `p5.account_id` flag below is resolved by option B once that candidate is approved and merged.
+> **Superseded in part (Part VI, s48):** this trace is the list at `main` `d61f313a`. The local schema candidate (reviewed fix commit 76730911; `5bc2b493` is superseded by it, see s49) replaces `p5.account_id` with `p5.account_binding` and adds mandatory paths; s49 lists them with owners. The `p5.account_id` flag below is resolved by option B once that candidate is approved and merged.
 
 Source: `draft_skeleton()` executed with `python -I` from the merged code (no real values, no file written). Result: 107 leaf values, 72 null, 35 fixed. Every null is listed below with its owning decision. "Unowned" fields: none. Fields needing attention are flagged in the last column.
 
@@ -1591,7 +1591,7 @@ The recommendation combines (i) with (iii) as the only legitimate route to any r
 
 ## 22. `p5.account_id` - MANDATORY-FIELD CONFLICT AND DESIGN OPTIONS
 
-> **Superseded in part (Part VI, s48):** option B is now the owner's proposed direction (s31, s42). The marker literal `deferred_to_p5_activation` matches the local schema candidate `5bc2b493` (read-only cross-check, s49).
+> **Superseded in part (Part VI, s48):** option B is now the owner's proposed direction (s31, s42). The marker literal `deferred_to_p5_activation` matches the local schema candidate (reviewed fix commit 76730911; `5bc2b493` is superseded by it, see s49) (read-only cross-check, s49).
 
 ### 22.1 The conflict (escalated)
 
@@ -2679,7 +2679,7 @@ All items are unsigned. "Decides" names the role with authority (design s10.3, A
 1. **D08 role holders and separation of duties.** Decides: owner. Evidence: four names (research lead, trading-expert reviewer, independent validator, sole P6 approver); the independent validator's attestation under s15.4 / the Workstream B document; the engineer list; confirmation of SoD-A + SoD-C.
 2. **C-DR option (i).** Decides: owner. Evidence: the s39 Plan wording approved for application; confirmation that limits stay 1 / 1 and that no recovery is available without a separately designed, implemented and approved mechanism.
 3. **A1.** Decides: owner; trading-expert reviewer signs on D19; independent validator signs on the selection rule and P3a test. Evidence: the s40 reconciliation memo reviewed; the s41 methodology review report with an "adequate" conclusion; A1 s3 amended; the DOCX version and SHA-256.
-4. **P5 option B.** Decides: owner; validator reviews the schema change. Evidence: s42 wording approved; schema candidate `5bc2b493` reviewed and merged before any freeze; the permitted marker text confirmed.
+4. **P5 option B.** Decides: owner; validator reviews the schema change. Evidence: s42 wording approved; the schema candidate (reviewed fix commit 76730911) reviewed and merged before any freeze; the permitted marker text confirmed.
 5. **E1 step 1.** Decides: owner (with trading-expert reviewer and independent validator). Evidence: the s32.1 text; Plan R1 / s2.5 basis. No acquisition authorization is part of this item.
 
 **Step 2 - statistics specification**
