@@ -285,17 +285,9 @@ class RunRegistry:
     enrollment, not chosen by code; external anchoring of the genesis id / head hash is not
     implemented.
 
-    Directory links (Level 1 limitation, NOT confinement): ``RunRegistry`` and ``enroll_new`` accept paths.
-    File-level symlink/hardlink aliases of the chain file share one lock. Governance
-    DIRECTORIES that are symlinks or junctions are FOLLOWED: the chain, namespace lock,
-    genesis enrolment and token files are written wherever the link points, which may be
-    OUTSIDE the originally specified filesystem path. The same target is the same identity
-    (one registry identity, one lock, one chain, one attempt budget), so an alias cannot
-    create an independent registry identity, reset the attempt budget or reopen an
-    exhausted holdout. NO directory confinement is provided or claimed. An empty redirected
-    token directory looks fresh to the token store, but the registry remains the authority
-    and refuses a second holdout opening. An attacker who controls governance filesystem
-    paths is Level 2. Contrast PR 2, which refuses symlinked specs and manifests.
+    Directory links: governance directories that are symlinks/junctions are followed; no path
+    confinement is provided or claimed -- see the ``hashchain.py`` module docstring.
+    Directory aliases resolve to one registry identity (one lock, chain and attempt budget).
     """
 
     def __init__(self, path: Path) -> None:
@@ -334,17 +326,9 @@ class RunRegistry:
         :class:`RegistryEnrollmentError`. Level 1: it serialises cooperating ``enroll_new``
         callers only; it cannot stop a process that writes a chain file by other means.
 
-        Directory links (Level 1 limitation, NOT confinement): ``path``'s parent directory, if a symlink or junction, is followed.
-        File-level symlink/hardlink aliases of the chain file share one lock. Governance
-        DIRECTORIES that are symlinks or junctions are FOLLOWED: the chain, namespace lock,
-        genesis enrolment and token files are written wherever the link points, which may be
-        OUTSIDE the originally specified filesystem path. The same target is the same identity
-        (one registry identity, one lock, one chain, one attempt budget), so an alias cannot
-        create an independent registry identity, reset the attempt budget or reopen an
-        exhausted holdout. NO directory confinement is provided or claimed. An empty redirected
-        token directory looks fresh to the token store, but the registry remains the authority
-        and refuses a second holdout opening. An attacker who controls governance filesystem
-        paths is Level 2. Contrast PR 2, which refuses symlinked specs and manifests.
+        Directory links: governance directories that are symlinks/junctions are followed; no path
+        confinement is provided or claimed -- see the ``hashchain.py`` module docstring.
+        The parent directory of ``path``, if linked, is followed.
         """
         file = Path(path)
         if not isinstance(enrolled_by, str) or not enrolled_by.strip():

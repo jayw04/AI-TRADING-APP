@@ -92,17 +92,10 @@ class ExposureLedger:
     ``signoff`` block is present and well-formed -- nothing here verifies who signed it.
     Reaching the token (a module-private name) is code execution, outside the threat model.
 
-    Directory links (Level 1 limitation, NOT confinement): ``from_file`` accepts a path; a symlink or junction in it is followed and the content read is what is hashed.
-    File-level symlink/hardlink aliases of the chain file share one lock. Governance
-    DIRECTORIES that are symlinks or junctions are FOLLOWED: the chain, namespace lock,
-    genesis enrolment and token files are written wherever the link points, which may be
-    OUTSIDE the originally specified filesystem path. The same target is the same identity
-    (one registry identity, one lock, one chain, one attempt budget), so an alias cannot
-    create an independent registry identity, reset the attempt budget or reopen an
-    exhausted holdout. NO directory confinement is provided or claimed. An empty redirected
-    token directory looks fresh to the token store, but the registry remains the authority
-    and refuses a second holdout opening. An attacker who controls governance filesystem
-    paths is Level 2. Contrast PR 2, which refuses symlinked specs and manifests.
+    Directory links: governance directories that are symlinks/junctions are followed; no path
+    confinement is provided or claimed -- see the ``hashchain.py`` module docstring.
+    For the ledger: ``from_file`` reads through a linked path; the content hashed is the
+    content that was read.
     """
 
     __slots__ = ("_entries", "_sha256", "_signoff")
