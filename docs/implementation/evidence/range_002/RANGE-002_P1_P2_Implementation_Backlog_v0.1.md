@@ -458,3 +458,334 @@ Vendor SIP minute depth to 2016 and delisted coverage; whether the account's ent
 | Q-B6 | Accept no new dependencies (no `hypothesis`; numpy only as the existing transitive dependency), or approve declaring them as part of a batched manifest change? |
 | Q-B7 | Is it acceptable that unit tests call underscore-private kernels on synthetic data without a capability (no real data involved)? |
 | Q-B8 | Plus the RA questions Q-P1-1..8, unchanged. |
+
+---
+---
+
+# Part II. Completion addendum (owner directive of 2026-10-10)
+
+Part II supersedes the "Recommendation" column of table T2 in section 5 where they differ, adds the classification the owner asked for, and completes sections 8-13 below. Same restrictions as Part I: design only, no SDK calls, data, backtests, keys, network or implementation.
+
+## 8. Classification of all 18 orphan values
+
+### 8.1 Classes and conventions
+
+| Class | Meaning | Where the value lives | Effect on `spec_sha256` | Consequence |
+|---|---|---|---|---|
+| (a) new frozen-spec field | The rule is research-relevant and the owner must sign a value or option. The field is added to `spec/schema.py` as a required key (null until the owner sets it, like every `P0:` field). The value is then an owner decision under the D-id named. | `spec/schema.py` + frozen spec | The canonical payload gains a key, so the hash of every spec produced after the schema change differs from one produced before. Today no real spec has ever been frozen (all P0 values null; the committed governance manifest is null; nothing pins a spec hash), so the change is free **if batched in one schema PR before any freeze and before the A1 sign-off packet pins hashes**. Because models use `extra="forbid"`, every existing synthetic payload (`draft_skeleton`, `spec/_fixtures.complete_payload`) must be updated in the same PR. | Plan Appendix A and the decision sheets need a matching docs edit. |
+| (b) plan-fixed constant | The plan/design already fixes the rule (cited). It lives in module code as a private constant with a docstring citing the line. | Module code | **None.** It is hashed into the code SHA (the P2 signed execution manifest pins engine code SHAs), not the spec. Changing it later is a code change that changes the code SHA, and after P0 a change to a rule is a new hypothesis (R4). | Review obligation: the validator confirms the constant against the cited line. |
+| (c) derive from an existing field | Computable from fields already in the spec. | Pure function of existing fields | None | Needs a stated derivation rule and a test. |
+| (d) owner decision, no spec field | An operational or governance fact that changes over time or sits outside the research hypothesis. Recorded in the sign-off packet, data manifest, ledger or P6 pack, pinned by hash. | Sign-off packet / manifest / pack | None | The record must be hashed and cited by the run (manifest field), otherwise it is invisible to the guard. |
+
+Convention: "Recommendation (not a decision)" in the last column. Where an orphan has sub-items, the class is for the primary item; sub-items are listed in 8.3.
+
+### 8.2 Classification table
+
+| ID | Orphan | Class | Spec path / location | Type and validator | Owner decision | Recommendation (not a decision) and consequences |
+|---|---|---|---|---|---|---|
+| O-1 | Loader budget cap (money/bytes/requests) | (d) | Data manifest `run_config.budget`; sign-off packet line | Positive ints/float, all three optional, at least one required, loader refuses to start without one | **D03** (data budget; sheet already asks for a cap) | Keep in run configuration recorded in the data manifest, not the research spec. Reason: a budget is an operational limit; putting it in the spec would change the spec hash if the cap is raised mid-pull, with no research meaning. Consequence: the loader must refuse to start without a cap, and the cap must be echoed into the manifest (hashed). Alternative (a) `data.budget` makes the cap part of the frozen record at the price of re-freezing to change it. Margin/retry/backoff are code constants (class (b)) derived from the vendor page cap V6 and recorded in the manifest. |
+| O-2 | Price adjustment basis (`data.adjustment`) | (a) | `data.adjustment` | `Literal["raw","split_adjusted","split_dividend_adjusted"] \| None`; null until set; non-blank | **D03** (vendor) with **D05** (price basis consistent with fills; WP1.6) | Add the field. The RA used this key but `schema.py` `Data` has no such field. Recommended value space excludes "spinoff_adjusted" because Sharadar `open/close` are not spinoff-adjusted. Consequence: hash changes (pre-freeze only); loader and `corp_actions` read it from the spec and refuse mixed bases. |
+| O-3 | Starting equity for simulation | (a) | `risk.initial_equity` | `OptPos` (positive float, USD), plus `risk.equity_basis: Literal["static","marked_daily"] \| None` | **D05 5j** | Add both. Options: static initial equity every day (simplest, return-comparable across candidates) vs daily mark-to-market (matches a real account and P5, but couples sizing to path). Recommendation: `marked_daily`, equity marked at the prior close, because gates are stated on the portfolio-constrained economic claim (D18 option a). Consequence: sizing and daily-loss limits become path-dependent; the determinism test must cover it. |
+| O-4 | Daily-volume reconciliation tolerance for `NO_TRADE_MINUTE` | (a) | `data.minute_reconciliation` | Model `{volume_tolerance_frac: float in [0,1) \| None, reference: Literal["sep_daily_volume"] \| None}` | **D05 5a** (evidence rule) | Add. The value cannot be chosen blind: it needs a return-blind measurement of SEP-vs-SIP volume comparability (RA B7), so it is one of the first authorized measurements after P0. Until measured, default class is `DATA_GAP` (conservative). Consequence: hash change pre-freeze; classifier takes the model as input. |
+| O-5 | Coverage threshold (98%) and exclusion bound | (a) | `data.coverage_min` (fixed), `data.exclusion_bound` | `coverage_min: Annotated[float, _eq(0.98)]` (design v0.4 constant, so no owner value); `exclusion_bound: OptNonNeg` fraction of eligible symbol-days that may be excluded as `VENDOR_NO_HISTORY`/`IDENTITY_UNMAPPED` | **D03** + **Q-P1-4** | Add both. Fixing 0.98 in the schema stops anyone loosening it by editing code. Recommended bound: the owner states it before the pull; stricter is safer. Consequence: G9 and the P1 exit gate read both from the spec. |
+| O-6 | PIT timing of the rebuild; ADV tie-break | (b) | `data/pit_universe.py` private constants | Rebuild effective from the first session of each month using only data dated <= the prior trading day; ADV ties broken by permaticker ascending | none (fixed by plan) | Cite plan v0.5 section 2.1 "Universe ... Uses only information visible on the prior trading day" and D03 sheet recommendation. The tie-break matches the return-independent `execution.tie_break` option. Consequence: part of the code SHA. Sub-item "Sharadar TICKERS metadata is point-in-time?" is a feasibility measurement (RA B9), not a constant. |
+| O-7 | Whether `LINEAGE_*` refusal constants apply to RANGE-002 | (d) | Sign-off packet statement; the three values echoed into the data manifest | Options: adopt as-is (`LINEAGE_GAP_SESSIONS`, `LATE_START_SESSIONS`, `LINEAGE_BRIDGE_HOLE_MIN_SESSIONS` = 20 each in `app/validation/security_lineage.py`), stricter, looser | **OD-1** (proposed; folds naturally into D03 or D09) | Adopt as-is and echo the values into the manifest so a later change in that shared module is detected by manifest hash mismatch rather than silently altering the universe. Consequence: the shared module becomes a pinned dependency. |
+| O-8 | Studentization in the max-statistic test | (b) | `stats/selection.py` private function | Standardize each candidate's observed mean net R by the standard deviation of its own bootstrap means (bootstrap-t style) | none (plan says "studentized" and fixes the max-stat structure) | Cite plan v0.5 WP3 table `selection.py` row and A1 Amendment 1/2. The choice of standard-error estimator is an implementation detail the validator must review (R-1 risk). Consequence: code SHA; the validator signs the function. |
+| O-9 | Tie rule within one exit family; per-family candidate parameter names | (a) | `exits.candidates[*].rank` and per-family parameter validators on `ExitCandidate.params` | `rank: int >= 1`, unique across candidates and consistent with `exits.complexity_order`; `params` validated per family: `time: {}`; `fixed_r: {k_r: float > 0}`; `trailing: {trail_r: float > 0}`; `scale_out: {remainder: "eod" \| "trail", trail_r: float > 0 only when remainder = "trail"}`. +1R breakeven/activation and the 50% scale quantity are PLAN-FIXED (A1 Amendment 1 and plan WP2.2A) | **D19** | Add rank and tighten params. Unknown parameter names are refused; the A1 proposed set expresses as E1 `{}`, E2a/b `k_r` 2/3, E3a/b `trail_r` 1.0/1.5, E4a `remainder=eod`, E4b `remainder=trail, trail_r=1.0`. Consequence: hash change pre-freeze; the existing schema comment "parameter vocabulary is part of the open D19 decision" is closed by this change. |
+| O-10 | Stage-1 control pass criteria; random-entry population (O-10a) | (a) | `controls.stage1_criteria`; `controls.random_entry.population` | `stage1_criteria`: `{invariants: fixed tuple (no_entry_before_1000, flat_at_close, ledger_reconciles, no_future_bar_access), negative_control_alpha: float in (0,0.5) \| None, on_fail: fixed "INCONCLUSIVE_ENGINE"}`; `population`: `{unit: "symbol_day_at_1000", feasible_instants: enum, matching: tuple of enum}` | **D06** (+ **OD-2** for the negative-control rule) | Options for the negative-control part: (i) invariants only hard-fail (deterministic); negative-control effects reported; (ii) invariants plus a positive-effect test of the time-shuffle and no-information controls at a strict alpha hard-fails; (iii) none. Plan WP2.5 says a positive control result is not proof of a bug, while WP4.0 says a failing control voids the run: the owner must reconcile. Recommendation: (ii) with the invariants fixed in the schema and `negative_control_alpha` an owner value, so the rule is mechanical (no judgment after seeing results). Consequence: without this field `INCONCLUSIVE_ENGINE` and G9 cannot be computed. |
+| O-11 | Time-shuffle procedure | (a) | `controls.time_shuffle` | `{method: Literal["cyclic_day_shift","within_symbol_permutation"] \| None, min_shift_days: OptPosInt, reps: OptPosInt}` | **D06** | Options: (1) apply the day-d trigger *timing* to the prices of day d+shift (cyclic shift, whole trading days, `min_shift_days` large enough to break serial dependence); (2) permute entry minutes across days within the same symbol. Recommendation: (1), because it preserves the signal-timing marginal while destroying the price-signal link and uses no price outcome in assigning times. Caution recorded: any procedure that selects times from the strategy's own realized trades is future-conditioned and must not be used. |
+| O-12 | No-information trigger distribution | (a) | `controls.no_information` | `{level_distribution: Literal["uniform_or_width_multiple","fixed_tick_offsets"] \| None, lo: float, hi: float, reps: OptPosInt}` (lo/hi in OR-width multiples above OR high) | **D06** | Options: trigger at OR high + u * OR width with u drawn from a frozen interval independent of future bars; or a frozen set of tick offsets. Recommendation: uniform over a declared interval whose upper end keeps `R_pre` in the same range as RANGE-002's (matched on the causal risk distribution, per WP2.5). Consequence: draws must be reproducible from the seed derivation rule (O-14). |
+| O-13 | Approved-strategy comparison set for the redundancy correlation (G10) | (d) | P6 decision pack input list, hashed; not in the spec | List of strategy ids plus the SHA-256 of their daily net-return series | **OD-3** (fold into D10 or D08) | Keep outside the spec: the approved set grows over time and G10 is a promotion constraint, not a holdout test. The audit pack records the list and series hashes used. Consequence: G10 inputs are an explicit argument to `gates.py`; the gate cannot read the platform's current list implicitly. |
+| O-14 | RNG stream and seed derivation | (b) | `stats/_seeds.py` private function | `seed_i = int(sha256(f"{base_seed}:{label}").hexdigest()[:16], 16)`; labels are fixed strings per stream (e.g. `boot/p3a/E3a`, `ctrl/random_entry`) | none (plan WP2.5 "lock seeds"; D06 fixes the base seeds) | Cite plan WP2.5 and D06. Consequence: reproducible, order-independent substreams; part of the code SHA; the label list is reviewed. |
+| O-15 | Window N of the "fell back inside the OR within N minutes" statistic | (d) | Economic thesis diagnostics list (non-binding), hashed via `governance.economic_thesis_sha` | A fixed tuple of minute windows | **D13** (which diagnostics are non-binding) | The plan gives no value. Recommendation: the trading expert lists the windows in the thesis (a set rather than a single N); the funnel reports all of them. Consequence: none for gates (diagnostic only); the funnel module takes the tuple as input and refuses an empty tuple. |
+| O-16 | Halt detection data source | (d) | Feasibility report (WP0.10) + data manifest field `halt_evidence` | Options: vendor halt feed; infer from zero-volume intervals; no halt inference | **OD-4** (proposed; folds into D05 5h and F-items) | Recommendation: no inferred halts. Halts only with positive vendor evidence, otherwise the interval is `DATA_GAP`, consistent with RA 4.4 and the fail-closed default. `fill.halt_policy` then only applies where evidence exists. Consequence: `EXIT_UNAVAILABLE` may never trigger on real data if the vendor has no halt feed; the audit pack states that limitation. |
+| O-17 | Units of `risk.*` limits; meaning of `max_participation` | (d) | Schema docstrings plus validators on the existing fields | Recommended units: `per_trade_pct` percent of equity (proposal 0.25 means 0.25%); `per_name_cap` and `gross_cap` fractions of equity; `daily_loss_limit` percent of start-of-day equity; `max_participation` fraction of the minute bar volume in (0,1]; validators enforce ranges | **D05 5j** (units sub-item) | Recommendation: the owner confirms these units in the D05 sheet; the schema adds range validators and unit docstrings without renaming fields (validators do not change the hash). Consequence: removes a silent factor-of-100 risk in sizing. Defaults must stay conservative per CLAUDE.md. |
+| O-18 | Action when actual risk exceeds the budget | (a) | `risk.over_budget_rule` | `Literal["reduce_to_budget","protective_exit"] \| None` | **D05 5c** | Add. Options: sell the excess shares at the next bar, or exit the whole position at once. Recommendation: `protective_exit` (simplest, avoids a partial-position state that complicates net-R accounting; conservative). Consequence: the exit engine gets one more reason code; `R_fill <= 0` handling is unchanged (immediate exit). |
+
+### 8.3 Sub-items
+
+| ID | Item | Class | Where / rule |
+|---|---|---|---|
+| O-1b | Page-cap safety margin, retry budget, backoff | (b) | `data/fetch_plan.py`, `data/sip_loader.py` private constants; values recorded in the manifest; margin derived from the vendor page cap (V6) once known |
+| O-3a | Tick-size source (price bands) | (b) | `engine/ticks.py` private table with a citation to the exchange tick rules; plan WP2.1 "tick size follows the price band; sub-$1 excluded but asserted" and D05 5f |
+| O-10a | Random-entry feasible-instant set and matching | (a) | `controls.random_entry.population` (see O-10) |
+
+### 8.4 Counts and decisions generated
+
+| Class | Count (of the 18) | IDs |
+|---|---|---|
+| (a) new frozen-spec field | 9 | O-2, O-3, O-4, O-5, O-9, O-10, O-11, O-12, O-18 |
+| (b) plan-fixed constant | 3 | O-6, O-8, O-14 |
+| (c) derive from existing field | 0 | none qualified: every candidate for derivation depends on a value that has no field (checked each) |
+| (d) owner decision without a field | 6 | O-1, O-7, O-13, O-15, O-16, O-17 |
+
+New spec fields proposed (Q-B4), all required keys, null until set, effect on hash as in 8.1: `data.adjustment`, `data.minute_reconciliation`, `data.coverage_min` (fixed 0.98), `data.exclusion_bound`, `risk.initial_equity`, `risk.equity_basis`, `risk.over_budget_rule`, `controls.stage1_criteria`, `controls.time_shuffle`, `controls.no_information`, `controls.random_entry.population`, `exits.candidates[*].rank` plus per-family param validators. One batched schema PR (PR-A in section 10).
+
+Owner decisions generated:
+- **OD-1** lineage constants adoption (O-7). **OD-2** negative-control hard-fail rule and alpha (O-10). **OD-3** redundancy comparison set (O-13). **OD-4** halt evidence source (O-16).
+- **Q-B4** (now sharpened): authorize the schema changes in 8.4 as one batch, or rule individual items plan-fixed.
+- Value decisions folded into existing ids (no new id): D03 (O-1, O-2, O-5), D05 (O-3, O-4, O-17, O-18), D06 (O-10, O-11, O-12), D13 (O-15), D19 (O-9).
+- A1 and the decision sheets need a matching docs amendment if the owner accepts any (a) field (new sub-items under D03, D05, D06, D19).
+
+---
+
+## 9. Data adapter and capability-isolation design (answers Q-B1 and Q-B7)
+
+### 9.1 Facts that constrain the design
+
+1. `Phase` has no data-acquisition value; `Phase.P2` is bound to `REPLAY_RNG001` only (`governance/model.py`). A P3A/P3B/P4 capability is the only way to read development or holdout windows through the guard.
+2. `@requires_capability` verifies a genuine capability and an OPEN run; it does **not** compare it with the inputs of the call.
+3. The lint (R-A, R-A2, REVIEWED_PURE, REVIEWED_PURE_IO, R-B/C/E) applies to all of `app/research/range002/` outside `governance/` and does not see network calls or `scripts/`.
+4. Holdout months must not be research-readable (boundary design B4, invariant I-B6); Level 1 cannot tell principals apart, so fencing is an OS and process control, not a guard control.
+5. P1 happens **after** the P0 gate, so a frozen signed spec and an approved governance manifest exist when acquisition runs.
+
+### 9.2 Options
+
+| Option | Description | For | Against |
+|---|---|---|---|
+| A. New data-acquisition `Phase`/`Partition` in `governance` (separate PR) | `authorize(phase=P1, ...)` issues a capability for loader/universe/coverage runs; acquisition becomes a registry run (answers Q-P1-5 yes) | Uniform: every public data entry is gated like compute; acquisition is ledgered | Changes merged governance (registry fold, attempt-budget rules, `_REQUIRED_PREDECESSORS`, exposure checks, tests); the guard cannot stop a research principal from authorizing a HOLDOUT-range pull anyway; delays P1 behind a governance review; pulls produce no returns, so R8's rationale (multiplicity) does not apply |
+| B. Bounded data adapter: gate only the read side | Only `bar_store` read entry points are gated and bound; acquisition code is plain library functions whose public surface is tiny | Matches the real risk: reading bars into computation. Small lint surface | Acquisition functions still need lint exemption entries; alone it leaves their review undefined |
+| C. Reviewed pure/pure-IO entries only (RA recommendation) | List each public acquisition function in `REVIEWED_PURE`/`REVIEWED_PURE_IO` with a narrow description | No governance change; reviewed by name; stale-entry test keeps the list honest | Network I/O is invisible to the lint, so review text is the only control; read side not gated unless also B |
+| D. Sibling package outside the lint scope | `app/research/range002_data/` | No exemptions | Loses guard-coverage proof for data code; split ownership; **not recommended** |
+
+**Recommendation (not a decision): B + C together** (acquisition is reviewed pure/pure-IO with a small public surface; the read side is capability-gated and input-bound). Option A stays available as a later PR if the validator refuses to exempt network-performing functions; the design below needs no change to switch, because acquisition entry points are already few and isolated.
+
+### 9.3 Public surface of `data/` (the only public names; everything else underscore-private)
+
+| Entry point | Class | Lint treatment | I/O described in the review entry |
+|---|---|---|---|
+| `plan_chunks(spec_params, universe, calendar) -> ChunkPlan` | pure | `REVIEWED_PURE` + `PURE_FUNCTIONS` | none |
+| `run_load(client, plan, journal_dir, run_config) -> LoadReport` | pure-IO (acquisition) | `REVIEWED_PURE_IO` | reads/writes only under `journal_dir` and the raw/normalized data dirs it is given; network only through the injected `client`, feed constant `sip`; never reads environment or credential files |
+| `verify_manifest(manifest_path) -> VerifyReport` | pure-IO | `REVIEWED_PURE_IO` | read-only on listed files |
+| `build_universe_month(store, month, params) -> UniverseMonth` | pure-IO | `REVIEWED_PURE_IO` | read-only on the factor store |
+| `coverage_report(manifest_path, universe_dir, params) -> CoverageReport` | pure-IO | `REVIEWED_PURE_IO` | read-only; output schema denylist enforced |
+| `read_bars(handle, request, *, capability) -> VisibleBars` | **gated** | `@requires_capability` + binding | read-only on normalized bar files named by the manifest |
+| `open_bar_store(manifest_path) -> BarStoreHandle` | pure-IO | `REVIEWED_PURE_IO` | verifies manifest, opens nothing else; returns a handle, no data |
+
+Types (`ChunkPlan`, `BarStoreHandle`, `VisibleBars`, reports) are frozen dataclasses/enums with no public methods; constants are literals or underscore names (R-A2).
+
+### 9.4 How a gated read binds the capability
+
+`read_bars` is `@requires_capability`; its body calls a private `_bind(capability, handle, request)` that raises named errors unless all hold:
+1. `capability.spec_sha256 == handle.manifest.spec_sha256` (the data was acquired under the same frozen spec);
+2. `capability.date_range.contains(request.date_range)` (DateRange.contains exists in `governance/model.py`);
+3. `request.partition` equals `capability.partition` and the manifest labels every requested month with that partition (a DEVELOPMENT_SELECTION capability cannot read a confirmation or holdout month; a REPLAY capability reads only the replay range);
+4. the request names symbols from the handle's universe only.
+The decorator already confirms the run is still OPEN (registry read per call), so `read_bars` is called once per symbol-month batch, never per bar. The function returns only rows inside the requested range even if the file holds more (leak test).
+
+### 9.5 Holdout fencing
+
+- Holdout (2022-2025) bytes are acquired only in broker mode by the boundary principal (boundary B-1; EB-1/EB-3; Q-P1-3) into broker-owned storage; the research principal's `run_load` refuses any chunk whose end date is in the holdout window (read from the frozen spec, never hardcoded) and `open_bar_store` over a research-visible manifest has no holdout months to open.
+- `read_bars` for P4 runs inside the broker/boundary process only. Until B-1 exists no holdout data is acquired at all (real pulls stay BLOCKED, section 12).
+- Level 1 limit stated plainly: nothing in code stops an operator who controls both principals; that is the boundary design's job.
+
+### 9.6 Sequence (text)
+
+```
+P1 acquisition (after P0, on the approved research host, owner-authorized step):
+ operator script --> open_bar_store/verify_manifest (read-only)
+ operator script --> plan_chunks(spec_params, universe, calendar)   [pure]
+ operator script --> run_load(client*, plan, journal_dir, run_config{budget})
+      run_load: for each chunk (dev partition only in research mode)
+         journal: PENDING -> FETCHING ; client.get(feed=sip) pages to exhaustion
+         integrity checks ; atomic write ; sha256 ; journal: VERIFIED | QUARANTINED | FAILED
+      manifest written (hashed) ; * client built by the script, never by the library
+ operator script --> coverage_report(manifest, universe_dir, params)   [return-blind]
+
+P3A governed run (later phase, by the pipeline orchestrator):
+ orchestrator --> authorize(spec_view, P3A, DEVELOPMENT_SELECTION, run_id, registry, ledger)
+                       --> capability (or a named refusal)
+ orchestrator --> pipeline.run_p3a(params, bar_store_handle, *, capability)   [gated; binds spec hash/phase/range]
+      run_p3a --> read_bars(handle, request, *, capability)                  [gated; binds again; registry read]
+      run_p3a --> private kernels (or_signal, arming, fill, sizer, exits, scheduler)  [no I/O, no store access]
+      run_p3a --> controls stage 1 --> sealed store --> select_exit/max_stat --> registry.record_selection
+      run_p3a --> unseal --> audit pack (header from governance.evidence) --> registry.close_run
+```
+
+### 9.7 Unit-test access to private kernels on synthetic data (Q-B7)
+
+Kernels are underscore-private, perform no I/O, take plain in-memory inputs (`VisibleBars` built from synthetic frames) and cannot reach `bar_store`. Tests import them by name.
+Recommendation (not a decision): accept this, with three conditions that make the exemption narrow:
+1. a static test (all test modules under `tests/research/range002/{engine,controls,stats,audit}/`) fails if they import `data.sip_loader`, `data.bar_store`, `app.factor_data`, `app.validation.governed_corpus` file readers, or open any path outside `tmp_path`/fixtures;
+2. synthetic outputs are never written into evidence paths (harness writes to `tmp_path` only);
+3. the real-data entry (`read_bars`) is the only way real bytes become `VisibleBars`, and it is gated and bound.
+Residual risk (stated): an ungated script could load real files by other means and call a private kernel. The lint does not scan `scripts/` (known bypass); the control is the holdout fence plus review of scripts, not the lint.
+
+### 9.8 Negative tests required (data adapter)
+
+1. `read_bars` with no capability, `None`, a look-alike, a pickled/copied capability, a closed-run capability: each raises `InvalidCapabilityError`.
+2. Capability for a different spec hash than the manifest: refused.
+3. Request range outside `capability.date_range` (one day over): refused; request inside: succeeds and returns only the requested range.
+4. DEVELOPMENT_SELECTION capability asking for a confirmation or holdout month: refused. REPLAY_RNG001 capability asking for dates outside the R2 window: refused.
+5. Research-mode `run_load` with a chunk ending in the holdout window: refused before any request (fake client records zero calls).
+6. Linux-only: a file under the broker-owned holdout directory is not readable by the research account (permission fixture).
+7. Lint: the data public surface equals the reviewed list exactly (enumeration test); a copy of `bar_store` with the decorator removed is flagged; public method on a data class is flagged; call-built public constant is flagged.
+8. Import allowlist: `data/` imports no `requests/httpx/urllib/socket`, no `app.orders|risk|brokers`, no `app.market_data.bar_cache`, no `os.environ` read; the only vendor imports are `alpaca.data.requests`/`alpaca.data.enums` types used to build requests.
+9. Every request constructor in `data/` carries the module `FEED` constant (feed-pinning script passes; static test compares).
+10. Manifest tamper (byte flip, missing, extra) makes `open_bar_store` raise, not return a partial handle.
+
+---
+
+## 10. Proposed eight-PR dependency structure
+
+Plan v0.5 section 8 has about 20 PR entries; the decision sheets (section 2) cite them by number. The eight groups below re-slice the same scope so each backend PR pays one FULL run (GITHUB-OPS-001: one review-ready PR per deliverable, 1-3 pushes). None touches `.github/workflows/ci.yml`, root manifests or `constraints/**`, so none flags other projects. Each carries the guard-coverage proof (section 1.4) and the walk-away interval of the repository; none merges as "approved engine" before the P0 gate unless the owner rules otherwise (Q-B2).
+
+| PR | Scope | Files (new unless noted) | Depends on | CI cost | Owner decisions needed first | Plan PRs it replaces |
+|---|---|---|---|---|---|---|
+| PR-A | Spec accessors and foundation: schema tightening (section 8 fields), typed section accessors in `SpecView` (section 11), `to_engine_params`, synthetic spec factory, guard harness, look-ahead helper, calendar | edit `spec/schema.py`, `spec/loader.py`, `spec/__init__.py`; new `spec/engine_params.py`, `data/calendar.py`; tests `spec/`, `_guard_harness.py`, `_causality`; update `spec/_fixtures.py`, `test_import_lint.py` REVIEWED lists | none (needs Q-B4, Q-B5 rulings) | FULL backend; also reruns all existing range002 spec/governance tests | Q-B4 (schema batch), Q-B5, Q-B2 | new (precondition for 8+); part of plan PR 2 follow-up |
+| PR-B | Engine core: OR signal, tick table, arming, fill model, risk sizer, costs, trade log | `engine/{or_signal,arming,fill_model,risk_sizer,ticks,trade_log}.py`, `stats/costs.py` + tests | A | FULL | Q-B2; O-17, O-18 shapes | plan PR 8 (WP2.1-2.3, 2.7 part) |
+| PR-C | Exit engine E1-E4 and portfolio scheduler | `engine/{exits,position_sim,portfolio_clock}.py` + tests | B | FULL (largest test file; keep reps/fixtures small) | Q-B2; O-9 (rank, params) | plan PR 8 (WP2.4) + 12A (WP2.8) |
+| PR-D | Statistics: bootstrap (3 methods), seeds, multiplicity, selection | `stats/{bootstrap,_seeds,multiplicity,selection}.py` + tests | A | FULL | Q-B2; D06 shapes (not values) | plan PR 11 |
+| PR-E | Gates, audit-pack writer, sealed store, two-stage pipeline | `stats/gates.py`, `audit/{audit_pack,sealed_store}.py`, `engine/pipeline.py` + tests | C, D | FULL | Q-B2; O-10 (stage-1 criteria), D04/D10/D12 shapes for G6-G8 | plan PR 12 (+ WP4.0) |
+| PR-F | Controls, funnel, diagnostics, independent fixtures | `controls/{random_entry,naive_orb,time_shuffle,no_information}.py`, `stats/{funnel,walk_forward,splits,redundancy}.py`, `tests/.../fixtures/` | C, D | FULL | O-10a, O-11, O-12, D13 (naive ORB), O-13, O-15 | plan PR 9, 12B, fixtures of PR 10 (chain 2 only) |
+| PR-G | Loader and read side: fakes, planner, loader core, journal, manifest, minute classifier, coverage validator, `bar_store` | `data/{fetch_plan,sip_loader,integrity,chunk_journal,manifest,minute_classes,coverage,bar_store}.py`, `tests/.../data/_fakes.py` | A | FULL | Q-B1 (adapter route), Q-B2, O-1, O-4, O-5 | plan PR 5 (WP1.1-1.2 core), 7 (WP1.8), part of 6 (WP1.7) |
+| PR-H | PIT universe, identity map, corporate-action basis | `data/{identity_map,pit_universe,corp_actions}.py` + synthetic DuckDB fixtures | A (G for shared fakes, soft) | FULL | Q-B1, O-2, O-6, O-7 | plan PR 6 (WP1.4-1.6) |
+
+Not in any of the eight (BLOCKED, section 12): RNG-001 replay chain 1 (plan PR 10), non-equivalence (PR 4), P3/P4 runs (PR 13-14), P5 executor (PR 15/15A), real pulls.
+
+Dependency graph:
+
+```
+            +--> PR-B --> PR-C --+--> PR-E --> (P3a runs: BLOCKED)
+PR-A -------+--> PR-D ----------+--> PR-F
+            +--> PR-G
+            +--> PR-H (soft link to G fakes)
+
+Owner gates:  Q-B2 (all) ; Q-B4/Q-B5 (A) ; Q-B1 (G,H) ; O-10 (E) ; O-9 (C) ; O-11/O-12 (F)
+```
+
+Mapping old -> new:
+
+| Plan PR | New PR |
+|---|---|
+| 2 (spec; already merged) | follow-up in PR-A |
+| 3 (governance; already merged) | unchanged |
+| 4, 4A | not in the eight (docs/owner; 4 BLOCKED on C2) |
+| 5 | PR-G (loader core, WP1.1; real pull BLOCKED) |
+| 6 | PR-H (universe, corp actions); calendar in PR-A; anomaly flags in PR-G |
+| 7 | PR-G (coverage validator) |
+| 8 | PR-B and PR-C |
+| 9 | PR-F |
+| 10 | PR-F (chain 2 fixtures); chain 1 BLOCKED |
+| 11 | PR-D |
+| 12 | PR-E |
+| 12A | PR-C (scheduler WP2.8) and PR-B/PR-G (WP2.9, 2.11 contracts as tests); WP2.10 state machine is P5, not in the eight |
+| 12B | PR-F |
+| 13, 13B, 14, 15, 15A, 16 | not in scope (BLOCKED) |
+
+---
+
+## 11. Minimal `SpecView` extension proposals
+
+### 11.1 Design (applies to all sections)
+
+- New file `spec/engine_params.py` with frozen dataclasses with **no public methods**: `SignalParams, FillParams, CostParams, RiskParams, ExecutionParams, ControlParams, StatsParams, GateParams`, and `EngineParams` bundling them with `spec_sha256`. One public function `to_engine_params(view: SpecView) -> EngineParams` that accepts only a loader-minted, signed view (same trust pattern as `spec_adapter.to_guard_view`) and refuses otherwise. It is listed in `REVIEWED_PURE` and `PURE_FUNCTIONS` (it computes no returns).
+- `spec/loader.py` change: `_build_view` also builds the section objects from the `DraftSpec` using `deep_freeze` for any dict/list content; `SpecView` gains one new optional field `sections: EngineSections | None = None` appended at the end with a default (so existing constructors and tests keep working). The `_minted` handling and copy/pickle refusals are unchanged.
+- `governance/spec_adapter.py`: **no change.** The guard needs no engine parameters; `GuardSpecView` stays minimal.
+- Hash scope: **none.** `spec_sha256` is computed from `DraftSpec.hashable_payload()`; accessors are derived views. Only the schema additions in section 8 change the payload, and only before any freeze.
+- Capability binding: `EngineParams.spec_sha256` is copied from the view; entry points compare it with `capability.spec_sha256` (section 1.4).
+- Tests: view carries the same hash with and without sections; sections are deep-frozen (item assignment fails, mutating the source dict does not change them); a hand-built or `replace`d view is refused by `to_engine_params`; copying/pickling still refused; unsigned view refused; `OpenValue` fields with undefined shape make `to_engine_params` raise a named error naming the field (fail closed, no defaults, R9); import-lint passes (no public methods, no call-built constants); synthetic spec round trip for every section; golden test that `complete_payload` hashes identically before/after the accessor change.
+
+### 11.2 Fields engine code actually needs, by section
+
+| Section | Fields needed (and consumer) | OpenValue with undefined shape: tighten BEFORE use |
+|---|---|---|
+| signal | `or_completeness_rule` (S1), `min_or_width_ticks` (S1); fixed `or_start/or_end/entry_window/tick_offset/max_entries_per_symbol_day/missing_minute_classes` | `or_completeness_rule`: proposed shape `{max_data_gap_minutes: int >= 0, max_gap_fraction: float in [0,1)}` or a closed enum `{"no_data_gap","bounded_gaps"}`; owner picks under D05 5a |
+| fill | `slippage_model` (S3), `halt_policy` (S3); fixed `same_bar_policy` | `slippage_model`: `{kind: "none"\|"fixed_bps"\|"fixed_ticks", value}`; `none` required when `costs.accounting_mode = all_in` (cross-field validator); `halt_policy`: closed enum `{"exit_unavailable","skip_day"}` |
+| costs | `accounting_mode`, `components` (S7); fixed `base_bps_per_side`, `stress_bps_per_side` | `components`: `{spread_bps, fee_bps, impact_bps, slippage_bps}` all optional numbers whose sum must equal the all-in value when `all_in` (cross-field validator) |
+| risk | `per_trade_pct, per_name_cap, gross_cap, max_concurrent, daily_loss_limit, max_participation, fill_risk_tolerance` plus new `initial_equity, equity_basis, over_budget_rule` | none OpenValue; units/range validators (O-17) |
+| execution | `bar_timestamp_convention, vendor_delay_ms, submit_latency_ms, ack_latency_ms, crossed_before_arm_policy, order_type, eod_lead_s` (all typed) plus `tie_break`, `stop_protection_policy`, `order_reservation_policy` | `tie_break`: `Literal["permaticker_asc","seeded_hash"]`; `stop_protection_policy`: `Literal["after_confirmed_fill"]` (plus others only if the owner adds them); `order_reservation_policy`: `Literal["reserve_at_submit_release_on_cancel_fill"]` |
+| controls | `random_entry.{repetitions,seed,invalid_draw_policy}`, `naive_orb.definition`, new `stage1_criteria, time_shuffle, no_information, random_entry.population` | `invalid_draw_policy`: `Literal["not_executable_keep_denominator"]` plus redraw `{max_attempts}`; `naive_orb.definition`: `{touch: "or_high", tick_offset: 0, exits: "same"}` closed shape |
+| stats | `bootstrap.*`, `alpha_one_sided`, `adjustment`, `hypothesis_family`, `regime.*` | `hypothesis_family`: `{members: tuple of ("G4","G5"), mode: "holm"\|"fixed_sequence"\|"single"}`; `regime`: `{definition: Literal["spy_prior_close_vs_sma"], sma_days: int, criterion: {min_trades_per_cell: int, max_share_of_pnl: float}}` (D12 options) |
+| gates | `basis, trade_unit` (S6/S13), `yearly`, `win_rate`, `max_dd`; fixed `min_trades, pf_base, stress_mean_positive, redundancy_corr_max` | `trade_unit`: `Literal["entry"]`; `yearly`: `{min_years_pass: int, min_trades_per_year: int}`; `win_rate`: `{mode: "gate"\|"diagnostic", threshold}`; `max_dd`: `{comparator: Literal["random_entry_portfolio",...]}` |
+| p3 (not in the list but needed by gates/selection) | `criteria` | `{p3a: {min_trades, min_pf, stop_alpha}, p3b: {min_trades, thresholds_ref}}` |
+| p5 | **Not needed by P2/P3/P4 code.** Needed by PR 15 (executor) and `p5` gates only | Defer the accessor until PR 15; do not tighten now |
+
+Fields not needed by engine code (and therefore not exposed): `registration.*`, `universe.*` (the PIT universe code reads `UniverseParams`, a small separate accessor added in PR-H), `data.*` (read by the loader through `DataParams`, PR-G), `governance.roles`, `diagnostics.taxonomy`, `signoff`.
+
+Flag list (schema tightening required before use): every OpenValue named in the table above. Until each is tightened, `to_engine_params` fails closed for the affected section, kernels are tested with the synthetic factory only, and the owner's Q-B4 ruling decides the shapes. Tightening an `OpenValue` to a typed model is a schema change and follows the 8.1 (a) rules (hash change pre-freeze only).
+
+---
+
+## 12. READY versus BLOCKED, firmly separated
+
+Definitions. **READY (synthetic only)** means: design is complete in this document; the work can be built and tested with synthetic fixtures and test-spec parameters; it needs no vendor, no host, no real data, no P0 value, no network. READY does not mean "merge-authorized": the sequencing ruling Q-B2 and, for some packages, a schema ruling (Q-B4/Q-B5) or adapter ruling (Q-B1) still gate review and merge, and each such gate is named. **BLOCKED** means execution cannot start or complete without the named item; the type is one of decision, host, vendor, authorization.
+
+### 12.1 One-page summary table
+
+| # | Task | Status | Blocking item (named) | PR |
+|---|---|---|---|---|
+| B-00 | Guard harness, binding helper, look-ahead utility | READY (synthetic only) | none (merge: Q-B2) | A |
+| B-01 | Calendar (`data/calendar.py`) | READY (synthetic only) | none (merge: Q-B2) | A |
+| B-02 | Typed section accessors, `to_engine_params`, synthetic factory | READY (synthetic only) | merge needs Q-B4 (schema batch), Q-B5 (`SpecView` extension) | A |
+| B-02r | Real-value path of the adapter | BLOCKED: decision | D05, D06, D14, D15, D17, D18, D19 values; all OpenValue shapes (section 11.2) | - |
+| B-03 | OR signal, ticks, trigger | READY (synthetic only) | merge: Q-B2; shapes of `or_completeness_rule` (D05 5a) | B |
+| B-04 | Arming and crossed-before-arm | READY (synthetic only) | merge: Q-B2; values D14 | B |
+| B-05 | Fill model | READY (synthetic only) | merge: Q-B2; D05/D15 values | B |
+| B-06 | Risk sizer | READY (synthetic only) | merge: Q-B2; O-17, O-3, O-18 | B |
+| B-07 | Costs, trade log | READY (synthetic only) | merge: Q-B2; D15 | B |
+| B-08 | Exit engine E1-E4 | READY (synthetic only) | merge: Q-B2; O-9 (D19 vocabulary, rank) | C |
+| B-09 | Position sim and scheduler | READY (synthetic only) | merge: Q-B2; D14 tie-break shape | C |
+| B-10 | Bootstrap (3 methods) | READY (synthetic only) | merge: Q-B2; D06 method unset (all three built) | D |
+| B-11 | Multiplicity | READY (synthetic only) | merge: Q-B2; D02 shape | D |
+| B-12 | `select_exit`, `max_stat_bootstrap` | READY (synthetic only) | merge: Q-B2; O-8 validator review | D |
+| B-13a | Gates G0-G5, G9, G10 | READY (synthetic only) | merge: Q-B2; O-10 for G9 | E |
+| B-13b | Gates G6, G7, G8, win rate | BLOCKED: decision | D04, D12, D10 shapes | E |
+| B-14 | Audit-pack writer | READY (synthetic only) | merge: Q-B2 | E |
+| B-15 | Sealed store, two-stage pipeline (Level 1) | READY (synthetic only) | O-10 for the pass rule; real sealing BLOCKED: decision (boundary EB-1/B-2) | E |
+| B-16a | Random-entry control | READY (synthetic only) | merge: Q-B2; O-10a shape | F |
+| B-16b | Naive ORB, time-shuffle, no-information | BLOCKED: decision | D13/D06 (naive ORB), O-11, O-12 definitions | F |
+| B-17 | Funnel, attribution, diagnostics | READY (synthetic only) | O-15 input; regime labels BLOCKED: decision D12; redundancy set BLOCKED: decision OD-3 | F |
+| B-18 | Independent engine fixtures (chain 2 authoring) | READY (synthetic only) | needs a second person | F |
+| B-19 | Loader fakes and fixtures | READY (synthetic only) | none (merge: Q-B2) | G |
+| B-20 | Planner, loader core, journal | READY (synthetic only) | merge: Q-B1, Q-B2; O-1 | G |
+| B-21 | Manifest, minute classifier, coverage validator, `bar_store` | READY (synthetic only) | merge: Q-B1; O-4, O-5 values injected in tests | G |
+| B-22 | Identity map, PIT universe, corporate-action basis | READY (synthetic only) | merge: Q-B1; O-2, O-6, O-7 | H |
+| B-24 | Vendor feasibility V1-V13, earliest-bar, delisted coverage | BLOCKED: vendor / host / authorization | C12 host, D03 licence, F1, F2, F5, F6; owner authorization per step | - |
+| B-25 | Holdout (broker-mode) ingest | BLOCKED: host / decision | boundary B-1 (EB-1..3), Q-P1-3, V12 | - |
+| B-26 | Real dev-partition pull, real PIT universe, real coverage | BLOCKED: authorization / host / vendor | P0 sign-off, D03, D11 `data.fetch_mode`, C12, B-24 | - |
+| B-27 | S3 publication of manifests | BLOCKED: host | S3 manifest tooling absent (`manifests/s3` missing) | - |
+| B-28 | RNG-001 replay chain 1 | BLOCKED: host / authorization | C12, IEX archive access, `REPLAY_RNG001` capability, owner approval | - |
+| B-29 | Non-equivalence check | BLOCKED: decision | C2 specification approval, D09 | - |
+| B-30 | P3a/P3b/P4 runs, P5 executor | BLOCKED: decision / authorization | P0 gate, A1, D17/D18/D19, P4 PASS and owner approval | - |
+
+Counts: 23 package lines are READY or partially READY (B-00..B-22 with B-13/B-16 split into a/b), 7 execution-blocked groups (B-24..B-30), plus the blocked sub-items B-02r, B-13b, B-16b and the blocked halves of B-15 and B-17.
+
+### 12.2 Why the split is firm
+
+- READY work needs only: synthetic bars, synthetic DuckDB, fake client, test-spec parameters from the factory (never from a real frozen spec), and the existing governance test seams. It computes no RANGE-002 return on real data.
+- Any task that needs a real value, real bytes, a named host, a vendor answer, a signature or an authorization is in the BLOCKED rows. No READY row depends on a BLOCKED row at build time; the only coupling is the merge gating named in the table.
+
+---
+
+## 13. Synthetic fixtures and acceptance criteria (refreshed, per package)
+
+Convention: every fixture is generated in test code (no vendor file, no archive, no Sharadar file is read). "Independent" = expected values computed by hand or a separate reference by someone other than the implementer. All packages also carry the guard-coverage proof and a look-ahead test where decisions are made.
+
+| Package | Fixtures | Acceptance criteria |
+|---|---|---|
+| B-00 harness | Synthetic signed spec, registry, ledger (reuse `governance/conftest.py` helpers); fake gated function pair | Negative-test generator rejects each of: no/None/look-alike/copied capability, closed run, other spec hash, other partition, out-of-range input; mutation test: a look-ahead variant fails `assert_causal`; lint non-vacuity test |
+| B-01 calendar | DST weeks (March, November) for 2016-2025; Black Friday and Christmas Eve early closes; July 3; closure day; weekend month-ends; missing-library simulation | 09:30/10:00/15:55 ET map to the right UTC offsets; half-day close 13:00; 2016-01-04 is a session; library absence raises a named error; expected values from an independent rule table |
+| B-02 accessors | Synthetic payloads: complete, each OpenValue untightened, tampered, unsigned | Accessors deep-frozen; hash unchanged by accessors; untightened section raises a named error; hand-built/copied view refused |
+| B-03 OR | Bars with start- and end-stamped conventions; thin minute; DATA_GAP minute; zero width; late 09:59 bar | Boundary 09:59:59 vs 10:00:00; OR unchanged when bars at/after 10:00 are garbage; ineligibility reasons exact |
+| B-04 arming | Breakout in 10:00 bar at latency 0 and 2 s; breakout then retrace; gap above trigger at first active bar; duplicate trigger | Each policy yields the hand-computed outcome; `crossed_before_arm` counted; no order precedes data availability (property) |
+| B-05 fill | Every row of the plan WP2.2 table; EOD fill; halt; no quote | Hand-computed fills; `path_ambiguous` set exactly where specified; EOD fill never from an earlier bar |
+| B-06 sizer | Cap-binding cases for each limit; R_fill <= 0; 1-share rounding | `qty * R_pre <= budget`; binding constraint logged; zero qty skips |
+| B-07 costs/log | All-in and additive modes; stress case | No double counting; bridge reconciles; deterministic CSV hash |
+| B-08 exits | One synthetic day per case: activation with old-stop hit, trail monotonicity, odd and 1-share scale-out, partial scale fill, target in entry bar, stop+target same bar | Net R equals hand calculation across two exit fills; unknown family/param refused |
+| B-09 scheduler | Two-symbol timestamp collision; capital-scarce day; daily-loss mid-day; reservation release on cancel | Identical allocations across reruns; future-price perturbation does not change earlier orders; end-of-day flat assertion |
+| B-10 bootstrap | Zero-mean iid and autocorrelated synthetic R; planted-effect series | Seed-deterministic; days stay together; size near alpha; power sanity |
+| B-11 multiplicity | Textbook Holm/fixed-sequence cases | Exact adjusted values; monotone |
+| B-12 selection | Five-candidate synthetic result sets: clear winner, tie within delta, none eligible, unknown candidate | Deterministic pick; complexity/rank tie rule; STOP; permutation invariance; max-stat conservative vs best-of-K naive; record has run_id/spec hash |
+| B-13a gates | Boundary trade counts and PF values; zero-loss series; basis switch | 299 vs 300; 1.2999 vs 1.30; UNDEFINED not PASS; closed verdict strings only |
+| B-14 audit pack | Synthetic run output | Header accepted by `parse_audit_pack_header`; report numbers equal JSON; return-blind variant has no denylisted field |
+| B-15 pipeline | Control pass and control fail runs | Strategy outputs unreadable until stage 2; selection recorded before unseal; control fail ends `INCONCLUSIVE_ENGINE` |
+| B-16a random entry | Uptrend, downtrend, non-breaking day; infeasible draws | Never qualifies by future cross; denominator preserved; seeds reproducible |
+| B-17 funnel | Mixed-reason symbol-days | Stages reconcile exactly with scheduler counters |
+| B-18 independent fixtures | Spreadsheet/reference outputs for edge cases | Engine matches reference on every case; differences explained line by line |
+| B-19/B-20 loader | Section 2.4 list: truncated page, exact-limit page, hidden page 2, empty month, vendor gap, wrong feed, entitlement error, restatement, crash at each journal step | Resume yields identical bytes; zero repeat calls; no `.empty` marker; truncation never accepted |
+| B-21 manifest/classifier/coverage | Tampered manifests; thin minute with/without reconciliation; below-threshold coverage; denominators | Fail closed; golden coverage report; exclusions listed and bounded; schema denylist |
+| B-22 universe | Ticker reuse, rename, delisted mid-month, unmapped ticker, lineage refusals, split/spinoff day | No merged series across permatickers; look-ahead perturbation of post-prior-day data changes nothing; deterministic order |
+| Boundary/adapter | Section 9.8 list | All ten negative tests pass |
+
+End of document.
