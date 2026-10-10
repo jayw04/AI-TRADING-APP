@@ -41,13 +41,48 @@ So the single-owner feasibility problem is unchanged and remains the central con
 | `range002-linux-acceptance-601b73633c77e04cb91e32cb2f9cae7f764e9442-1` | 38054522473 | 2026-11-09 13:24 |
 | `range002-linux-acceptance-3778b06982dbfcd0b54748ab899b183247c1d25d-1` | 38057712216 | 2026-11-09 14:28 |
 
-The deadline for capturing and hashing them is therefore **about 2026-11-08** (the earliest expiry is 2026-11-09 00:22 UTC; v0.1 said about 2026-11-08 for the #738 pair, still the working deadline). The two newer artifacts come from the #739 runs; which of them is the run on the final merged tree must be confirmed from the run's head and merge commit before it is cited as evidence (not checked here). The artifact digest field was not requested in this refresh.
+**Update (same day, local only):** all four artifact ZIPs were downloaded read-only and hashed; every local SHA-256 equals the GitHub-reported digest (4 of 4 MATCH, sizes equal). They are in `C:\LLM-APP\evidence\range002_artifact_zips_v0.1\` (outside the repository) with a `checksums.txt`; nothing was uploaded. Run context: 38006570598 and 38009454039 are PR 2 head runs (`2a28f270`, `7b27360a`); 38054522473 is a PR 3 run at `f93ee084`; **38057712216 is the PR 3 run at head `808d10fb`, whose tree equals `main` `d61f313a` (the final-tree run)**. Remaining step: the S3 package (section 2) is still unauthorised and not started.
+
+The deadline for capturing and hashing them was therefore **about 2026-11-08** (the earliest expiry is 2026-11-09 00:22 UTC; v0.1 said about 2026-11-08 for the #738 pair, still the working deadline). The two newer artifacts come from the #739 runs (see the update above for which is the final-tree run).
 - A push run of `main` at `d61f313a` was in progress at read time. Nightlies remain red (CI Nightly Remediation Proposal v0.2); they do not affect this document except that the `schedule` Gate is not currently a usable signal.
 - Retention is still not done: no bucket was created, nothing was uploaded, no AWS call was made in this refresh.
 
 ### 0.3 Consequence for the recommendation (Recommendation (not a decision))
 
 The recommendation in section 1.4 is unchanged: A if a second person exists, otherwise D recorded by ADR, with B only as a labelled process step. The new fact is only timing: two consequential governance PRs have now merged without an enforced second reviewer. If the owner wants the ruleset in force before the next consequential PR (for example the Level 2 implementation PRs or a spec-freeze PR), the dry run (section 1.9, step 4) needs to start well before it, because it should observe a week of real PRs. This is a sequencing remark, not a decision.
+
+### 0.4 Secret scanning and push protection (verified read-only; NOT changed)
+
+Read-only facts, 2026-10-10 (`gh api repos/jayw04/AI-TRADING-APP`; caller has admin):
+
+| Setting (`security_and_analysis`) | Status |
+|---|---|
+| `secret_scanning` | **disabled** |
+| `secret_scanning_push_protection` | **disabled** |
+| `secret_scanning_non_provider_patterns` | disabled |
+| `secret_scanning_validity_checks` | disabled |
+| `dependabot_security_updates` | disabled (Dependabot alerts endpoint also returns 404, i.e. alerts are off) |
+
+`GET .../secret-scanning/alerts` returns `404 "Secret scanning is disabled on this repository."` Code scanning has no analysis. Private vulnerability reporting is `enabled: false`. Availability: the repository is **public** and all five secret-scanning keys are present in the API response (the API omits keys for features the plan or repository cannot use), which indicates the feature is available for this repository; for public repositories GitHub offers secret scanning and push protection at no charge. The authoritative confirmation is the toggle becoming editable in the UI; I could not test by writing.
+
+Exact change the owner would make (not performed here):
+
+- UI: repository **Settings** > **Code security** (older UI: *Code security and analysis*) > **Secret scanning**: Enable; then **Push protection**: Enable. Optionally enable Dependabot alerts and security updates, and private vulnerability reporting, on the same page.
+- API (needs admin; `gh auth` token with repo admin rights):
+
+```text
+PATCH /repos/jayw04/AI-TRADING-APP
+{
+  "security_and_analysis": {
+    "secret_scanning": { "status": "enabled" },
+    "secret_scanning_push_protection": { "status": "enabled" }
+  }
+}
+```
+
+Behaviour and risk: secret scanning scans the existing history and new pushes of a public repository and raises alerts (visible to admins; for provider patterns the provider may be notified). Push protection **blocks a push that contains a detected secret** until the pusher removes it or records a bypass reason (false positive, used in tests, will fix later); bypass is audited. False positives are possible (test fixtures, synthetic keys, high-entropy strings); the repository contains test and fixture material, so expect to meet some. It does not delete a secret already pushed: any alert on an existing secret means the credential must be rotated (CLAUDE.md: credentials are Fernet-encrypted at rest and not in the repository, so the expected alert count is zero). Enabling is reversible in the same place. It adds no Actions minutes and is not a workflow change.
+
+Recommended verification step (Recommendation (not a decision)): after enabling, (1) confirm the two settings read `enabled` via the same GET; (2) review the initial alert list (`GET .../secret-scanning/alerts`) and rotate anything real; (3) on a throwaway branch, push a commit containing a documented non-secret test token pattern from the provider's published test strings to see a push-protection block (do this only with the owner's approval, and use a pattern GitHub documents as a test value, never a real credential). Because it changes repository settings, it needs the owner's explicit approval.
 
 ---
 
@@ -295,6 +330,46 @@ Rollback:
 - Classic protection (only if the classic payload was applied): `PUT` the saved pre-change JSON from step 2 (restates `strict`, `Python CI Gate`, `enforce_admins`, no review block), or `DELETE .../protection/required_pull_request_reviews`.
 - CODEOWNERS: revert the file by a normal PR (merge may itself need the rollback above if a code-owner rule is locking).
 - Emergency: if a production incident requires a merge while locked, disable the ruleset first, merge, then re-enable and record the reason in the PR (GITHUB-OPS-001 section 6 exception).
+
+### 1.10 Single-owner risk write-up and Option D ADR proposal
+
+**Why a second-person review rule is unsatisfiable today.**
+
+1. GitHub never counts an author's approval of their own pull request toward `required_approving_review_count`. The repository has exactly one collaborator (`jayw04`), who is the author of essentially every PR. With a rule "at least one approval from someone other than the author", no PR can ever reach the required count.
+2. `enforce_admins: true` is already set on the classic protection. Adding `required_pull_request_reviews` to that same protection would apply to the admin too, so the owner could not bypass it: every PR, including a PR that removes the rule, would be unmergeable from the UI/API without first editing the protection (an admin settings action that is always available, but is a manual detour for every merge).
+3. A user-owned repository has no teams, so a reviewer group cannot exist. CODEOWNERS can name only individual users with write access; a name without write access is ignored, and `require_code_owner_review` with the owner as the only code owner reproduces the same lock-out.
+4. `require_last_push_approval` and `dismiss_stale_reviews_on_push` add churn: the owner's own base-branch merge (to satisfy `strict: true`) would dismiss approvals.
+5. Using a second account controlled by the same person satisfies the counter but not the purpose: it is a process control, not independent review, and must be described as such in any audit statement.
+
+Consequence today: the controls that actually bind a merge into `main` are `Python CI Gate` (required, `strict`), no force-push, no deletion and the owner's own merge. Walk-away intervals are a convention. For order-path code (OrderRouter, risk gates), CLAUDE.md's invariants rely on CI invariant scripts and the owner; there is no enforced second human.
+
+**What each path costs.** A real second reviewer (option A) gives the only genuine independence and makes the ruleset enforceable with no bypass. Option D keeps the ruleset or the existing protection as is and records, by ADR, that single-owner review is an accepted residual risk until a second reviewer exists. Option D does not weaken any CI invariant; it states honestly what is and is not enforced.
+
+**Proposed ADR text for Option D (PROPOSAL ONLY; blank approval; not an ADR until the owner adopts it through the normal ADR process).**
+
+```text
+ADR NNNN (PROPOSED): Single-owner review of changes to main is an accepted, recorded risk
+Status: PROPOSED. Not adopted. Date: ____  Decision owner: ____
+Context: The repository has one collaborator, the owner, who authors changes. GitHub cannot
+  enforce a review "by someone other than the author" (author approvals do not count), and
+  enforce_admins is true, so enabling a required-review rule today would make every PR
+  unmergeable. Required checks today: Python CI Gate (strict). No force-push, no deletion.
+Decision (to be chosen by the owner): until a second human reviewer with write access exists,
+  (1) no required-review rule is activated on main; (2) changes to the order path, risk
+  engine, audit log, workflows and RANGE-002 governance code are merged only after the PR
+  walk-away interval (CLAUDE.md) and a recorded self-review checklist in the PR body;
+  (3) this limitation is stated, not hidden, in every acceptance report: reviews by the owner
+  or by a second account controlled by the owner are not independent reviews;
+  (4) the decision is re-evaluated when a second reviewer is added or by ____ (date).
+Consequences: No new enforcement. The invariants in CLAUDE.md and the CI invariant scripts
+  remain the binding controls. Independence claims in RANGE-002 reports require an external
+  reviewer (see the Level 1 Acceptance Test Plan).
+Alternatives considered: A second human reviewer plus ruleset Variant 1; a machine account
+  (process control only); an Actions-based approval check (no independence).
+Approval: Owner: ______________________  Date: ____________   (blank; nothing is approved)
+```
+
+Recommendation (not a decision): adopt option A when a person is available; until then option D by ADR is the honest state. Adopting option D requires an ADR through the normal ADR process; this text is a draft only.
 
 ---
 
