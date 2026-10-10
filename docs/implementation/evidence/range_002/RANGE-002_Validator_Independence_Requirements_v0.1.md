@@ -19,7 +19,7 @@ The R1-L1b safeguard (Level 1) refuses a freeze when `signoff.owner`, `signoff.t
 It proves only: **three different strings were typed.** It does not prove:
 
 - that the strings name real people, or that any named person agreed to be named;
-- that two different strings are two different humans (aliases, nicknames, email vs display name, `Alice Smith` vs `Smith, Alice`, invisible characters, homoglyphs are not unified);
+- that two different strings are two different humans (aliases, nicknames, email vs display name, `Alice Smith` vs `Smith, Alice`, and homoglyphs are not unified; invisible characters are refused, see V-7.1);
 - that the validator did not write the engine or the spec, saw no results, or is free of conflicts;
 - that the named person (rather than whoever can edit the draft file) approved anything. `signoff` is three typed strings and sits outside `spec_sha256`.
 
@@ -57,7 +57,7 @@ Recommendation (not a decision): record, per confirmation, the named verifier an
 
 ## V-4. What the software can and cannot check
 
-**Can (Level 1, now):** the three identifier strings are non-blank, pairwise distinct after normalisation; the spec hash is intact; frozen file with colliding or missing roles reports `is_signed` False.
+**Can (Level 1, now):** the three identifier strings are non-blank, free of invisible/control characters (V-7.1), pairwise distinct after normalisation; the spec hash is intact; frozen file with colliding or missing roles reports `is_signed` False.
 
 **Can (Level 2, future, per signing design):** three distinct `key_id` and `person_id` values; each signature verifies against a validator-pinned public-key allowlist; a record binds spec hash, role, purpose and document hashes; replay and expiry checks.
 
@@ -67,12 +67,23 @@ Recommendation (not a decision): do not describe any software output as "indepen
 
 ## V-5. Interplay with D08 separation-of-duties options
 
-| Option (design section 9) | Rule | What V-2 adds | Notes |
+**V-5.1 Exact definitions**, quoted verbatim from section 9 of `RANGE-002_Approval_Signing_and_Verification_Design_v0.1.md` at commit d1406ec2 (none selected):
+
+| Option | Rule | Enforced by | Weakness |
 |---|---|---|---|
-| SoD-A | Three distinct humans and keys | V-2.1 to V-2.6 in full | R1-L1b enforces distinct strings; V-2.1 supplies the human evidence |
-| SoD-B | Owner and trading expert may coincide; validator distinct | R1-L1b as built **rejects** owner == trading expert, so SoD-B cannot be expressed without a change | Material interaction: if the owner selects SoD-B, R1-L1b must be amended by a recorded owner decision and a waiver record; do not work around it |
-| SoD-C | Validator also distinct from research lead and engine author | V-2.2 and V-2.3 are the substance | Needs a recorded engineer list |
-| SoD-D | Any overlap | none | Contradicts the owner's current requirement for distinct roles; shown for completeness |
+| SoD-A | Three distinct humans, three distinct keys, for owner / trading expert / validator | Distinct `key_id` and `person_id` (technical) + identity attestation (procedural) | Technical check cannot prove two keys are two people |
+| SoD-B | Owner and trading expert may be the same person; validator must be a different person | Same, with explicit recorded waiver | Per D08 sheet: D19 candidate review is then not independent of the final approver |
+| SoD-C | Validator must also be distinct from the research lead and from whoever wrote the engine | Procedural + signed attestation by the validator | Needs a recorded engineer list |
+| SoD-D | Any role overlap permitted | n/a | Defeats independent review; shown only for completeness |
+
+**V-5.2 How the R1-L1b software check relates to each option.** The check is Level 1: strict all-pairs distinct identifier strings after normalisation, plus refusal of invisible/control characters. It authenticates nobody.
+
+| Option | Relation to the R1-L1b check | Remaining procedural / Level 2 |
+|---|---|---|
+| SoD-A | Compatible and the nearest match: three different strings are required. Necessary, nowhere near sufficient. | V-2.1 to V-2.6; distinct keys and `person_id` are Level 2 |
+| SoD-B | **Inexpressible.** R1-L1b refuses owner == trading_expert, so a freeze cannot run under SoD-B without a new owner decision, an amendment of the check and a recorded waiver. Do not work around it (for example by typing a trivially different string for the same person: that defeats the purpose and is not detected). | Waiver record; D19 independence caveat |
+| SoD-C | Compatible: the check enforces only the three-way distinctness part. It knows nothing about the research lead or engine authors. | V-2.2, V-2.3 attestations; engineer list; verifier per V-3 |
+| SoD-D | **Contradicted:** any overlap is refused. | none |
 
 Recommendation (not a decision): SoD-A as target and SoD-C as minimum, as in the signing design; confirm that the owner intends R1-L1b's stricter all-pairs rule before merge, since it forecloses SoD-B at the code level.
 
@@ -86,7 +97,9 @@ Until Level 2 exists, V-2 confirmations are the only independence evidence and t
 
 ## V-7. Gaps in the Level 1 safeguard that procedure must cover meanwhile
 
-Invisible characters (zero-width, bidi, controls), homoglyphs, aliases, name-order variants. Recommendation (not a decision): the roster (V-2.1) uses one canonical identifier per person, copied from the roster into the spec, so a mismatch is visible on review; the owner decides whether stripping Unicode categories Cf/Cc in the normaliser is wanted as a follow-up code change.
+**V-7.1 F1 resolution (invisible characters).** The review found that zero-width and other invisible characters let `alice` and `ali<U+200B>ce` pass as distinct. The code change now applies a deterministic Unicode policy: a role identifier containing a non-whitespace code point of general category Cc, Cf or Cs, or an explicit list of default-ignorable code points (Hangul and Khmer fillers, braille blank, combining grapheme joiner, variation selectors, Mongolian FVS), is **refused at freeze and reported by `load_frozen` as unusable**; it is not silently stripped. Real whitespace is still collapsed. Code points are reported as `U+XXXX`. A legitimate name that needs ZWNJ/ZWJ would be refused; use an ASCII roster identifier.
+
+**V-7.2 Still not covered by software:** homoglyphs (Cyrillic vs Latin), aliases, email vs display name, name-order variants (`Alice Smith` vs `Smith, Alice`), trailing punctuation, transliterations. Recommendation (not a decision): the roster (V-2.1) fixes one canonical identifier per person, copied into the spec, so a mismatch is visible on review.
 
 ## V-8. Owner selection table (all rows blank; no agent fills this)
 
@@ -112,7 +125,7 @@ Invisible characters (zero-width, bidi, controls), homoglyphs, aliases, name-ord
 1. Does the owner confirm the all-pairs distinct rule (forecloses SoD-B in code)?
 2. Who is the intended validator and how is that person remunerated and directed (V-2.7)?
 3. Is a third-party verifier available for V-2.2/V-2.3, or is owner verification accepted as "self-attested"?
-4. Should invisible-character stripping be added to the normaliser before first freeze?
+4. Is refusing (rather than stripping) invisible characters, as implemented in V-7.1, accepted?
 5. Which of these confirmations must exist before Level 2 is built, versus only after?
 
 Cross-reference for the P0 decision register / signature matrix: cite sections V-2 (confirmations), V-5 (D08 interplay), V-8 (selection table).
