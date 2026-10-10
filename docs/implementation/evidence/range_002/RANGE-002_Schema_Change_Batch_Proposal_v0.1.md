@@ -16,7 +16,7 @@
 
 ## 2. Reconciliation of the field list and counts
 
-Owner list in the directive: "the nine new frozen fields", followed by twelve field paths (superseded, see below). Reconciled against backlog section 8:
+Owner list in the directive: "the nine new frozen fields", followed by twelve field paths (a superseded figure; the verified inventory is 20 owner-valued leaf paths, see below). Reconciled against backlog section 8:
 
 | Count | What | Reconciliation |
 |---|---|---|
@@ -26,7 +26,7 @@ Owner list in the directive: "the nine new frozen fields", followed by twelve fi
 | 6 | Extra owner decisions with NO spec field (class (d)) | O-1 budget cap (D03), O-7 lineage constants (OD-1), O-13 redundancy set (OD-3), O-15 diagnostic windows (D13), O-16 halt evidence (OD-4), O-17 risk units (D05 5j). Not populated, not in the schema |
 | 3 | Plan-fixed constants (class (b)), no schema effect | O-6, O-8, O-14 (plus sub-items O-1b, O-3a) |
 
-So the batch is 20 owner-valued leaf paths plus the P5 change (21 added leaf paths, 1 removed), plus two fixed non-owner members of `controls.stage1_criteria` (`invariants`, `on_fail`). The first draft counted 12 'new field paths' including `rank`; that count is superseded. One refinement relative to backlog section 8.2: `data.coverage_min` is `float | None` with an equality validator (a non-null value must be exactly 0.98) instead of a pre-filled `_eq(0.98)`, so that it is UNSET until the owner confirms it and the 98% design threshold still cannot be loosened by anyone.
+So the batch is 20 owner-valued leaf paths. `p5.account_binding` is tracked separately (it replaces the removed `p5.account_id`; it is not one of the 20), and two fixed non-owner members of `controls.stage1_criteria` (`invariants`, `on_fail`) are also separate. Verified by enumerating `draft_skeleton()` of code candidate 76730911 against d61f313a: 23 skeleton leaves added (20 owner-valued + `p5.account_binding` + 2 fixed), 1 removed (`p5.account_id`); unset P0 paths 66 -> 86. The first draft counted 12 'new field paths' including `rank`; that count is superseded. One refinement relative to backlog section 8.2: `data.coverage_min` is `float | None` with an equality validator (a non-null value must be exactly 0.98) instead of a pre-filled `_eq(0.98)`, so that it is UNSET until the owner confirms it and the 98% design threshold still cannot be loosened by anyone.
 
 ## 3. Rules for every field in the batch
 
@@ -98,7 +98,7 @@ Owner choice: option B of P0 Decision Register v0.2 section 22 (hashed deferral 
 
 All synthetic payloads change because of `extra="forbid"`:
 
-1. `schema.py` `draft_skeleton()` emits the 13 new paths with null leaves and drops `p5.account_id`.
+1. `schema.py` `draft_skeleton()` emits the 20 owner-valued new leaf paths and `p5.account_binding` with null leaves, the two fixed `controls.stage1_criteria` members with their fixed values, and drops `p5.account_id`.
 2. `tests/research/range002/spec/_fixtures.py`: add synthetic `SYNTH` values for each new path to `_P0_VALUES` (so `P0_PATHS`, which drives `test_schema.py::test_unset_lists_all` (`set(unset) == set(P0_PATHS)`) and the parametrized hash-change test in `test_hashing.py`, follow automatically); update `CANDIDATES` params to the family vocabulary (no rank).
 3. Files that consume `complete_payload`/`draft_skeleton` and must still pass unchanged logic: `spec/test_{schema,strict,freeze,freeze_hardening,hashing,manifest,round4_spec}.py`, `governance/{conftest,test_spec_integration,test_round5_manifest_attempts,test_import_lint}.py`.
 4. New tests per field: rejects each invalid value in section 4; accepts `null` in a draft; `FrozenSpec.from_draft` names each new path in `UnsetP0FieldsError`; changing each field changes `spec_sha256`; a `rank` key refused (family-level ordering only); per-family param vocabulary; unknown key rejection (including `p5.account_id`); coverage_min equality (0.98 accepted, 0.97 and 0.99 rejected); stage-1 alpha/mode coupling.
