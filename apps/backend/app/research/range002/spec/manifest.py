@@ -243,4 +243,12 @@ def load_manifest(path: Path | None = None) -> GovernanceManifest:
 
 
 # Manifest handling computes no returns; declared for the range002 import-lint.
-PURE_FUNCTIONS = ("parse_manifest", "load_manifest")
+PURE_FUNCTIONS = (
+    "parse_manifest",
+    "load_manifest",
+    "GovernanceManifest.is_genesis_approved",
+    "GovernanceManifest.require_genesis",
+    "GovernanceManifest.require_limits",
+    "GovernanceManifest.check_genesis",
+    "GovernanceManifest.check_limits",
+)
