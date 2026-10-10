@@ -788,4 +788,195 @@ Convention: every fixture is generated in test code (no vendor file, no archive,
 | B-22 universe | Ticker reuse, rename, delisted mid-month, unmapped ticker, lineage refusals, split/spinoff day | No merged series across permatickers; look-ahead perturbation of post-prior-day data changes nothing; deterministic order |
 | Boundary/adapter | Section 9.8 list | All ten negative tests pass |
 
+---
+---
+
+# Part III. Owner rulings of 2026-10-10 applied (final eight-PR specifications, data-isolation review, matrices)
+
+Part III supersedes Parts I and II where it differs. The schema batch is specified in its own file, `RANGE-002_Schema_Change_Batch_Proposal_v0.1.md`.
+
+## 14. Owner rulings recorded and their effect
+
+| Ruling | Owner statement | Effect in this document |
+|---|---|---|
+| Q-B1 | Approve the read-side capability gate as the Level 1 architecture direction, SUBJECT TO an explicit data-isolation review | Section 9 design stands; section 15 adds the review checklist; the approval is conditional until that review passes |
+| Q-B2 | Planning and synthetic fixtures approved; implementation needs separate authorization | READY means designable and fixture-able now; no module is implemented or merged until a separate written authorization |
+| Q-B3 | Accept A-H as the working structure | Section 16 finalizes the eight PRs |
+| Q-B4 | Prepare ONE batched schema-change proposal before any real freeze | Delivered as `RANGE-002_Schema_Change_Batch_Proposal_v0.1.md` (12 new paths from the nine class-(a) orphans, plus the P5 correction) |
+| Q-B5 | Approve the immutable frozen-section accessor design | Section 11 stands; carried into PR-A |
+| Q-B6 | Prefer existing libraries; no new dependency without review | Stdlib, pandas, pyarrow, duckdb, pandas-market-calendars (all declared). numpy is installed only transitively: using it directly is a dependency question to be reviewed in PR-D. `hypothesis` is not used |
+| Q-B7 | Synthetic unit tests of private kernels permitted; public-interface integration coverage ALSO required | Every PR in section 16 carries both layers; the integration layer goes through the public gated entry with a synthetic spec via `authorize` |
+
+## 15. Data-isolation review checklist (condition of Q-B1)
+
+**Plain statement. The read-side capability guard does not contain the dataset.** `read_bars` refuses callers that lack a valid, input-bound capability. It does not prevent any process that can open the files from reading them. If the acquisition process, an operator, a notebook, a script, or any other process running as a principal with filesystem access can read protected holdout files (2022-2025) outside the guard, then holding those bytes is controlled only by the boundary design (separate OS principal, broker-owned storage, vendor credential custody), which is a separate control, unbuilt and unsigned. The guard must never be described, in code docstrings, PR text or evidence, as containing, sealing or protecting the data at rest. It controls only the sanctioned in-process read path. The Level 1 lint does not scan `scripts/`.
+
+The review is performed by the independent validator (D08) and recorded before PR-G merges. A single NO on a mandatory row stops the merge.
+
+| # | Check | Evidence the reviewer sees | Pass criterion |
+|---|---|---|---|
+| 1 | Where do protected holdout bytes live, and which OS principals can read them? | Directory layout, owner/group/mode listing on the research host, `chattr`/ACL output | Research principal has no read access; or holdout bytes do not exist on the host (not yet acquired) |
+| 2 | Can the acquisition process (loader) read or write holdout months in research mode? | Test `run_load` refuses holdout-window chunks with zero client calls (section 9.8 #5); code path review | Refused before any request |
+| 3 | Is there any other code path that opens bar files directly (`pandas.read_parquet`, `pyarrow`, `duckdb`) outside `bar_store`? | Grep/AST report over `app/research/range002/` and `scripts/research/range002/`; import-allowlist test | Only `bar_store` opens normalized bar files; scripts are reviewed by hand (not linted) |
+| 4 | Does the vendor credential for holdout months exist in the research principal's reach? | Credential custody procedure; list of credential files and readers (names only, no values) | Held only by the broker principal (EB-3), or no holdout pull has happened |
+| 5 | Are raw vendor responses and normalized files for development months readable by agents? | Same listing | Accepted explicitly for development months (they are exposed to P3 by design); recorded |
+| 6 | Does the manifest label every file with its partition, and does `open_bar_store` verify it? | Manifest schema; tamper tests | Mismatch fails closed |
+| 7 | Do docstrings, PR descriptions and evidence avoid claiming the guard protects data at rest? | Text review of `bar_store`, `read_bars`, evidence docs | No such claim; limitation sentence present in the module docstring |
+| 8 | Does any test or fixture load real data? | Static test over test modules (section 9.7 condition 1) | No real-data path; `tmp_path` and fakes only |
+| 9 | Backups, S3 copies, logs and swap/tmp: can they contain holdout bytes readable by research? | Host runbook; backup list | None readable by research, or none exist yet |
+| 10 | Is the Level 2 boundary status stated? | Boundary decisions EB-1..3 status | Either B-1 exists, or holdout acquisition is explicitly NOT done and recorded as BLOCKED |
+
+## 16. Final eight-PR architecture and synthetic implementation specifications
+
+Common to all eight PRs: one review-ready PR each; backend FULL run; no change to `.github/workflows/ci.yml`, root manifests or `constraints/**`; guard-coverage proof (section 1.4); both test layers required by Q-B7 (layer U: unit tests of private kernels on synthetic data; layer I: public-interface integration tests through the public entry point, using `authorize(phase=P2, partition=REPLAY_RNG001)` with the governance test seams, or the pure public function directly); look-ahead and determinism tests where decisions are made; no real data; no new dependency; implementation starts only on separate written authorization (Q-B2).
+
+### PR-A. Spec accessors and foundation
+- **Purpose:** batched schema change (separate proposal file), immutable section accessors, test harness, calendar.
+- **Files:** edit `spec/schema.py`, `spec/loader.py`, `spec/__init__.py`; new `spec/engine_params.py`, `data/calendar.py`, `tests/research/range002/_guard_harness.py`, `engine/_causality.py` (binding helper), `tests/.../_causal.py` (look-ahead utility); update `tests/.../spec/_fixtures.py` and the REVIEWED lists in `test_import_lint.py`.
+- **Public surface:** `to_engine_params(view) -> EngineParams` (REVIEWED_PURE, pure); calendar `session_schedule(start, end)` and `is_session(d)` (REVIEWED_PURE; fail-closed, floor-free); frozen dataclasses (no public methods). Nothing gated (no returns).
+- **Tests U:** each section accessor deep-frozen; hash unchanged by accessors; schema validators of the batch; calendar fixtures (DST, half-days, holidays, closure day, missing library). **Tests I:** `load_synthetic_view -> to_engine_params` round trip; unsigned/hand-built/copied view refused; untightened OpenValue section raises a named error; `authorize` still succeeds with the new payload (governance suites rerun unchanged in logic).
+- **Acceptance:** all existing spec and governance tests pass with updated fixtures; each new path appears in `UnsetP0FieldsError` and changes the hash; lint passes; harness negative-test generator demonstrated on a synthetic gated function.
+- **Dependencies:** none. **CI cost:** FULL; reruns the whole range002 suite. **Owner decisions first:** approval of the schema proposal (Q-B4 follow-up), separate implementation authorization (Q-B2), and shape rulings for any OpenValue tightened in this PR.
+
+### PR-B. Engine core
+- **Purpose:** per-symbol-day entry path: OR, tick table, arming, entry fill, sizing, costs, trade log.
+- **Files:** `engine/{or_signal,arming,fill_model,risk_sizer,ticks,trade_log}.py`, `stats/costs.py`, tests.
+- **Public surface (gated, `capability` binding spec hash/phase/range):** `evaluate_symbol_day(params, visible_bars, *, capability) -> SymbolDayOutcome`. Kernels private (`_compute_or`, `_arm`, `_fill_entry`, `_size`, `_apply_costs`). Constants literal or private (R-A2).
+- **Tests U:** plan WP2.1, 2.1A, 2.2, 2.3 fixtures (boundary, timestamp conventions, three crossed-before-arm policies, gap-through, same-bar, caps, R_fill <= 0, rounding, all-in vs additive costs). **Tests I:** `authorize` -> `evaluate_symbol_day` on a synthetic day: success; refusal with no/forged/closed/other-spec/other-partition capability; date outside `capability.date_range`; look-ahead (`assert_causal` with garbage at/after 10:00); determinism hash of the trade log.
+- **Acceptance:** hand-computed expectations match; `path_ambiguous` set where specified; no order precedes data availability (property); lint and enumeration pass.
+- **Dependencies:** PR-A. **CI cost:** FULL. **Owner decisions first:** Q-B2; shapes for `signal.or_completeness_rule`, `fill.slippage_model`, `risk` units (D05 5j), D14 execution fields (shapes, not values).
+
+### PR-C. Exit engine and portfolio scheduler
+- **Purpose:** E1-E4 exit state machine for all K candidates and the single chronological event loop.
+- **Files:** `engine/{exits,position_sim,portfolio_clock}.py`, tests.
+- **Public surface (gated):** `simulate_day(params, day_inputs, *, capability) -> DayResult`; `simulate_period(params, store_handle, date_range, *, capability) -> PeriodResult` (reads via gated `read_bars`, so it can integrate once PR-G exists; until then it takes injected synthetic bars).
+- **Tests U:** WP2.2A and WP2.7 exit fixtures; two-symbol collision; reservation release. **Tests I:** end-to-end synthetic day through `authorize`; per-candidate portfolio simulation differs in capital use; future-price perturbation leaves earlier orders unchanged; byte-identical `trades.csv` across reruns and `PYTHONHASHSEED`; funnel counters reconcile.
+- **Acceptance:** net R over two exit fills equals hand sum; end-of-day flat assertion; unknown family/param refused; no per-symbol-then-merge path exists in the API.
+- **Dependencies:** PR-B. **CI cost:** FULL (largest suite; keep fixtures small). **Owner decisions first:** Q-B2; O-9 vocabulary and rank (D19) from the schema batch; D14 tie-break and reservation shapes.
+
+### PR-D. Statistics and selection
+- **Purpose:** day-clustered bootstrap (stationary, circular, iid-day), seed derivation, multiplicity, `select_exit`, `max_stat_bootstrap`.
+- **Files:** `stats/{bootstrap,_seeds,multiplicity,selection}.py`, tests.
+- **Public surface:** gated `run_bootstrap(trades, params, *, capability)`, `select_exit(results, rule, *, capability)`, `max_stat_bootstrap(results, params, *, capability)`; REVIEWED_PURE only for functions that take p-values or a label and touch no returns (`holm_adjust`, `fixed_sequence_adjust`, `seed_for_label`).
+- **Tests U:** resamplers deterministic per seed; day integrity; Holm cases; select rules; null calibration at small seeded reps. **Tests I:** `authorize` -> `select_exit` -> `RunRegistry.record_selection` accepts the record (run_id/spec hash embedded); candidate-order permutation invariance; STOP path.
+- **Acceptance:** size near alpha on synthetic null; max-stat conservative; record digest stable; stdlib `random` unless the numpy review (Q-B6) approves otherwise.
+- **Dependencies:** PR-A. **CI cost:** FULL. **Owner decisions first:** Q-B2; D06 shapes (not values); Q-B6 numpy review; validator review of O-8.
+
+### PR-E. Gates, audit pack, sealed pipeline
+- **Purpose:** G0-G10 evaluator, audit-pack writer, Level 1 sealed store, two-stage run.
+- **Files:** `stats/gates.py`, `audit/{audit_pack,sealed_store}.py`, `engine/pipeline.py`, tests.
+- **Public surface (gated):** `evaluate_gates(inputs, params, *, capability)`, `write_audit_pack(...)`, `run_phase(params, store_handle, *, capability)` (stage 1, control check, selection, unseal). Sealed-store open functions gated.
+- **Tests U:** gate boundaries (299/300, 1.2999/1.30), UNDEFINED handling, verdict strings only from `Verdict`. **Tests I:** synthetic P3A-style run through `authorize` end to end: selection recorded before unseal; control failure yields `INCONCLUSIVE_ENGINE` and strategy outputs stay unreadable; pack header accepted by `parse_audit_pack_header`; crash between steps leaves `ABORTED`.
+- **Acceptance:** no gate threshold appears as editable code (fixed values come from the schema); the sealed store docstring states the Level 1 limit.
+- **Dependencies:** PR-C, PR-D. **CI cost:** FULL. **Owner decisions first:** Q-B2; stage-1 criteria (D06/OD-2) for the pass rule; D04, D10, D12 shapes for G6-G8 (those gates stay BLOCKED).
+
+### PR-F. Controls, funnel, diagnostics, independent fixtures
+- **Files:** `controls/{random_entry,naive_orb,time_shuffle,no_information}.py`, `stats/{funnel,walk_forward,splits,redundancy}.py`, `tests/.../fixtures/`.
+- **Public surface (gated):** `run_controls(params, inputs, *, capability)`, `build_funnel(...)`, `run_diagnostics(...)`.
+- **Tests U:** WP2.7A baseline fixtures (uptrend, downtrend, non-breaking day, infeasible draws). **Tests I:** controls through `authorize`; control never qualifies by a future cross (look-ahead); funnel reconciles with scheduler counters; independent expected outputs (second person) match.
+- **Acceptance:** denominators preserved; seeds reproducible; naive ORB, time-shuffle and no-information stay unimplemented until their definitions are decided.
+- **Dependencies:** PR-C, PR-D. **CI cost:** FULL. **Owner decisions first:** Q-B2; O-10a, O-11, O-12 (D06); D13 naive ORB; O-13 redundancy set (OD-3); O-15 windows (D13); D12 regime label.
+
+### PR-G. Loader core and read side
+- **Files:** `data/{fetch_plan,sip_loader,integrity,chunk_journal,manifest,minute_classes,coverage,bar_store}.py`, `tests/.../data/_fakes.py`.
+- **Public surface:** exactly the seven names in section 9.3 (`plan_chunks`, `run_load`, `verify_manifest`, `build_universe_month` lives in PR-H, `coverage_report`, `open_bar_store`, `read_bars` gated).
+- **Tests U:** truncated page, exact-limit page, hidden page, empty month, vendor gap, wrong feed, entitlement error, crash at each journal step, restatement, tampered manifest, minute-class cases, coverage golden file. **Tests I:** `run_load` against the fake client end to end then `verify_manifest` then `coverage_report`; `authorize` -> `read_bars` success and the full negative set of section 9.8; research-mode refusal of holdout chunks.
+- **Acceptance:** section 15 checklist passed before merge; zero repeat vendor calls on resume; no `.empty` markers; lint public-surface equality test.
+- **Dependencies:** PR-A. **CI cost:** FULL. **Owner decisions first:** Q-B1 data-isolation review (section 15), Q-B2, budget cap placement (O-1, D03), O-4 and O-5 shapes from the schema batch.
+
+### PR-H. PIT universe and identity
+- **Files:** `data/{identity_map,pit_universe,corp_actions}.py` plus synthetic DuckDB fixtures.
+- **Public surface:** `build_universe_month(store, month, params)` (REVIEWED_PURE_IO, read-only on the factor store).
+- **Tests U:** ticker reuse, rename, delisted mid-month, unmapped ticker, lineage refusals, split/spinoff basis tags. **Tests I:** twelve synthetic months build deterministically from a synthetic store; look-ahead perturbation of post-prior-day data changes no universe; coverage population from PR-G consumes the output.
+- **Acceptance:** no merged series across permatickers; refusals appear as reason-coded exclusions; basis mix refused.
+- **Dependencies:** PR-A (soft link to PR-G fakes). **CI cost:** FULL. **Owner decisions first:** Q-B1 review, `data.adjustment` (D03/D05), OD-1 lineage adoption, O-6 constants confirmation.
+
+Dependency graph:
+
+```
+PR-A --+--> PR-B --> PR-C --+--> PR-E
+       +--> PR-D -----------+--> PR-E, PR-F (C and D)
+       +--> PR-G ;  +--> PR-H
+Merge gates: A (schema + Q-B2) ; G,H (Q-B1 review) ; E (stage-1 criteria) ; F (O-10a/11/12)
+```
+
+## 17. Traceability matrix: the 18 formerly orphaned values
+
+Status vocabulary: UNSET = field or decision exists, no value; PLAN-FIXED = constant in code, hashed in the code SHA.
+
+| ID | Class | Spec field or location | Decision | Status |
+|---|---|---|---|---|
+| O-1 | (d) | Data manifest `run_config.budget` (not in spec) | D03 | UNSET -- owner decision D03 |
+| O-2 | (a) | `data.adjustment` | D03/D05 | UNSET -- owner decision D03/D05 |
+| O-3 | (a) | `risk.initial_equity`, `risk.equity_basis` | D05 5j | UNSET -- owner decision D05 5j |
+| O-4 | (a) | `data.minute_reconciliation` | D05 5a | UNSET -- owner decision D05 5a |
+| O-5 | (a) | `data.coverage_min`, `data.exclusion_bound` | D03 / Q-P1-4 | UNSET -- owner decision D03 |
+| O-6 | (b) | `data/pit_universe.py` private constants | plan 2.1 | PLAN-FIXED (validator confirms) |
+| O-7 | (d) | Sign-off packet statement + manifest echo | OD-1 | UNSET -- owner decision OD-1 |
+| O-8 | (b) | `stats/selection.py` private function | plan WP3 | PLAN-FIXED (validator review) |
+| O-9 | (a) | `exits.candidates[*].rank` + per-family `params` validators | D19 | UNSET -- owner decision D19 |
+| O-10 | (a) | `controls.stage1_criteria`, `controls.random_entry.population` | D06, OD-2 | UNSET -- owner decision D06/OD-2 |
+| O-11 | (a) | `controls.time_shuffle` | D06 | UNSET -- owner decision D06 |
+| O-12 | (a) | `controls.no_information` | D06 | UNSET -- owner decision D06 |
+| O-13 | (d) | P6 pack input list (not in spec) | OD-3 | UNSET -- owner decision OD-3 |
+| O-14 | (b) | `stats/_seeds.py` private function | plan WP2.5 / D06 | PLAN-FIXED |
+| O-15 | (d) | Economic-thesis diagnostics list | D13 | UNSET -- owner decision D13 |
+| O-16 | (d) | Feasibility report + manifest `halt_evidence` | OD-4 | UNSET -- owner decision OD-4 |
+| O-17 | (d) | Validators/docstrings on existing `risk.*` | D05 5j | UNSET -- owner decision D05 5j |
+| O-18 | (a) | `risk.over_budget_rule` | D05 5c | UNSET -- owner decision D05 5c |
+
+Counts unchanged: (a) 9, (b) 3, (c) 0, (d) 6. Section 5 table T2 is superseded by this matrix.
+
+## 18. Dependency matrices
+
+### 18.1 Task -> spec field -> decision -> blocking status
+
+| Task | Spec field(s) | Decision(s) | Status |
+|---|---|---|---|
+| Calendar (B-01) | `data.tz` (fixed), `exit.halfday_offset_min` | D05 5g | READY (synthetic only) |
+| Accessors/params (B-02) | all sections; schema batch | Q-B4, Q-B5 | READY (synthetic only); real values BLOCKED: decision D05/D06/D14/D15/D17/D18/D19 |
+| OR signal (B-03) | `signal.or_completeness_rule`, `min_or_width_ticks`, `execution.bar_timestamp_convention`, `vendor_delay_ms` | D05 5a/5b, D14 | READY (synthetic only) |
+| Arming (B-04) | `execution.submit_latency_ms`, `ack_latency_ms`, `crossed_before_arm_policy`, `order_type` | D14 | READY (synthetic only) |
+| Fill (B-05) | `fill.slippage_model`, `fill.halt_policy`, `costs.accounting_mode`, `execution.eod_lead_s` | D05, D15 | READY (synthetic only) |
+| Sizer (B-06) | `risk.*`, `risk.initial_equity`, `risk.equity_basis`, `risk.over_budget_rule` | D05 5c/5j | READY (synthetic only) |
+| Exits (B-08) | `exits.candidates`, `rank`, `complexity_order` | D19 | READY (synthetic only) |
+| Scheduler (B-09) | `execution.tie_break`, `order_reservation_policy`, `gates.trade_unit` | D14, D18 | READY (synthetic only) |
+| Bootstrap/selection (B-10..B-12) | `stats.bootstrap.*`, `exits.selection.*`, `p3.criteria` | D06, D17, D19 | READY (synthetic only) |
+| Gates G0-G5, G9, G10 (B-13a) | `gates.*` fixed fields, `controls.stage1_criteria`, `data.coverage_min` | D02, D06/OD-2, D03 | READY (synthetic only) |
+| Gates G6/G7/G8, win rate (B-13b) | `gates.yearly`, `stats.regime.*`, `gates.max_dd`, `gates.win_rate` | D04, D12, D10 | BLOCKED: decision |
+| Controls random entry (B-16a) | `controls.random_entry.*`, `.population` | D06 | READY (synthetic only) |
+| Naive ORB / time-shuffle / no-information (B-16b) | `controls.naive_orb.definition`, `time_shuffle`, `no_information` | D13/D06 | BLOCKED: decision |
+| Loader core, classifier, coverage (B-20, B-21) | `data.*`, `data.minute_reconciliation`, `coverage_min`, `exclusion_bound` | D03, D05 5a, D11, O-1 | READY (synthetic only) |
+| PIT universe (B-22) | `universe.*`, `data.adjustment` | D03, OD-1 | READY (synthetic only) |
+| Vendor metadata, real pulls | `data.vendor`, `data.fetch_mode` | D03, D11, C12 | BLOCKED: host/vendor/authorization |
+| Holdout ingest | `partitions.holdout` | EB-1..3, Q-P1-3 | BLOCKED: decision/host |
+| P5 account binding | `p5.account_binding` | D07 | BLOCKED: decision (activation record designed with P5) |
+
+### 18.2 PR -> prerequisite PRs and decisions
+
+| PR | Prerequisite PRs | Prerequisite decisions/authorizations |
+|---|---|---|
+| A | none | schema proposal approval, Q-B2 implementation authorization, Q-B5 (approved) |
+| B | A | Q-B2 authorization; D05/D14 shapes |
+| C | B | O-9 (D19) in schema batch; D14 shapes |
+| D | A | D06 shapes; Q-B6 numpy review |
+| E | C, D | O-10 stage-1 criteria (D06/OD-2); G6-G8 shapes (D04/D10/D12) for those gates |
+| F | C, D | O-10a, O-11, O-12 (D06); D13; OD-3; D12 |
+| G | A | Q-B1 data-isolation review (section 15); O-1; O-4, O-5 |
+| H | A (G soft) | Q-B1 review; `data.adjustment`; OD-1 |
+
+## 19. READY versus BLOCKED, and updated blockers
+
+READY (synthetic only) is unchanged from section 12: B-00 to B-22 (B-13a, B-16a, and the READY halves of B-15/B-17 included). Under Q-B2 these are authorized for planning and fixtures only; implementation needs a separate written authorization. BLOCKED rows keep their named blockers: B-02r, B-13b, B-16b (decision); B-24, B-25, B-26 (host/vendor/authorization); B-27 (tooling absent); B-28 (host/authorization); B-29 (decision C2); B-30 (decision/authorization).
+
+Updated top blockers:
+1. Separate written authorization to implement (Q-B2) and owner approval of the schema batch (Q-B4 follow-up); neither is given.
+2. Data-isolation review (section 15) before PR-G/PR-H merge; execution boundary B-1 unsigned (holdout ingest BLOCKED).
+3. Six decisions with no field: O-1, O-7 (OD-1), O-13 (OD-3), O-15, O-16 (OD-4), O-17.
+4. Class-(a) values: D03 (`data.adjustment`, coverage, exclusion), D05 (equity, tolerance, over-budget rule), D06/OD-2 (controls), D19 (rank, params).
+5. Vendor depth and licence (V1-V13), research host (C12), S3 manifest tooling (absent), `permaticker -> vendor ticker` join (absent).
+6. Q-B6 numpy review.
+
+New owner decisions generated by this round: none beyond OD-1..OD-4 and the schema approval; the data-isolation review adds a validator task, not a decision.
+
 End of document.
