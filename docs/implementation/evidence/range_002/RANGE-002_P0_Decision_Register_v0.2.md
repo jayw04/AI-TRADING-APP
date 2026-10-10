@@ -40,6 +40,8 @@ These are the owner's **provisional policy directions** as relayed to the prepar
 | P-5 | C-EVID | A controlled pre-freeze return-blind feasibility **amendment**, not an unrestricted early data pull; a separate later authorization is needed for any acquisition | NO |
 | P-6 | Genesis | Remains unenrolled pending host, registry path, operator, witness and explicit authorizations | NO |
 
+**Part V (sections 38-46)** records the owner's rulings AR-1 to AR-9 as **proposed policy and drafting direction only** (not signatures): the final C-DR Plan wording, the written A1 reconciliation memo, the independent-methodology-review requirements, the P5 option B amendment text, the E1 step-1 draft, six individual review sheets and the lists of remaining blanks and open items.
+
 ---
 
 ## 0. What changed since v0.1
@@ -2332,3 +2334,234 @@ A1 (three rows); D01-D19 (one record each); C2 overlap and reviewers; D09-hist; 
 9. Spec draft, SHA-256 pins, safeguard merged, real freeze, P0 exit, P1.
 
 **Recommendation: NO-GO.** No decision is approved (0), the manifest is unset, no registry is enrolled, no independent validator is named or attested, no methodology review exists, and the P5 schema change, Plan amendments and Amendment E1 are unapproved proposals.
+
+---
+
+# PART V - OWNER RULINGS AR-1 TO AR-9 AS PROPOSED POLICY AND DRAFTING DIRECTION (NOTHING SIGNED)
+
+These rulings are **technical direction for drafting**, not signatures. Every item remains **PROPOSED -- NOT APPROVED** until a signed record exists against pinned SHA-256 hashes. Values were re-verified against the sources named in each section; where no document gives a value the text says **NO VALUE PROPOSED**. No data, provider, broker, enrollment or freeze was involved.
+
+## 38. RULINGS RECEIVED AND HOW THEY ARE RECORDED
+
+| Ruling | Owner direction | Recorded as | Where |
+|---|---|---|---|
+| AR-1 | Adopt SoD-A + SoD-C as proposed policy; names stay blank | PROPOSED POLICY (not a signed record). Names, attestations and the engineer list remain BLANK | s27, s43 |
+| AR-2 | Recommend C-DR option (i), limits 1/1, no automatic defect-only retry. The Plan amendment must say plainly that recovery is unavailable without a separately designed and approved mechanism, that an owner authorization alone cannot reset the attempt budget, and state the consequence of an unrecoverable defect | PROPOSED Plan wording (final form in s39); not applied | s39 |
+| AR-3 | Proceed with the A1 P3a / P3b architecture; finish the written A1 vs v0.4 vs merged-schema reconciliation memo and the independent-methodology-review requirements; no signature before both | DRAFT memo and requirements; A1 stays unsigned | s40, s41 |
+| AR-4 | Prepare P5 option B amendment text (implementation is Workstream C) | PROPOSED amendment text; nothing implemented | s42 |
+| AR-5 | Draft the pre-freeze return-blind feasibility amendment: E1 step 1 only, no acquisition authorization | DRAFT (s32 text, restated as a step-1 approval record) | s44 |
+| AR-6, AR-7 | Deferred | Merge of the distinct-role safeguard and genesis enrollment stay pending | s45 |
+| AR-8 | Independent validator required before formal P0 approval | Name and attestation BLANK | s43 |
+| AR-9 | Prepare six individual owner-review sheets: D04, D10, D11, D15, D16, C10 | Sheets with verified values and the owner-stated open items | s46 |
+
+## 39. C-DR - FINAL PROPOSED PLAN WORDING (AR-2) (PROPOSED -- NOT APPLIED)
+
+This section supersedes the wording tables of s20.3 and s28 where it differs. It states, in plain terms:
+1. there is **no automatic defect-only rerun**;
+2. there is exactly **one authorized P3a attempt and one authorized P3b attempt** per research lineage, consumed when authorization is issued (`capability_issued`), across all spec versions and windows;
+3. **recovery is unavailable** unless a recovery mechanism has been **separately designed, implemented and approved**; no such mechanism exists (design-only, Level 2);
+4. **an owner authorization alone cannot reset the attempt budget**: the merged code has no reset parameter, and an attempted `budget_reset_authorization` argument is refused by name; editing the committed manifest to a higher limit is a process control that this policy forbids for the purpose of a retry;
+5. the **consequence of an unrecoverable defect**: the affected phase is permanently ended for the lineage.
+
+| Plan location (v0.5 line) | PROPOSED replacement text (NOT APPLIED) |
+|---|---|
+| s0 R3 (101), second sentence | "There is no automatic defect-only rerun. P3a and P3b each have exactly one authorized attempt per research lineage, consumed when the authorization is issued, across all spec versions and windows, and the holdout window is consumed when it is authorized. Recovery is unavailable unless a recovery mechanism has been separately designed, implemented and approved; an owner authorization alone cannot reset or restore an attempt budget. A technical defect after authorization is unrecoverable under the current implementation and permanently ends that phase for the lineage." |
+| WP4.0 step 2 (584), last sentence | "The run is closed `INCONCLUSIVE_ENGINE` and its attempt stays consumed. No rerun is available. The defect is documented, and the phase is ended for the lineage unless a separately designed and approved recovery mechanism exists." |
+| WP4.1 (606), defect-only bullet | "**No defect-only reruns.** One authorized P3a attempt and one authorized P3b attempt per lineage. Recovery is unavailable without a separately designed and approved mechanism, and an owner authorization alone cannot reset the attempt budget. If a technical defect occurs after authorization, the phase is permanently ended: P3b (after a P3a failure) and P4 cannot run for this lineage, the program verdict is recorded as `INCONCLUSIVE_TECHNICAL`, and continuation requires a new, independently approved research registration with all prior exposure inherited and recorded. A defect record (symptom, root cause, fix commit, why the fix does not encode knowledge of results) is still written for the permanent record." |
+| WP4.1 (605) and A1 s3 | Add: "The P3a and P3b attempts are single and non-recoverable under the current implementation." |
+| s5.2 (698) | "`INCONCLUSIVE` is not a soft pass. No repair-and-retest mechanism is implemented. A retest needs a separately designed, approved and implemented recovery mechanism, or a new owner-approved registration with inherited exposure." |
+| s6 step 6 (710) | Add: "If `capability_issued` was written, the run also consumes the attempt, and with a limit of 1 this ends the phase for the lineage." |
+| s11.1 table (848) | "Document the defect; no rerun is available unless a separately designed and approved recovery mechanism exists" |
+| WP0.7 | Add: "attempt limits P3a = 1 and P3b = 1 (governance manifest); P4 is limited by the holdout once-per-window rule" |
+| New R19 | "R19. Attempt-limit notice: a technical failure after authorization is unrecoverable and may permanently end a phase. Do not authorize a P3 or P4 run until engine validation on synthetic fixtures and `REPLAY_RNG001` (never citable) is complete and the full required-test manifest passes on the code state to be used." |
+
+Caveat on the "new registration" route, stated for the owner: a new lineage means a new genesis and a new registry, whose rows do not contain the earlier lineage's holdout consumption. The code therefore cannot carry the earlier consumption forward; the exposure ledger and the independent approval and exposure review must carry it. This is why the continuation route is a governance decision and not an operational one.
+
+## 40. A1 vs v0.4 vs MERGED SCHEMA - WRITTEN RECONCILIATION MEMO (DRAFT; AR-3)
+
+| Field | Value |
+|---|---|
+| Title | A1 / design v0.4 / merged-schema reconciliation memo |
+| Status | **DRAFT. Not reviewed, not signed.** A1 is not to be signed before this memo and the section 41 review both exist |
+| Prepared by | the preparer (an AI-assisted draft; it holds no role). Reviewer and owner rows are BLANK |
+| Sources | A1 (`c7ebaf71`); Plan v0.5 (`c7ebaf71`); Sheets v0.1; `governing_reconciliation.md`; design v0.4 **only as quoted in those documents** (the DOCX is not in the repository, ruling C10); merged code at `d61f313a` |
+| Data accessed | None |
+
+### 40.1 Purpose and authority
+
+A1 amends design v0.4 and is not in force until signed; until then v0.4 governs unchanged, including the fixed A/B exits (A1 header). The Plan header says to build the schema so it supports the A1 candidate set but not to freeze under either form. This memo records, in writing, what that arrangement means for the merged code, and what is required before A1 is submitted.
+
+### 40.2 Side-by-side comparison
+
+| Topic | Design v0.4 (as quoted in A1, Plan, Sheets) | A1 | Merged code (`d61f313a`) |
+|---|---|---|---|
+| Exit rule | s3.1: variant A (time exit, primary) and variant B (2R target, secondary), fixed | Amendment 1: closed set of at most 8 configurations from four families; frozen selection rule; no addition after P0 | `Exits`: 1..8 candidates, four families, `selection` block required |
+| P3 structure | s7: one 2016-2021 development run against "pre-approved development-period criteria" (none given) | Amendment 2: P3a 2016-01-01..2019-12-31 (all K, selection) and P3b 2020-01-01..2021-12-31 (selected exit, confirmation) | Partitions locked by equality validators; phases `P3A` / `P3B`; verdict `EXIT_SELECTED` |
+| Holdout | 2022-2025, opened once | Unchanged | Locked; one opening per window in the registry |
+| Exposed data | 2026-01..07 exposed | Unchanged | `partitions.exposed` locked |
+| Hypothesis family | Decision 02: A primary, B secondary, Holm | Amendment 3: exit-configuration count 1; hypothesis count is the D02 owner value | `stats.adjustment` in {holm, fixed_sequence}; `hypothesis_family` open |
+| Decision list | s10.2: decisions 01-12 | D01-D19 | spec keys per decision (s14) |
+| Gates G0-G10 | s6 | Unchanged | thresholds locked by equality validators |
+| Verdict states | s6.1 | Plus `EXIT_SELECTED` | `verdict.py` |
+| Sample-size criteria | s7 gap | D17 adds P3a / P3b criteria | `p3.criteria` open |
+| Attempt budgeting | not in the quoted v0.4 text | not stated in A1 | manifest `p3_attempt_limits` (p3a, p3b); consumption at `capability_issued` |
+| Plan precedence | v0.4 + A1 wins | "Until signed, v0.4 governs" | no v0.4 form can be frozen |
+
+### 40.3 Findings
+
+1. **Tooling asymmetry.** "v0.4 governs until A1 is signed" cannot be exercised: the merged tooling expresses only the A1 form (inventory in s23.2).
+2. **Fallback cost.** A v0.4 single P3 or fixed A/B form needs changes across schema, manifest, models, guard, registry, verdicts, adapters, freeze tool, tests and the required-test manifest (s23.3).
+3. **Methodology, not code, must justify A1.** Existing code is not evidence that the selection design is sound; that is the subject of the independent review (s41).
+4. **Attempt policy.** A1 leaves attempt counts unstated; the owner direction is 1 / 1 with no recoverable defect (s39). A1 s3 should say so.
+5. **P3b power.** P3b is half the sample of the design's single run; D17 must state the P3b trade minimum and its consequence under a single attempt (C-P3B-N).
+6. **Wording items** already listed in Sheets s5 (D13-D16 treatment, D01-D19 numbering, hypothesis-family wording, A1 s7 D11 wording) are to be settled in the same edit.
+
+### 40.4 Required conditions before A1 is submitted for signature
+
+(a) This memo reviewed by the owner and the independent validator; (b) the section 41 methodology review completed with a written conclusion; (c) the s39 C-DR wording and the s42 P5 wording incorporated or consciously deferred; (d) A1 s3 amended to state the single, non-recoverable attempts; (e) the Plan header updated to say the infrastructure is built to A1.
+
+### 40.5 Decision requested
+
+The owner chooses: proceed with A1 as amended; amend further; or fall back to v0.4 with the cost in 40.3 item 2. Recommendation (not a decision): proceed with the A1 architecture, subject to 40.4.
+
+### 40.6 Signature block (BLANK)
+
+| Role | Name | Conclusion | Signature | Date |
+|---|---|---|---|---|
+| Memo author | BLANK | n/a | BLANK | BLANK |
+| Independent validator | BLANK | | BLANK | BLANK |
+| Owner | BLANK | | BLANK | BLANK |
+
+## 41. INDEPENDENT REVIEW OF THE EXIT-SELECTION METHODOLOGY - REQUIREMENTS (AR-3) (PROPOSED)
+
+1. **Reviewer.** The independent validator under SoD-A + SoD-C: not the owner, the trading expert or the research lead; not an author of the engine, spec, selection or gate code; no exposure to any RANGE-002 result. Independent attestation filed first (s43). Name BLANK.
+2. **Inputs given to the reviewer.** A1, Plan s2.2 / WP3 / WP4.1, the D06, D17, D18 and D19 sheets, the schema description, this memo. No RANGE-002 data and no outputs of related programs on 2016-2025 intraday data.
+3. **Scope.** (a) Selection score (one-sided lower bound of mean net R per trade) and the choice of estimand; (b) eligibility (trade minimum, PF at base cost); (c) tie tolerance delta and the complexity order; (d) the selection-aware max-statistic test over K, including resampling of common days across candidates; (e) the sealed protocol (selection record hashed before unsealing; R18); (f) the sequential use of data across P3a, P3b and P4 and the resulting error rates; (g) completeness and closure of the candidate set; (h) behaviour under a single attempt (a failed run cannot be repeated).
+4. **Required evidence (synthetic only).** Pipeline size under the null with correlated candidates (K = 7) and variable trades per day; power and selection accuracy under validator-specified planted edges; optimism of the selected candidate's P3a score relative to P3b; sensitivity to delta, block length, repetitions and STOP alpha; determinism under fixed seeds; tie fixtures. Real market data may not be used without a D01 ledger entry.
+5. **Deliverables.** A written report with a clear conclusion (adequate / adequate with amendments / inadequate), the calibration outputs, the commit SHA and SHA-256 of the code and report, the conflicts statement, and a list of required amendments to A1 or D17 / D19 / D06 values.
+6. **Acceptance criteria for proceeding to A1 signature.** A written "adequate" or "adequate with amendments" conclusion with the amendments made; no unresolved finding about leakage between P3a, P3b and P4; the pipeline's null false-advance rate stated and accepted by the owner.
+7. **Sign-off (BLANK).** Reviewer ____; conclusion ____; report SHA-256 BLANK; signature BLANK; date BLANK.
+
+## 42. P5 OPTION B - AMENDMENT TEXT (AR-4) (PROPOSED -- NOT APPLIED; implementation is Workstream C)
+
+This section prepares document wording only. The schema, tests and later guard changes of s31 are Workstream C and are not done here.
+
+| Document and location | Current text | PROPOSED text |
+|---|---|---|
+| Plan App. A, line 1000 | "`account_id: null  # D07 policy at P0; the ID is recorded in the P5 execution manifest (WP5.1) unless the owner rules otherwise`" | "`account_binding: null  # P0: D07; the only permitted value is the deferral marker; the account id is not part of the frozen spec and is bound by a separate P5 activation record to the same spec_sha256`" |
+| Plan s10 D07 (line 811) | "...(the account ID cannot exist before WP5.1 unless the owner rules otherwise)..." | "...the account policy is frozen at P0 and the account id is bound later by the P5 activation record; the frozen spec carries the hashed deferral marker `p5.account_binding`" |
+| Plan WP5.1 (line 622) | "The account ID is recorded in the signed execution manifest." | "The account ID is recorded in the signed P5 activation record, which names the frozen `spec_sha256`, the genesis id, the completed P4 run and the owner's approval; one activation per lineage; no rebinding." |
+| A1 s4, D07 row | "Unchanged (v0.4 decision 07)" | Add: "D07 refined: the spec carries the hashed deferral marker; the account id is bound later without changing `spec_sha256`." |
+| Sheets D07 and s5 item 4 | "Inconsistency: App. A makes `p5.account_id` a P0 value but WP5.1 provisions it in P5" | Mark resolved by option B once approved |
+| Spec key list (s14, row `p5.account_id`) | `p5.account_id`, owner D07 | `p5.account_binding`, owner D07 |
+
+Schema, `freeze_spec`, hash, activation-record and guard specifics: s31. The marker's exact permitted value text is for the owner to confirm.
+
+## 43. D08 - SoD-A + SoD-C AS PROPOSED POLICY (AR-1, AR-8) (PROPOSED POLICY -- NOT A SIGNED RECORD)
+
+Adopted as the proposed policy for the D08 record: SoD-A for the three signers, plus SoD-C's validator-independence requirements (the validator is also distinct from the research lead and from whoever wrote the engine), with the procedural confirmations of s15.4 and the Workstream B document of s15.5. The all-pairs safeguard (PR #740, `8792e043`) is consistent with the policy and does not permit owner == trading_expert. Its merge is deferred (AR-6).
+
+An **independent validator is required before formal P0 approval** (AR-8). Identity, attestation and engineer list: BLANK. No AI agent holds a slot.
+
+| Slot | Name | Attestation | Signature | Date |
+|---|---|---|---|---|
+| Research lead | BLANK | n/a | BLANK | BLANK |
+| Trading-expert reviewer | BLANK | BLANK | BLANK | BLANK |
+| Independent validator | BLANK | BLANK | BLANK | BLANK |
+| Sole P6 approver | BLANK | n/a | BLANK | BLANK |
+
+## 44. E1 STEP 1 - APPROVAL RECORD ONLY (AR-5) (DRAFT; NO ACQUISITION AUTHORIZATION)
+
+The text of Amendment E1 is in s32.1. This section restates what the owner would sign at **step 1 only**: approval of the permitted data fields, the permitted and prohibited computations, independent oversight, exposure logging, the isolated-environment requirements and the stop conditions. It does **not** authorize any acquisition, name a period or symbol set, name a host, or release any data. A **separate, later** acquisition authorization (period, sampling design, host, operator, overseer, budget) would be requested separately and is **not requested now**. D05 5a and 5b stay PENDING.
+
+| Record | Content |
+|---|---|
+| Decision | Approve Amendment E1 step 1 (rules only; no acquisition) |
+| Value | BLANK |
+| Evidence | s32.1 text; Plan R1, s2.5 and WP0.10 (return-blind feasibility already permitted in principle); C12 requirements |
+| Approvers | Owner; independent validator; trading-expert reviewer |
+| Pinned documents | this register (commit containing the final text); Plan v0.5 (`c7ebaf71`); A1 (`c7ebaf71`); SHA-256 BLANK |
+| Signatures / dates | BLANK |
+
+## 45. DEFERRED ITEMS (AR-6, AR-7)
+
+Merge of the distinct-role safeguard (PR #740) and the genesis enrollment ceremony are deferred. The registry stays unenrolled; the manifest stays entirely unset; host, registry path, operator, witness and written authorization are BLANK.
+
+## 46. INDIVIDUAL OWNER-REVIEW SHEETS (AR-9): D04, D10, D11, D15, D16, C10
+
+Technical direction for drafting; **not signatures**. "Verified against" names the sources checked in this session. Where the sources give no value, the sheet says NO VALUE PROPOSED and lists the item as an open owner item. Documents to pin for every sheet (SHA-256 BLANK): Decision Sheets v0.1, Plan v0.5, A1 (all `c7ebaf71`) and this register (commit containing the final text).
+
+### 46.1 D04 - Yearly consistency
+
+- **Direction.** Confirm the yearly-consistency gate as designed.
+- **Verified against.** Plan line 661 (G6): "Yearly consistency | >= 3 of 4 calendar years with profit factor > 1.0 | Proposed (D04)"; line 808 (D04, spec key `gates.yearly`, "if 2022-2025 is used"); Plan s5.1A ("when a calendar year has too few trades for meaningful PF, report its count and the P0-specified validity rule; do not count undefined years as passing"); Sheets D04 (design s6 "proposed, pending approval"; applies only to this holdout window; a changed window needs a new yearly gate). The values 3 of 4 and PF > 1.0 are the design's proposal, PROPOSED -- NOT APPROVED.
+- **Open owner item.** The minimum number of trades per year for a meaningful PF: **NO VALUE PROPOSED** in any document. Any per-year trigger-frequency expectation is return-derived and stays inside the results guard.
+- **Evidence / dependencies.** None return-blind. Blocks PR 12, 14.
+- **Approver.** Owner. **Choice and minimum trades per year:** ________ **Signature:** BLANK **Date:** BLANK **SHA-256:** BLANK
+
+### 46.2 D10 - Win-rate gate and drawdown comparator
+
+- **Direction.** Keep the platform win-rate > 50% gate absent a signed deviation; both evaluations displayed.
+- **Verified against.** Plan s5.1 table row "Win rate: Platform > 50% gate applies until a formal D10 deviation is signed; display both evaluations" and the D10 governance alert (platform formal gate: trades > 100, PF > 1.2, win rate > 50%, drawdown no worse than baseline, positive expectancy, bootstrap CI > 0); ruling C3; G8 row ("comparator, equity sampling and account sizing require D10 sign-off"); s5.1A ("identical capital, costs, equity sampling and exposure"); Sheets D10. Schema: `gates.win_rate` mandatory without a default, `gates.max_dd` open.
+- **Proposed (NOT APPROVED).** No deviation. Comparator proposal in the Sheets: random-entry portfolio under identical capital, costs, equity sampling and exposure as primary, SPY buy-and-hold as reported reference.
+- **Open owner items (NO VALUE PROPOSED).** The exact comparator definition and the equity-sampling definition (sampling frequency and mark basis); account sizing for the comparator.
+- **Evidence / dependencies.** Definitions only; no return-bearing evidence. Blocks PR 12, 14 and any P6 promotion.
+- **Approver.** Owner. **Win-rate: keep >50% gate (default) / deviation with reason:** ________ **Comparator:** ________ **Equity sampling:** ________ **Signature:** BLANK **Date:** BLANK **SHA-256:** BLANK
+
+### 46.3 D11 - Dedicated monthly fail-closed SIP loader
+
+- **Direction.** Record that ruling C5 (dedicated RANGE-002 monthly-chunked, fail-closed SIP loader; no change to the shared `BarCache`) satisfies design decision 11.
+- **Verified against.** `governing_reconciliation.md` C5 (loader attributes: explicit SIP, monthly chunks, pagination and truncation detection, completeness checks, idempotent resume, manifests, delisted coverage); Plan WP1.1 (written ADR 0033 finding; test: a simulated 10,000-row page triggers continuation or failure), WP1.2 (loader runs only in the approved isolated environment, C12; feed asserted `sip`; `data_manifest.json` with per-file SHA-256), WP1.3 (history to 2016-01-01 and delisted coverage, else stop), WP1.8 (coverage >= 98%), R6 (no silent IEX fallback); Plan line 815 (D11); schema `data.fetch_mode: str | None`.
+- **Finding to flag.** The Sheets D11 say the `fetch_mode` enumeration string "is defined in PR 2". The merged schema defines **no** enumeration (a free string, null in the skeleton); the test fixture uses a synthetic placeholder only. The enumeration is therefore **undefined in every source**.
+- **Open owner items.** (1) The `data.fetch_mode` value and its allowed vocabulary: **NO VALUE PROPOSED**. (2) Prerequisites to record before the loader is built: C12 environment named; D03 vendor, licence and budget; F1 (history), F2 (delisted), F5 (licence for stored research use), F6 (pagination and rate limits); P0 exit before PR 5. The WP1.1 finding already exists in `recon.md`.
+- **Approver.** Owner. **C5 satisfies decision 11 (yes/no):** ________ **`fetch_mode` value / vocabulary:** ________ **Signature:** BLANK **Date:** BLANK **SHA-256:** BLANK
+
+### 46.4 D15 - All-in cost accounting with binding stress test
+
+- **Direction.** All-in cost accounting; stress testing remains binding.
+- **Verified against.** Plan s2.5 (decide before returns whether 5 / 15 bps per side is all-in or additive; if all-in, do not add spread or slippage again), Plan s10.1 D15 (recommended: all-in bps applied as a P&L debit, fills at the modeled price, no extra slippage; gap-through fills stay adverse because they are price events), G3 (mean net return > 0 at 15 bps per side); Sheets D15. Schema: `costs.base_bps_per_side = 5` and `stress_bps_per_side = 15` locked; `accounting_mode` in {all_in, itemized_additive}; `components` open.
+- **Proposed (NOT APPROVED).** `accounting_mode = all_in`; G3 binding. Caveat recorded in the Sheets: the itemized-additive mode is the more conservative base case, so under all-in the conservatism rests on G3 and adverse gap fills.
+- **Open owner item.** Component definitions for `costs.components` (design s4 requires itemizing spread, commission and fees, impact and slippage so nothing is duplicated or omitted): **NO VALUE PROPOSED**; the cost bridge must label price adjustments versus P&L debits.
+- **Evidence / dependencies.** None return-blind. Couples to D05 5i (no separate slippage model if all-in). Blocks PR 8, 11.
+- **Approver.** Owner. **Mode:** ________ **Components:** ________ **Signature:** BLANK **Date:** BLANK **SHA-256:** BLANK
+
+### 46.5 D16 - Diagnostic labels
+
+- **Direction.** Diagnostic labels cannot override rejection.
+- **Verified against.** Plan WP3.4: "A label is explanatory, not a license to override REJECT"; the eight labels `NO_DEMONSTRATED_EDGE`, `EXECUTION_COST_DOMINATES`, `INSUFFICIENT_SAMPLE`, `REGIME_FRAGILITY`, `CAPACITY_OR_RISK_CONSTRAINT`, `DATA_OR_ENGINE_DEFECT`, `PAPER_OPERATION_FAILURE`, `UNCLASSIFIED`; WP5.9 (shadow run: "Compare timestamps, active signal set and predicted order payloads against deterministic historical replay for sampled days"; "no orphan signals, duplicate intents, or look-ahead discrepancies"; "an operational dry-run, not an extra profitability screen"), WP5.10, WP5.11; line 830 (D16 spec keys); Sheets D16. The fixed `p5.min_days = 60` and `p5.min_trades = 100` are P5 minimums and are separate from the shadow run.
+- **Proposed (NOT APPROVED).** Adopt the eight labels as explanatory only.
+- **Open owner item.** The shadow-validation sample duration (number of sampled days, and which days): **NO VALUE PROPOSED** in any document.
+- **Evidence / dependencies.** None. Blocks PR 12B, 15A.
+- **Approver.** Owner. **Taxonomy adopted / modified:** ________ **Shadow sample duration:** ________ **Signature:** BLANK **Date:** BLANK **SHA-256:** BLANK
+
+### 46.6 C10 - Design DOCX custody
+
+- **Direction.** Pin the design DOCX by version and SHA-256.
+- **Verified against.** Ruling C10 and `governing_reconciliation.md` C10 (authoritative DOCX in controlled S3 with a versioned SHA-256 manifest; non-authoritative Markdown extraction allowed; not done because the S3 manifest tooling `manifests/s3/` and its scripts are not in the repository and the policy forbids a hand-rolled scheme; the DOCX remains local and untracked); A1 s7 and Plan P0 exit gate (the sign-off packet pins the SHA-256 of the design DOCX and every signed document); CLAUDE.md / GITHUB-OPS-001 (Office binaries in controlled S3, pinned by Version ID and SHA-256, never unpinned).
+- **Proposed (NOT APPROVED).** Record the DOCX version and SHA-256 in the sign-off packet now; keep the DOCX where it is until the manifest tooling exists; a derived Markdown copy only with the owner's explicit permission.
+- **Open owner items (NO VALUE PROPOSED).** Custody location and retention period; who holds the file; whether a derived Markdown copy is permitted.
+- **Approver.** Owner. **Version:** ________ **SHA-256 of the DOCX bytes:** BLANK **Custody / retention:** ________ **Signature:** BLANK **Date:** BLANK
+
+## 47. REMAINING BLANKS AND OPEN ITEMS
+
+### 47.1 Remaining blanks (nothing in this package fills them)
+
+- All signatures and dates for A1 (3 rows), D01-D19, C2 overlap and reviewers, D09-hist, C10, C12, D08 roles and SoD selection, C-DR, P5 option B, E1 step 1, registry location, operator and witness, enrollment authorization, the two attempt limits and the genesis triple.
+- Names: research lead, trading-expert reviewer, independent validator, sole P6 approver; the validator attestation; the engineer list.
+- All SHA-256 pin fields and the commit SHA of the final register text.
+- The independent methodology review report and the A1 memo review.
+- The validator sign-offs of s34.
+- Genesis id, registry path, host: nothing exists.
+
+### 47.2 Open items
+
+1. Plan and A1 amendments (s39, s40.4, s42) are drafts, not applied.
+2. Per-year minimum trades (D04); comparator and equity-sampling definitions (D10); `fetch_mode` vocabulary and prerequisites (D11, with the finding that no source defines it); cost components (D15); shadow sample duration (D16); DOCX custody and retention (C10).
+3. C-EVID: E1 step 1 not approved; no acquisition authorization exists, so D05 5a / 5b are undecided.
+4. C-P5 implementation (Workstream C) must merge before any real freeze.
+5. D06 specification and synthetic calibration; D02; D18, D17, D19; D01, D03, D05, D09, D12, D13, D14.
+6. C-P3B-N: trade-minimum feasibility under a single attempt.
+7. The safeguard (PR #740) merge and the Workstream B items (F1 control-character stripping, test-id manifest) are deferred.
+8. Genesis enrollment and the manifest change are deferred.
+
+**Final recommendation: NO-GO.** No decision is approved (0).
