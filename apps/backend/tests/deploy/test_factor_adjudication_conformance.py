@@ -156,7 +156,7 @@ def _verifier_classification(tmp: Path):
     # Same store for live and stage: no pending swap to disprove, which is exactly the
     # watchdog's situation. Anything else would compare two different questions.
     failures, report = verifier.verify_staging(
-        store, store, UNIVERSE, evidence=evidence, operational=operational
+        store, store, UNIVERSE, evidence=evidence, operational=operational, as_of=TODAY
     )
     return failures, report["per_name"]["classification"]
 
