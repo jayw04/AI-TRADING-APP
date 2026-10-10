@@ -2,7 +2,7 @@
 
 Status: SPECIFICATION AND UNAPPLIED PATCH ONLY. Nothing in `scripts/` is changed on this branch. Prepared 2026-10-10 against `origin/main` d61f313a. Every recommendation is a Recommendation (not a decision).
 Owner ruling being implemented: prefer B2 **only if it fails when reproducibility cannot be proven (missing evidence is never success)**; otherwise B3 (dated byte-identity) or return for another ruling.
-Companion: `docs/methodology/CI_Nightly_Remediation_Proposal_v0.2.md` (defects A and B), patch `docs/methodology/patches/nightly_fix_b_option_b2_UNAPPLIED.patch` (v2, fail-closed).
+Companion: `docs/methodology/CI_Nightly_Remediation_Proposal_v0.2.md` (defects A and B), patch `docs/methodology/patches/nightly_fix_b_option_b2_UNAPPLIED.patch.txt` (v2, fail-closed).
 
 ## 1. Verification status (read first)
 
@@ -65,7 +65,7 @@ Recommendation (not a decision): B2 is acceptable under the owner's condition be
 
 ## 6. What can only be verified on Linux with real uv (first run)
 
-Environment: Linux x86_64 (WSL Ubuntu or a throwaway container), CPython 3.12.13, `uv==0.12.0`, network access to the package index (no TLS-inspecting proxy; this laptop's Norton inspection blocks some hosts). Run from a clean checkout of this branch; apply the patch with `git apply docs/methodology/patches/nightly_fix_b_option_b2_UNAPPLIED.patch`. Expected results are predictions to confirm, not observations.
+Environment: Linux x86_64 (WSL Ubuntu or a throwaway container), CPython 3.12.13, `uv==0.12.0`, network access to the package index (no TLS-inspecting proxy; this laptop's Norton inspection blocks some hosts). Run from a clean checkout of this branch; apply the patch with `git apply docs/methodology/patches/nightly_fix_b_option_b2_UNAPPLIED.patch.txt`. Expected results are predictions to confirm, not observations.
 
 | # | Command | Expected |
 |---|---|---|

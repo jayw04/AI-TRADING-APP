@@ -13,4 +13,4 @@ Scope  : scripts/check_dependency_locks.py + apps/backend/tests/ci/test_check_de
          The runbook (docs/runbook/dependency-locks.md, Verification section) must also be reworded; not included.
 Cost   : scripts/check_dependency_locks.py is a GLOBAL classifier path: FULL for all four projects, about 30-35
          runner minutes. 2-hour walk-away. Merge not approved.
-Apply  : git apply --check docs/methodology/patches/nightly_fix_b_option_b2_UNAPPLIED.patch
+Apply  : git apply --check docs/methodology/patches/nightly_fix_b_option_b2_UNAPPLIED.patch.txt
