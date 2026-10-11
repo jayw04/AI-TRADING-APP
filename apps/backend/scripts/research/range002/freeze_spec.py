@@ -37,7 +37,11 @@ from app.research.range002.spec.manifest import ManifestError, load_manifest  # 
 from app.research.range002.spec.schema import (  # noqa: E402
     FrozenSpec,
     SignoffMissingError,
+    SignoffRoleCharactersError,
+    SignoffRolesNotDistinctError,
     UnsetP0FieldsError,
+    _non_distinct_signoff_roles,
+    _signoff_invisible_char_roles,
     draft_skeleton,
 )
 
@@ -80,6 +84,12 @@ def freeze(draft_path: Path, out_path: Path, *, manifest_path: Path | None = Non
     missing = spec.missing_signoff_fields()
     if missing:
         raise SignoffMissingError(missing)
+    bad_chars = _signoff_invisible_char_roles(spec.signoff)  # refused, never stripped
+    if bad_chars:
+        raise SignoffRoleCharactersError(bad_chars)
+    not_distinct = _non_distinct_signoff_roles(spec.signoff)  # distinct strings only, not identity
+    if not_distinct:
+        raise SignoffRolesNotDistinctError(not_distinct)
     signed_on = spec.signoff.date
     if signed_on is not None and signed_on > date.today():
         raise SpecSchemaError([f"signoff.date: {signed_on} is in the future"])
@@ -130,6 +140,8 @@ def main(argv: list[str] | None = None, *, manifest_path: Path | None = None) ->
     except (
         UnsetP0FieldsError,
         SignoffMissingError,
+        SignoffRoleCharactersError,
+        SignoffRolesNotDistinctError,
         SpecSchemaError,
         SpecHashMismatchError,
         ManifestError,

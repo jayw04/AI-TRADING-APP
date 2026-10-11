@@ -19,7 +19,12 @@ from pydantic import ValidationError
 
 from app.research.range002.spec.hashing import content_sha256, loads_strict
 from app.research.range002.spec.immutable import deep_freeze
-from app.research.range002.spec.schema import DraftSpec, FrozenSpec
+from app.research.range002.spec.schema import (
+    DraftSpec,
+    FrozenSpec,
+    _non_distinct_signoff_roles,
+    _signoff_invisible_char_roles,
+)
 
 
 class SpecSchemaError(ValueError):
@@ -189,6 +194,14 @@ def load_frozen(path: Path) -> SpecView:
     if recorded is not None and recorded != computed:
         raise SpecHashMismatchError(recorded, computed)
     reasons = [f"{name} missing" for name in spec.missing_signoff_fields()]
+    reasons.extend(
+        f"signoff.{role} contains invisible or control characters ({', '.join(codes)})"
+        for role, codes in _signoff_invisible_char_roles(spec.signoff)
+    )
+    reasons.extend(
+        "sign-off roles not distinct: " + " == ".join(f"signoff.{r}" for r in group)
+        for group in _non_distinct_signoff_roles(spec.signoff)
+    )
     if recorded is None:
         reasons.append("signoff.spec_sha256 missing")
     view = _build_view(spec, spec_sha256=computed, unusable_reasons=tuple(reasons))
