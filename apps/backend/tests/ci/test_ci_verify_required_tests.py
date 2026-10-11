@@ -303,3 +303,36 @@ def test_committed_manifest_is_valid_and_covers_the_named_tests() -> None:
         assert f"def {r.node_id.split('::', 1)[1].split('[')[0]}" in test_file.read_text(
             encoding="utf-8"
         )
+
+
+# ---- fail-closed regression: the argv the PR-mode workflow step uses (no --allow-pending) ------------
+
+
+def test_pr_mode_invocation_pending_entry_with_absent_file_fails(tmp_path: Path) -> None:
+    # A manifest entry marked pending_pr whose file is absent exits 3 (non-zero => the step fails).
+    xml, man = _xml(_case(A)), _manifest(_e(A), _e(P, "pr3", pending_pr="9"))
+    rc = _run(
+        tmp_path,
+        xml,
+        man,
+        "--table-out",
+        str(tmp_path / "t.txt"),
+        files=("tests/r/spec/test_a.py",),
+    )
+    assert rc == EXIT_PENDING
+    assert rc != EXIT_OK
+
+
+def test_pr_mode_invocation_deleted_manifest_is_a_usage_error(tmp_path: Path) -> None:
+    (tmp_path / "j.xml").write_text(_xml(_case(A)), encoding="utf-8")
+    argv = ["--junit", str(tmp_path / "j.xml"), "--manifest", str(tmp_path / "nope.json")]
+    assert main([*argv, "--root", str(tmp_path)]) == EXIT_USAGE
+
+
+def test_pr_mode_invocation_deleted_tests_dir_gives_empty_junit_usage_error(tmp_path: Path) -> None:
+    # pytest on a missing directory exits 4 and writes no testcases; an empty report must never be
+    # read as 'nothing required ran, so nothing failed'.
+    (tmp_path / "j.xml").write_text(_xml(), encoding="utf-8")
+    (tmp_path / "m.json").write_text(_manifest(_e(A)), encoding="utf-8")
+    argv = ["--junit", str(tmp_path / "j.xml"), "--manifest", str(tmp_path / "m.json")]
+    assert main([*argv, "--root", str(tmp_path)]) == EXIT_USAGE
