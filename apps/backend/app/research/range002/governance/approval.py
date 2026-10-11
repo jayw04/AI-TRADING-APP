@@ -18,6 +18,11 @@ their own canonical re-encoding, which rejects duplicate keys, reordering, white
 floats, booleans and any other alternative spelling. No custom cryptography: primitives come from
 ``cryptography`` (already a backend dependency).
 
+KNOWN LIMITATION (trusted time): the time evidence is SIGNER-ASSERTED. The authority name is
+compared with the policy list, but ``token_sha256`` is only format-checked and no token is
+resolved or verified, so ``VerifiedApproval.time_evidence_claimed`` is a claim, not assurance.
+Real trusted time needs a decided authority and token verifier (unresolved human decision).
+
 Replay, supersession and conflict handling live in :class:`ApprovalLedger` (in memory here; the
 durable store is an unresolved human/engineering decision).
 """
@@ -27,7 +32,7 @@ from __future__ import annotations
 import hashlib
 import json
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 from enum import StrEnum
 from typing import Any
@@ -56,6 +61,9 @@ _HEX64 = re.compile(r"^[0-9a-f]{64}$")
 _NONCE = re.compile(r"^[0-9a-f]{32,64}$")
 _SIG = re.compile(r"^[0-9a-f]{16,200}$")
 _TS_FORMAT = "%Y-%m-%dT%H:%M:%SZ"
+_MAX_ENVELOPE_BYTES = 65536
+_MAX_DEPTH = 8
+_SEAL = object()
 
 
 class ErrorCode(StrEnum):
@@ -128,6 +136,7 @@ class RoleAssignment:
     identity: str
     role: str
     scopes: tuple[str, ...]
+    outcomes: tuple[str, ...]
     not_before: str
     not_after: str
 
@@ -167,9 +176,24 @@ class Roster:
             parse_timestamp(key.not_after, "key.not_after")
             if key.revoked_at is not None:
                 parse_timestamp(key.revoked_at, "key.revoked_at")
+        _match(self.roster_id, _ID, "roster_id")
+        for key in self.keys:
+            _match(key.identity, _ID, "key.identity")
+            if parse_timestamp(key.not_before) > parse_timestamp(key.not_after):
+                raise _fail(ErrorCode.ROSTER_UNTRUSTED, "key window is inverted")
         for assignment in self.assignments:
-            parse_timestamp(assignment.not_before, "assignment.not_before")
-            parse_timestamp(assignment.not_after, "assignment.not_after")
+            _match(assignment.identity, _ID, "assignment.identity")
+            _match(assignment.role, _ID, "assignment.role")
+            for field_name in ("scopes", "outcomes"):
+                values = getattr(assignment, field_name)
+                if not isinstance(values, tuple) or not values or len(set(values)) != len(values):
+                    raise _fail(ErrorCode.ROSTER_UNTRUSTED, f"assignment.{field_name} invalid")
+                for value in values:
+                    _match(value, _ID, f"assignment.{field_name} entry")
+            if not set(assignment.outcomes) <= OUTCOMES:
+                raise _fail(ErrorCode.ROSTER_UNTRUSTED, "assignment.outcomes unrecognised")
+            if parse_timestamp(assignment.not_before) > parse_timestamp(assignment.not_after):
+                raise _fail(ErrorCode.ROSTER_UNTRUSTED, "assignment window is inverted")
 
     def _payload(self) -> dict[str, Any]:
         return {
@@ -195,12 +219,13 @@ class Roster:
                         "identity": a.identity,
                         "role": a.role,
                         "scopes": sorted(a.scopes),
+                        "outcomes": sorted(a.outcomes),
                         "not_before": a.not_before,
                         "not_after": a.not_after,
                     }
                     for a in self.assignments
                 ),
-                key=lambda d: (d["identity"], d["role"], d["not_before"]),
+                key=lambda d: json.dumps(d, sort_keys=True),
             ),
         }
 
@@ -216,6 +241,13 @@ class Policy:
     require_trusted_time: bool = True
     trusted_time_authorities: frozenset[str] = frozenset()
     max_skew_seconds: int = 300
+
+    def __post_init__(self) -> None:
+        skew = self.max_skew_seconds
+        if isinstance(skew, bool) or not isinstance(skew, int) or not 0 <= skew <= 900:
+            raise _fail(ErrorCode.TIME_RANGE, "max_skew_seconds must be an int in 0..900")
+        if not all(isinstance(a, str) for a in self.trusted_time_authorities):
+            raise _fail(ErrorCode.TIME_EVIDENCE, "trusted_time_authorities must be strings")
 
 
 # ---- canonical encoding and schema ----------------------------------------------------------
@@ -243,8 +275,10 @@ def _reject_constant(name: str) -> Any:
     raise _fail(ErrorCode.ENCODING, f"non-finite number {name}")
 
 
-def _strict_types(node: Any, path: str = "$") -> None:
+def _strict_types(node: Any, path: str = "$", depth: int = 0) -> None:
     """Only str, non-bool int, None, list and dict. Floats and bools are ambiguous."""
+    if depth > _MAX_DEPTH:
+        raise _fail(ErrorCode.ENCODING, f"{path}: nesting too deep")
     if node is None or isinstance(node, str):
         return
     if isinstance(node, bool | float):
@@ -253,11 +287,11 @@ def _strict_types(node: Any, path: str = "$") -> None:
         return
     if isinstance(node, list):
         for i, item in enumerate(node):
-            _strict_types(item, f"{path}[{i}]")
+            _strict_types(item, f"{path}[{i}]", depth + 1)
         return
     if isinstance(node, dict):
         for k, v in node.items():
-            _strict_types(v, f"{path}.{k}")
+            _strict_types(v, f"{path}.{k}", depth + 1)
         return
     raise _fail(ErrorCode.ENCODING, f"{path}: unsupported type")
 
@@ -267,6 +301,8 @@ def parse_envelope(raw: bytes) -> tuple[dict[str, Any], str]:
     if not isinstance(raw, bytes | bytearray):
         raise _fail(ErrorCode.ENCODING, "envelope must be bytes")
     raw = bytes(raw)
+    if len(raw) > _MAX_ENVELOPE_BYTES:
+        raise _fail(ErrorCode.ENCODING, "envelope is too large")
     try:
         doc = json.loads(
             raw.decode("utf-8"), object_pairs_hook=_no_dupes, parse_constant=_reject_constant
@@ -352,7 +388,7 @@ def validate_payload(payload: dict[str, Any]) -> ApprovalRecord:
     doc = _obj(payload, "document", {"id", "sha256", "spec_sha256"})
     dec = _obj(payload, "decision", {"outcome", "scope", "purpose"})
     sig = _obj(payload, "signer", {"identity", "key_id", "role"})
-    if dec["outcome"] not in OUTCOMES:
+    if not isinstance(dec["outcome"], str) or dec["outcome"] not in OUTCOMES:
         raise _fail(ErrorCode.SCHEMA, "decision.outcome is not a recognised outcome")
     supersedes = payload["supersedes"]
     if not isinstance(supersedes, list) or len(set(map(str, supersedes))) != len(supersedes):
@@ -406,8 +442,15 @@ class VerifiedApproval:
 
     record: ApprovalRecord
     roster_sha256: str
-    time_trusted: bool
+    time_evidence_claimed: bool
     envelope_sha256: str
+    _seal: object = field(default=None, repr=False, compare=False)
+
+    def __post_init__(self) -> None:
+        if self._seal is not _SEAL:
+            raise _fail(
+                ErrorCode.SCHEMA, "VerifiedApproval can only be produced by verify_approval"
+            )
 
 
 def _check_signature(key: ec.EllipticCurvePublicKey, signature_hex: str, message: bytes) -> None:
@@ -429,7 +472,17 @@ def _active(not_before: str, not_after: str, at: datetime) -> bool:
     return parse_timestamp(not_before) <= at <= parse_timestamp(not_after)
 
 
-def verify_approval(
+def verify_approval(raw: bytes, **kwargs: Any) -> VerifiedApproval:
+    """Return a :class:`VerifiedApproval` or raise :class:`ApprovalError`, never anything else."""
+    try:
+        return _verify_approval(raw, **kwargs)
+    except ApprovalError:
+        raise
+    except (TypeError, ValueError, RecursionError, OverflowError, AttributeError, KeyError):
+        raise _fail(ErrorCode.SCHEMA, "malformed input") from None
+
+
+def _verify_approval(
     raw: bytes,
     *,
     roster: Roster,
@@ -439,10 +492,11 @@ def verify_approval(
     expected_document_sha256: str,
     expected_spec_sha256: str,
     expected_scope: str,
+    expected_outcome: str,
+    expected_purpose: str,
     now: datetime,
 ) -> VerifiedApproval:
-    """Return a :class:`VerifiedApproval` or raise :class:`ApprovalError`. Every check must pass;
-    there is no partial success and no I/O."""
+    """Every check must pass; there is no partial success and no I/O."""
     if now.tzinfo is None or now.utcoffset() != timedelta(0):
         raise _fail(ErrorCode.TIME_RANGE, "now must be a UTC-aware datetime")
     if roster.digest() != pinned_roster_sha256:
@@ -456,6 +510,11 @@ def verify_approval(
         raise _fail(ErrorCode.DOCUMENT_MISMATCH, "document or spec digest differs from expected")
     if rec.scope != expected_scope:
         raise _fail(ErrorCode.SCOPE_MISMATCH, "scope differs from the expected scope")
+
+    if rec.outcome != expected_outcome:
+        raise _fail(ErrorCode.DOCUMENT_MISMATCH, "outcome differs from the expected outcome")
+    if rec.purpose != expected_purpose:
+        raise _fail(ErrorCode.DOCUMENT_MISMATCH, "purpose differs from the expected purpose")
 
     entry = roster.key(rec.key_id)
     if entry is None:
@@ -486,6 +545,7 @@ def verify_approval(
         a.identity == rec.identity
         and a.role == rec.role
         and rec.scope in a.scopes
+        and rec.outcome in a.outcomes
         and _active(a.not_before, a.not_after, rec.signed_at)
         and _active(a.not_before, a.not_after, now)
         for a in roster.assignments
@@ -497,8 +557,9 @@ def verify_approval(
     return VerifiedApproval(
         record=rec,
         roster_sha256=pinned_roster_sha256,
-        time_trusted=trusted_time,
+        time_evidence_claimed=trusted_time,
         envelope_sha256=hashlib.sha256(raw).hexdigest(),
+        _seal=_SEAL,
     )
 
 
@@ -519,16 +580,23 @@ class ApprovalLedger:
         self._superseded: set[str] = set()
         self._nonces: set[str] = set()
 
-    def active(self, document_id: str, scope: str) -> list[ApprovalRecord]:
+    @staticmethod
+    def _binding(r: ApprovalRecord) -> tuple[str, ...]:
+        return (r.document_id, r.document_sha256, r.spec_sha256, r.scope, r.purpose)
+
+    def active(
+        self, document_id: str, document_sha256: str, spec_sha256: str, scope: str, purpose: str
+    ) -> list[ApprovalRecord]:
+        key = (document_id, document_sha256, spec_sha256, scope, purpose)
         return [
             r
             for rid, r in self._records.items()
-            if rid not in self._superseded
-            and r.outcome != "REVOKE"
-            and (r.document_id, r.scope) == (document_id, scope)
+            if rid not in self._superseded and r.outcome != "REVOKE" and self._binding(r) == key
         ]
 
     def accept(self, verified: VerifiedApproval) -> None:
+        if not isinstance(verified, VerifiedApproval):
+            raise _fail(ErrorCode.SCHEMA, "only a VerifiedApproval can be accepted")
         rec = verified.record
         if rec.record_id in self._records or rec.nonce in self._nonces:
             raise _fail(ErrorCode.REPLAY, "record_id or nonce already accepted")
@@ -536,15 +604,11 @@ class ApprovalLedger:
             prior = self._records.get(ref)
             if prior is None or ref in self._superseded:
                 raise _fail(ErrorCode.SUPERSESSION, f"{ref!r} is unknown or already superseded")
-            same = (prior.document_id, prior.scope, prior.identity) == (
-                rec.document_id,
-                rec.scope,
-                rec.identity,
-            )
+            same = (*self._binding(prior), prior.identity) == (*self._binding(rec), rec.identity)
             if not same:
                 raise _fail(ErrorCode.SUPERSESSION, f"{ref!r} is a different document/scope/signer")
         survivors = [
-            r for r in self.active(rec.document_id, rec.scope) if r.record_id not in rec.supersedes
+            r for r in self.active(*self._binding(rec)) if r.record_id not in rec.supersedes
         ]
         if rec.outcome != "REVOKE" and any(r.outcome != rec.outcome for r in survivors):
             raise _fail(ErrorCode.CONFLICT, "contrary active decision exists; supersede it first")

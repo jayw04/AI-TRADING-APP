@@ -40,6 +40,9 @@ NOW = datetime(2026, 10, 20, 12, 0, 0, tzinfo=UTC)
 SIGNED = "2026-10-20T11:59:00Z"
 DOC = {"id": "SYNTH-DOC-1", "sha256": "ab" * 32, "spec_sha256": "cd" * 32}
 SCOPE = "SYNTH-SCOPE"
+PURPOSE = "SYNTH-PURPOSE"
+ALL = ("APPROVE", "REJECT", "REVOKE")
+BINDING = (DOC["id"], DOC["sha256"], DOC["spec_sha256"], SCOPE, PURPOSE)
 ORDER = ap._P256_ORDER
 
 
@@ -75,10 +78,20 @@ class World:
             self.bob_id, "SYNTH-BOB", bob_spki, "2026-01-01T00:00:00Z", "2027-01-01T00:00:00Z"
         )
         self.alice_role = RoleAssignment(
-            "SYNTH-ALICE", "SYNTH-OWNER", (SCOPE,), "2026-01-01T00:00:00Z", "2027-01-01T00:00:00Z"
+            "SYNTH-ALICE",
+            "SYNTH-OWNER",
+            (SCOPE,),
+            ALL,
+            "2026-01-01T00:00:00Z",
+            "2027-01-01T00:00:00Z",
         )
         self.bob_role = RoleAssignment(
-            "SYNTH-BOB", "SYNTH-VALIDATOR", (SCOPE,), "2026-01-01T00:00:00Z", "2027-01-01T00:00:00Z"
+            "SYNTH-BOB",
+            "SYNTH-VALIDATOR",
+            (SCOPE,),
+            ALL,
+            "2026-01-01T00:00:00Z",
+            "2027-01-01T00:00:00Z",
         )
         self.mallory_spki = mallory_spki
         self.policy = Policy(True, frozenset({"SYNTH-TSA"}), 300)
@@ -144,6 +157,8 @@ def _verify(w: World, raw: bytes, roster: Roster | None = None, **over: Any) -> 
         "expected_document_sha256": DOC["sha256"],
         "expected_spec_sha256": DOC["spec_sha256"],
         "expected_scope": SCOPE,
+        "expected_outcome": "APPROVE",
+        "expected_purpose": PURPOSE,
         "now": NOW,
     }
     args.update(over)
@@ -163,7 +178,7 @@ def test_valid_approval_verifies(w):
     result = _verify(w, w.envelope(w.payload()))
     assert result.record.identity == "SYNTH-ALICE"
     assert result.record.outcome == "APPROVE"
-    assert result.time_trusted is True
+    assert result.time_evidence_claimed is True
     assert result.roster_sha256 == w.roster().digest()
 
 
@@ -171,7 +186,7 @@ def test_valid_without_trusted_time_only_when_policy_allows_and_limitation_is_ex
     payload = w.payload(time_evidence={"kind": ap.TIME_NONE, "limitation": ap.TIME_LIMITATION})
     raw = w.envelope(payload)
     relaxed = Policy(require_trusted_time=False)
-    assert _verify(w, raw, policy=relaxed).time_trusted is False
+    assert _verify(w, raw, policy=relaxed).time_evidence_claimed is False
     assert _code(w, raw) == ErrorCode.TIME_EVIDENCE  # strict policy refuses it
 
 
@@ -218,8 +233,7 @@ def test_altering_a_signed_field_after_signing_breaks_the_signature(w, over):
     signature = _sign(w.alice, signing_message(original))
     tampered = w.payload(**over)
     raw = encode_envelope(tampered, signature)
-    expected = {"document__sha256", "document__spec_sha256"}
-    code = _code(w, raw, **({} if not (set(over) & expected) else _expect_for(tampered)))
+    code = _code(w, raw, **_expect_for(tampered))
     assert code == ErrorCode.SIGNATURE
 
 
@@ -228,6 +242,8 @@ def _expect_for(tampered: dict[str, Any]) -> dict[str, Any]:
     return {
         "expected_document_sha256": tampered["document"]["sha256"],
         "expected_spec_sha256": tampered["document"]["spec_sha256"],
+        "expected_outcome": tampered["decision"]["outcome"],
+        "expected_purpose": tampered["decision"]["purpose"],
     }
 
 
@@ -314,6 +330,7 @@ def test_scope_outside_the_assignment_is_not_authorized(w):
         "SYNTH-ALICE",
         "SYNTH-OWNER",
         ("SYNTH-ELSEWHERE",),
+        ALL,
         "2026-01-01T00:00:00Z",
         "2027-01-01T00:00:00Z",
     )
@@ -329,7 +346,7 @@ def test_scope_outside_the_assignment_is_not_authorized(w):
     ],
 )
 def test_expired_or_not_yet_active_assignment_is_not_authorized(w, not_before, not_after):
-    stale = RoleAssignment("SYNTH-ALICE", "SYNTH-OWNER", (SCOPE,), not_before, not_after)
+    stale = RoleAssignment("SYNTH-ALICE", "SYNTH-OWNER", (SCOPE,), ALL, not_before, not_after)
     roster = w.roster(assignments=(stale, w.bob_role))
     assert _code(w, w.envelope(w.payload()), roster) == ErrorCode.NOT_AUTHORIZED
 
@@ -339,7 +356,7 @@ def test_roster_that_does_not_match_the_pinned_digest_is_untrusted(w):
         assignments=(
             w.alice_role,
             w.bob_role,
-            RoleAssignment("SYNTH-ALICE", "X", (SCOPE,), SIGNED, "2027-01-01T00:00:00Z"),
+            RoleAssignment("SYNTH-ALICE", "X", (SCOPE,), ALL, SIGNED, "2027-01-01T00:00:00Z"),
         )
     )
     raw = w.envelope(w.payload())
@@ -513,7 +530,9 @@ def test_future_signing_time_and_naive_now_are_refused(w):
 
 def _accept(w: World, ledger: ApprovalLedger, **over: Any) -> None:
     signer = over.pop("_signer", w.alice)
-    ledger.accept(_verify(w, w.envelope(w.payload(**over), signer)))
+    payload = w.payload(**over)
+    outcome = payload["decision"]["outcome"]
+    ledger.accept(_verify(w, w.envelope(payload, signer), expected_outcome=outcome))
 
 
 def test_replay_of_the_same_record_or_nonce_is_refused(w):
@@ -574,7 +593,7 @@ def test_conflicting_decisions_need_an_explicit_supersession(w):
         decision__outcome="REJECT",
         supersedes=["SYNTH-REC-1"],
     )
-    assert [r.outcome for r in ledger.active(DOC["id"], SCOPE)] == ["REJECT"]
+    assert [r.outcome for r in ledger.active(*BINDING)] == ["REJECT"]
 
 
 def test_a_revoke_withdraws_the_record_it_supersedes(w):
@@ -588,7 +607,7 @@ def test_a_revoke_withdraws_the_record_it_supersedes(w):
         decision__outcome="REVOKE",
         supersedes=["SYNTH-REC-1"],
     )
-    assert ledger.active(DOC["id"], SCOPE) == []
+    assert ledger.active(*BINDING) == []
 
 
 def test_agreeing_approvals_by_two_signers_coexist(w):
@@ -596,7 +615,7 @@ def test_agreeing_approvals_by_two_signers_coexist(w):
     _accept(w, ledger)
     bob = {"signer": {"identity": "SYNTH-BOB", "key_id": w.bob_id, "role": "SYNTH-VALIDATOR"}}
     _accept(w, ledger, record_id="R2", nonce="22" * 16, _signer=w.bob, **bob)
-    assert len(ledger.active(DOC["id"], SCOPE)) == 2
+    assert len(ledger.active(*BINDING)) == 2
 
 
 # ---- boundaries -----------------------------------------------------------------------------
@@ -625,3 +644,204 @@ def test_module_holds_no_private_key_material_and_does_not_sign():
     source = Path(ap.__file__).read_text(encoding="utf-8")
     for needle in ("generate_private_key", "load_pem_private_key", ".sign(", "PrivateFormat"):
         assert needle not in source
+
+
+# ---- review hardening (advisory security review of 433e2ff0) --------------------------------
+
+
+def _nested(depth: int) -> bytes:
+    return b"[" * depth + b"]" * depth
+
+
+@pytest.mark.parametrize("bad", [[], {}, ["APPROVE"], {"a": 1}, 7, None])
+def test_non_string_outcome_raises_the_typed_error_not_a_type_error(w, bad):
+    raw = w.envelope(w.payload(decision__outcome=bad))
+    assert _code(w, raw) == ErrorCode.SCHEMA
+
+
+def test_non_string_supersedes_entries_raise_the_typed_error(w):
+    for bad in ([[1]], [{"a": 1}], [3]):
+        assert _code(w, w.envelope(w.payload(supersedes=bad))) == ErrorCode.SCHEMA
+
+
+@pytest.mark.parametrize("depth", [20, 1500, 3000, 100000])
+def test_deep_nesting_is_refused_with_the_typed_error(w, depth):
+    raw = b'{"payload":' + _nested(depth) + b',"signature":"aa"}'
+    assert _code(w, raw) == ErrorCode.ENCODING
+
+
+def test_oversize_envelope_is_refused(w):
+    assert _code(w, b" " * 70000) == ErrorCode.ENCODING
+
+
+def test_unexpected_exception_types_never_escape_as_something_else(w):
+    for bad in (None, 3, [1], "x"):
+        assert _code(w, bad) == ErrorCode.ENCODING
+    assert _code(w, w.envelope(w.payload()), expected_scope=None) == ErrorCode.SCOPE_MISMATCH
+
+
+def test_verified_approval_cannot_be_forged_and_the_ledger_refuses_it(w):
+    real = _verify(w, w.envelope(w.payload()))
+    with pytest.raises(ApprovalError):
+        ap.VerifiedApproval(real.record, real.roster_sha256, True, real.envelope_sha256)
+    with pytest.raises(ApprovalError):
+        ap.VerifiedApproval(real.record, real.roster_sha256, True, "x", _seal=object())
+    with pytest.raises(ApprovalError) as info:
+        ApprovalLedger().accept(real.record)  # type: ignore[arg-type]
+    assert info.value.code == ErrorCode.SCHEMA
+
+
+def test_expected_outcome_and_purpose_are_bound(w):
+    raw = w.envelope(w.payload())
+    assert _code(w, raw, expected_outcome="REJECT") == ErrorCode.DOCUMENT_MISMATCH
+    assert _code(w, raw, expected_purpose="SYNTH-OTHER") == ErrorCode.DOCUMENT_MISMATCH
+
+
+def test_a_role_without_outcome_permission_is_not_authorized(w):
+    reviewer = RoleAssignment(
+        "SYNTH-ALICE",
+        "SYNTH-OWNER",
+        (SCOPE,),
+        ("REJECT",),
+        "2026-01-01T00:00:00Z",
+        "2027-01-01T00:00:00Z",
+    )
+    roster = w.roster(assignments=(reviewer, w.bob_role))
+    assert _code(w, w.envelope(w.payload()), roster) == ErrorCode.NOT_AUTHORIZED
+
+
+@pytest.mark.parametrize(
+    "bad",
+    [
+        {"scopes": SCOPE},
+        {"scopes": ()},
+        {"scopes": (SCOPE, SCOPE)},
+        {"scopes": ("bad scope",)},
+        {"outcomes": ("APPROVE", "MAYBE")},
+        {"outcomes": "APPROVE"},
+        {"identity": "bad id"},
+        {"role": ""},
+        {"not_before": "2027-01-01T00:00:00Z", "not_after": "2026-01-01T00:00:00Z"},
+    ],
+)
+def test_roster_construction_validates_assignments(w, bad):
+    fields = {**w.alice_role.__dict__, **bad}
+    with pytest.raises(ApprovalError) as info:
+        w.roster(assignments=(RoleAssignment(**fields),))
+    assert info.value.code in (ErrorCode.ROSTER_UNTRUSTED, ErrorCode.SCHEMA)
+
+
+def test_roster_digest_does_not_depend_on_assignment_input_order(w):
+    other = RoleAssignment(
+        "SYNTH-ALICE",
+        "SYNTH-OWNER",
+        ("SYNTH-B",),
+        ALL,
+        "2026-01-01T00:00:00Z",
+        "2027-01-01T00:00:00Z",
+    )
+    a = w.roster(assignments=(w.alice_role, other, w.bob_role))
+    b = w.roster(assignments=(other, w.bob_role, w.alice_role))
+    assert a.digest() == b.digest()
+
+
+@pytest.mark.parametrize("skew", [-1, 901, True, 1.5, "300"])
+def test_policy_rejects_unreasonable_skew(skew):
+    with pytest.raises(ApprovalError):
+        Policy(max_skew_seconds=skew)
+
+
+def test_boundary_instants(w):
+    entry = KeyEntry(**{**w.alice_entry.__dict__, "not_after": "2026-10-20T12:00:00Z"})
+    role = RoleAssignment(
+        "SYNTH-ALICE", "SYNTH-OWNER", (SCOPE,), ALL, "2026-01-01T00:00:00Z", "2026-10-20T12:00:00Z"
+    )
+    roster = w.roster(keys=(entry, w.bob_entry), assignments=(role, w.bob_role))
+    assert _verify(w, w.envelope(w.payload()), roster).record.identity == "SYNTH-ALICE"
+    ahead = w.payload(
+        signed_at="2026-10-20T12:05:00Z", time_evidence__attested_at="2026-10-20T12:05:00Z"
+    )
+    assert _verify(w, w.envelope(ahead)).record.signed_at.minute == 5  # exactly now + skew
+    too_far = w.payload(
+        signed_at="2026-10-20T12:05:01Z", time_evidence__attested_at="2026-10-20T12:05:01Z"
+    )
+    assert _code(w, w.envelope(too_far)) == ErrorCode.TIME_RANGE
+
+
+def test_ledger_is_keyed_on_digests_and_purpose_not_only_document_and_scope(w):
+    ledger = ApprovalLedger()
+    _accept(w, ledger)
+    # An APPROVE for different digests / another purpose neither conflicts nor shares "active".
+    other_doc = {"document__sha256": "ef" * 32}
+    payload = w.payload(record_id="R2", nonce="22" * 16, decision__outcome="REJECT", **other_doc)
+    ledger.accept(
+        _verify(
+            w, w.envelope(payload), expected_outcome="REJECT", expected_document_sha256="ef" * 32
+        )
+    )
+    assert [r.outcome for r in ledger.active(*BINDING)] == ["APPROVE"]
+    purpose = w.payload(
+        record_id="R3", nonce="33" * 16, decision__outcome="REJECT", decision__purpose="SYNTH-OTHER"
+    )
+    ledger.accept(
+        _verify(w, w.envelope(purpose), expected_outcome="REJECT", expected_purpose="SYNTH-OTHER")
+    )
+    assert len(ledger.active(*BINDING)) == 1
+
+
+def test_other_signer_cannot_withdraw_a_record_and_a_revoked_signer_wedges_the_scope(w):
+    # Documented liveness trade-off (review finding 3): only the original signer can supersede.
+    ledger = ApprovalLedger()
+    _accept(w, ledger)
+    bob = {"signer": {"identity": "SYNTH-BOB", "key_id": w.bob_id, "role": "SYNTH-VALIDATOR"}}
+    for outcome in ("REJECT", "REVOKE"):
+        extra = {"supersedes": ["SYNTH-REC-1"]} if outcome == "REVOKE" else {}
+        with pytest.raises(ApprovalError):
+            _accept(
+                w,
+                ledger,
+                record_id="RB-" + outcome,
+                nonce=("55" if outcome == "REJECT" else "66") * 16,
+                decision__outcome=outcome,
+                _signer=w.bob,
+                **bob,
+                **extra,
+            )
+
+
+def test_revoke_of_a_superseded_record_and_supersession_of_a_revoke(w):
+    ledger = ApprovalLedger()
+    _accept(w, ledger)
+    _accept(
+        w,
+        ledger,
+        record_id="R2",
+        nonce="22" * 16,
+        decision__outcome="REVOKE",
+        supersedes=["SYNTH-REC-1"],
+    )
+    with pytest.raises(ApprovalError) as twice:
+        _accept(
+            w,
+            ledger,
+            record_id="R3",
+            nonce="33" * 16,
+            decision__outcome="REVOKE",
+            supersedes=["SYNTH-REC-1"],
+        )
+    assert twice.value.code == ErrorCode.SUPERSESSION
+    _accept(
+        w, ledger, record_id="R4", nonce="44" * 16, decision__outcome="APPROVE", supersedes=["R2"]
+    )
+    assert [r.record_id for r in ledger.active(*BINDING)] == ["R4"]
+
+
+def test_size_cap_applies_before_schema_checks(w):
+    raw = b'{"payload":{"x":"' + b"a" * 70000 + b'"},"signature":"aa"}'
+    assert _code(w, raw) == ErrorCode.ENCODING
+
+
+def test_wrong_typed_arguments_surface_as_the_typed_error(w):
+    raw = w.envelope(w.payload())
+    assert _code(w, raw, now="not-a-datetime") == ErrorCode.SCHEMA
+    assert _code(w, raw, expected_document_id=["x"]) == ErrorCode.DOCUMENT_MISMATCH
