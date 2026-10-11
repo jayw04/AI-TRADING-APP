@@ -5,13 +5,14 @@
 | Purpose | One owner-facing register of every formal P0 decision, the controlled genesis-enrollment ceremony, the P3a/P3b attempt-limit analysis, the statistical-validation and data-independence rules, the blocker matrix and critical path, and a blank signature page |
 | Supersedes | `RANGE-002_P0_Owner_Decision_Package_v0.1.md` (commit `f5cee030`, local branch only, written before PR #738 and PR #739 merged). Content of v0.1 that is still right is kept and marked "(carried from v0.1)"; corrections to v0.1 are listed in section 0.3 |
 | Date | 2026-10-10 |
+| Revision | Unsigned reconciliation update (section 53) applied on `origin/main` `bd45c6f9` (PR #749; parent `c22c95f5`, PR #748), as stage 4 of a four-stage documentation sequence; stages 1 to 3 (feasibility report, governance package, readiness matrix with the ENG-A1 documents) are merged and this stage follows them. No approval status changed: 0 approved decisions, all signatures blank, exactly 32 numbered items in section 51 (no renumbering) |
 | Base | `origin/main` at `d61f313a` (PR #737 docs, PR #738 Level 1 spec infrastructure, PR #739 Level 1 governance infrastructure, all merged) |
 | Status | **DRAFT FOR OWNER REVIEW. Nothing in this document is a decision, a signature, an approval, an enrollment or a freeze.** Every item labelled "Recommendation (not a decision)" is the preparer's proposal. Every signature row is blank and may be filled only by the named human. No AI agent may hold a role or sign (rule R9). |
 | Data accessed | None. No RANGE-002 returns, P&L, win rates or profit factors were computed or viewed. No market data, provider or broker call was made. No registry was enrolled, no genesis id was generated or recorded, no spec was frozen, no governed code was run on real values. The only code executed was `draft_skeleton()` in an isolated interpreter (section 4.5), which contains no real values. |
 | Documents relied on | Implementation Plan v0.5 ("Plan"); Design Addendum A1 ("A1", DRAFT, unsigned); P0 Decision Sheets v0.1 ("Sheets"); `governing_reconciliation.md` (rulings C1-C13, items C14-C15); `recon.md`; Governance Hardening Design v0.1 ("Hardening"); `RANGE-002_governance_manifest.json`; merged code under `apps/backend/app/research/range002/{spec,governance}/` and `apps/backend/scripts/research/range002/freeze_spec.py`; the Level 2 design set (commit `79e072d7`, local only) and the Approval Signing design (`d1406ec2`, local only); the PR #739 acceptance records `owner_decisions.md` and `finding_dispositions.md` (read-only, outside the repository) |
 | Not covered | No gate threshold is opened or changed (G0-G10 stay as in design v0.4 section 6 and are additionally locked by equality validators in the merged schema). No spec value is chosen here. The Level 2 items accepted or deferred by the owner are not reopened (section 6) |
 
-Abbreviations used in the register: FRZ = a real `freeze_spec` run; ENR = first (genesis) enrollment; P1 = P1 start (first data pull, PR 5); P3A = first governed P3a run; MRG = merge of the distinct-role follow-up PR (commit `57dadd52`, local only, see section 6.1).
+Abbreviations used in the register: FRZ = a real `freeze_spec` run; ENR = first (genesis) enrollment; P1 = P1 start (first data pull, PR 5); P3A = first governed P3a run; MRG = merge of the distinct-role follow-up PR (PR #740, head `8792e043`; earlier local form `57dadd52`; see section 6.1).
 
 ## RECOMMENDED RULINGS VERSUS FORMALLY APPROVED DECISIONS
 
@@ -55,9 +56,9 @@ These are the owner's **provisional policy directions** as relayed to the prepar
 
 ### 0.2 Items still not on `main`
 
-- The follow-up that rejects identical sign-off role identifiers (`57dadd52`, branch `fix/range002-signoff-distinct-roles`, local, unpushed).
+- The follow-up that rejects identical sign-off role identifiers: now PR #740 (head `8792e043`; OPEN, pushed, not merged, not merge-approved) on branch `fix/range002-signoff-distinct-roles` (earlier forms `57dadd52` and `3f05d17a` were local).
 - The Level 2 design set (`79e072d7`, docs only, local) and the Approval Signing design (`d1406ec2`).
-- This register itself.
+- (Status update, stage 4) This register v0.2 and `RANGE-002_Validator_Independence_Requirements_v0.1.md` are on `main` (PR #745); the stage 4 reconciliation of this register (section 53) is published only if and when its own PR merges.
 
 ### 0.3 Corrections to v0.1 (made after reading the merged code)
 
@@ -113,7 +114,7 @@ These are the owner's **provisional policy directions** as relayed to the prepar
 | M-gen | `approved_registry_genesis_id`, `approved_by`, `approved_on` (all-or-nothing triple) | BLANK | Filled only after enrollment, by the single reviewed manifest change in section 2.4. No value may be pre-supplied | Enrollment evidence record (section 2.7) | FRZ (T), P3A (T: results guard compares registry = spec = manifest) | |
 | M-lim-p3a | `p3_attempt_limits.p3a` (and spec `p3.max_p3a_attempts`, which must equal it) | BLANK | **Standing recommendation: 1.** Subject to the conflict in section 3.3 (defect-only reruns) which the owner must resolve first | Owner decision after reading section 3 | FRZ (T), P3A (T) | |
 | M-lim-p3b | `p3_attempt_limits.p3b` (and spec `p3.max_p3b_attempts`) | BLANK | **Standing recommendation: 1.** Same dependency | Same | FRZ (T), first P3b run (T) | |
-| ACC-R1L1b | Obligation from owner ruling 5 (2026-10-10): a genuinely independent validator is required before formal P0 approval or real specification freeze; separate minimal follow-up rejecting identical role identifiers | BLANK for the obligation; follow-up `57dadd52` exists locally, unpushed, unmerged | Name the independent validator (D08) before any P0 sign-off; merge the follow-up only on the owner's explicit instruction, with the walk-away interval | Validator name; follow-up CI evidence | FRZ (G), MRG | |
+| ACC-R1L1b | Obligation from owner ruling 5 (2026-10-10): a genuinely independent validator is required before formal P0 approval or real specification freeze; separate minimal follow-up rejecting identical role identifiers | BLANK for the obligation; follow-up is PR #740 (head `8792e043`; OPEN, pushed, not merged, not merge-approved); earlier local form `57dadd52` | Name the independent validator (D08) before any P0 sign-off; merge the follow-up only on the owner's explicit instruction, with the walk-away interval | Validator name; follow-up CI evidence | FRZ (G), MRG | |
 
 Notes on the register:
 
@@ -357,7 +358,7 @@ Reproduced from the real skeleton with `draft_skeleton()` in an isolated interpr
 | D01 | `governance.exposure_signed` |
 | M-gen | `governance.registry_genesis_id` (must equal the manifest) |
 
-Total 66. In addition `freeze_spec` requires, already present in the draft before freezing, the human sign-off fields `signoff.owner`, `signoff.trading_expert`, `signoff.independent_validator` and `signoff.date` (not in the future); `signoff.spec_sha256` is computed by the tool (a preset that differs from the content hash refuses). The tool refuses unless the manifest is approved (genesis triple and both limits) and equal to the spec; it never overwrites an existing output file and never fabricates a sign-off. The tool checks only that the sign-off strings are present; it does not check A1, the other documents or that the three names are different people (the local follow-up `57dadd52` adds only an identical-identifier check).
+Total 66. In addition `freeze_spec` requires, already present in the draft before freezing, the human sign-off fields `signoff.owner`, `signoff.trading_expert`, `signoff.independent_validator` and `signoff.date` (not in the future); `signoff.spec_sha256` is computed by the tool (a preset that differs from the content hash refuses). The tool refuses unless the manifest is approved (genesis triple and both limits) and equal to the spec; it never overwrites an existing output file and never fabricates a sign-off. The tool checks only that the sign-off strings are present; it does not check A1, the other documents or that the three names are different people (the follow-up, PR #740 (head `8792e043`; OPEN, pushed, not merged, not merge-approved), adds only an identical-identifier check).
 
 Fixed by the skeleton (not owner values): program, spec_version, instrument type, minimum price $10, ADV window 20 days, monthly rebuild, delisted included, SIP 1-minute RTH data with New York time, OR window 09:30:00-09:59:59, entry window 10:00:00-14:59:59, tick offset 1, one entry per symbol-day, stop at OR low, EOD flat 15:55:00, same-bar `worst_case`, costs 5 and 15 bps per side, the four partitions, bootstrap cluster `trading_day`, adjustment preset `holm`, and the locked gate and P5 thresholds in 4.1.
 
@@ -426,7 +427,7 @@ This section records status only. None of these items is reopened. The Level 1 c
 
 | Item | Owner ruling (2026-10-10, via the acceptance record) | Consequence for this register |
 |---|---|---|
-| R1-L1b: the same person can occupy all three sign-off roles | Accepted for the infrastructure merge. **A genuinely independent validator is required before formal RANGE-002 P0 approval or real specification freeze.** Follow-up (reject identical role identifiers, not identity verification) prepared as `57dadd52`, local, unpushed; conflict check: no conflict with the governing design | Register rows D08, D08-SoD and ACC-R1L1b. The tool does not enforce it today. It must be satisfied procedurally before FRZ, and the follow-up merges only on explicit owner instruction. A technical check cannot prove two identifiers are two people |
+| R1-L1b: the same person can occupy all three sign-off roles | Accepted for the infrastructure merge. **A genuinely independent validator is required before formal RANGE-002 P0 approval or real specification freeze.** Follow-up (reject identical role identifiers, not identity verification) prepared as `57dadd52` and now PR #740 (head `8792e043`; OPEN, pushed, not merged, not merge-approved); conflict check: no conflict with the governing design | Register rows D08, D08-SoD and ACC-R1L1b. The tool does not enforce it today. It must be satisfied procedurally before FRZ, and the follow-up merges only on explicit owner instruction. A technical check cannot prove two identifiers are two people |
 | PH3-fork: a capability is run-bound, not process-bound | Accepted | The first governed run must not be started in a process whose forks are uncontrolled; no register item |
 | PH3-A5: directory aliases, no physical path confinement | Accepted with documented limitation | M-loc: a linked directory is followed, so record the real path and the host; do not rely on the path for confinement |
 | Torn-tail fail-closed lockout (R4-N6, R6-NF8) | Accepted; recovery is a separate owner-authorized procedure, design only | An interrupted write to the registry locks it closed; see C-DR for why this raises the cost of a technical failure |
@@ -560,7 +561,7 @@ I acknowledge the Level 1 governance direction, UUIDv4 genesis as an identity ma
 2. Rule on the attempt-limit question (conflict C-DR) and state the two limit values.
 3. Decide the registry location, host, operator and witness, and give written authorization for the ceremony (or defer it).
 4. Start the long-lead items: C12 environment, SIP vendor/licence/history checks (D03, F1, F2, F5), C10 custody.
-5. Decide whether the local follow-up `57dadd52` is to be pushed and merged.
+5. Decide whether the follow-up, PR #740 (head `8792e043`; OPEN, pushed, not merged, not merge-approved) (earlier local form `57dadd52`), is to be merged.
 6. Rule on `p5.account_id` at freeze (C-P5).
 
 Nothing else is requested before those; all other decisions follow the critical path in section 5.2.
@@ -1445,7 +1446,7 @@ Recommendation (not a decision): SoD-A target, SoD-C minimum, any SoD-B waiver r
 
 ### 15.4 How independence is confirmed outside the string-distinctness safeguard
 
-The merged tool checks only that three strings are present; the local follow-up (`57dadd52`) will reject identical or trivially variant identifier strings. Neither proves independence. Procedural confirmation proposed (Recommendation (not a decision)); the validator signs an attestation covering each line, and the owner countersigns:
+The merged tool checks only that three strings are present; the follow-up (PR #740 (head `8792e043`; OPEN, pushed, not merged, not merge-approved); earlier local form `57dadd52`) will reject identical or trivially variant identifier strings. Neither proves independence. Procedural confirmation proposed (Recommendation (not a decision)); the validator signs an attestation covering each line, and the owner countersigns:
 
 1. Distinct natural persons, identified in a record kept outside the repository; not the same person as the owner, the research lead or the trading expert.
 2. Separate accounts and credentials (repository, cloud, signing keys when H4 exists); no shared login.
@@ -1458,9 +1459,9 @@ The merged tool checks only that three strings are present; the local follow-up 
 
 ### 15.5 Validator-independence requirements (cross-reference to Workstream B)
 
-The software safeguard for sign-off roles (R1-L1b follow-up, local commit `3f05d17a` on `fix/range002-signoff-distinct-roles-rebased`, base `d61f313a`, **not merged**) checks only that the three role identifier strings are pairwise distinct after Unicode normalisation. It does **not** establish that the signers are different humans, and it does not authenticate identity (homoglyphs, aliases, email-versus-display-name and, until the open finding F1 is resolved, invisible characters are not caught).
+The software safeguard for sign-off roles (R1-L1b follow-up, now PR #740 (head `8792e043`; OPEN, pushed, not merged, not merge-approved); earlier local forms `57dadd52` and `3f05d17a` on `fix/range002-signoff-distinct-roles-rebased`, base `d61f313a`) checks only that the three role identifier strings are pairwise distinct after Unicode normalisation. It does **not** establish that the signers are different humans, and it does not authenticate identity (homoglyphs, aliases, email-versus-display-name and, until the open finding F1 is resolved, invisible characters are not caught).
 
-Real independence confirmation is a procedural requirement, specified in `RANGE-002_Validator_Independence_Requirements_v0.1.md` (local branch `docs/range002-validator-independence`, commit `7421ca62`, **not merged**). Cite these sections of that document:
+Real independence confirmation is a procedural requirement, specified in `docs/implementation/evidence/range_002/RANGE-002_Validator_Independence_Requirements_v0.1.md` (merged to `main` in PR #745; earlier local branch `docs/range002-validator-independence`, commit `7421ca62`). Merging the document adopts nothing; the requirements remain PROPOSED. Cite these sections of that document:
 
 - **V-1** what the string check proves and does not prove.
 - **V-2** (V-2.1 to V-2.10) the ten procedural confirmations the owner could require: named natural persons, attestations of no authorship of the engine or spec code, no prior exposure to RANGE-002 results, separate accounts and credentials, separate key custody, a recorded conflicts statement, and who verifies.
@@ -1526,7 +1527,7 @@ The design's own recommendation (line 294, quoted): "the owner and the independe
 
 > **Superseded in part (Part VI, s48):** under the proposed SoD-A + SoD-C policy (s27) SoD-B is not a candidate, so the amendment question for SoD-B is moot.
 
-The safeguard is the R1-L1b follow-up (commit `57dadd52` on `fix/range002-signoff-distinct-roles`; rebased as `3f05d17a` on `fix/range002-signoff-distinct-roles-rebased`, base `d61f313a`). It is **not merged**; `main` at `d61f313a` has no distinctness check. As prepared, `freeze_spec` refuses (`SignoffRolesNotDistinctError`) when `signoff.owner`, `signoff.trading_expert` and `signoff.independent_validator` are not **pairwise** distinct after NFKC / casefold / strip / whitespace-collapse; `load_frozen` reports `unusable_reasons`. It compares identifier strings only, over exactly those three fields (`SIGNOFF_ROLE_FIELDS`).
+The safeguard is the R1-L1b follow-up, now PR #740 (head `8792e043`; OPEN, pushed, not merged, not merge-approved) (earlier forms: `57dadd52` on `fix/range002-signoff-distinct-roles`; rebased as `3f05d17a` on `fix/range002-signoff-distinct-roles-rebased`, base `d61f313a`). It is **not merged**; `main` has no distinctness check (the code is unchanged since `d61f313a`). As prepared, `freeze_spec` refuses (`SignoffRolesNotDistinctError`) when `signoff.owner`, `signoff.trading_expert` and `signoff.independent_validator` are not **pairwise** distinct after NFKC / casefold / strip / whitespace-collapse; `load_frozen` reports `unusable_reasons`. It compares identifier strings only, over exactly those three fields (`SIGNOFF_ROLE_FIELDS`).
 
 | Option | Expressible under the all-pairs safeguard? | Note |
 |---|---|---|
@@ -1682,8 +1683,8 @@ These records supersede the blank forms in section 11 for content; section 11 re
 | DOC-DOCX | research design v0.4 DOCX (not in git; C10) | n/a |
 | DOC-SIGN | `RANGE-002_Approval_Signing_and_Verification_Design_v0.1.md` | `d1406ec2` (local only) |
 | DOC-L2 | Level 2 design index, Execution Boundary, Recovery Procedure, Acceptance plan | `79e072d7` (local only) |
-| DOC-IND | `RANGE-002_Validator_Independence_Requirements_v0.1.md` | `7421ca62` (local only) |
-| DOC-SAFE | distinct-role safeguard | `57dadd52` / `3f05d17a` (local only, not merged) |
+| DOC-IND | `RANGE-002_Validator_Independence_Requirements_v0.1.md` | on `main` (PR #745); earlier local commit `7421ca62` |
+| DOC-SAFE | distinct-role safeguard | PR #740, head `8792e043` (OPEN, pushed, not merged, not merge-approved); earlier local forms `57dadd52` / `3f05d17a` |
 | DOC-THESIS | `economic_thesis.md` (WP0.9) | does not exist yet |
 | DOC-LEDGER | signed exposure ledger | does not exist yet |
 
@@ -2607,7 +2608,7 @@ The register grew in layers. This table records, for each ruling, the sections t
 | Go / no-go | s17, s26, s37, s47 | s50 | NO-GO throughout; 0 decisions approved |
 | D11 | s1.2, s10 D11, s33.3, s46.3 | s46.3 | Corrected in this commit: the `data.fetch_mode` enumeration is **owner must define** (no source defines it) |
 
-## 49. READ-ONLY CROSS-CHECK OF THE AGENT C SCHEMA CANDIDATE `5bc2b493`
+## 49. READ-ONLY CROSS-CHECK OF THE AGENT C SCHEMA CANDIDATE `76730911` (the original candidate `5bc2b493` is superseded by it)
 
 Source: local commit `5bc2b493` on `feat/range002-schema-batch` ("local candidate", not pushed, not approved), its schema diff and its review checklist, read with `git show` only. Nothing was changed. **Update:** Agent C's later independent review produced fix commit `76730911` (branch `feat/range002-schema-batch`) and docs commit `9574d484` (branch `docs/range002-p1-p2-backlog`, read-only here). Where this section and those commits differ, the later commits control: the per-candidate `rank` was withdrawn, and the OD mappings were corrected as stated below.
 
@@ -2621,7 +2622,7 @@ Source: local commit `5bc2b493` on `feat/range002-schema-batch` ("local candidat
 
 ### 49.2 Findings requiring owner attention
 
-1. **Mandatory-field count changes.** The candidate adds **20 owner-valued new leaf paths** and replaces `p5.account_id` with `p5.account_binding` (the per-candidate `rank` was withdrawn and is not counted). After it merges, the P0 fields the freeze tool requires are no longer the 66 listed in s4.5 / s14 (arithmetic: 66 - 1 + 1 + 20 = 86, to be re-verified on the merged schema). Section 49.3 maps every new path to an owning decision so nothing is unowned. Two fixed, non-owner members (`stage1_criteria.invariants`, `.on_fail`) are not owner values.
+1. **Mandatory-field count changes.** The candidate adds **20 owner-valued new leaf paths** and replaces `p5.account_id` with `p5.account_binding` (the per-candidate `rank` was withdrawn and is not counted). After it merges, the P0 fields the freeze tool requires are no longer the 66 listed in s4.5 / s14 (arithmetic: 66 - 1 + 1 + 20 = 86). **Basis of each count:** 66 = the merged code on `main` (the `apps/` tree is unchanged since `d61f313a`); 86 = the schema candidate `76730911` (local, unmerged, PROPOSED); 87 = only if G10-C1 is adopted (86 plus one hashed field `governance.comparator_policy_sha256`; separate PROPOSAL). 86 and 87 are to be re-verified on the merged schema. Section 49.3 maps every new path to an owning decision so nothing is unowned. Two fixed, non-owner members (`stage1_criteria.invariants`, `.on_fail`) are not owner values.
 2. **Within-family tie-break (escalated, unset).** Plan s2.2 orders complexity by **family** (E1 = 1, E2a / E2b = 2, E3a / E3b = 3, E4a / E4b = 4). The first candidate draft added a unique per-candidate `rank`; that was **withdrawn** after review, because it would silently add a within-family tie-break rule. Complexity stays family-level (`exits.complexity_order`). The within-family tie-break (for example E2a vs E2b) is therefore an **unset owner-approval item at D19**; the options named in Agent C's proposal are an unresolved tie is `INCONCLUSIVE`, first in candidate-list order, or smaller parameter. No option is selected here. Fail-closed requirement: `select_exit` must refuse an unresolved within-family tie. The independent validator reviews it (s34.4).
 3. **Name clash: "adjustment".** `data.adjustment` is the corporate-action price basis (Plan WP1.6), whereas the "adjustment" in the A1 D06 row and `stats.adjustment` mean multiplicity adjustment. Different decisions; keep them distinct in the sign-off records.
 4. **New D06 controls need individual definition and independent statistical review.** The candidate gives the stage-1 control (`time_shuffle`, `no_information`, `stage1_criteria` including an optional negative-control test with an alpha) and the random-entry `population` a hashed definition. The Plan describes the controls (WP4.0, WP2.5) but fixes none of these parameters. Each is a D06 owner decision (the candidate labels one "OD-2"). Before any value is entered, each control needs an **individual written definition**, its **acceptance behaviour** (what passes, what fails, what the run does on failure) and **independent statistical review by the D08 validator**. A value in a frozen spec shows that the owner chose it, not that the choice is sound; hashing approves nothing. The validator packet (s34.1) is extended accordingly.
@@ -2631,8 +2632,8 @@ Source: local commit `5bc2b493` on `feat/range002-schema-batch` ("local candidat
 | Item | Corrected owner | Note |
 |---|---|---|
 | O-1 budget cap | D03 | unchanged |
-| O-7 lineage refusal constants (OD-1) | **PROPOSED D03 sub-item** (source: backlog O-7 / OD-1; D09 is the alternative home); the sub-item wording is a proposal: lineage refusal constants adopted as-is, with the values echoed in the data manifest. **Owner to rule D03 vs D09** | not in the D03 Sheet; mapped to D03 only if the sub-item is added |
-| O-13 redundancy comparison set for G10 (OD-3) | **UNRESOLVED** | G10 (correlation with approved strategies <= 0.85) is a **binding** promotion constraint (Plan s5.1). D13 covers only the thesis, naive ORB and non-binding diagnostics; D10 covers only win rate and the drawdown comparator; no Sheet mentions redundancy. Authority is not preserved by mapping it to D13. Kept visible as an unowned item for the owner to assign. The backlog also suggested D08 or D10 as possible homes for OD-3; none was adopted |
+| O-7 lineage refusal constants (OD-1) | **11 constants plus 2 related items.** The 11 constants are the three 20-session constants (`LINEAGE_GAP_SESSIONS`, `LATE_START_SESSIONS`, `LINEAGE_BRIDGE_HOLE_MIN_SESSIONS`), `SECURITY_IDENTITY_CONTRACT` and the seven `LineageRefusal` members; the 2 related items (`SecurityIdentityUnavailable`, an exception class, and the `lookback_start` argument) are not constants. Ten constants are recommended to **D03** (universe / PIT / vendor). `SECURITY_IDENTITY_CONTRACT`: **split pending, owner-directed, unsigned - D03 identity representation, D09 identity equivalence**, one shared versioned contract with explicit cross-references; the equivalence rule "same contract version + same permaticker" is **PROPOSED**. The adoption statement (as-is, stricter, looser) is unsigned. Detail: `RANGE-002_P0_Decision_Package_vNext_v0.1.md` sections A1.2 to A1.2d | not in the D03 or D09 Sheet; a sheet amendment is PROPOSED, not applied |
+| O-13 redundancy comparison set for G10 (OD-3) | **UNRESOLVED** | G10 (correlation with approved strategies <= 0.85) is a **binding** promotion constraint (Plan s5.1). D13 covers only the thesis, naive ORB and non-binding diagnostics; D10 covers only win rate and the drawdown comparator; no Sheet mentions redundancy. Authority is not preserved by mapping it to D13. Kept visible as an unowned item for the owner to assign. The backlog also suggested D08 or D10 as possible homes for OD-3; none was adopted. The comparator-policy binding alternatives are named **G10-C1** (hashed spec field `governance.comparator_policy_sha256`), **G10-C2** (governance manifest key) and **G10-C3** (sign-off-packet pin); earlier drafts' "Option 1/2/3" map to C1/C2/C3. Owner preference for evaluation (unsigned): G10-C1, pending an independent technical review that it can bind a hashed comparator policy into the frozen spec and the registry identity; C2 is evaluated for equal immutability and auditability; C3 is a fallback only if its linkage cannot be bypassed; no selection. The threshold stays <= 0.85. Detail: `RANGE-002_P0_Decision_Package_vNext_v0.1.md` section A2 |
 | O-15 diagnostic windows | D13 | unchanged |
 | O-16 halt evidence source (OD-4) | **D05 5h** (halt rule), plus the feasibility items for data availability | not 5j |
 | O-17 risk units | D05 5j | unchanged |
@@ -2703,7 +2704,7 @@ All items are unsigned. "Decides" names the role with authority (design s10.3, A
 
 **Step 6 - audits, feasibility and thesis**
 17. **D01.** Decides: owner; validator co-sign recommended. Evidence: the signed WP0.6 contact audit including AI-session history; the exposure ledger; the owner's ruling on daily-layer contact; `hypothesis_lineage.yaml`.
-18. **D03.** Decides: owner. Evidence: F1, F2, F5; vendor plan and licence; budget cap; N and PIT timing statement; `data.adjustment`, `coverage_min`, `exclusion_bound`; the PROPOSED D03 sub-item for lineage refusal constants (source: backlog O-7 / OD-1; D09 is the alternative home; owner to rule D03 vs D09).
+18. **D03.** Decides: owner. Evidence: F1, F2, F5; vendor plan and licence; budget cap; N and PIT timing statement; `data.adjustment`, `coverage_min`, `exclusion_bound`; the lineage refusal constants (OD-1): 10 constants recommended to D03; `SECURITY_IDENTITY_CONTRACT` split pending, owner-directed, unsigned (D03 identity representation, D09 identity equivalence); the equivalence rule is PROPOSED (see `RANGE-002_P0_Decision_Package_vNext_v0.1.md` section A1).
 19. **D05** (5a-5j, including 5h the halt rule and halt evidence source (OD-4), and the new paths). Decides: owner; trading expert reviews. Evidence: the E1 summaries (if E1 step 2 is later authorized) or an owner ruling to decide 5a / 5b without data; F3 / F4; numeric risk limits, initial equity and basis, over-budget rule, minute-reconciliation parameters.
 20. **D09 / C2 overlap limit, reviewers, history and gate-clause handling.** Decides: owner; trading expert and validator review criteria 2 and 3. Evidence: records of both programs; the overlap computed on the chosen history (no returns); the D13 mechanism text.
 21. **D12.** Decides: owner; validator reviews. Evidence: calendar and SPY daily-close session counts per regime and half; minimum trades per cell; share cap.
@@ -2723,16 +2724,63 @@ All items are unsigned. "Decides" names the role with authority (design s10.3, A
 
 Unnumbered, unresolved mapping (does not change the 32-item sequence): **OD-3, the G10 redundancy comparison set, has no owning decision.** The owner assigns it (for example by extending a named decision) before any freeze; until then it stays visible.
 
+**PROPOSED insertion, not applied (no renumbering): item 12A, G10-REDUNDANCY policy pre-registration.** It would sit in Step 5 immediately after D10 (item 12), after D06, D18 and D10's equity-sampling definition are signed. Under G10-C1 it would block the real freeze (new mandatory field) and therefore the first P3a authorization; under G10-C2 or G10-C3 it would block the first P3a authorization by process. The numbered list above remains exactly 32 items until a signed record adopts the insertion.
+
 **Standing recommendation: NO-GO.** No decision is approved (0).
 
 ## 52. EFFECT OF THESE CORRECTIONS (limited reconciliation)
 
 | Question | Answer | Reasons |
 |---|---|---|
-| Do the corrections change **decision authority**? | **No**, with one gap made visible | The deciding roles for D03, D05, D06, D07, D11, D13 and D19 are unchanged (owner decides; trading expert, validator review as before). OD-4 moves within D05 (5j to 5h) inside existing authority, and OD-1 is proposed for a D03 sub-item (D09 is the alternative home; owner to rule), which would also sit inside existing authority. OD-3 (G10 redundancy set) has **no** owning decision: that is a pre-existing gap now stated, not a change |
+| Do the corrections change **decision authority**? | **No**, with one gap made visible | The deciding roles for D03, D05, D06, D07, D11, D13 and D19 are unchanged (owner decides; trading expert, validator review as before). OD-4 moves within D05 (5j to 5h) inside existing authority, and OD-1 is a split pending, owner-directed and unsigned (D03 identity representation for `SECURITY_IDENTITY_CONTRACT`, ten constants recommended to D03), which would also sit inside existing authority once recorded. OD-3 (G10 redundancy set) has **no** owning decision: that is a pre-existing gap now stated, not a change |
 | Do they change **dependencies**? | **Yes, in three places** | (a) D19 depends on an owner approval of the within-family tie-break (previously described as a unique rank field); (b) each new D06 control needs a written definition, acceptance behaviour and validator review before a value is entered; (c) D05 5h now also carries the halt evidence source and the feasibility items for data availability. The 32-item sequence and the step order are unchanged |
 | Do they change **freeze fields**? | **Yes, relative to the earlier text of this register; no change in what the owner must decide** | The per-candidate `rank` is not a field (withdrawn), so the earlier "20 leaf paths plus rank" is corrected to 20 owner-valued leaf paths plus `p5.account_binding` replacing `p5.account_id`. Relative to `main` the required P0 set grows from 66 to 86 (66 - 1 + 1 + 20; re-verify on the merged schema). The six no-field decisions add no freeze field |
 
-Verdict: **materially changed** in four places (the `rank` withdrawal and the resulting D19 tie-break escalation; the unresolved OD-3 ownership; the OD-4 move to D05 5h with the OD-1 PROPOSED D03 sub-item pending the D03-vs-D09 ruling; the new D06 definition-before-value gate for each control) and **editorial** elsewhere (Plan Appendix A and D07 wording, the s22 / Record C-P5 text, the D11 proposal-only value). Terminology was aligned with Agent C's documents ("owner choice", "deferral marker", "activation record", "owner approval", "unset"); the register still labels owner choices recorded here as directions, not approvals.
+Verdict: **materially changed** in four places (the `rank` withdrawal and the resulting D19 tie-break escalation; the unresolved OD-3 ownership; the OD-4 move to D05 5h with the OD-1 split (D03 representation / D09 equivalence) pending a signed record; the new D06 definition-before-value gate for each control) and **editorial** elsewhere (Plan Appendix A and D07 wording, the s22 / Record C-P5 text, the D11 proposal-only value). Terminology was aligned with Agent C's documents ("owner choice", "deferral marker", "activation record", "owner approval", "unset"); the register still labels owner choices recorded here as directions, not approvals.
 
 Invariants preserved: **0 formally approved decisions**; every signature, name, date and SHA-256 field remains BLANK; the 32-item sequence in s51 is unchanged; the standing recommendation is NO-GO; no enrollment, freeze, data access or signing occurred.
+
+---
+
+## 53. UNSIGNED RECONCILIATION UPDATE (stage 4; changelog)
+
+This section records an in-place, **unsigned** update of the register on `main` `bd45c6f9` (PR #749). It changes no approval status: **0 formally approved decisions**, all signature, name, date and SHA-256 fields remain BLANK, section 51 keeps exactly 32 numbered items, and nothing is renumbered. It cites, by path under `docs/implementation/evidence/range_002/`, the stage 1 report (`RANGE-002_Data_Feasibility_and_Validation_Design_Report_v0.1.md`), the stage 2 governance package (`RANGE-002_P0_Decision_Package_vNext_v0.1.md`, `RANGE-002_OD_Followups_v0.1.md`) and the stage 3 documents (`RANGE-002_Implementation_Readiness_Matrix_v0.1.md`, `RANGE-002_First_Synthetic_Candidate_EP1_v0.1.md`, `RANGE-002_EP1_Implementation_Contract_and_Review_Package_v0.1.md`, `RANGE-002_ENG-A1_QB2_Decision_Sheet_v0.1.md`); stages 1 to 3 are merged and stage 4 is published after them.
+
+### 53.1 Changelog
+
+| # | Location | Change | Status label |
+|---|---|---|---|
+| 1 | Header | Added a Revision row pointing to this section | editorial |
+| 2 | Section 49 heading | The schema candidate is cited as `76730911`; the original `5bc2b493` is noted as superseded | editorial |
+| 3 | Section 49.2 item 1 | Leaf counts labelled with their basis: 66 (merged code), 86 (schema candidate, PROPOSED), 87 (only if G10-C1 is adopted); 86 and 87 to be re-verified on the merged schema | clarification |
+| 4 | Section 49.2 item 5, OD-1 row | Replaced "PROPOSED D03 sub-item / owner to rule D03 vs D09" with the 11 constants plus 2 related items count, ten constants recommended to D03, and `SECURITY_IDENTITY_CONTRACT` as split pending, owner-directed, unsigned (D03 representation, D09 equivalence); equivalence rule PROPOSED | material wording, unsigned |
+| 5 | Section 49.2 item 5, OD-3 row | Added the G10-C1 / G10-C2 / G10-C3 naming, the owner preference for evaluation (unsigned) and the 0.85 threshold unchanged | clarification, unsigned |
+| 6 | Section 51 item 18 (D03) | Aligned to the OD-1 wording above | material wording, unsigned |
+| 7 | Section 51 unnumbered note | Added the PROPOSED, not-applied item 12A block; the 32 numbered items are unchanged | PROPOSED |
+| 8 | Section 52 | OD-1 phrases aligned | editorial |
+| 9 | Section 53 | This changelog and the statements below | editorial |
+| 10 | Header; section 53 intro | Current publication base updated from `80bdb200` to `bd45c6f9` (PR #749); stage 1 to 3 documents cited by exact path | editorial |
+| 11 | Section 0.2; section 15.5; the document table; other status statements about the safeguard (sections 6, 12 and the lists that cite `57dadd52`) | Stale publication-status statements corrected in place: the Validator Independence Requirements merged in PR #745; the register v0.2 is on `main` (PR #745); the distinct-role safeguard is PR #740 (head `8792e043`; OPEN, pushed, not merged, not merge-approved), with the earlier local SHAs `57dadd52` and `3f05d17a` kept only as historical forms | clarification |
+| 12 | Section 53.2 | PR #740 status recorded here as OPEN, pushed, not merged, not merge-approved; the already-merged `RANGE-002_P0_Decision_Package_vNext_v0.1.md` still labels #740 "local" and is left unchanged (historical wording until separately amended) | clarification |
+| 13 | Section 53.2 | OD-1 D03/D09 split restated as PROPOSED and unadopted; the already-merged Readiness Matrix still says "OD-1 (D03 sub-item)", which predates the split, and is left unchanged | clarification, unsigned |
+| 14 | Section 53.2 | Unresolved reconciliation notes added (decision readiness versus validator readiness for D06/D18; two distinct 32-item inventories; A1 ordering); no text outside this section was rewritten for them | clarification |
+
+### 53.2 Statements recorded (all PROPOSED or owner-directed, none signed)
+
+- **Identity.** A security identity is (permaticker, effective-date interval); a ticker alone cannot identify a security through time (symbol reuse). D03 controls the identity **representation** used in universe and PIT data construction; D09 controls the identity **equivalence** used for lineage, overlap and non-equivalence checks; the two refer to one shared, versioned contract. The rule "same contract version and same permaticker" is **PROPOSED**.
+- **ORM-001.** ORM-001 is a candidate program name only. There is no ORM-001 code in the repository, hence no dependency on `security_lineage.py` was found; a future dependency is not determinable. What would settle it is ORM-001's registration or spec (universe, data source, symbol-key convention) or the D09 relationship ruling.
+- **G10 sequencing (owner-directed form).**
+  - The comparator policy is pinned **before P3a** (binding alternatives G10-C1, G10-C2, G10-C3; no selection).
+  - **Before the P4 authorization request**, comparator data and evidence availability and integrity are verified (no correlation is computed), and the P4 request is **REFUSED** if that is not satisfied. This is a **PROPOSED binding prerequisite requiring formal adoption (a signed record and a Plan amendment)**. **K5 automated guard enforcement is NOT authorized**; until it is, the refusal is procedural.
+  - The **P4 run preserves the protected statistical evaluation**; G10 is evaluated after the P4 run from the audit pack.
+  - **After P4**, a failed or undefined G10 blocks advancement and promotion without rewriting any P4 result and without adding or reinterpreting any verdict value.
+- **Schema candidate.** `76730911` is local and unmerged; option B for `p5.account_binding` remains PROPOSED / NOT APPROVED, and the merged schema still requires `p5.account_id`.
+- **PR #740 status (current).** PR #740 (head `8792e043`; OPEN, pushed, not merged, not merge-approved). Its merge is deferred (AR-6). Historical SHAs (`57dadd52`, `3f05d17a`) describe earlier forms only. The merged vNext package still describes #740 as "local"; that wording is historical and is not amended here.
+- **OD-1 status (current).** The D03/D09 split of `SECURITY_IDENTITY_CONTRACT` is PROPOSED and unsigned; neither the D03 nor the D09 ruling is adopted by this update. The merged Readiness Matrix wording "OD-1 (D03 sub-item)" predates the split and is not amended here.
+- **D06/D18 decision readiness versus validator readiness (unresolved note).** Section 26.2 lists D06 and D18 as ready in the sense that the decision text and options are prepared for an owner ruling. That is not validator readiness: section 51 requires validator work for both (D06 statistics specification and validator calibration; D18 after D02), and ruling 5 requires a genuinely independent validator before any formal approval. Section 26.2 is not rewritten; read it as decision preparation only.
+- **Two different 32-item sets (unresolved note).** The section 1.2 inventory and the section 51 signing sequence both contain 32 entries but are composed differently; they are not the same list. The section 51 sequence is the signing order and is unchanged (32 numbered items, no renumbering, item 12A not adopted). The section 1.2 inventory is not renumbered or reconciled here.
+- **A1 ordering (unresolved governance reconciliation issue).** The position of the A1 reconciliation differs between sections of this register and the merged vNext package and the Sheets (for example, a Step 1 placement in one and a different rank in another). This update does not resolve or rewrite it; it is recorded for a later owner ruling.
+
+### 53.3 Not changed by this update
+
+No decision record, signature block, hash pin or option selection; sections 1 to 48 other than the lines listed in 53.1; the section 51 list; any authoritative schema, guard, registry or Plan text.
