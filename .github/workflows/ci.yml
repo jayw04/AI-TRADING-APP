@@ -137,10 +137,15 @@ jobs:
       # SECURITY: the changed-file list is PR-controlled (untrusted). It is passed via an ENV VAR and
       # written to a file — NEVER interpolated into the shell command — so a hostile filename (quotes,
       # $(...), backticks, newlines) cannot alter the command. The classifier treats filenames as data.
+      #
+      # SIZE: the list is exported ONLY on pull_request. On schedule/dispatch (no `before` in the payload)
+      # it is the whole tree (~140 kB), which exceeds the Linux 131,072-byte per-env-string limit and
+      # made the runner fail with `Argument list too long` before the script started (nightlies red
+      # since 2026-08-30). Non-PR events never read it (they are FULL for every project by rule).
       - name: Classify changes (per-project FULL?)
         id: classify
         env:
-          CHANGED_FILES_JSON: ${{ steps.filter.outputs.all_files }}
+          CHANGED_FILES_JSON: ${{ github.event_name == 'pull_request' && steps.filter.outputs.all_files || '[]' }}
         run: |
           if [ "$GITHUB_EVENT_NAME" = "pull_request" ]; then
             printf '%s' "$CHANGED_FILES_JSON" > "$RUNNER_TEMP/changed.json"
