@@ -61,7 +61,8 @@ def decision_block(**overrides: Any) -> dict[str, Any]:
     """A synthetic, approved, run-scope decision reference; ``spec_sha256`` is None (the freeze
     tool fills it). ``overrides`` replace fields."""
     block: dict[str, Any] = {
-        "meeting_date": "2000-01-01",
+        "decision_date": "2000-01-01",
+        "record_kind": "meeting_minutes",
         "minutes_path": MINUTES_RELPATH,
         "minutes_sha256": MINUTES_SHA256,
         "decision": "approved",

@@ -41,14 +41,14 @@ def test_strict_mode_rejects_lax_coercion(path, bad):
 
 def test_iso_date_strings_still_accepted_for_date_fields():
     spec = parse_draft(complete_payload())
-    assert spec.decision is not None and spec.decision.meeting_date == date(2000, 1, 1)
+    assert spec.decision is not None and spec.decision.decision_date == date(2000, 1, 1)
     assert spec.partitions.holdout == (date(2022, 1, 1), date(2025, 12, 31))
 
 
 @pytest.mark.parametrize("bad", [20000101, 946684800.0, True, "2000-1-1x"])
 def test_non_iso_dates_rejected(bad):
     payload = complete_payload()
-    set_path(payload, "decision.meeting_date", bad)
+    set_path(payload, "decision.decision_date", bad)
     _problems(payload)
 
 

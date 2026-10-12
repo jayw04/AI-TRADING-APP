@@ -31,7 +31,7 @@ def test_loads_decided_ledger() -> None:
     led = ExposureLedger.from_text(DECIDED_LEDGER)
     assert led.has_decision
     record = led.require_decision()
-    assert set(record) == {"meeting_date", "minutes_path", "minutes_sha256"}
+    assert set(record) == {"decision_date", "record_kind", "minutes_path", "minutes_sha256"}
     assert [e.id for e in led.entries] == ["syn-rng001-window"]
     assert led.entries[0].window == DateRange(date(2026, 1, 2), date(2026, 6, 12))
 
@@ -108,7 +108,10 @@ def _mut(fn):
         _mut(lambda d: d["decision"].update(minutes_path="a\\b.md")),
         _mut(lambda d: d["decision"].update(minutes_sha256="XYZ")),
         _mut(lambda d: d["decision"].update(minutes_sha256="A" * 64)),
-        _mut(lambda d: d["decision"].update(meeting_date="not-a-date")),
+        _mut(lambda d: d["decision"].update(decision_date="not-a-date")),
+        _mut(lambda d: d["decision"].pop("record_kind")),
+        _mut(lambda d: d["decision"].update(record_kind="owner")),
+        _mut(lambda d: d["decision"].update(record_kind=None)),
         _mut(lambda d: d.update(signoff=d.pop("decision"))),  # the retired key is unknown now
         _mut(lambda d: d.update(entries=["nope"])),
         lambda: ["a", "b"],

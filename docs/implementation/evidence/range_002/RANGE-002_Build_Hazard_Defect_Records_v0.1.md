@@ -133,7 +133,8 @@ The `schema.py` edits on this branch were made **before** the owner's exception 
 
 | Field | Type | Rule |
 |---|---|---|
-| `meeting_date` | ISO date | the meeting at which the decision was recorded; a future date is refused by the freeze tool |
+| `decision_date` | ISO date | the date of the meeting, or of the owner's instruction, at which the decision was recorded; a future date is refused by the freeze tool for both record kinds (renamed from `meeting_date`) |
+| `record_kind` | `meeting_minutes` / `owner_instruction` | required, no default; any other value is refused. Both kinds carry the same scope/version binding and get identical checks in the loader, freeze tool, guard and exposure ledger |
 | `minutes_path` | str | repo-relative, forward slashes, non-blank, trimmed; no absolute form, drive letter, backslash, `..`, `.` or empty segment |
 | `minutes_sha256` | 64 lowercase hex | SHA-256 of the committed bytes of the minutes file |
 | `decision` | `approved` / `revise` / `defer` / `stop` | only `approved` authorizes anything |
@@ -142,6 +143,8 @@ The `schema.py` edits on this branch were made **before** the owner's exception 
 | `strategy_version` | non-blank trimmed str | carried to the guard view; no value is defaulted |
 | `baseline_id` | non-blank trimmed str | carried to the guard view; no value is defaulted |
 | `spec_sha256` | 64 lowercase hex or `null` | the recorded hash of this spec; written only by the freeze tool; `null` only in a draft, and a spec whose decision has no recorded hash is unusable |
+
+**Owner-instruction record (owner direction, 2026-10-12).** The field `meeting_date` was renamed `decision_date` (in `DecisionRef`, the exposure-ledger `decision` block, the freeze tool and every fixture) and a required field `record_kind` was added, so an explicit between-meeting instruction by the owner can be cited without a fictitious meeting date. An owner-instruction record is summarized in the next weekly minutes (no new document type); `record_kind` is carried to `SpecView` and `GuardSpecView` for reports. `DecisionRef` is outside the hashed payload, so no spec hash changes. The identifier `meeting_date` is now a banned legacy identifier in the existing grep test.
 
 Binding: the loader recomputes the spec hash and raises `SpecHashMismatchError` if `decision.spec_sha256` differs, so a spec edited after the decision, or a decision recorded for another spec version, never loads.
 

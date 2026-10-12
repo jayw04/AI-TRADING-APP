@@ -12,7 +12,8 @@ File schema (every key required, unknown keys rejected, nothing defaulted; dates
 ISO strings)::
 
     {"schema_version": 1,
-     "decision": null | {"meeting_date": "YYYY-MM-DD",
+     "decision": null | {"decision_date": "YYYY-MM-DD",   # meeting OR owner-instruction date
+                         "record_kind": "meeting_minutes" | "owner_instruction",
                          "minutes_path": <repo-relative str>,   # the committed minutes file
                          "minutes_sha256": <64 lowercase hex>}, # SHA-256 of that file's bytes
      "entries": [{"id": <unique str>,
@@ -46,7 +47,8 @@ from app.research.range002.spec.hashing import CanonicalisationError, content_sh
 SCHEMA_VERSION = 1
 _TOP_KEYS = frozenset({"schema_version", "decision", "entries"})
 _ENTRY_KEYS = frozenset({"id", "start", "end", "description", "source", "observed_by"})
-_DECISION_KEYS = frozenset({"meeting_date", "minutes_path", "minutes_sha256"})
+_DECISION_KEYS = frozenset({"decision_date", "record_kind", "minutes_path", "minutes_sha256"})
+_RECORD_KINDS = frozenset({"meeting_minutes", "owner_instruction"})
 _HEX64 = re.compile(r"^[0-9a-f]{64}$")
 
 
@@ -176,10 +178,16 @@ class ExposureLedger:
             sha = _req_str(raw_decision, "minutes_sha256", "decision")
             if not _HEX64.fullmatch(sha):
                 raise ExposureLedgerError("decision.minutes_sha256 must be 64 lowercase hex")
+            kind = raw_decision["record_kind"]
+            if not isinstance(kind, str) or kind not in _RECORD_KINDS:
+                raise ExposureLedgerError(
+                    f"decision.record_kind {kind!r} is not one of {sorted(_RECORD_KINDS)}"
+                )
             decision = {
-                "meeting_date": _as_date(
-                    raw_decision["meeting_date"], "decision.meeting_date"
+                "decision_date": _as_date(
+                    raw_decision["decision_date"], "decision.decision_date"
                 ).isoformat(),
+                "record_kind": kind,
                 "minutes_path": path,
                 "minutes_sha256": sha,
             }
@@ -230,7 +238,7 @@ class ExposureLedger:
         return self._decision is not None
 
     def require_decision(self) -> Mapping[str, str]:
-        """The cited decision record ``{meeting_date, minutes_path, minutes_sha256}``, or raise.
+        """The cited decision record ``{decision_date, record_kind, minutes_path, minutes_sha256}``, or raise.
 
         Presence only: the results guard re-hashes the cited minutes file."""
         if self._decision is None:

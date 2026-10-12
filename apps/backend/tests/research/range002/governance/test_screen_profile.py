@@ -353,6 +353,7 @@ def test_unknown_or_missing_profile_on_a_view_is_refused(tmp_path: Path) -> None
             decision_partitions=good.decision_partitions,
             minutes_path=good.minutes_path,
             minutes_sha256=good.minutes_sha256,
+            record_kind=good.record_kind,
             strategy_version=good.strategy_version,
             baseline_id=good.baseline_id,
             partitions=good.partitions,
