@@ -117,3 +117,13 @@ Legend: **Author exclusions** apply to every row: the code author is Claude Code
 | **Hazard-fix PR** (`fix/range002-build-hazards`, stacked on #755 `1ecf811b…`; **not pushed, no PR**) | Edits `spec/schema.py` (**guard-adjacent**) plus kernel/data/tests; closes hazards A-D | As #755, plus judgement of new P0 fields' hash binding and profile digests | Not the author account; its reviewer need not be #755's, but must review its own final head | A-D diffs, converted regression tests, retained negative tests, v2 digests; no change to #755's reviewed files | Same as #755 (guard-adjacent): per-file evidence, exact-SHA CI, walk-away; advisory input from 肖学焦 on the per-trade unit (no gate) | **Owner to name** |
 
 Pending regardless of assignment: validator 陈友潼 and 方炳雄 acceptance records; PR #740 merged before any sign-off counts GENUINE (R3).
+
+### 7.1 Hazard-PR review focus (pinned base `1ecf811b0b4ed7699bb4650c22387e1242f98e74`; branch head `21f8ea5c133703f68921a3ecef2998fb48b98dbd`, not pushed)
+1. Only `spec/schema.py` is guard-adjacent in the diff; the other five guard files are untouched (`git diff --stat` against the base).
+2. ADV is `closeunadj` x traded shares (`volume * close / closeunadj`), floor on `closeunadj`, intraday raw; only (`SEP_SPLIT_ADJUSTED`, `raw`) is accepted. Test: split inside the ADV window.
+3. `universe.category_map` is null until the owner sets it from the vendor's documented categories; no mapping exists in application code.
+4. `risk.per_trade_unit` explicit; 0.25 percent == 0.0025 fraction; fraction outside (0,1) refused.
+5. Scheduler: same-minute exit cannot fund a same-minute entry; freed notional reusable from the next minute; no intra-day compounding; `PERMATICKER_ASC` orders evaluation only.
+6. v1 specs missing the new fields freeze but the kernel refuses them: no silent default.
+7. Changed digest: `SCREEN_V2_REQUIRED_SHA256` `872193e1…897b` -> `16f904a3…96899`; no previously signed spec is approval of this baseline.
+8. Scope exception and its PENDING adoption record: defect-record sections G and H.
