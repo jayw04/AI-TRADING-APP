@@ -11,8 +11,9 @@ the signer was allowed to approve, and no authorization claim inside a record is
 (``signer.role`` is a claim that is checked against the roster, never accepted).
 ``SpecView.is_signed`` is deliberately not consulted anywhere in this module.
 
-KNOWN LIMITATION (result objects): ``VerifiedApproval`` is tamper-evident, not unforgeable; see its
-docstring.
+KNOWN LIMITATION (result objects): ``VerifiedApproval`` and ``HistoricalApproval`` are
+tamper-evident, not unforgeable against code in the same process; see their docstrings.
+``evaluate_requirement`` re-verifies every item from its signed bytes rather than trusting it.
 
 Profile (``range002-approval/1``): ECDSA P-256 over SHA-256, DER signature with low-S enforced,
 over ``DOMAIN || canonical_json(payload)``. The wire form is the canonical JSON of
@@ -37,6 +38,7 @@ import hmac
 import json
 import re
 import secrets
+from collections.abc import Sequence
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 from enum import StrEnum
@@ -91,6 +93,8 @@ class ErrorCode(StrEnum):
     REPLAY = "REPLAY"
     SUPERSESSION = "SUPERSESSION"
     CONFLICT = "CONFLICT"
+    HISTORY = "HISTORY"
+    KEY_COMPROMISED = "KEY_COMPROMISED"
 
 
 class ApprovalError(Exception):
@@ -132,6 +136,7 @@ class KeyEntry:
     not_before: str
     not_after: str
     revoked_at: str | None = None
+    compromised_since: str | None = None
 
 
 @dataclass(frozen=True)
@@ -165,23 +170,43 @@ class Roster:
     roster_id: str
     keys: tuple[KeyEntry, ...]
     assignments: tuple[RoleAssignment, ...]
+    persons: tuple[tuple[str, str], ...] = ()
 
     def __post_init__(self) -> None:
         if isinstance(self.version, bool) or not isinstance(self.version, int) or self.version < 1:
             raise _fail(ErrorCode.ROSTER_UNTRUSTED, "roster version must be an int >= 1")
         seen: set[str] = set()
+        points: set[bytes] = set()
         for key in self.keys:
             if key.key_id != hashlib.sha256(key.spki_der).hexdigest():
                 raise _fail(ErrorCode.ROSTER_UNTRUSTED, f"key_id {key.key_id!r} is not the digest")
             if key.key_id in seen:
                 raise _fail(ErrorCode.ROSTER_UNTRUSTED, f"duplicate key_id {key.key_id!r}")
             seen.add(key.key_id)
-            _p256_public_key(key.spki_der)
+            point = _p256_public_key(key.spki_der).public_bytes(
+                serialization.Encoding.X962, serialization.PublicFormat.UncompressedPoint
+            )
+            if point in points:
+                raise _fail(ErrorCode.ROSTER_UNTRUSTED, "one public key is enrolled more than once")
+            points.add(point)
             parse_timestamp(key.not_before, "key.not_before")
             parse_timestamp(key.not_after, "key.not_after")
             if key.revoked_at is not None:
                 parse_timestamp(key.revoked_at, "key.revoked_at")
+            if key.compromised_since is not None:
+                parse_timestamp(key.compromised_since, "key.compromised_since")
         _match(self.roster_id, _ID, "roster_id")
+        mapped: set[str] = set()
+        for pair in self.persons:
+            if not isinstance(pair, tuple) or len(pair) != 2:
+                raise _fail(
+                    ErrorCode.ROSTER_UNTRUSTED, "persons entries must be (identity, person_id)"
+                )
+            _match(pair[0], _ID, "persons identity")
+            _match(pair[1], _ID, "persons person_id")
+            if pair[0] in mapped:
+                raise _fail(ErrorCode.ROSTER_UNTRUSTED, "identity mapped to more than one person")
+            mapped.add(pair[0])
         for key in self.keys:
             _match(key.identity, _ID, "key.identity")
             if parse_timestamp(key.not_before) > parse_timestamp(key.not_after):
@@ -201,6 +226,15 @@ class Roster:
                 raise _fail(ErrorCode.ROSTER_UNTRUSTED, "assignment window is inverted")
 
     def _payload(self) -> dict[str, Any]:
+        payload = self._base_payload()
+        for entry in payload["keys"]:
+            if entry["compromised_since"] is None:
+                del entry["compromised_since"]
+        if self.persons:
+            payload["persons"] = sorted([list(pair) for pair in self.persons])
+        return payload
+
+    def _base_payload(self) -> dict[str, Any]:
         return {
             "version": self.version,
             "roster_id": self.roster_id,
@@ -213,6 +247,7 @@ class Roster:
                         "not_before": k.not_before,
                         "not_after": k.not_after,
                         "revoked_at": k.revoked_at,
+                        "compromised_since": k.compromised_since,
                     }
                     for k in self.keys
                 ),
@@ -233,6 +268,9 @@ class Roster:
                 key=lambda d: json.dumps(d, sort_keys=True),
             ),
         }
+
+    def person_of(self, identity: str) -> str | None:
+        return dict(self.persons).get(identity)
 
     def digest(self) -> str:
         return hashlib.sha256(DOMAIN + b"roster\x00" + canonical_json(self._payload())).hexdigest()
@@ -686,3 +724,621 @@ class ApprovalLedger:
         self._records[rec.record_id] = rec
         self._nonces.add(rec.nonce)
         self._superseded.update(rec.supersedes)
+
+
+# ---- slice 3d: roster history, as-of verification, distinct-person combinations -------------
+#
+# Synthetic, in-memory proof of behavior. The roster history is NOT the durable audit ledger,
+# and a synthetic timestamp authority proves nothing about real-world time: it only shows that
+# the verifier refuses signer-asserted time and checks a pinned countersignature instead.
+
+GENESIS_HASH = "0" * 64
+DOMAIN_TS = b"RANGE-002/timestamp/v1\x00"
+
+
+def _link_hash(version: int, roster_sha256: str, prev_record_sha256: str, effective_at: str) -> str:
+    body = {
+        "version": version,
+        "roster_sha256": roster_sha256,
+        "prev_record_sha256": prev_record_sha256,
+        "effective_at": effective_at,
+    }
+    return hashlib.sha256(DOMAIN + b"roster-link\x00" + canonical_json(body)).hexdigest()
+
+
+@dataclass(frozen=True)
+class RosterLink:
+    """One hash-chained history record binding a roster version to its canonical digest."""
+
+    version: int
+    roster_sha256: str
+    prev_record_sha256: str
+    effective_at: str
+    record_sha256: str
+
+
+def make_roster_link(roster: Roster, prev_record_sha256: str, effective_at: str) -> RosterLink:
+    return RosterLink(
+        version=roster.version,
+        roster_sha256=roster.digest(),
+        prev_record_sha256=prev_record_sha256,
+        effective_at=effective_at,
+        record_sha256=_link_hash(roster.version, roster.digest(), prev_record_sha256, effective_at),
+    )
+
+
+def _history_error(message: str) -> ApprovalError:
+    return _fail(ErrorCode.HISTORY, message)
+
+
+def _check_roster_step(prev: Roster, nxt: Roster) -> None:
+    """A new roster version may add keys and revoke or flag keys, but may not rewrite history."""
+    for old in prev.keys:
+        new = nxt.key(old.key_id)
+        if new is None:
+            raise _history_error(f"key {old.key_id!r} was removed from the roster")
+        if (new.identity, new.spki_der, new.not_before) != (
+            old.identity,
+            old.spki_der,
+            old.not_before,
+        ):
+            raise _history_error(f"key {old.key_id!r} was rewritten")
+        if old.revoked_at is not None and new.revoked_at != old.revoked_at:
+            raise _history_error(f"revocation of key {old.key_id!r} was changed or cleared")
+        if old.compromised_since is not None and new.compromised_since != old.compromised_since:
+            raise _history_error(f"compromise flag of key {old.key_id!r} was changed or cleared")
+    old_people = dict(prev.persons)
+    new_people = dict(nxt.persons)
+    for identity, person in old_people.items():
+        if new_people.get(identity) != person:
+            raise _history_error(f"identity {identity!r} was remapped to a different person")
+
+
+class RosterHistory:
+    """Immutable, ordered, hash-chained roster versions. Construction verifies the whole chain;
+    :meth:`verify_head` ties it to a head digest the caller pinned out of band, so substitution
+    or truncation of the history is detected."""
+
+    def __init__(self, links: tuple[RosterLink, ...], rosters: tuple[Roster, ...]) -> None:
+        if not links or len(links) != len(rosters):
+            raise _history_error("history needs one roster per link and at least one version")
+        prev_hash = GENESIS_HASH
+        prev_time: datetime | None = None
+        for index, (link, roster) in enumerate(zip(links, rosters, strict=True), start=1):
+            if link.version != index or roster.version != index:
+                raise _history_error("versions must be consecutive from 1 and match their rosters")
+            if link.prev_record_sha256 != prev_hash:
+                raise _history_error(f"version {index} does not chain to the previous record")
+            if link.roster_sha256 != roster.digest():
+                raise _history_error(f"version {index} roster does not match its recorded digest")
+            expected = _link_hash(
+                index, link.roster_sha256, link.prev_record_sha256, link.effective_at
+            )
+            if link.record_sha256 != expected:
+                raise _history_error(f"version {index} record hash is wrong")
+            effective = parse_timestamp(link.effective_at, "effective_at")
+            if prev_time is not None and effective <= prev_time:
+                raise _history_error("effective_at must be strictly increasing")
+            if index > 1:
+                _check_roster_step(rosters[index - 2], roster)
+            prev_hash, prev_time = link.record_sha256, effective
+        self._links = tuple(links)
+        self._rosters = tuple(rosters)
+
+    @property
+    def head_sha256(self) -> str:
+        return self._links[-1].record_sha256
+
+    @property
+    def latest(self) -> Roster:
+        return self._rosters[-1]
+
+    def verify_head(self, pinned_head_sha256: str) -> None:
+        if self.head_sha256 != pinned_head_sha256:
+            raise _fail(ErrorCode.ROSTER_UNTRUSTED, "history head does not match the pinned head")
+
+    def roster_for(self, version: int) -> Roster:
+        if (
+            isinstance(version, bool)
+            or not isinstance(version, int)
+            or not 1 <= version <= len(self._rosters)
+        ):
+            raise _fail(ErrorCode.ROSTER_VERSION, "roster version is not in the history")
+        return self._rosters[version - 1]
+
+    def interval(self, version: int) -> tuple[datetime, datetime | None]:
+        self.roster_for(version)
+        start = parse_timestamp(self._links[version - 1].effective_at)
+        end = (
+            parse_timestamp(self._links[version].effective_at)
+            if version < len(self._links)
+            else None
+        )
+        return start, end
+
+
+@dataclass(frozen=True)
+class TimeAuthority:
+    """A pinned timestamp authority key (synthetic here; the real authority is an open decision)."""
+
+    authority_id: str
+    spki_der: bytes
+    not_before: str
+    not_after: str
+
+
+@dataclass(frozen=True)
+class TimeAuthorityRoster:
+    authorities: tuple[TimeAuthority, ...]
+
+    def __post_init__(self) -> None:
+        seen: set[str] = set()
+        for authority in self.authorities:
+            _match(authority.authority_id, _ID, "authority_id")
+            if authority.authority_id in seen:
+                raise _fail(ErrorCode.TIME_EVIDENCE, "duplicate time authority")
+            seen.add(authority.authority_id)
+            _p256_public_key(authority.spki_der)
+            if parse_timestamp(authority.not_before) > parse_timestamp(authority.not_after):
+                raise _fail(ErrorCode.TIME_EVIDENCE, "time authority window is inverted")
+
+    def digest(self) -> str:
+        body = sorted(
+            (
+                {
+                    "authority_id": a.authority_id,
+                    "spki_der": a.spki_der.hex(),
+                    "not_before": a.not_before,
+                    "not_after": a.not_after,
+                }
+                for a in self.authorities
+            ),
+            key=lambda d: d["authority_id"],
+        )
+        return hashlib.sha256(DOMAIN_TS + b"authorities\x00" + canonical_json(body)).hexdigest()
+
+    def get(self, authority_id: str) -> TimeAuthority | None:
+        return next((a for a in self.authorities if a.authority_id == authority_id), None)
+
+
+@dataclass(frozen=True)
+class TimeStamp:
+    """Countersignature over the exact signed payload, made by a pinned time authority."""
+
+    authority_id: str
+    attested_at: str
+    signature_hex: str
+
+
+def timestamp_message(authority_id: str, attested_at: str, payload: dict[str, Any]) -> bytes:
+    body = {
+        "authority_id": authority_id,
+        "attested_at": attested_at,
+        "payload_sha256": hashlib.sha256(signing_message(payload)).hexdigest(),
+    }
+    return DOMAIN_TS + canonical_json(body)
+
+
+def _historical_tag(
+    envelope: bytes,
+    *,
+    roster_version: int,
+    roster_sha256: str,
+    as_of: datetime,
+    person_id: str | None,
+    later_compromise: bool,
+    key_revoked_later_at: str | None,
+    history_head_sha256: str,
+    time_authorities_sha256: str,
+    stamp: TimeStamp,
+) -> str:
+    body = {
+        "envelope_sha256": hashlib.sha256(envelope).hexdigest(),
+        "roster_version": roster_version,
+        "roster_sha256": roster_sha256,
+        "as_of": as_of.strftime(_TS_FORMAT),
+        "person_id": person_id,
+        "later_compromise": later_compromise,
+        "key_revoked_later_at": key_revoked_later_at,
+        "history_head_sha256": history_head_sha256,
+        "time_authorities_sha256": time_authorities_sha256,
+        "stamp_authority_id": stamp.authority_id,
+        "stamp_attested_at": stamp.attested_at,
+        "stamp_signature_hex": stamp.signature_hex,
+    }
+    message = DOMAIN + b"historical\x00" + canonical_json(body)
+    return hmac.new(_TAG_KEY, message, hashlib.sha256).hexdigest()
+
+
+@dataclass(frozen=True)
+class HistoricalApproval:
+    """A signature that verified as of an authenticated instant. ``acceptable`` is False when the
+    key was flagged compromised later: the signature was genuine then, but the approval is not
+    to be relied upon without an explicit human decision.
+
+    Like :class:`VerifiedApproval` this is tamper-evident, not unforgeable against code running in
+    the same process. It is NOT an independent source of authority: it carries the signed envelope,
+    the time-authority countersignature and the pins it was verified under, and a process-local MAC
+    binds every derived field (roster digest, person, compromise flags, as-of instant) to them.
+    ``check`` re-derives the record from the signed bytes and verifies the MAC, so
+    ``dataclasses.replace``, hand-built, copied or pickled instances are refused.
+    Authority-sensitive consumers (:func:`evaluate_requirement`) additionally RE-VERIFY the
+    envelope and stamp against a caller-supplied roster history and time-authority set, and use the
+    freshly derived result rather than the fields of this object.
+    """
+
+    record: ApprovalRecord
+    roster_version: int
+    roster_sha256: str
+    as_of: datetime
+    envelope_sha256: str
+    envelope: bytes
+    stamp: TimeStamp
+    history_head_sha256: str
+    time_authorities_sha256: str
+    person_id: str | None
+    later_compromise: bool
+    key_revoked_later_at: str | None
+    _seal: str = field(default="", repr=False, compare=False)
+
+    def __post_init__(self) -> None:
+        self.check()
+
+    def check(self) -> None:
+        if (
+            not isinstance(self.envelope, bytes)
+            or not isinstance(self._seal, str)
+            or not isinstance(self.stamp, TimeStamp)
+            or not isinstance(self.as_of, datetime)
+            or self.as_of.tzinfo is None
+            or isinstance(self.roster_version, bool)
+            or not isinstance(self.roster_version, int)
+            or not isinstance(self.later_compromise, bool)
+        ):
+            raise _fail(ErrorCode.SCHEMA, "HistoricalApproval is malformed")
+        if hashlib.sha256(self.envelope).hexdigest() != self.envelope_sha256:
+            raise _fail(ErrorCode.SCHEMA, "HistoricalApproval envelope digest does not match")
+        payload, _ = parse_envelope(self.envelope)
+        record = validate_payload(payload)
+        if record != self.record or record.roster_version != self.roster_version:
+            raise _fail(ErrorCode.SCHEMA, "HistoricalApproval record differs from the signed bytes")
+        expected = _historical_tag(
+            self.envelope,
+            roster_version=self.roster_version,
+            roster_sha256=self.roster_sha256,
+            as_of=self.as_of,
+            person_id=self.person_id,
+            later_compromise=self.later_compromise,
+            key_revoked_later_at=self.key_revoked_later_at,
+            history_head_sha256=self.history_head_sha256,
+            time_authorities_sha256=self.time_authorities_sha256,
+            stamp=self.stamp,
+        )
+        if not hmac.compare_digest(self._seal, expected):
+            raise _fail(ErrorCode.SCHEMA, "HistoricalApproval can only be produced by the verifier")
+
+    @property
+    def acceptable(self) -> bool:
+        return not self.later_compromise
+
+    def __copy__(self) -> HistoricalApproval:
+        return self
+
+    def __deepcopy__(self, memo: dict[int, Any]) -> HistoricalApproval:
+        return self
+
+    def __reduce__(self) -> Any:
+        raise _fail(ErrorCode.SCHEMA, "HistoricalApproval cannot be serialised")
+
+
+def verify_approval_as_of(raw: bytes, **kwargs: Any) -> HistoricalApproval:
+    """Typed-errors-only wrapper around :func:`_verify_approval_as_of`."""
+    try:
+        return _verify_approval_as_of(raw, **kwargs)
+    except ApprovalError:
+        raise
+    except (TypeError, ValueError, RecursionError, OverflowError, AttributeError, KeyError):
+        raise _fail(ErrorCode.SCHEMA, "malformed input") from None
+
+
+def _verify_approval_as_of(
+    raw: bytes,
+    *,
+    history: RosterHistory,
+    pinned_head_sha256: str,
+    expected_roster_sha256: str,
+    time_authorities: TimeAuthorityRoster,
+    pinned_time_authorities_sha256: str,
+    stamp: TimeStamp | None,
+    expected_document_id: str,
+    expected_document_sha256: str,
+    expected_spec_sha256: str,
+    expected_scope: str,
+    expected_outcome: str,
+    expected_purpose: str,
+    now: datetime,
+    max_skew_seconds: int = 300,
+) -> HistoricalApproval:
+    """Verify against the roster version the record names, evaluated at the instant a pinned time
+    authority attested. ``now`` is used only to refuse stamps from the future. The signer's own
+    ``signed_at`` and ``time_evidence`` claims are never the time source."""
+    if now.tzinfo is None or now.utcoffset() != timedelta(0):
+        raise _fail(ErrorCode.TIME_RANGE, "now must be a UTC-aware datetime")
+    Policy(max_skew_seconds=max_skew_seconds)  # validates the bound
+    skew = timedelta(seconds=max_skew_seconds)
+    history.verify_head(pinned_head_sha256)
+    if time_authorities.digest() != pinned_time_authorities_sha256:
+        raise _fail(ErrorCode.ROSTER_UNTRUSTED, "time-authority set does not match its pin")
+    if not isinstance(stamp, TimeStamp):
+        raise _fail(ErrorCode.TIME_EVIDENCE, "authenticated time evidence is required")
+
+    payload, signature_hex = parse_envelope(raw)
+    rec = validate_payload(payload)
+    roster = history.roster_for(rec.roster_version)
+    if roster.digest() != expected_roster_sha256:
+        raise _fail(
+            ErrorCode.ROSTER_UNTRUSTED, "history roster differs from the pinned roster reference"
+        )
+    expected = (expected_document_id, expected_document_sha256, expected_spec_sha256)
+    if (rec.document_id, rec.document_sha256, rec.spec_sha256) != expected:
+        raise _fail(ErrorCode.DOCUMENT_MISMATCH, "document or spec digest differs from expected")
+    if rec.scope != expected_scope:
+        raise _fail(ErrorCode.SCOPE_MISMATCH, "scope differs from the expected scope")
+    if rec.outcome != expected_outcome or rec.purpose != expected_purpose:
+        raise _fail(ErrorCode.DOCUMENT_MISMATCH, "outcome or purpose differs from expected")
+
+    authority = time_authorities.get(stamp.authority_id)
+    if authority is None:
+        raise _fail(ErrorCode.TIME_EVIDENCE, "time authority is not pinned")
+    as_of = parse_timestamp(stamp.attested_at, "stamp.attested_at")
+    if not _active(authority.not_before, authority.not_after, as_of):
+        raise _fail(ErrorCode.TIME_EVIDENCE, "time authority key is outside its validity window")
+    _check_signature(
+        _p256_public_key(authority.spki_der),
+        stamp.signature_hex,
+        timestamp_message(stamp.authority_id, stamp.attested_at, payload),
+    )
+    if as_of > now + skew or abs(as_of - rec.signed_at) > skew:
+        raise _fail(ErrorCode.TIME_EVIDENCE, "attested time is inconsistent with the record or now")
+    start, end = history.interval(rec.roster_version)
+    if as_of < start or (end is not None and as_of >= end):
+        raise _fail(
+            ErrorCode.ROSTER_VERSION, "roster version was not in force at the attested time"
+        )
+
+    entry = roster.key(rec.key_id)
+    if entry is None:
+        raise _fail(ErrorCode.KEY_UNKNOWN, "key is not in the roster version in force")
+    if entry.identity != rec.identity:
+        raise _fail(ErrorCode.SIGNER_MISMATCH, "key is not bound to the claimed signer")
+    if not _active(entry.not_before, entry.not_after, as_of):
+        raise _fail(ErrorCode.KEY_INACTIVE, "key was outside its validity window at that time")
+    current = history.latest.key(rec.key_id)
+    if current is None:
+        raise _history_error("key vanished from the latest roster")
+    for flagged in (entry.revoked_at, current.revoked_at):
+        if flagged is not None and parse_timestamp(flagged) <= as_of:
+            raise _fail(ErrorCode.KEY_REVOKED, "key was already revoked at that time")
+    if (
+        current.compromised_since is not None
+        and parse_timestamp(current.compromised_since) <= as_of
+    ):
+        raise _fail(ErrorCode.KEY_COMPROMISED, "key was already compromised at that time")
+    authorized = any(
+        a.identity == rec.identity
+        and a.role == rec.role
+        and rec.scope in a.scopes
+        and rec.outcome in a.outcomes
+        and _active(a.not_before, a.not_after, as_of)
+        for a in roster.assignments
+    )
+    if not authorized:
+        raise _fail(
+            ErrorCode.NOT_AUTHORIZED, "roster did not authorize this signer/role/scope then"
+        )
+    _check_signature(_p256_public_key(entry.spki_der), signature_hex, signing_message(payload))
+    later_compromise = current.compromised_since is not None
+    person_id = roster.person_of(rec.identity)
+    roster_sha256 = roster.digest()
+    return HistoricalApproval(
+        record=rec,
+        roster_version=rec.roster_version,
+        roster_sha256=roster_sha256,
+        as_of=as_of,
+        envelope_sha256=hashlib.sha256(raw).hexdigest(),
+        envelope=bytes(raw),
+        stamp=stamp,
+        history_head_sha256=pinned_head_sha256,
+        time_authorities_sha256=pinned_time_authorities_sha256,
+        person_id=person_id,
+        later_compromise=later_compromise,
+        key_revoked_later_at=current.revoked_at,
+        _seal=_historical_tag(
+            bytes(raw),
+            roster_version=rec.roster_version,
+            roster_sha256=roster_sha256,
+            as_of=as_of,
+            person_id=person_id,
+            later_compromise=later_compromise,
+            key_revoked_later_at=current.revoked_at,
+            history_head_sha256=pinned_head_sha256,
+            time_authorities_sha256=pinned_time_authorities_sha256,
+            stamp=stamp,
+        ),
+    )
+
+
+@dataclass(frozen=True)
+class ApprovalRequirement:
+    """A synthetic document-class policy: which roles must approve and how many different
+    natural persons are needed. Not an adopted P0 rule."""
+
+    document_id: str
+    document_sha256: str
+    spec_sha256: str
+    scope: str
+    purpose: str
+    required_roles: tuple[str, ...]
+    min_distinct_persons: int
+
+    def __post_init__(self) -> None:
+        _match(self.document_id, _ID, "document_id")
+        _match(self.document_sha256, _HEX64, "document_sha256")
+        _match(self.spec_sha256, _HEX64, "spec_sha256")
+        _match(self.scope, _ID, "scope")
+        _match(self.purpose, _ID, "purpose")
+        if not isinstance(self.required_roles, tuple) or len(set(self.required_roles)) != len(
+            self.required_roles
+        ):
+            raise _fail(ErrorCode.SCHEMA, "required_roles must be a tuple without duplicates")
+        for role in self.required_roles:
+            _match(role, _ID, "required role")
+        count = self.min_distinct_persons
+        if isinstance(count, bool) or not isinstance(count, int) or count < 1:
+            raise _fail(ErrorCode.SCHEMA, "min_distinct_persons must be an int >= 1")
+        if count < len(self.required_roles):
+            raise _fail(ErrorCode.SCHEMA, "each required role needs its own person")
+
+    def binding(self) -> tuple[str, str, str, str, str]:
+        return (self.document_id, self.document_sha256, self.spec_sha256, self.scope, self.purpose)
+
+
+@dataclass(frozen=True)
+class RequirementResult:
+    """``state`` is SATISFIED, UNSATISFIED, REJECTED or CONFLICT (same vocabulary as
+    :meth:`ApprovalLedger.decision_state`). ``conflicts`` lists every (approve, reject) record-id
+    pair that is simultaneously active; dissent is reported, never discarded."""
+
+    satisfied: bool
+    distinct_persons: tuple[str, ...]
+    reasons: tuple[str, ...]
+    state: str = "UNSATISFIED"
+    conflicts: tuple[tuple[str, str], ...] = ()
+
+
+def _assign_roles(roles: tuple[str, ...], held: dict[str, set[str]]) -> bool:
+    """Can every required role be filled by a different person who holds an approval in it?"""
+
+    def place(index: int, used: frozenset[str]) -> bool:
+        if index == len(roles):
+            return True
+        return any(
+            place(index + 1, used | {person})
+            for person, person_roles in held.items()
+            if person not in used and roles[index] in person_roles
+        )
+
+    return place(0, frozenset())
+
+
+def evaluate_requirement(
+    approvals: Sequence[HistoricalApproval],
+    requirement: ApprovalRequirement,
+    *,
+    history: RosterHistory,
+    pinned_head_sha256: str,
+    time_authorities: TimeAuthorityRoster,
+    pinned_time_authorities_sha256: str,
+    now: datetime,
+    max_skew_seconds: int = 300,
+) -> RequirementResult:
+    """Count approvals by natural person. Raises for duplicate, mismatched, unmapped, tampered or
+    badly superseded evidence; returns an explicit unsatisfied/CONFLICT/REJECTED result for missing,
+    insufficient or contradictory evidence. Several keys, identities or roles held by one person
+    count as one person.
+
+    Every item is re-verified from its signed envelope and countersignature against the
+    caller-supplied, pinned roster history and time-authority set; the freshly derived result,
+    not the carried object, is what is counted. A contrary decision from any signer is never
+    discarded and an unresolved APPROVE/REJECT contradiction can never satisfy a requirement.
+    Supersession stays restricted to the original signer; no quorum or veto rule is invented."""
+    if not isinstance(requirement, ApprovalRequirement):
+        raise _fail(ErrorCode.SCHEMA, "requirement must be an ApprovalRequirement")
+    reasons: list[str] = []
+    seen_ids: set[str] = set()
+    seen_nonces: set[str] = set()
+    if not all(isinstance(a, HistoricalApproval) for a in approvals):
+        raise _fail(ErrorCode.SCHEMA, "only HistoricalApproval evidence can be evaluated")
+    for carried_item in approvals:
+        carried_item.check()  # refuses replace()d, hand-built, mutated or tampered evidence
+    ordered = sorted(approvals, key=lambda a: (a.as_of, a.record.record_id))
+    active: dict[str, HistoricalApproval] = {}
+    for carried in ordered:
+        rec = carried.record
+        if rec.record_id in seen_ids or rec.nonce in seen_nonces:
+            raise _fail(ErrorCode.REPLAY, "duplicate approval evidence")
+        seen_ids.add(rec.record_id)
+        seen_nonces.add(rec.nonce)
+        binding = (rec.document_id, rec.document_sha256, rec.spec_sha256, rec.scope, rec.purpose)
+        if binding != requirement.binding():
+            raise _fail(ErrorCode.DOCUMENT_MISMATCH, "approval is bound to a different document")
+        item = verify_approval_as_of(
+            carried.envelope,
+            history=history,
+            pinned_head_sha256=pinned_head_sha256,
+            expected_roster_sha256=carried.roster_sha256,
+            time_authorities=time_authorities,
+            pinned_time_authorities_sha256=pinned_time_authorities_sha256,
+            stamp=carried.stamp,
+            expected_document_id=requirement.document_id,
+            expected_document_sha256=requirement.document_sha256,
+            expected_spec_sha256=requirement.spec_sha256,
+            expected_scope=requirement.scope,
+            expected_outcome=rec.outcome,
+            expected_purpose=requirement.purpose,
+            now=now,
+            max_skew_seconds=max_skew_seconds,
+        )
+        if item.later_compromise != carried.later_compromise:
+            reasons.append(f"{rec.record_id}: key state changed since the evidence was produced")
+        for ref in rec.supersedes:
+            prior = active.get(ref)
+            if prior is None or prior.record.identity != rec.identity:
+                raise _fail(
+                    ErrorCode.SUPERSESSION, f"{ref!r} is unknown, withdrawn or another signer's"
+                )
+            del active[ref]
+        if rec.outcome != "REVOKE":
+            active[rec.record_id] = item
+    live_approvals: list[HistoricalApproval] = []
+    dissent: list[HistoricalApproval] = []
+    for item in active.values():
+        if item.later_compromise:
+            reasons.append(f"{item.record.record_id}: signer key flagged compromised later")
+            if item.record.outcome == "REJECT":
+                dissent.append(item)  # fail closed: dissent is never silently dropped
+            continue
+        if item.person_id is None:
+            raise _fail(ErrorCode.NOT_AUTHORIZED, "signer is not mapped to a natural person")
+        if item.record.outcome == "REJECT":
+            dissent.append(item)
+        else:
+            live_approvals.append(item)
+    held: dict[str, set[str]] = {}
+    for item in live_approvals:
+        held.setdefault(item.person_id or "", set()).add(item.record.role)
+    persons = tuple(sorted(held))
+    if dissent:
+        rejects = sorted(d.record.record_id for d in dissent)
+        if live_approvals:
+            approves = sorted(a.record.record_id for a in live_approvals)
+            pairs = tuple((a, r) for a in approves for r in rejects)
+            return RequirementResult(
+                False,
+                persons,
+                (*reasons, "contradictory approvals are active and unresolved"),
+                "CONFLICT",
+                pairs,
+            )
+        return RequirementResult(
+            False, (), (*reasons, "an active REJECT blocks approval"), "REJECTED", ()
+        )
+    blocking: list[str] = []
+    if len(persons) < requirement.min_distinct_persons:
+        blocking.append(
+            f"{len(persons)} distinct person(s); {requirement.min_distinct_persons} required"
+        )
+    if not _assign_roles(requirement.required_roles, held):
+        blocking.append("required roles are not filled by different persons")
+    state = "UNSATISFIED" if blocking else "SATISFIED"
+    return RequirementResult(not blocking, persons, (*reasons, *blocking), state, ())
