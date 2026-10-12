@@ -83,3 +83,12 @@ The owner selects the machine identity and names the branches. **Authorization o
 | Required check | Branch protection: `Python CI Gate`, strict | Mechanical gate on the exact head | Yes. This is the only mechanical requirement. |
 
 **Conclusion:** satisfying GitHub protection (a green strict `Python CI Gate`) does not establish governance compliance. R3, R4, the walk-away and the per-file review each need their own evidence.
+
+## 7. Evidence record: hashes of committed bytes (full values)
+
+Convention: every recorded file hash is the SHA-256 of the file's **committed bytes** (`git show <full commit>:<path> | sha256sum`), never of a working copy. The CRLF working-copy value quoted earlier is withdrawn and resolved.
+
+| Artifact | Full commit | Full SHA-256 |
+|---|---|---|
+| `apps/backend/scripts/research/range002/recreate_under_identity.py` | `74f27261631dbef3bfa08333ac153036609db8a1` (this PR) | `81f4af00201cb4a2062c26bc0897c655632354a4c9635a003b4a458fc4f767c5` |
+| `docs/implementation/evidence/range_002/RANGE-002_Identity_Probe_Preregistration_v1.json` | `b1a38d8e7290425b1206bb90e347caace04a17f2` (#760) | `116a0601ff29374a38c4290cc355c506374c7137d420c908a15b76e91e3a17fc` |
