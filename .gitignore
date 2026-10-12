@@ -90,3 +90,7 @@ docs/review/momentum_daily/drift_audit/.census_pid
 
 # GITHUB-OPS-001: local uv toolchain venv used to regenerate constraints/ (never committed)
 .uvtool/
+
+# RANGE-002 plan layout (WP1.5) names a source package `data/`; the global `data/` rule above must not hide it.
+!apps/backend/app/research/range002/data/
+!apps/backend/tests/research/range002/data/

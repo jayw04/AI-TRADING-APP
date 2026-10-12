@@ -128,6 +128,7 @@ class SpecView:
     registry_genesis_id: str | None = None
     max_p3a_attempts: int | None = None
     max_p3b_attempts: int | None = None
+    profile: str = "full"  # "full" | "screen" (A-SCREEN O-8 B); part of the spec hash when "screen"
     _minted: object = field(default=None, init=False, repr=False, compare=False)
 
     def __copy__(self) -> SpecView:
@@ -171,6 +172,7 @@ def _build_view(
         registry_genesis_id=spec.governance.registry_genesis_id,
         max_p3a_attempts=spec.p3.max_p3a_attempts,
         max_p3b_attempts=spec.p3.max_p3b_attempts,
+        profile="full" if spec.profile is None else spec.profile.name,
     )
 
 

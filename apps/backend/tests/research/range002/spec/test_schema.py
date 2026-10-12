@@ -37,10 +37,19 @@ def _all_models() -> list[type[BaseModel]]:
     ]
 
 
+#: The only field allowed an (absent == None) default: the optional A-SCREEN profile declaration.
+#: Absent means the FULL profile, which keeps every existing v1 spec and its hash unchanged. It is
+#: not a P0 value, so R9 (no developer-chosen defaults for decisions) is not weakened.
+_OPTIONAL_NON_P0 = {("DraftSpec", "profile")}
+
+
 def test_no_field_has_a_default():
     # Rule R9: a developer-chosen default would be a silent decision.
     for model in _all_models():
         for name, field in model.model_fields.items():
+            if (model.__name__, name) in _OPTIONAL_NON_P0:
+                assert field.default is None, "the profile default must be absent (== full)"
+                continue
             assert field.is_required(), f"{model.__name__}.{name} has a default"
 
 

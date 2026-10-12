@@ -82,6 +82,7 @@ class GuardSpecView:
         "max_p3a_attempts",
         "max_p3b_attempts",
         "p3_criteria",
+        "profile",
         "partitions",
         "registry_genesis_id",
         "spec_sha256",
@@ -98,6 +99,7 @@ class GuardSpecView:
     registry_genesis_id: str | None
     max_p3a_attempts: int | None
     max_p3b_attempts: int | None
+    profile: str
 
     def __init__(
         self,
@@ -114,6 +116,7 @@ class GuardSpecView:
         registry_genesis_id: str | None,
         max_p3a_attempts: int | None,
         max_p3b_attempts: int | None,
+        profile: str = "full",
     ) -> None:
         if issue_token is not _ISSUE_VIEW:
             raise SpecViewNotTrustedError(
@@ -131,6 +134,7 @@ class GuardSpecView:
             ("registry_genesis_id", registry_genesis_id),
             ("max_p3a_attempts", max_p3a_attempts),
             ("max_p3b_attempts", max_p3b_attempts),
+            ("profile", profile),
         ):
             object.__setattr__(self, name, value)
 
@@ -180,4 +184,5 @@ def to_guard_view(view: SpecView) -> GuardSpecView:
         registry_genesis_id=view.registry_genesis_id,
         max_p3a_attempts=view.max_p3a_attempts,
         max_p3b_attempts=view.max_p3b_attempts,
+        profile=view.profile,
     )

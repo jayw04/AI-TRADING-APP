@@ -162,6 +162,8 @@ from app.research.range002.governance.errors import (
     PredecessorEvidenceMismatchError,
     PredecessorEvidenceMissingError,
     PredecessorHoldoutNotAuthorizedError,
+    ProfileNotAuthorizedError,
+    ProfileNotRecognizedError,
     RangeOverlapsPartitionError,
     RegistryGenesisMismatchError,
     RegistryNotTrustedError,
@@ -195,6 +197,17 @@ from app.research.range002.spec.hashing import CanonicalisationError, content_sh
 from app.research.range002.spec.manifest import GovernanceManifest, load_manifest
 
 _HEX64 = re.compile(r"^[0-9a-f]{64}$")
+
+#: Profiles the guard understands. Anything else (None, a newer build's name, a forged view) is
+#: refused before any state is touched.
+_KNOWN_PROFILES = frozenset({"full", "screen"})
+#: The only (phase, partition) pairs a "screen" profile spec may authorise (A-SCREEN O-8 B).
+_SCREEN_PROFILE_ALLOWED = frozenset(
+    {
+        (Phase.P2, Partition.REPLAY_RNG001),
+        (Phase.P3A, Partition.DEVELOPMENT_SELECTION),
+    }
+)
 _ISSUE = object()  # module-private: only authorize() holds it
 #: TEST SEAM, module-private and deliberately NOT an ``authorize`` parameter: ``None`` means the
 #: committed manifest at its fixed repo-relative path. Tests monkeypatch it to a synthetic file;
@@ -238,6 +251,7 @@ class ResultsCapability:
         "exposure_ledger_sha256",
         "partition",
         "phase",
+        "profile",
         "run_id",
         "spec_sha256",
     )
@@ -248,6 +262,7 @@ class ResultsCapability:
     run_id: str
     date_range: DateRange
     citable: bool
+    profile: str
     exposure_ledger_sha256: str | None
     #: ``((predecessor run_id, audit_pack_sha256, selection_record_sha256 | None), ...)`` -- the
     #: predecessor evidence digests ``authorize`` verified when it issued this capability.
@@ -266,6 +281,7 @@ class ResultsCapability:
         citable: bool,
         exposure_ledger_sha256: str | None,
         evidence_digests: tuple[tuple[str, str, str | None], ...],
+        profile: str = "full",
     ) -> None:
         if issue_token is not _ISSUE:
             raise InvalidCapabilityError(
@@ -280,6 +296,7 @@ class ResultsCapability:
             ("run_id", run_id),
             ("date_range", date_range),
             ("citable", citable),
+            ("profile", profile),
             ("exposure_ledger_sha256", exposure_ledger_sha256),
             ("evidence_digests", evidence_digests),
         ):
@@ -369,6 +386,10 @@ def _spec_checks(spec: object) -> tuple[GuardSpecView, str]:
         raise SpecNotFrozenError("spec has no valid 64-hex spec_sha256: it is not frozen")
     if spec.is_signed is not True:
         raise SpecNotSignedError("spec is not signed; results_guard refuses an unsigned spec")
+    if spec.profile not in _KNOWN_PROFILES:
+        raise ProfileNotRecognizedError(
+            f"spec profile {spec.profile!r} is not one of {sorted(_KNOWN_PROFILES)}; refused"
+        )
     return spec, sha
 
 
@@ -669,6 +690,14 @@ def authorize(
         raise PartitionNotAuthorizedError(
             f"partition {partition.value} is not authorized for phase {phase.value}"
         )
+    # (b2) A-SCREEN O-8(B): a screen-profile spec authorises ONLY the two pairs below. Every
+    # other phase/partition (P3B, P4 HOLDOUT, P5 PAPER, anything new) is refused by name, so a
+    # spec frozen under the restricted required-field list can never reach qualification.
+    if spec.profile == "screen" and (phase, partition) not in _SCREEN_PROFILE_ALLOWED:
+        raise ProfileNotAuthorizedError(
+            f"a screen-profile spec is authorised only for {sorted((p.value, q.value) for p, q in _SCREEN_PROFILE_ALLOWED)}; "
+            f"got ({phase.value}, {partition.value})"
+        )
     if phase is Phase.P5:
         raise PaperApprovalNotImplementedError(
             "P5 (PAPER) is refused: owner approval before paper is Level 2 design-only, no "
@@ -782,6 +811,7 @@ def authorize(
         run_id=run_id,
         date_range=date_range,
         citable=citable,
+        profile=spec.profile,
         exposure_ledger_sha256=ledger_sha,
         evidence_digests=evidence_digests,
     )

@@ -247,3 +247,11 @@ class IndependenceAuthorizationNotAcceptedError(HoldoutAlreadyOpenedError):
 
 class VerdictError(GovernanceError):
     """A verdict string outside the closed set, or an invalid transition."""
+
+
+class ProfileNotRecognizedError(GovernanceError):
+    """The spec's profile is neither "full" nor "screen" (missing, forged or from a newer build)."""
+
+
+class ProfileNotAuthorizedError(GovernanceError):
+    """A screen-profile spec was offered for a phase/partition outside P2 replay and P3A."""

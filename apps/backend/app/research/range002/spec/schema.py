@@ -40,7 +40,7 @@ MAX_EXIT_CANDIDATES = 8
 
 # Dotted paths that are legitimately null at freeze time (not P0 decisions).
 # registration.trial_ledger_id is assigned by run_registry; `signoff` is checked separately.
-_NON_P0_NULLABLE = frozenset({"registration.trial_ledger_id"})
+_NON_P0_NULLABLE = frozenset({"registration.trial_ledger_id", "profile"})
 
 _ID_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_\-]{0,31}$")
 _SHA_RE = re.compile(r"^[0-9a-f]{64}$")
@@ -488,6 +488,189 @@ class Signoff(_Model):
         return v
 
 
+# --------------------------------------------------------------------------- screen profile (A-SCREEN, O-8 B)
+#
+# A *restricted screening profile*: a versioned, hashed declaration that a frozen spec is for the
+# preliminary development screen only. The guard (results_guard) authorises such a spec for
+# (P2, REPLAY_RNG001) and (P3A, DEVELOPMENT_SELECTION) and refuses every other phase. A spec with
+# no ``profile`` block is the FULL profile and behaves exactly as before (its hash is unchanged:
+# ``profile`` is omitted from the hash payload when absent). The required-field list is the
+# profile's exact contract: it names every P0 field that affects signals, fills, costs, sample
+# eligibility, selection or interpretation (whether or not the current kernel reads it).
+# Everything else is EXEMPT and may stay null only because the profile cannot authorise P3B, P4,
+# P5/PAPER or any broker operation. ``SCREEN_V1_REQUIRED`` and ``SCREEN_V1_EXEMPT`` must
+# partition the P0 field set exactly (tested), so a new P0 field forces an explicit decision.
+SCREEN_PROFILE_NAME = "screen"
+SCREEN_PROFILE_VERSION = 1
+SCREEN_V1_REQUIRED = (
+    "controls.naive_orb.definition",
+    "controls.random_entry.invalid_draw_policy",
+    "controls.random_entry.repetitions",
+    "controls.random_entry.seed",
+    "costs.accounting_mode",
+    "costs.components",
+    "data.fetch_mode",
+    "data.vendor",
+    "execution.ack_latency_ms",
+    "execution.bar_timestamp_convention",
+    "execution.crossed_before_arm_policy",
+    "execution.eod_lead_s",
+    "execution.order_reservation_policy",
+    "execution.order_type",
+    "execution.stop_protection_policy",
+    "execution.submit_latency_ms",
+    "execution.tie_break",
+    "execution.vendor_delay_ms",
+    "exit.halfday_offset_min",
+    "exits.candidates",
+    "exits.complexity_order",
+    "exits.selection.eligibility.min_pf",
+    "exits.selection.eligibility.min_trades",
+    "exits.selection.score",
+    "exits.selection.stop_test",
+    "exits.selection.tie_tolerance_r",
+    "fill.halt_policy",
+    "fill.slippage_model",
+    "gates.basis",
+    "gates.trade_unit",
+    "governance.exposure_signed",
+    "governance.registry_genesis_id",
+    "p3.criteria",
+    "p3.max_p3a_attempts",
+    "p3.max_p3b_attempts",
+    "registration.related_programs",
+    "risk.per_trade_pct",
+    "signal.min_or_width_ticks",
+    "signal.or_completeness_rule",
+    "stats.alpha_one_sided",
+    "stats.bootstrap.block_len",
+    "stats.bootstrap.ci_type",
+    "stats.bootstrap.confidence_level",
+    "stats.bootstrap.method",
+    "stats.bootstrap.reps",
+    "stats.bootstrap.seed",
+    "stats.hypothesis_family",
+    "universe.n",
+)
+SCREEN_V1_EXEMPT = (
+    "governance.economic_thesis_sha",
+    "governance.roles",
+    "p5.account_id",
+    "p5.cost_ratio_contract",
+    "p5.degradation_tolerance",
+    "p5.shadow_acceptance",
+    "diagnostics.taxonomy",
+    "gates.max_dd",
+    "gates.win_rate",
+    "gates.yearly",
+    "risk.daily_loss_limit",
+    "risk.fill_risk_tolerance",
+    "risk.gross_cap",
+    "risk.max_concurrent",
+    "risk.max_participation",
+    "risk.per_name_cap",
+    "stats.regime.criterion",
+    "stats.regime.definition",
+)
+#: sha256 of the newline-joined SCREEN_V1_REQUIRED (UTF-8); asserted by a test.
+SCREEN_V1_REQUIRED_SHA256 = "fa3ed823e6764886d905d5d648bd346abf7bffcae87362b8e477397e876f2355"
+
+
+# --------------------------------------------------------------------------- screen profile v2
+#
+# A versioned split of the v1 contract. v1 is untouched (its hash and tests stand). v2 separates
+# what the DESCRIPTIVE screen needs from what only selection / advancement needs, WITHOUT
+# loosening anything the guard itself reads at P2/P3A:
+#   * the guard requires p3.criteria, exits.candidates, exits.selection.*, both attempt limits,
+#     the exposure binding and the genesis id before it authorises a P3A run, so they stay
+#     required in v2 (a v2 spec that omitted them would freeze and then be refused);
+#   * DEFERRED fields are read by neither the guard (at P2/P3A) nor the kernel; they are required
+#     again before statistical selection or advancement. A spec that defers them has a different
+#     hash from the spec that later sets them, so stage 2 on the same run needs an owner decision
+#     (see the review notes); nothing here pre-empts it;
+#   * UNMODELLED fields are execution settings the bar-level kernel does not simulate. They may
+#     stay null; if present they are carried into the params and every report as UNMODELLED, so a
+#     non-null value never implies simulated execution realism.
+SCREEN_V2_DEFERRED = (
+    "controls.naive_orb.definition",
+    "controls.random_entry.invalid_draw_policy",
+    "controls.random_entry.repetitions",
+    "controls.random_entry.seed",
+    "exits.complexity_order",
+    "registration.related_programs",
+    "stats.alpha_one_sided",
+    "stats.bootstrap.block_len",
+    "stats.bootstrap.ci_type",
+    "stats.bootstrap.confidence_level",
+    "stats.bootstrap.method",
+    "stats.bootstrap.reps",
+    "stats.bootstrap.seed",
+    "stats.hypothesis_family",
+)
+SCREEN_V2_UNMODELLED = (
+    "execution.ack_latency_ms",
+    "execution.eod_lead_s",
+    "execution.order_reservation_policy",
+    "execution.order_type",
+    "execution.stop_protection_policy",
+    "execution.submit_latency_ms",
+    "execution.tie_break",
+    "execution.vendor_delay_ms",
+    "fill.slippage_model",
+)
+# v1 required minus DEFERRED minus UNMODELLED, as a literal (a test asserts the derivation).
+SCREEN_V2_REQUIRED = (
+    "costs.accounting_mode",
+    "costs.components",
+    "data.fetch_mode",
+    "data.vendor",
+    "execution.bar_timestamp_convention",
+    "execution.crossed_before_arm_policy",
+    "exit.halfday_offset_min",
+    "exits.candidates",
+    "exits.selection.eligibility.min_pf",
+    "exits.selection.eligibility.min_trades",
+    "exits.selection.score",
+    "exits.selection.stop_test",
+    "exits.selection.tie_tolerance_r",
+    "fill.halt_policy",
+    "gates.basis",
+    "gates.trade_unit",
+    "governance.exposure_signed",
+    "governance.registry_genesis_id",
+    "p3.criteria",
+    "p3.max_p3a_attempts",
+    "p3.max_p3b_attempts",
+    "risk.per_trade_pct",
+    "signal.min_or_width_ticks",
+    "signal.or_completeness_rule",
+    "universe.n",
+)
+#: sha256 of the newline-joined SCREEN_V2_REQUIRED (UTF-8); asserted by a test.
+SCREEN_V2_REQUIRED_SHA256 = "872193e14f93044d2a22acdcad7ea8f9c7c3fc1b37ff63a178b6324367ce897b"
+#: sha256 of the newline-joined SCREEN_V2_UNMODELLED; part of the declaration, so the unmodelled
+#: set is inside the spec hash and cannot be changed without changing the spec.
+SCREEN_V2_UNMODELLED_SHA256 = "0298fe82ad0374a5139a0d739f49188081bf358a283edcb142c2b180725efb2c"
+
+
+class ScreenProfileDecl(_Model):
+    """The ``profile`` block of a v1 screen-profile spec. It is inside the spec hash."""
+
+    name: Literal["screen"]
+    version: Literal[1]
+    required_fields_sha256: Annotated[str, _eq(SCREEN_V1_REQUIRED_SHA256)]
+
+
+class ScreenProfileDeclV2(_Model):
+    """v2: the descriptive/deferred split. It also pins its unmodelled-execution set, so that set
+    is inside the spec hash and cannot change without changing the spec."""
+
+    name: Literal["screen"]
+    version: Literal[2]
+    required_fields_sha256: Annotated[str, _eq(SCREEN_V2_REQUIRED_SHA256)]
+    unmodelled_fields_sha256: Annotated[str, _eq(SCREEN_V2_UNMODELLED_SHA256)]
+
+
 # --------------------------------------------------------------------------- top level
 
 
@@ -513,6 +696,7 @@ class DraftSpec(_Model):
     diagnostics: Diagnostics
     governance: Governance
     signoff: Signoff
+    profile: ScreenProfileDecl | ScreenProfileDeclV2 | None = None
 
     @field_validator("spec_version", mode="before")
     @classmethod
@@ -528,12 +712,19 @@ class DraftSpec(_Model):
         """
         payload = self.model_dump(mode="json")
         payload.pop("signoff")
+        if payload.get("profile") is None:  # the FULL profile: hash unchanged by this feature
+            payload.pop("profile", None)
         return payload
 
     def unset_p0_fields(self) -> list[str]:
         """Dotted paths of every P0 field that is still null/blank, sorted."""
         out: list[str] = []
         _walk_unset(self.model_dump(mode="python"), "", out)
+        if self.profile is not None:  # screen profile: only its exact required list is enforced
+            required = frozenset(
+                SCREEN_V1_REQUIRED if self.profile.version == 1 else SCREEN_V2_REQUIRED
+            )
+            out = [path for path in out if path in required]
         return sorted(out)
 
     def missing_signoff_fields(self) -> list[str]:
