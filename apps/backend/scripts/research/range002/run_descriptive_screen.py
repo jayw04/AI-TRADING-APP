@@ -463,7 +463,8 @@ def _delisting_events(con: Any, action_values: tuple[str, ...]) -> dict[str, lis
     """ACTIONS rows whose action is one of the EXPLICITLY supplied values, by ticker.
 
     The vendor's exact action strings are not documented, so none is assumed: with no values no
-    event is returned and nothing is ever excluded."""
+    event is returned and nothing is ever excluded. These rows do not change who was selected;
+    a caller may drop a later symbol-day only after ``_event_binds_issuer`` accepts the row."""
     if not action_values:
         return {}
     marks = ", ".join("?" for _ in action_values)
@@ -476,6 +477,45 @@ def _delisting_events(con: Any, action_values: tuple[str, ...]) -> dict[str, lis
         if ticker is not None and day is not None:
             out.setdefault(str(ticker).strip(), []).append(day)
     return out
+
+
+def _issuer_intervals(con: Any) -> dict[str, list[tuple[str, date, date | None]]]:
+    """Ticker → (permaticker, first price date, last price date) from the snapshot's tickers rows.
+
+    Several rows for one ticker are several issuers. The interval is the evidence of which issuer
+    was trading; it is not, by itself, a reason to drop a symbol-day."""
+    rows = con.execute(
+        "SELECT ticker, permaticker, CAST(firstpricedate AS DATE), CAST(lastpricedate AS DATE) "
+        "FROM tickers"
+    ).fetchall()
+    out: dict[str, list[tuple[str, date, date | None]]] = {}
+    for ticker, perma, first, last in rows:
+        if ticker is None or perma is None or first is None:
+            continue
+        out.setdefault(str(ticker).strip(), []).append((str(perma).strip(), first, last))
+    return out
+
+
+def _event_binds_issuer(
+    intervals: dict[str, list[tuple[str, date, date | None]]],
+    ticker: str,
+    event_day: date,
+    member_permaticker: str,
+) -> bool:
+    """True only when the event date sits in exactly one issuer's trading interval, and that
+    issuer is the member already selected for the month.
+
+    A ticker reused by a later issuer, an interval that does not contain the event, or two
+    issuers covering the same date does not bind. The month's membership is never revised from
+    this answer."""
+    owners: list[str] = []
+    for perma, first, last in intervals.get(ticker, ()):
+        if event_day < first:
+            continue
+        if last is not None and event_day > last:
+            continue
+        owners.append(perma)
+    return set(owners) == {member_permaticker}
 
 
 def run(
@@ -589,6 +629,7 @@ def run(
         exclusions: dict[tuple[str, date], str] = {}
         month_rows: list[dict[str, Any]] = []
         events = _delisting_events(daily_con, delisting_actions)
+        intervals = _issuer_intervals(daily_con)
         evidence_rows: list[tuple[str, str]] = []
         delist_after: dict[tuple[str, date], date] = {}
         for ms in _month_starts(authorized.start, authorized.end):
@@ -604,10 +645,15 @@ def run(
             )
             builds.append(mb)
             for m in mb.universe.members:
+                # Only an event AFTER the decision day can affect later symbol-days. The
+                # universe for this month was already built; this loop does not remove members.
                 later = sorted(
-                    e for e in events.get(m.vendor_ticker, ()) if e > mb.universe.decision_day
+                    e
+                    for e in events.get(m.vendor_ticker, ())
+                    if e > mb.universe.decision_day
+                    and _event_binds_issuer(intervals, m.vendor_ticker, e, m.permaticker)
                 )
-                if later:  # earlier events belong to an earlier issuer of the ticker
+                if later:
                     delist_after[(m.vendor_ticker, ms)] = later[0]
             days = [d for d in sorted(sessions_cal) if ms <= d <= _month_last(ms, authorized.end)]
             for m in mb.universe.members:
@@ -791,8 +837,11 @@ def run(
                 "a symbol-day is excluded as DELISTED_BEFORE_DAY ONLY on an ACTIONS delisting "
                 "event dated after the month's decision day; a final price date alone never "
                 "shrinks the denominator (missing days stay expected and are reported as missing)",
-                f"delisting evidence actions requested: {list(delisting_actions)} "
-                f"(none means no exclusion of any kind); evidence rows applied: {len(evidence_rows)}",
+                "delisting evidence actions requested: "
+                f"{list(delisting_actions)} (none means no exclusion of any kind). An event "
+                "excludes later symbol-days only when its date falls inside exactly one issuer "
+                "interval and that issuer is the member selected on the decision day; evidence "
+                f"rows applied: {len(evidence_rows)}",
             ],
             "optional_bootstrap": None,
         }

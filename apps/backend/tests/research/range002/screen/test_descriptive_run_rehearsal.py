@@ -533,10 +533,15 @@ def test_existing_report_is_never_overwritten(world: dict[str, Any]) -> None:
 
 
 def _delist_world(
-    tmp: Path, minutes_root: Path, *, actions: tuple[tuple[str, str, str], ...]
+    tmp: Path,
+    minutes_root: Path,
+    *,
+    actions: tuple[tuple[str, str, str], ...],
+    dead_last: str = "2016-03-03",
 ) -> dict[str, Any]:
+    tmp.mkdir(parents=True, exist_ok=True)
     snap = tmp / "daily_delist.duckdb"
-    _write_daily(snap, dead_last="2016-03-03", action_rows=actions)
+    _write_daily(snap, dead_last=dead_last, action_rows=actions)
     manifest = tmp / "manifest_delist.json"
     manifest.write_text(_manifest_for(snap), encoding="utf-8")
     minutes = tmp / "minutes_delist.duckdb"
@@ -596,3 +601,43 @@ def test_an_unlisted_action_string_is_never_assumed(tmp_path: Path, minutes_root
     kw["delisting_actions"] = ("some_other_string",)  # the exact vendor string is the owner's input
     cov = rds.run(**kw).report["coverage"]
     assert cov["legitimate_exclusions"] == {} and cov["denominator"] == 15
+
+
+def test_an_event_outside_the_selected_issuers_interval_does_not_exclude(
+    tmp_path: Path, minutes_root: Path
+) -> None:
+    """DEAD's selected issuer stops on 2016-03-02. A 2016-03-03 ACTIONS row on the same ticker
+    belongs to whoever is trading that day, not to the member chosen on the decision day."""
+    kw = _delist_world(
+        tmp_path,
+        minutes_root,
+        actions=(("2016-03-03", "delisted", "DEAD"),),
+        dead_last="2016-03-02",
+    )
+    con = duckdb.connect(str(kw["daily_snapshot"]))
+    con.execute(
+        "INSERT INTO tickers VALUES ('SEP', 'P7', 'DEAD', ?, 'N', '2016-03-03', '2016-03-07')",
+        [COMMON],
+    )
+    con.close()
+    kw["snapshot_manifest"].write_text(_manifest_for(kw["daily_snapshot"]), encoding="utf-8")
+    kw["delisting_actions"] = ("delisted",)
+    report = rds.run(**kw).report
+    assert report["coverage"]["legitimate_exclusions"] == {}
+    assert report["coverage"]["expected"] == 15 and report["coverage"]["denominator"] == 15
+
+
+def test_a_future_delisting_does_not_change_who_was_selected(
+    tmp_path: Path, minutes_root: Path
+) -> None:
+    bare = _delist_world(tmp_path / "bare", minutes_root, actions=())
+    later = _delist_world(
+        tmp_path / "later",
+        minutes_root,
+        actions=(("2016-03-03", "delisted", "DEAD"),),
+    )
+    later["delisting_actions"] = ("delisted",)
+    without = rds.run(**bare).report["universe_months"]
+    with_event = rds.run(**later).report["universe_months"]
+    assert with_event == without
+    assert with_event[0]["members"] > 0
