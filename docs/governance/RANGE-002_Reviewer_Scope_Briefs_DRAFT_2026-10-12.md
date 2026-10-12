@@ -33,9 +33,9 @@
 **待审文件与 SHA-256 / Artifact(s) under review** (值取自起草时；发送前请重新计算 / values at drafting time; recompute before sending, a later change makes the record STALE)
 | 路径 / Path | SHA-256 |
 |---|---|
-| `docs/implementation/evidence/range_002/RANGE-002_Baseline_Values_Worksheet_v0.1.md` | `d4581f7141dc1b9e3a8a52597d7e8208902a30121d14f420e714a783e246d13d` |
+| `docs/implementation/evidence/range_002/RANGE-002_Baseline_Values_Worksheet_v0.1.md` | `48bc20c6c590b4849f6aeb4003c1316cfa80e6e87d04b932fa9edf1f97b451eb` |
 | `docs/implementation/evidence/range_002/RANGE-002_Identity_Probe_Preregistration_v1.json` | `116a0601ff29374a38c4290cc355c506374c7137d420c908a15b76e91e3a17fc` |
-| `docs/implementation/evidence/range_002/RANGE-002_Baseline_Conflict_Provenance_v0.1.md` | `865f7f4db4fdb00fdd337871ab587b7848beff92bf3f24c8779e840c18bda346` |
+| `docs/implementation/evidence/range_002/RANGE-002_Baseline_Conflict_Provenance_v0.1.md` | `74e87854b6a56b1236eff56d821832cbe6e569cf31beb5fbb333ba73c07999fa` |
 | `docs/governance/RANGE-002_Signoff_Scope_by_Gate_v0.1.md` | `5e16fc68feefdc57674bf195844b3c8fe2ab64d719977eb13e089cfac1f2362e` |
 
 **回复要求 / Requirements for your reply** (a reply that lacks any of these cannot be counted)
@@ -65,7 +65,7 @@
 **待审文件与 SHA-256 / Artifact(s) under review** (值取自起草时；发送前请重新计算 / values at drafting time; recompute before sending, a later change makes the record STALE)
 | 路径 / Path | SHA-256 |
 |---|---|
-| `docs/implementation/evidence/range_002/RANGE-002_Baseline_Values_Worksheet_v0.1.md` | `d4581f7141dc1b9e3a8a52597d7e8208902a30121d14f420e714a783e246d13d` |
+| `docs/implementation/evidence/range_002/RANGE-002_Baseline_Values_Worksheet_v0.1.md` | `48bc20c6c590b4849f6aeb4003c1316cfa80e6e87d04b932fa9edf1f97b451eb` |
 
 仅审阅工作表中标注了您姓名的行。 Review only the worksheet rows tagged with your name.
 
@@ -94,7 +94,7 @@
 **待审文件与 SHA-256 / Artifact(s) under review** (值取自起草时；发送前请重新计算 / values at drafting time; recompute before sending, a later change makes the record STALE)
 | 路径 / Path | SHA-256 |
 |---|---|
-| `docs/implementation/evidence/range_002/RANGE-002_Baseline_Values_Worksheet_v0.1.md` | `d4581f7141dc1b9e3a8a52597d7e8208902a30121d14f420e714a783e246d13d` |
+| `docs/implementation/evidence/range_002/RANGE-002_Baseline_Values_Worksheet_v0.1.md` | `48bc20c6c590b4849f6aeb4003c1316cfa80e6e87d04b932fa9edf1f97b451eb` |
 | `docs/governance/RANGE-002_Signoff_Scope_by_Gate_v0.1.md` | `5e16fc68feefdc57674bf195844b3c8fe2ab64d719977eb13e089cfac1f2362e` |
 
 工作表中标注您姓名的退出相关行；若所有者另行裁定，还包括 `signoff.trading_expert` 的范围（见签署范围文件）。 The worksheet rows tagged with your name; and, only if the owner rules, the scope of `signoff.trading_expert` (see the sign-off scope document).
