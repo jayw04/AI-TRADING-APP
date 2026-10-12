@@ -11,11 +11,17 @@ Structural properties (each has a synthetic test):
   later ``last_price_date`` label never influences selection;
 * identity: the vendor ticker comes from the identity map on the decision day, and an unmapped
   or overlap-ambiguous issuer is EXCLUDED WITH A REASON, not silently kept or dropped;
-* price bases: Sharadar SEP states ``close`` and ``volume`` are BOTH split-adjusted, so
-  ``close * volume`` is the as-traded dollar volume (the split factor cancels) and is knowable
-  on the day with no look-ahead. The $10 floor uses ``closeunadj``, the price actually seen
-  that day: the split-adjusted ``close`` is retro-adjusted by FUTURE splits, so a floor on it
-  would leak the future. ``closeadj`` (dividend-adjusted) is never paired with ``volume``;
+* price bases: dollar volume is the ACTUAL TRADED price times the ACTUAL TRADED shares.
+  Sharadar SEP documents ``close`` and ``volume`` as BOTH split-adjusted, so the traded share
+  count is recovered with the same-vintage split factor ``close / closeunadj``:
+  ``traded_shares = volume * close / closeunadj`` and
+  ``dollar_volume = closeunadj * traded_shares`` (algebraically ``close * volume``; the
+  split factor cancels). Written in the traded form so no split-adjusted price is ever the
+  quantity ranked on. The $10 floor also uses ``closeunadj``, the price actually seen that day:
+  the split-adjusted ``close`` is retro-adjusted by FUTURE splits, so a floor on it would leak
+  the future. ``closeadj`` (dividend-adjusted) is never paired with ``volume``. The only
+  split-adjusted inputs are the daily ``close`` and ``volume`` used for that recovery;
+  intraday bars, opening range, stops and fills are all raw traded prices;
 * accounting: ``population == members + below_cut + excluded``; nothing leaves unreported;
 * no exclusion bound is chosen here. Whether the exclusion count is acceptable is a separate
   owner decision (``data.exclusion_bound``, UNSET); this module only reports it against the
@@ -144,6 +150,15 @@ def _check(
         raise PitUniverseError(f"observation basis {bad} differs from required {params.basis!r}")
 
 
+def _traded_dollar_volume(r: DailyObs) -> float:
+    """closeunadj * traded shares, with traded shares = split-adjusted volume * close / closeunadj.
+
+    Callers guarantee ``close``, ``volume`` and ``close_unadj`` are present and positive."""
+    assert r.close is not None and r.volume is not None and r.close_unadj is not None
+    traded_shares = float(r.volume) * float(r.close) / float(r.close_unadj)
+    return float(r.close_unadj) * traded_shares
+
+
 def build_universe_month(
     month_start: date,
     decision_day: date,
@@ -183,7 +198,9 @@ def build_universe_month(
             )
             continue
         window = rows[-params.adv_window :]
-        if len(window) < params.adv_window or any(not r.close or not r.volume for r in window):
+        if len(window) < params.adv_window or any(
+            not r.close or not r.volume or not r.close_unadj for r in window
+        ):
             excluded.append(
                 Exclusion(pid, INSUFFICIENT_HISTORY, f"fewer than {params.adv_window} usable days")
             )
@@ -202,7 +219,7 @@ def build_universe_month(
             code = AMBIGUOUS_IDENTITY if res.status == AMBIGUOUS_OVERLAP else NO_IDENTITY_MAPPING
             excluded.append(Exclusion(pid, code, res.detail))
             continue
-        adv = sum(float(r.close or 0) * float(r.volume or 0) for r in window) / len(window)
+        adv = sum(_traded_dollar_volume(r) for r in window) / len(window)
         scored.append((adv, pid, last.close_unadj, res.value, li.last_price_date))
 
     scored.sort(key=lambda s: (-s[0], s[1]))

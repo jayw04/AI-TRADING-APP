@@ -16,6 +16,18 @@ processed in ascending ``(entry_time, permaticker)``. At each entry, in this ord
    open (identity is the permaticker, never the ticker string), max concurrent, per-name cap,
    gross cap.
 
+Capital and proceeds (stated, not implied by the priority rule):
+
+* ``equity`` is the FIXED starting equity of the run; realised P&L never enlarges the caps or the
+  sizing intra-day (no compounding): quantity was set at signal level and the caps are measured
+  against this fixed number;
+* capital is notional only. A position's notional is freed when it is released (strictly after
+  its exit minute) and IS reusable by any entry from the next minute onward;
+* an entry in the SAME minute as an exit cannot use that exit's notional or its realised R, even
+  though the intra-minute order is unknown (conservative);
+* the permaticker order only decides which of several SAME-MINUTE entries is evaluated first and
+  therefore which sees the caps first; it does not make capital available.
+
 The tie-break key is the issuer's stable permaticker, so renaming or reusing a ticker cannot
 change which issuer is accepted. It depends on no return, price or outcome. A trade with an
 empty permaticker is refused (fail closed); any other tie-break policy name is refused.

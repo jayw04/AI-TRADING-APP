@@ -223,3 +223,30 @@ def test_mock_fetch_to_store_to_loader_round_trip(tmp_path: Path, cap: object) -
     assert s.permaticker == "P-AAA"
     # the fetch path tags every stored bar with the adjustment actually requested
     assert con.execute("SELECT DISTINCT basis FROM minute_bars").fetchall() == [("raw",)]
+
+
+def test_dollar_volume_is_traded_price_times_traded_shares_across_a_split_inside_the_window() -> (
+    None
+):
+    """A 10:1 split falls INSIDE the 3-day ADV window. Traded: 1M shares at 100 (2 days), then
+    10M shares at 10 (1 day): 100M each day. The vendor stores split-adjusted close/volume at the
+    snapshot vintage (close 10 / volume 10M before the split, 10 / 10M after), unadjusted close
+    100 then 10. Recovering traded shares as volume * close / closeunadj must give 100M each day,
+    and an unadjusted-price x adjusted-volume product (the hazard) would not."""
+    d = _days(3)
+    rows = [
+        DailyObs("S", d[0], 10.0, 100.0, 10_000_000, BASIS_SPLIT_ADJUSTED),
+        DailyObs("S", d[1], 10.0, 100.0, 10_000_000, BASIS_SPLIT_ADJUSTED),
+        DailyObs("S", d[2], 10.0, 10.0, 10_000_000, BASIS_SPLIT_ADJUSTED),
+    ]
+    u = _build(rows, ["S"])
+    # the last day's unadjusted close is 10.0, which is not ABOVE the $10 floor: excluded, and
+    # reported with its reason rather than ranked
+    assert u.members == () and u.excluded[0].reason == PRICE_NOT_ABOVE_MIN
+    rows[2] = DailyObs(
+        "S", d[2], 10.5, 10.5, 9_523_809, BASIS_SPLIT_ADJUSTED
+    )  # 10.5 x 9.52M ~ 100M
+    m = _build(rows, ["S"]).members[0]
+    assert m.adv == pytest.approx(100_000_000, rel=1e-4)
+    wrong = (100.0 * 10_000_000 * 2 + 10.5 * 9_523_809) / 3  # unadjusted price x adjusted volume
+    assert abs(m.adv - wrong) > 1e8  # the hazard form is far away from the correct value

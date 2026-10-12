@@ -12,6 +12,8 @@ import pytest
 from app.research.range002.governance.errors import InvalidCapabilityError
 from app.research.range002.screen.errors import ParamsUnsetError, SpecBindingError
 from app.research.range002.screen.scheduler import (
+    REJECT_CONCURRENCY,
+    REJECT_NAME,
     PortfolioLimits,
     limits_from_draft,
     schedule_portfolio,
@@ -231,3 +233,29 @@ def test_limits_from_draft_binds_to_the_capability_spec(tmp_path: Path) -> None:
     other = synth_payload(**{"risk__max_concurrent": 5})
     with pytest.raises(SpecBindingError):
         limits_from_draft(cap, parse_draft(other), 100_000.0)
+
+
+def test_capital_rules_proceeds_are_not_compounded_and_freed_notional_is_reusable_next_minute(
+    cap: object,
+) -> None:
+    """Stated, not implied by the priority rule (scheduler docstring):
+    * the same-minute entry cannot use an exit's notional or realised R;
+    * from the next minute the freed notional IS reusable;
+    * realised profit never enlarges the caps (equity is fixed)."""
+    one_slot = PortfolioLimits(
+        equity=100_000.0, max_concurrent=1, gross_cap=0.5, per_name_cap=0.5, daily_loss_limit_r=9.0
+    )
+    a = _trade("AAA", DAY, time(10, 0), time(10, 30), 5.0)  # exits at 10:30 with +5R
+    same_minute = _trade("BBB", DAY, time(10, 30), time(15, 0), 1.0)
+    next_minute = _trade("CCC", DAY, time(10, 31), time(15, 0), 1.0)
+    run = schedule_portfolio(
+        cap, [a, same_minute, next_minute], one_slot, tie_break="PERMATICKER_ASC"
+    )
+    assert [t.symbol for t in run.accepted] == ["AAA", "CCC"]
+    assert run.rejected == {REJECT_CONCURRENCY: 1}  # BBB: AAA still counted in its exit minute
+
+    # +5R of realised profit does not lift the per-name cap measured on the FIXED equity:
+    # 12_000 shares at 10.0 = 120_000 notional > 0.5 * 100_000 even after the win
+    big = _trade("DDD", DAY, time(10, 40), time(15, 0), 1.0, qty=12_000, px=10.0)
+    run2 = schedule_portfolio(cap, [a, big], one_slot, tie_break="PERMATICKER_ASC")
+    assert [t.symbol for t in run2.accepted] == ["AAA"] and run2.rejected == {REJECT_NAME: 1}

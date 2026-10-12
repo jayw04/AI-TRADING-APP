@@ -88,3 +88,36 @@ Behaviour notes for reviewers: (1) a screen-profile v1 spec may still freeze wit
 | Sequence disclosure | The `schema.py` edits in the isolated worktree began (round 4) before this exception was stated, on the agent's reading that a stacked branch does not change #755. They are unpushed. If adoption is not recorded they are discarded; nothing else depends on them. |
 | Files outside the exception | `results_guard.py`, `spec_adapter.py`, `errors.py`, `spec/loader.py`, `freeze_spec.py`, `test_import_lint.py`: **untouched** (verified by `git status`). |
 | #755 | `origin/feat/range002-screen-kernel` = `1ecf811b0b4ed7699bb4650c22387e1242f98e74`, unchanged. |
+
+## H. Hazard-branch review record (round 5)
+
+### H.1 Price basis, explained separately
+| Use | Quantity | Basis | Why |
+|---|---|---|---|
+| Price floor ($10) | `closeunadj` on the decision day | **Actual traded price** | The split-adjusted `close` is retro-adjusted by FUTURE splits; a floor on it would leak the future. |
+| Dollar-volume ranking (20-day ADV) | `closeunadj` × **traded shares**, where traded shares = `volume` × `close` / `closeunadj` | Actual traded price × actual traded shares | Sharadar documents `close` and `volume` as both split-adjusted, so the same-vintage factor `close/closeunadj` recovers traded shares. Algebraically equal to `close × volume`; written in the traded form so no split-adjusted price is the ranked quantity. Tested across a split inside the window. |
+| Opening range, stops, fills, sizing, costs | Intraday bars | **Raw traded prices** (`data.intraday_price_basis = raw`, verified per row) | One consistent basis for every price a trade sees. |
+| Compatibility | (`SEP_SPLIT_ADJUSTED` daily, `raw` intraday) | The only allowed pair; any other is refused as an incompatible join | |
+
+The only split-adjusted inputs are the daily `close` and `volume`, used solely for the traded-share recovery. **Not yet verified empirically:** that the vendor's `close/closeunadj` steps at splits together with `volume`; the documentation statement was read through a summarizing fetch. It is to be checked on the snapshot before any RUN.
+
+### H.2 Category map
+`universe.category_map` is a spec field that is **null until the owner sets it from the vendor's documented `category` values**. No mapping exists in application code (grep: none); the strings in tests are synthetic fixture values, not a proposal. The owner supplies the map; the agent does not invent it.
+
+### H.3 Scheduling and capital availability
+Same-minute order, strictly-after release of notional, no intra-day compounding of equity, and "priority is not capital" are now stated in the scheduler docstring and pinned by `test_capital_rules_proceeds_are_not_compounded_and_freed_notional_is_reusable_next_minute`. `PERMATICKER_ASC` decides evaluation order only.
+
+### H.4 v1 compatibility and fail-closed behaviour
+A v1-profile spec may still freeze with the four new fields null (v1-exempt), but the kernel refuses it: no silent default is supplied. v1 hash compatibility is not compatibility with this kernel.
+
+### H.5 Changed hashes (full values)
+| Constant | Before this branch | After |
+|---|---|---|
+| `SCREEN_V2_REQUIRED_SHA256` | `872193e14f93044d2a22acdcad7ea8f9c7c3fc1b37ff63a178b6324367ce897b` | `16f904a3094b375f32792201efb6fc6a40eb22ea46c9e26caeb978318ff96899` |
+| `SCREEN_V2_UNMODELLED_SHA256` | `0298fe82ad0374a5139a0d739f49188081bf358a283edcb142c2b180725efb2c` | unchanged |
+| `SCREEN_V1_REQUIRED_SHA256` | `fa3ed823e6764886d905d5d648bd346abf7bffcae87362b8e477397e876f2355` | unchanged |
+
+Every v2-profile spec hash changes, because the v2 declaration pins the required digest. **No previously signed specification exists on record; none may be treated as approval of this revised baseline.** Any spec hash computed against the #755 v2 digest is void for this kernel.
+
+### H.6 Authorization timeline (no backdating)
+The `schema.py` edits on this branch were made **before** the owner's exception was stated. The exception, once adopted, authorizes **continued work on this isolated branch only**; it does not authorize push, merge or market-data execution. The adoption record is **PENDING**; the date of any adoption is the date of that record, not an earlier date.
