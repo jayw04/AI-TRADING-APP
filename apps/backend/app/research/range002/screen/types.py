@@ -20,6 +20,10 @@ SUPPORTED_FAMILIES = ("time", "fixed_r", "trailing", "scale_out")
 SUPPORTED_INTRADAY_BASIS = "raw"
 
 HALT_POLICY_UNEXECUTABLE = "UNEXECUTABLE_DURING_UNAVAILABLE"
+#: The frozen valuation rule for an exit that has no executable bar through the close: the
+#: position is valued at the WORSE of the last close and the initial stop, flagged
+#: ``exit_unexecutable`` and reported separately; it is never an ordinary fill.
+UNAVAILABLE_EXIT_VALUATION_RULE = "WORSE_OF_LAST_CLOSE_AND_INITIAL_STOP"
 
 STATE_OR_INCOMPLETE = "OR_INCOMPLETE"
 STATE_OR_TOO_NARROW = "OR_TOO_NARROW"

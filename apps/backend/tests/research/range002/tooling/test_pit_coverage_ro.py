@@ -93,3 +93,47 @@ def test_required_column_list_mirrors_the_application_manifest() -> None:
     from app.research.range002.data.manifest import REQUIRED_COLUMNS
 
     assert pit_coverage_ro.PIT_REQUIRED_COLUMNS == REQUIRED_COLUMNS
+
+
+def _split_store(tmp_path: Path, *, volume_adjusted: bool) -> Path:
+    """One forward 10:1 split on 2020-03-02. Traded: 1M shares/day at 100 before, 10M at 10 after.
+    The vendor's split-adjusted series: close 10 throughout; closeunadj 100 then 10;
+    volume 10M throughout if split-adjusted, else (hazard) as traded: 1M then 10M."""
+    path = tmp_path / ("adj.duckdb" if volume_adjusted else "traded.duckdb")
+    c = duckdb.connect(str(path))
+    c.execute(
+        "CREATE TABLE tickers(permaticker VARCHAR, ticker VARCHAR, isdelisted VARCHAR, firstpricedate DATE, lastpricedate DATE)"
+    )
+    c.execute("INSERT INTO tickers VALUES ('P1','SPL','N','2010-01-04','2026-06-12')")
+    c.execute(
+        "CREATE TABLE sep(ticker VARCHAR, date DATE, close DOUBLE, closeunadj DOUBLE, volume DOUBLE)"
+    )
+    c.execute(
+        "CREATE TABLE actions(date DATE, action VARCHAR, ticker VARCHAR, value DOUBLE, contraticker VARCHAR)"
+    )
+    c.execute("INSERT INTO actions VALUES ('2020-03-02','split','SPL',10.0,NULL)")
+    pre = ["2020-02-24", "2020-02-25", "2020-02-26", "2020-02-27", "2020-02-28"]
+    post = ["2020-03-02", "2020-03-03", "2020-03-04", "2020-03-05", "2020-03-06"]
+    for d in pre:
+        c.execute(
+            "INSERT INTO sep VALUES ('SPL', ?, 10.0, 100.0, ?)",
+            [d, 10_000_000.0 if volume_adjusted else 1_000_000.0],
+        )
+    for d in post:
+        c.execute("INSERT INTO sep VALUES ('SPL', ?, 10.0, 10.0, 10_000_000.0)", [d])
+    c.close()
+    return path
+
+
+def test_volume_semantics_check_recognises_split_adjusted_volume(tmp_path: Path) -> None:
+    out = pit_coverage_ro.report(str(_split_store(tmp_path, volume_adjusted=True)))
+    assert "VOLUME_SPLIT_ADJUSTED" in out and "VOLUME_AS_TRADED" not in out
+
+
+def test_volume_semantics_check_flags_as_traded_volume(tmp_path: Path) -> None:
+    out = pit_coverage_ro.report(str(_split_store(tmp_path, volume_adjusted=False)))
+    assert "VOLUME_AS_TRADED" in out and "VOLUME_SPLIT_ADJUSTED" not in out
+
+
+def test_volume_semantics_check_is_skipped_without_the_columns(store: Path) -> None:
+    assert "VOLUME SEMANTICS: SKIPPED" in pit_coverage_ro.report(str(store))

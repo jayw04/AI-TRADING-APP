@@ -189,3 +189,45 @@ def test_selection_refuses_unknown_or_duplicate_candidates(cap: object) -> None:
         select_candidate(
             cap, [sc("TIME", 0.1), sc("TIME", 0.2)], ORDER, min_trades=0, min_pf=0, delta=0.0
         )
+
+
+# --- boundary operators, stated and pinned on both sides -----------------------------------
+
+
+def test_selection_eligibility_is_strict_pf_must_exceed_the_floor(cap: object) -> None:
+    at = select_candidate(
+        cap, [sc("R1", 0.2, pf=1.0)], ORDER, min_trades=300, min_pf=1.0, delta=0.0
+    )
+    assert at.winner is None and at.ineligible == {
+        "R1": "PF_BELOW_FLOOR"
+    }  # PF == floor: ineligible
+    above = select_candidate(
+        cap, [sc("R1", 0.2, pf=1.0001)], ORDER, min_trades=300, min_pf=1.0, delta=0.0
+    )
+    assert above.winner == "R1"
+    # trades: >= min_trades is eligible, one fewer is not
+    ok = select_candidate(
+        cap, [sc("R1", 0.2, trades=300)], ORDER, min_trades=300, min_pf=1.0, delta=0.0
+    )
+    short = select_candidate(
+        cap, [sc("R1", 0.2, trades=299)], ORDER, min_trades=300, min_pf=1.0, delta=0.0
+    )
+    assert ok.winner == "R1" and short.winner is None
+
+
+def test_revise_threshold_is_strict_less_than_and_distinct_from_the_selection_floor(
+    cap: object,
+) -> None:
+    def codes_for(pf: float) -> set[str]:
+        base = {"mean_net_r": 0.02, "profit_factor": pf, "total_net_r": 8.0, "win_rate": 0.5}
+        return codes(cap, ev(base=base))
+
+    assert "PF_BELOW_MIN" not in codes_for(1.15)  # PF == 1.15 is NOT revised
+    assert "PF_BELOW_MIN" in codes_for(1.1499)
+    assert "PF_BELOW_MIN" not in codes_for(1.16)
+
+
+def test_unavailable_exit_valuation_rule_is_a_named_frozen_constant(cap: object) -> None:
+    from app.research.range002.screen.types import UNAVAILABLE_EXIT_VALUATION_RULE
+
+    assert UNAVAILABLE_EXIT_VALUATION_RULE == "WORSE_OF_LAST_CLOSE_AND_INITIAL_STOP"

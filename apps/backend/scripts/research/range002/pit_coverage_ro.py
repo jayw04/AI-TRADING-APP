@@ -231,6 +231,91 @@ def report(path: str) -> str:
             "\n## identity / temporal checks: SKIPPED - need a permanent id and first/last price dates"
         )
 
+    # ---- volume adjustment semantics (the PIT ADV recovers traded shares from volume * close/closeunadj,
+    # which is only valid if `volume` is split-adjusted on the same basis as `close`) -------------------
+    act_c = cols("actions")
+    if (
+        act_c
+        and {"date", "action", "ticker", "value"} <= set(act_c)
+        and {"close", "closeunadj", "volume"} <= set(sep_c)
+    ):
+        q(
+            "VOLUME SEMANTICS around split events (diagnostic; 5-session medians either side)",
+            """
+            WITH ev AS (
+              SELECT ticker, CAST(date AS DATE) AS d, value AS r FROM actions
+              WHERE lower(action) = 'split' AND value IS NOT NULL AND value > 0 AND value <> 1
+            ),
+            w AS (
+              SELECT ev.ticker, ev.d, ev.r, s.close, s.closeunadj, s.volume,
+                     CASE WHEN s.date < ev.d THEN 'pre' ELSE 'post' END AS side,
+                     row_number() OVER (
+                       PARTITION BY ev.ticker, ev.d, (s.date < ev.d)
+                       ORDER BY abs(date_diff('day', ev.d, s.date))) AS rn
+              FROM ev JOIN sep s ON s.ticker = ev.ticker
+               AND s.date BETWEEN ev.d - INTERVAL 15 DAY AND ev.d + INTERVAL 15 DAY
+            ),
+            m AS (
+              SELECT ticker, d, r,
+                median(closeunadj) FILTER (WHERE side = 'post' AND rn <= 5)
+                  / NULLIF(median(closeunadj) FILTER (WHERE side = 'pre' AND rn <= 5), 0) AS unadj_ratio,
+                median(close) FILTER (WHERE side = 'post' AND rn <= 5)
+                  / NULLIF(median(close) FILTER (WHERE side = 'pre' AND rn <= 5), 0) AS adj_close_ratio,
+                median(volume) FILTER (WHERE side = 'post' AND rn <= 5)
+                  / NULLIF(median(volume) FILTER (WHERE side = 'pre' AND rn <= 5), 0) AS volume_ratio
+              FROM w GROUP BY ticker, d, r
+            )
+            SELECT ticker, d, r, round(unadj_ratio, 4) AS unadj_ratio, round(adj_close_ratio, 4) AS adj_close_ratio,
+                   round(volume_ratio, 4) AS volume_ratio,
+                   CASE
+                     WHEN unadj_ratio IS NULL OR adj_close_ratio IS NULL OR volume_ratio IS NULL THEN 'INSUFFICIENT_DATA'
+                     WHEN abs(ln(unadj_ratio * r)) > 0.35 OR abs(ln(adj_close_ratio)) > 0.35 THEN 'PRICE_PATTERN_NOT_AS_EXPECTED'
+                     WHEN abs(ln(volume_ratio)) <= abs(ln(volume_ratio / r)) THEN 'VOLUME_SPLIT_ADJUSTED'
+                     ELSE 'VOLUME_AS_TRADED'
+                   END AS verdict
+            FROM m ORDER BY ticker, d LIMIT 200
+            """,
+        )
+        q(
+            "VOLUME SEMANTICS summary (counts by verdict)",
+            """
+            WITH ev AS (
+              SELECT ticker, CAST(date AS DATE) AS d, value AS r FROM actions
+              WHERE lower(action) = 'split' AND value IS NOT NULL AND value > 0 AND value <> 1
+            ),
+            w AS (
+              SELECT ev.ticker, ev.d, ev.r, s.close, s.closeunadj, s.volume,
+                     CASE WHEN s.date < ev.d THEN 'pre' ELSE 'post' END AS side,
+                     row_number() OVER (
+                       PARTITION BY ev.ticker, ev.d, (s.date < ev.d)
+                       ORDER BY abs(date_diff('day', ev.d, s.date))) AS rn
+              FROM ev JOIN sep s ON s.ticker = ev.ticker
+               AND s.date BETWEEN ev.d - INTERVAL 15 DAY AND ev.d + INTERVAL 15 DAY
+            ),
+            m AS (
+              SELECT ticker, d, r,
+                median(closeunadj) FILTER (WHERE side = 'post' AND rn <= 5)
+                  / NULLIF(median(closeunadj) FILTER (WHERE side = 'pre' AND rn <= 5), 0) AS unadj_ratio,
+                median(close) FILTER (WHERE side = 'post' AND rn <= 5)
+                  / NULLIF(median(close) FILTER (WHERE side = 'pre' AND rn <= 5), 0) AS adj_close_ratio,
+                median(volume) FILTER (WHERE side = 'post' AND rn <= 5)
+                  / NULLIF(median(volume) FILTER (WHERE side = 'pre' AND rn <= 5), 0) AS volume_ratio
+              FROM w GROUP BY ticker, d, r
+            )
+            SELECT CASE
+                     WHEN unadj_ratio IS NULL OR adj_close_ratio IS NULL OR volume_ratio IS NULL THEN 'INSUFFICIENT_DATA'
+                     WHEN abs(ln(unadj_ratio * r)) > 0.35 OR abs(ln(adj_close_ratio)) > 0.35 THEN 'PRICE_PATTERN_NOT_AS_EXPECTED'
+                     WHEN abs(ln(volume_ratio)) <= abs(ln(volume_ratio / r)) THEN 'VOLUME_SPLIT_ADJUSTED'
+                     ELSE 'VOLUME_AS_TRADED'
+                   END AS verdict, COUNT(*) AS events
+            FROM m GROUP BY 1 ORDER BY 2 DESC
+            """,
+        )
+    else:
+        lines.append(
+            "\n## VOLUME SEMANTICS: SKIPPED - needs actions(date,action,ticker,value) and sep(close,closeunadj,volume)"
+        )
+
     for name in tables:
         if any(k in name.lower() for k in ("ingest", "manifest", "provenance")):
             q(f"{name} (up to 20 rows)", f'SELECT * FROM "{name}" LIMIT 20')

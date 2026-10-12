@@ -259,3 +259,117 @@ def test_capital_rules_proceeds_are_not_compounded_and_freed_notional_is_reusabl
     big = _trade("DDD", DAY, time(10, 40), time(15, 0), 1.0, qty=12_000, px=10.0)
     run2 = schedule_portfolio(cap, [a, big], one_slot, tie_break="PERMATICKER_ASC")
     assert [t.symbol for t in run2.accepted] == ["AAA"] and run2.rejected == {REJECT_NAME: 1}
+
+
+# --- one-sided lower confidence bound (before any statistical selection) -------------------
+
+
+def test_one_sided_lower_bound_is_the_alpha_quantile_and_matches_the_two_sided_lower_end(
+    cap: object,
+) -> None:
+    from app.research.range002.screen.stats import one_sided_lower_bound
+
+    m = matrix(_ar1_skewed(np.random.default_rng(11), 250, 2, 0.0))
+    lb = one_sided_lower_bound(cap, m, "C0", 0.05, CFG)
+    two = mean_interval(cap, m, "C0", 0.90, CFG)  # (1 - 0.90) / 2 == 0.05 on each side
+    assert lb.lower == pytest.approx(two.lower)
+    assert lb.alpha == 0.05 and lb.config == CFG
+    # a smaller alpha is a more conservative (lower) bound
+    assert one_sided_lower_bound(cap, m, "C0", 0.01, CFG).lower < lb.lower
+
+
+def test_lower_bound_excludes_zero_for_a_planted_edge_and_not_for_a_null(cap: object) -> None:
+    from app.research.range002.screen.stats import one_sided_lower_bound
+
+    edge = matrix(_ar1_skewed(np.random.default_rng(3), 250, 1, 0.6))
+    assert one_sided_lower_bound(cap, edge, "C0", 0.05, CFG).lower > 0
+    raw = _ar1_skewed(np.random.default_rng(4), 250, 1, 0.0)
+    null = matrix(raw - raw.mean(axis=0))  # sample mean exactly 0: no edge is observable
+    assert one_sided_lower_bound(cap, null, "C0", 0.05, CFG).lower < 0
+
+
+def test_lower_bound_is_deterministic_undefined_without_trades_and_needs_a_capability(
+    cap: object,
+) -> None:
+    from app.research.range002.screen.stats import one_sided_lower_bound
+
+    m = matrix(_ar1_skewed(np.random.default_rng(5), 100, 1, 0.1))
+    assert one_sided_lower_bound(cap, m, "C0", 0.05, CFG) == one_sided_lower_bound(
+        cap, m, "C0", 0.05, CFG
+    )
+    empty = DayMatrix(
+        days=DAYS[:5],
+        candidates=("Z",),
+        net_r=np.zeros((5, 1)),
+        trades=np.zeros((5, 1), dtype=np.int64),
+    )
+    assert one_sided_lower_bound(cap, empty, "Z", 0.05, CFG).lower is None  # undefined, not zero
+    with pytest.raises(InvalidCapabilityError):
+        one_sided_lower_bound(None, m, "C0", 0.05, CFG)
+    for bad in (0.0, 1.0, -0.1):
+        with pytest.raises(ParamsUnsetError):
+            one_sided_lower_bound(cap, m, "C0", bad, CFG)
+
+
+# --- percentile construction and alpha handling, deterministic (no sampling involved) --------
+
+
+def _inject(monkeypatch, replicates: np.ndarray) -> None:  # type: ignore[no-untyped-def]
+    """Replace the resampler with a KNOWN replicate-mean array so the bound is a pure function."""
+    from app.research.range002.screen import stats as stats_mod
+
+    zero = np.isnan(replicates)
+    monkeypatch.setattr(stats_mod, "_resample_means", lambda m, c: (replicates, zero))
+
+
+@pytest.mark.parametrize("alpha", [0.01, 0.05, 0.10, 0.50, 0.95])
+def test_lower_bound_is_exactly_the_alpha_quantile_of_the_replicate_means(
+    cap: object, monkeypatch, alpha: float
+) -> None:  # type: ignore[no-untyped-def]
+    from app.research.range002.screen.stats import one_sided_lower_bound
+
+    reps = np.arange(1, 101, dtype=float).reshape(-1, 1)  # replicate means 1..100, one candidate
+    _inject(monkeypatch, reps)
+    m = matrix(np.full((10, 1), 0.5))
+    lb = one_sided_lower_bound(cap, m, "C0", alpha, BootstrapConfig(10.0, 100, 1))
+    assert lb.lower == pytest.approx(np.quantile(np.arange(1, 101), alpha))  # linear interpolation
+    assert lb.observed_mean == pytest.approx(0.5) and lb.alpha == alpha
+
+
+def test_the_95_percent_bound_selects_the_5th_percentile_not_the_95th(
+    cap: object, monkeypatch
+) -> None:  # type: ignore[no-untyped-def]
+    from app.research.range002.screen.stats import one_sided_lower_bound
+
+    _inject(monkeypatch, np.arange(1, 101, dtype=float).reshape(-1, 1))
+    m = matrix(np.full((10, 1), 0.5))
+    lb = one_sided_lower_bound(cap, m, "C0", 0.05, BootstrapConfig(10.0, 100, 1))
+    assert lb.lower == pytest.approx(5.95)  # 5th percentile of 1..100 (linear): 1 + 0.05 * 99
+    assert lb.lower < 50 < np.quantile(np.arange(1, 101), 0.95)
+
+
+def test_alpha_is_monotone_and_nan_replicates_are_dropped_and_counted(
+    cap: object, monkeypatch
+) -> None:  # type: ignore[no-untyped-def]
+    from app.research.range002.screen.stats import one_sided_lower_bound
+
+    reps = np.arange(1, 101, dtype=float).reshape(-1, 1)
+    reps[:10, 0] = np.nan  # ten replicates with no trades
+    _inject(monkeypatch, reps)
+    m = matrix(np.full((10, 1), 0.5))
+    cfg = BootstrapConfig(10.0, 100, 1)
+    lows = [one_sided_lower_bound(cap, m, "C0", a, cfg).lower for a in (0.01, 0.05, 0.25, 0.75)]
+    assert lows == sorted(lows) and lows[0] < lows[-1]
+    lb = one_sided_lower_bound(cap, m, "C0", 0.05, cfg)
+    assert lb.zero_trade_replicates == 10
+    assert lb.lower == pytest.approx(
+        np.quantile(np.arange(11, 101), 0.05)
+    )  # NaNs excluded, not zero
+
+
+def test_constant_daily_result_gives_that_value_for_every_alpha(cap: object) -> None:
+    from app.research.range002.screen.stats import one_sided_lower_bound
+
+    m = matrix(np.full((60, 1), 0.25))
+    for a in (0.01, 0.05, 0.5, 0.99):
+        assert one_sided_lower_bound(cap, m, "C0", a, CFG).lower == pytest.approx(0.25)

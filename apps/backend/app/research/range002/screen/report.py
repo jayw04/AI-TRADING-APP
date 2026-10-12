@@ -10,7 +10,7 @@ from typing import Any
 
 from app.research.range002.governance.results_guard import requires_capability
 from app.research.range002.screen.scheduler import PortfolioRun
-from app.research.range002.screen.types import Trade
+from app.research.range002.screen.types import UNAVAILABLE_EXIT_VALUATION_RULE, Trade
 from app.research.range002.spec.schema import SCREEN_V2_UNMODELLED
 
 
@@ -72,6 +72,8 @@ def summarize(capability: object, trades: Sequence[Trade]) -> dict[str, Any]:
         # Fills are bar-level with all-in bps costs. These spec settings exist but are NOT simulated;
         # a non-null value for any of them does not imply simulated execution realism.
         "execution_realism": "NOT_MODELLED",
+        "unavailable_exit_valuation": UNAVAILABLE_EXIT_VALUATION_RULE,
+        "unexecutable_exits": sum(1 for t in ordered if t.exit_unexecutable),
         # Descriptive statistics only. Any statistical choice made after viewing these numbers
         # cannot be described as preregistered confirmation of the same results.
         "inferential_status": "NON_INFERENTIAL_DESCRIPTIVE",
