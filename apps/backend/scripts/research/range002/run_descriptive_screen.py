@@ -1,0 +1,880 @@
+#!/usr/bin/env python3
+"""RANGE-002 bounded DESCRIPTIVE screen run (owner-authorized lane D).
+
+    python run_descriptive_screen.py \\
+        --spec FROZEN.json --registry RUNS.jsonl --exposure-ledger LEDGER.json \\
+        --daily-snapshot SNAP.duckdb|PARQUET_DIR --snapshot-manifest MANIFEST.json \\
+        --minute-bars MINUTES.duckdb --minute-feed sip --minute-ts-convention start \\
+        --date-start 2016-01-01 --date-end 2016-03-31 \\
+        --partition DEVELOPMENT_SELECTION|REPLAY_RNG001 --table-filter SEP \\
+        --lookback-calendar-days 40 --coverage-threshold 0.98 --equity 100000 --tick 0.01 \\
+        --code-sha <40 hex> --out-dir OUT \\
+        [--exploratory-scope-amendment-id ID | --raw-vendor-rows-attested] \\
+        [--provenance KEY=VALUE ...] [--statistics-config STATS.json] [--dry-plan]
+
+Authorization is the weekly-meeting decision record: the frozen spec must carry a DecisionRef
+(``approved``, ``run`` scope, the partition covered, byte-identical committed minutes, spec-hash
+bound). Every decision-bearing value is an explicit argument; nothing is defaulted. The only
+partitions this command will name are DEVELOPMENT_SELECTION (phase P3A) and REPLAY_RNG001 (phase
+P2, never citable); HOLDOUT, CONFIRMATION and PAPER are not reachable from here.
+
+Flow (all through the real APIs): load_frozen -> to_guard_view -> RunRegistry.open_run ->
+authorize -> extract_params / universe_params_from_draft -> per month build_month_from_store ->
+expected symbol-days (members x NYSE sessions) -> load_sessions (a missing symbol-day stays in
+the denominator) -> coverage_report -> run_screen (every spec candidate) -> report.summarize ->
+report.json + report.md -> close_run(COMPLETED, sha256(report.json bytes)). Any refusal after
+the run row is written closes the run ABORTED; a run is never left OPEN.
+
+Output is DESCRIPTIVE ONLY and carries the label NON_INFERENTIAL_DESCRIPTIVE: statistical
+choices made after viewing it are not preregistered confirmation. Coverage below the threshold
+is a DATA-QUALITY DEFECT: the report is still written, with no strategy conclusion. An optional
+day-cluster bootstrap section is added only when ``--statistics-config`` is supplied (and only
+when coverage is sound); it is kept separate from the descriptive tables.
+
+Exit codes: 0 report written; 2 refused/aborted; 3 report written with a DATA-QUALITY DEFECT.
+``--dry-plan`` prints the plan and exits without opening a run, a capability, or any bar.
+
+Disclosures carried into every report: bar-level fills with all-in bps costs (execution
+settings that are present in the spec are NOT simulated); the unavailable-exit valuation rule;
+the NYSE schedule is not independently verified against vendor sessions; a regular-session
+minute with no bar is a DATA_GAP (no independent no-trade evidence is supplied).
+"""
+
+from __future__ import annotations
+
+import argparse
+import dataclasses
+import hashlib
+import json
+import sys
+from calendar import monthrange
+from dataclasses import dataclass
+from datetime import date
+from pathlib import Path
+from typing import Any
+
+BACKEND_DIR = Path(__file__).resolve().parents[3]
+if str(BACKEND_DIR) not in sys.path:
+    sys.path.insert(0, str(BACKEND_DIR))
+
+import duckdb  # noqa: E402
+
+from app.research.range002.data.bar_loader import load_sessions  # noqa: E402
+from app.research.range002.data.manifest import (  # noqa: E402
+    ManifestError,
+    parse_snapshot_manifest,
+    verify_snapshot_files,
+)
+from app.research.range002.data.store_adapter import (  # noqa: E402
+    build_month_from_store,
+    open_snapshot,
+    universe_params_from_draft,
+)
+from app.research.range002.governance.exposure_ledger import ExposureLedger  # noqa: E402
+from app.research.range002.governance.model import DateRange, Partition, Phase  # noqa: E402
+from app.research.range002.governance.results_guard import (  # noqa: E402
+    ResultsCapability,
+    authorize,
+)
+from app.research.range002.governance.run_registry import (  # noqa: E402
+    RunRegistry,
+    RunStatus,
+)
+from app.research.range002.governance.spec_adapter import GuardSpecView, to_guard_view  # noqa: E402
+from app.research.range002.screen.coverage import (  # noqa: E402
+    MISSING_NO_DATA,
+    coverage_report,
+    presence_from_minutes,
+)
+from app.research.range002.screen.errors import DataDefectError, FunnelMismatchError  # noqa: E402
+from app.research.range002.screen.params import extract_params  # noqa: E402
+from app.research.range002.screen.report import summarize  # noqa: E402
+from app.research.range002.screen.session_calendar import expected_sessions  # noqa: E402
+from app.research.range002.screen.simulate import reconcile_funnel, run_screen  # noqa: E402
+from app.research.range002.screen.stats import (  # noqa: E402
+    BootstrapConfig,
+    build_day_matrix,
+    max_statistic_test,
+    mean_interval,
+)
+from app.research.range002.screen.types import (  # noqa: E402
+    STATE_ENTERED,
+    UNAVAILABLE_EXIT_VALUATION_RULE,
+)
+from app.research.range002.spec import decision as decision_check  # noqa: E402
+from app.research.range002.spec.hashing import file_sha256  # noqa: E402
+from app.research.range002.spec.loader import load_draft, load_frozen  # noqa: E402
+
+EXIT_OK = 0
+EXIT_REFUSED = 2
+EXIT_DEFECT = 3
+
+LABEL = "NON_INFERENTIAL_DESCRIPTIVE"
+LABEL_SENTENCE = (
+    "These are descriptive statistics only. Any statistical choice made after viewing them is "
+    "not preregistered confirmation of the same results."
+)
+STATUS_COMPLETE = "DESCRIPTIVE_COMPLETE"
+STATUS_DEFECT = "DEFECT_DATA_QUALITY_COVERAGE_BELOW_THRESHOLD"
+NO_VERDICT_NOTE = (
+    "Coverage is below the frozen threshold. This is a data-quality DEFECT, not a strategy "
+    "result: the figures below describe incomplete data and support no strategy conclusion."
+)
+
+#: The only partitions this command can name, and the phase each one runs under.
+_PARTITIONS: dict[str, tuple[Phase, Partition]] = {
+    "DEVELOPMENT_SELECTION": (Phase.P3A, Partition.DEVELOPMENT_SELECTION),
+    "REPLAY_RNG001": (Phase.P2, Partition.REPLAY_RNG001),
+}
+PARTITION_CHOICES = tuple(_PARTITIONS)
+
+_HEX40 = frozenset("0123456789abcdef")
+
+
+class DescriptiveRunRefusal(RuntimeError):
+    """The run's own pre-conditions are not met (argument, scope or data-quality blocker)."""
+
+
+@dataclass(frozen=True)
+class RunOutcome:
+    run_id: str
+    status: str  # STATUS_COMPLETE | STATUS_DEFECT
+    report_json: Path
+    report_md: Path
+    report_sha256: str
+    report: dict[str, Any]
+    #: the capability the run used; it is DEAD once the run is closed (kept for inspection only)
+    capability: ResultsCapability
+
+
+# --------------------------------------------------------------------------- helpers
+
+
+def _parse_date(text: str, name: str) -> date:
+    try:
+        return date.fromisoformat(text) if isinstance(text, str) else text
+    except (TypeError, ValueError) as exc:
+        raise DescriptiveRunRefusal(f"{name} must be an ISO date: {text!r}") from exc
+
+
+def _month_starts(start: date, end: date) -> list[date]:
+    out: list[date] = []
+    cur = start
+    while cur <= end:
+        out.append(cur)
+        cur = date(cur.year + (cur.month == 12), (cur.month % 12) + 1, 1)
+    return out
+
+
+def _month_last(month_start: date, end: date) -> date:
+    return min(
+        date(
+            month_start.year, month_start.month, monthrange(month_start.year, month_start.month)[1]
+        ),
+        end,
+    )
+
+
+def _path_digest(path: Path) -> str:
+    """sha256 of a file, or a combined digest of (relative path, file sha256) for a directory."""
+    if path.is_file():
+        return file_sha256(path)
+    if path.is_dir():
+        h = hashlib.sha256()
+        for f in sorted(p for p in path.rglob("*") if p.is_file()):
+            h.update(f.relative_to(path).as_posix().encode("utf-8") + b"\0")
+            h.update(file_sha256(f).encode("ascii") + b"\n")
+        return h.hexdigest()
+    raise DescriptiveRunRefusal(f"{path} does not exist")
+
+
+def _validate_args(
+    *,
+    partition: str,
+    date_start: date,
+    date_end: date,
+    table_filter: str,
+    lookback_calendar_days: int,
+    coverage_threshold: float,
+    equity: float,
+    tick: float,
+    code_sha: str,
+    minute_feed: str,
+    minute_ts_convention: str,
+    exploratory_scope_amendment_id: str | None,
+    raw_vendor_rows_attested: bool,
+) -> None:
+    if partition not in _PARTITIONS:
+        raise DescriptiveRunRefusal(
+            f"partition {partition!r} is not runnable here; only {sorted(_PARTITIONS)}"
+        )
+    if date_start > date_end:
+        raise DescriptiveRunRefusal("date-start is after date-end")
+    if date_start.day != 1:
+        raise DescriptiveRunRefusal(
+            "date-start must be a calendar month start: the PIT universe is defined per "
+            "calendar month and its first day must lie inside the authorized range"
+        )
+    if not isinstance(table_filter, str) or not table_filter.strip():
+        raise DescriptiveRunRefusal("table-filter must be a non-empty vendor table name")
+    if lookback_calendar_days <= 0:
+        raise DescriptiveRunRefusal("lookback-calendar-days must be positive")
+    if not 0.0 < coverage_threshold <= 1.0:
+        raise DescriptiveRunRefusal("coverage-threshold must be in (0, 1]")
+    if equity <= 0 or tick <= 0:
+        raise DescriptiveRunRefusal("equity and tick must be positive")
+    if len(code_sha) != 40 or not set(code_sha) <= _HEX40:
+        raise DescriptiveRunRefusal("code-sha must be 40 lowercase hex characters")
+    if not minute_feed.strip() or not minute_ts_convention.strip():
+        raise DescriptiveRunRefusal("minute-feed and minute-ts-convention must be stated")
+    if exploratory_scope_amendment_id and raw_vendor_rows_attested:
+        raise DescriptiveRunRefusal(
+            "give EITHER exploratory-scope-amendment-id OR raw-vendor-rows-attested, not both"
+        )
+
+
+def _load_spec(spec_path: Path) -> tuple[GuardSpecView, Any]:
+    view = to_guard_view(load_frozen(spec_path))  # edited-after-decision spec: loader refuses
+    return view, load_draft(spec_path)
+
+
+def _decision_block(view: GuardSpecView) -> dict[str, Any]:
+    return {
+        "decision": view.decision,
+        "scope": list(view.decision_scope),
+        "partitions": list(view.decision_partitions),
+        "minutes_path": view.minutes_path,
+        "minutes_sha256": view.minutes_sha256,
+    }
+
+
+# --------------------------------------------------------------------------- dry plan
+
+
+def plan(
+    *,
+    spec_path: Path,
+    date_start: date | str,
+    date_end: date | str,
+    partition: str,
+    daily_snapshot: Path,
+    minute_bars: Path,
+    exposure_ledger_path: Path | None = None,
+) -> dict[str, Any]:
+    """The run plan, computed WITHOUT a capability, a run row, or any snapshot/bar access.
+
+    The expected symbol-day count is an UPPER BOUND (universe.n x sessions): the exact count
+    needs the PIT membership, which only an authorized run may read."""
+    d0, d1 = _parse_date(date_start, "date-start"), _parse_date(date_end, "date-end")  # type: ignore[arg-type]
+    if partition not in _PARTITIONS:
+        raise DescriptiveRunRefusal(f"partition {partition!r} is not runnable here")
+    view, draft = _load_spec(spec_path)
+    problems: list[str] = []
+    part = _PARTITIONS[partition][1]
+    if view.decision != "approved":
+        problems.append(f"decision is {view.decision!r}, not 'approved'")
+    if "run" not in view.decision_scope:
+        problems.append("decision scope lacks 'run'")
+    if part.value not in view.decision_partitions:
+        problems.append(f"decision does not cover {part.value}")
+    try:
+        decision_check.check_minutes_file(str(view.minutes_path), str(view.minutes_sha256))
+    except decision_check.MinutesError as exc:
+        problems.append(f"minutes: {exc}")
+    sel = view.partitions.selection
+    if part is Partition.DEVELOPMENT_SELECTION and not sel.contains(DateRange(d0, d1)):
+        problems.append(f"range is outside the selection partition {sel.as_dict()}")
+    if d0.day != 1:
+        problems.append("date-start is not a calendar month start")
+    months = _month_starts(d0, d1) if d0 <= d1 else []
+    sessions = expected_sessions(d0, d1) if d0 <= d1 else {}
+    n = draft.universe.n
+    return {
+        "mode": "DRY_PLAN_NO_BAR_READ",
+        "label": LABEL,
+        "spec_sha256": view.spec_sha256,
+        "profile": view.profile,
+        "decision_reference": {
+            **_decision_block(view),
+            "baseline_id": view.baseline_id,
+            "strategy_version": view.strategy_version,
+        },
+        "request_scope": {
+            "phase": _PARTITIONS[partition][0].value,
+            "partition": part.value,
+            "date_start": d0.isoformat(),
+            "date_end": d1.isoformat(),
+            "citable": part is not Partition.REPLAY_RNG001,
+        },
+        "universe_months": [m.isoformat() for m in months],
+        "sessions_in_range": len(sessions),
+        "universe_n": n,
+        "expected_symbol_days_upper_bound": (None if n is None else int(n) * len(sessions)),
+        "candidates": [c.id for c in draft.exits.candidates or []],
+        "preflight_problems": problems,
+        "would_be_refused": bool(problems),
+        "daily_snapshot": str(daily_snapshot),
+        "minute_bars": str(minute_bars),
+        "note": "no snapshot opened, no bar read, no run row written, no capability issued",
+    }
+
+
+# --------------------------------------------------------------------------- the run
+
+
+def _abort(registry: RunRegistry, run_id: str, cause: BaseException) -> None:
+    try:
+        state = registry.get_run(run_id)
+        if state is not None and state.status is RunStatus.OPEN:
+            registry.close_run(run_id, RunStatus.ABORTED, None)
+    except Exception as exc:  # the original refusal still propagates, with this attached
+        cause.add_note(f"ALSO FAILED to close run {run_id} ABORTED: {type(exc).__name__}: {exc}")
+
+
+def _bootstrap_section(
+    cap: ResultsCapability, trades: dict[str, Any], days: list[date], cfg_raw: dict[str, Any]
+) -> dict[str, Any]:
+    need = ("mean_block_days", "reps", "seed", "confidence", "alpha")
+    missing = [k for k in need if k not in cfg_raw]
+    if missing:
+        raise DescriptiveRunRefusal(f"statistics config lacks {missing}")
+    cfg = BootstrapConfig(
+        float(cfg_raw["mean_block_days"]), int(cfg_raw["reps"]), int(cfg_raw["seed"])
+    )
+    matrix = build_day_matrix(cap, trades, days)
+    intervals = {
+        cid: dataclasses.asdict(mean_interval(cap, matrix, cid, float(cfg_raw["confidence"]), cfg))
+        for cid in matrix.candidates
+    }
+    test = max_statistic_test(cap, matrix, float(cfg_raw["alpha"]), cfg)
+    return {
+        "section": "OPTIONAL_BOOTSTRAP",
+        "separate_from_descriptive_tables": True,
+        "preregistered": False,
+        "note": (
+            "Supplied at run time via --statistics-config, not frozen in the spec; it is not "
+            "preregistered confirmation and selects no candidate."
+        ),
+        "config": dataclasses.asdict(cfg),
+        "mean_net_r_intervals": intervals,
+        "max_statistic_test": dataclasses.asdict(test),
+    }
+
+
+def _render_md(rep: dict[str, Any]) -> str:
+    def f(x: Any) -> str:
+        return "n/a" if x is None else (f"{x:.4f}" if isinstance(x, float) else str(x))
+
+    L: list[str] = []
+    L.append(f"# RANGE-002 descriptive screen - {rep['label']}\n")
+    L.append(f"**{rep['label_sentence']}**\n")
+    L.append(f"- Status: `{rep['status']}`")
+    if rep["status"] != STATUS_COMPLETE:
+        L.append(f"- **{NO_VERDICT_NOTE}**")
+    r, s, d = rep["run"], rep["spec"], rep["decision_reference"]
+    L.append(
+        f"- Run id: `{r['run_id']}` (phase {r['phase']}, partition {r['partition']}, "
+        f"citable: {r['citable']})"
+    )
+    L.append(
+        f"- Spec sha256: `{s['sha256']}`; baseline `{s['baseline_id']}`, "
+        f"strategy version `{s['strategy_version']}`"
+    )
+    L.append(
+        f"- Decision: {d['decision']} scope {d['scope']} partitions {d['partitions']}; "
+        f"minutes `{d['minutes_path']}` sha256 `{d['minutes_sha256']}`"
+    )
+    L.append(
+        f"- Authorized dates: {rep['authorized_range']['start']} .. "
+        f"{rep['authorized_range']['end']}"
+    )
+    dt = rep["data"]
+    L.append(
+        f"- Data: daily `{dt['daily_snapshot']['path']}` ({dt['daily_snapshot']['sha256']}); "
+        f"minutes `{dt['minute_bars']['path']}` ({dt['minute_bars']['sha256']}); "
+        f"manifest sha256 `{dt['snapshot_manifest_sha256']}`; code `{dt['code_sha']}`; "
+        f"universe scope {dt['universe_scopes']}"
+    )
+    if dt["provenance"]:
+        L.append(f"- Provenance supplied: {dt['provenance']}")
+    c = rep["coverage"]
+    L.append("\n## Coverage (every expected PIT symbol-day is in the denominator)\n")
+    L.append(
+        f"- expected {c['expected']}, legitimate exclusions {c['legitimate_exclusions']}, "
+        f"denominator {c['denominator']}, observed {c['observed']}, "
+        f"rate {f(c['coverage_rate'])} (threshold {c['threshold']}, "
+        f"meets: {c['meets_threshold']})"
+    )
+    L.append(
+        f"- unresolved missingness: no-data {c['missing_no_data']}, identity-mapping "
+        f"{c['missing_identity_mapping']}, unexplained {c['unresolved_unexplained']}"
+    )
+    L.append("\n| year | expected | observed |\n|---|---|---|")
+    for y, row in sorted(c["by_year"].items()):
+        L.append(f"| {y} | {row['expected']} | {row['observed']} |")
+    o = rep["or_completeness"]
+    L.append(
+        f"\n- OR completeness (max DATA_GAP minutes {o['or_max_gap_minutes']}): "
+        f"{o['complete_count']} complete; of observed {f(o['of_observed'])}, "
+        f"of expected {f(o['of_expected'])}"
+    )
+    fu = rep["funnel"]
+    L.append("\n## Funnel\n")
+    L.append(f"- eligible (loaded) symbol-days {fu['eligible']}; states {fu['states']}")
+    L.append(f"- reconciliation: {fu['reconciliation']}")
+    L.append("\n## Candidates (descriptive, R units, all candidates)\n")
+    L.append(
+        "| candidate | trades | days | mean R base | total R base | PF base | win base | "
+        "mean R stress | total R stress | maxDD (R, daily) | unexecutable exits |"
+    )
+    L.append("|---|---|---|---|---|---|---|---|---|---|---|")
+    for cid, sm in rep["candidates"].items():
+        b, st = sm["base"], sm["stress"]
+        L.append(
+            f"| {cid} | {sm['trades']} | {sm['traded_days']} | {f(b['mean_net_r'])} | "
+            f"{f(b['total_net_r'])} | {f(b['profit_factor'])} | {f(b['win_rate'])} | "
+            f"{f(st['mean_net_r'])} | {f(st['total_net_r'])} | "
+            f"{f(sm['max_drawdown_r_daily'])} | {sm['unexecutable_exits']} |"
+        )
+    u = rep["unavailable_exit_valuation"]
+    L.append(
+        f"\n- Unavailable-exit valuation rule: `{u['rule']}`; unexecutable exits by "
+        f"candidate: {u['unexecutable_by_candidate']}"
+    )
+    e = rep["execution_disclosure"]
+    L.append(
+        f"- Execution realism: **{e['execution_realism']}**. {e['statement']} "
+        f"Unmodelled spec fields present: {e['unmodelled_fields_present']}"
+    )
+    L.append(f"- Exposure: {rep['exposure_note']}")
+    for lim in rep["limitations"]:
+        L.append(f"- Limitation: {lim}")
+    if rep.get("optional_bootstrap"):
+        L.append("\n## Optional bootstrap (separate; not preregistered)\n")
+        L.append(
+            "```json\n" + json.dumps(rep["optional_bootstrap"], indent=2, default=str) + "\n```"
+        )
+    L.append(f"\n**{rep['label']}**: {rep['label_sentence']}\n")
+    return "\n".join(L)
+
+
+def run(
+    *,
+    spec_path: Path,
+    registry_path: Path,
+    exposure_ledger_path: Path,
+    daily_snapshot: Path,
+    snapshot_manifest: Path,
+    minute_bars: Path,
+    minute_feed: str,
+    minute_ts_convention: str,
+    date_start: date | str,
+    date_end: date | str,
+    partition: str,
+    table_filter: str,
+    lookback_calendar_days: int,
+    coverage_threshold: float,
+    equity: float,
+    tick: float,
+    code_sha: str,
+    out_dir: Path,
+    exploratory_scope_amendment_id: str | None = None,
+    raw_vendor_rows_attested: bool = False,
+    provenance: dict[str, str] | None = None,
+    statistics_config: dict[str, Any] | None = None,
+) -> RunOutcome:
+    """Execute one authorized descriptive run. Raises on any refusal; never leaves a run OPEN."""
+    d0, d1 = _parse_date(date_start, "date-start"), _parse_date(date_end, "date-end")  # type: ignore[arg-type]
+    _validate_args(
+        partition=partition,
+        date_start=d0,
+        date_end=d1,
+        table_filter=table_filter,
+        lookback_calendar_days=lookback_calendar_days,
+        coverage_threshold=coverage_threshold,
+        equity=equity,
+        tick=tick,
+        code_sha=code_sha,
+        minute_feed=minute_feed,
+        minute_ts_convention=minute_ts_convention,
+        exploratory_scope_amendment_id=exploratory_scope_amendment_id,
+        raw_vendor_rows_attested=raw_vendor_rows_attested,
+    )
+    phase, part = _PARTITIONS[partition]
+    out_dir = Path(out_dir)
+    json_path, md_path = out_dir / "report.json", out_dir / "report.md"
+    if json_path.exists() or md_path.exists():
+        raise DescriptiveRunRefusal(f"{out_dir} already holds a report; never overwritten")
+    for p in (daily_snapshot, minute_bars, snapshot_manifest, exposure_ledger_path, spec_path):
+        if not Path(p).exists():
+            raise DescriptiveRunRefusal(f"{p} does not exist")
+
+    # Everything that needs no registry row: spec (hash-bound decision), manifest, ledger.
+    view, draft = _load_spec(Path(spec_path))
+    manifest_bytes = Path(snapshot_manifest).read_bytes()
+    try:
+        manifest = parse_snapshot_manifest(manifest_bytes.decode("utf-8"))
+    except (ManifestError, UnicodeDecodeError) as exc:
+        raise DescriptiveRunRefusal(f"snapshot manifest refused: {exc}") from exc
+    manifest_sha = hashlib.sha256(manifest_bytes).hexdigest()
+    verify_root = (
+        Path(daily_snapshot) if Path(daily_snapshot).is_dir() else Path(daily_snapshot).parent
+    )
+    verified = verify_snapshot_files(manifest, verify_root)
+    if not verified.ok:
+        raise DescriptiveRunRefusal(f"snapshot manifest verification failed: {verified.defects}")
+    ledger = ExposureLedger.from_text(Path(exposure_ledger_path).read_text(encoding="utf-8"))
+    registry = RunRegistry(Path(registry_path))
+
+    requested = DateRange(d0, d1)
+    if requested.overlaps(view.partitions.holdout):
+        raise DescriptiveRunRefusal("the requested range overlaps the holdout partition")
+    protected = view.partitions.selection if phase is Phase.P3A else None
+    run_id = registry.open_run(
+        phase=phase,
+        spec_sha256=view.spec_sha256,
+        code_sha=code_sha,
+        data_manifest_sha256=manifest_sha,
+        partition=part,
+        seeds={"descriptive_run_no_rng": 0},
+        exit_candidates=[c.id for c in draft.exits.candidates or []],
+        protected_range=protected,
+    )
+    cap: ResultsCapability | None = None
+    written: list[Path] = []
+    daily_con: Any = None
+    minute_con: Any = None
+    try:
+        cap = authorize(
+            spec=view,
+            phase=phase,
+            partition=part,
+            run_id=run_id,
+            registry=registry,
+            exposure_ledger=ledger,
+            requested_range=requested,
+        )
+        params = extract_params(cap, draft)
+        uparams = universe_params_from_draft(cap, draft)
+        authorized = cap.date_range
+        if authorized.overlaps(view.partitions.holdout):
+            raise DescriptiveRunRefusal("authorized range overlaps the holdout partition")
+
+        daily_con = open_snapshot(Path(daily_snapshot))
+        sessions_cal = expected_sessions(authorized.start, authorized.end)
+        builds = []
+        expected: list[tuple[str, date]] = []
+        perma: dict[tuple[str, date], str] = {}
+        exclusions: dict[tuple[str, date], str] = {}
+        month_rows: list[dict[str, Any]] = []
+        for ms in _month_starts(authorized.start, authorized.end):
+            mb = build_month_from_store(
+                cap,
+                daily_con,
+                ms,
+                uparams,
+                table_filter=table_filter,
+                lookback_calendar_days=lookback_calendar_days,
+                raw_vendor_rows_attested=raw_vendor_rows_attested,
+                exploratory_scope_amendment_id=exploratory_scope_amendment_id,
+            )
+            builds.append(mb)
+            days = [d for d in sorted(sessions_cal) if ms <= d <= _month_last(ms, authorized.end)]
+            for m in mb.universe.members:
+                for d in days:
+                    key = (m.vendor_ticker, d)
+                    if key in perma:
+                        raise DataDefectError(f"duplicate expected symbol-day {key}")
+                    expected.append(key)
+                    perma[key] = m.permaticker
+                    if m.last_price_date is not None and d > m.last_price_date:
+                        exclusions[key] = "DELISTED_BEFORE_DAY"
+            u = mb.universe
+            month_rows.append(
+                {
+                    "month_start": ms.isoformat(),
+                    "decision_day": u.decision_day.isoformat(),
+                    "population": u.population,
+                    "members": len(u.members),
+                    "below_cut": u.below_cut,
+                    "excluded": len(u.excluded),
+                    "sessions": len(days),
+                    "scope": mb.scope,
+                    "identity_one_row_per_ticker": mb.identity.one_row_per_ticker,
+                    "identity_refused_rows": len(mb.identity.refused),
+                    "unattributed_sep_rows": mb.observations.unattributed_rows,
+                    "ambiguous_sep_rows": mb.observations.ambiguous_rows,
+                }
+            )
+
+        minute_con = duckdb.connect(str(minute_bars), read_only=True)
+        to_load = [k for k in expected if k not in exclusions]
+        sessions, missing = load_sessions(
+            cap,
+            minute_con,
+            params,
+            to_load,
+            sessions_cal,
+            source_feed=minute_feed,
+            source_ts_convention=minute_ts_convention,
+            no_trade_evidence={},
+            permaticker_of=perma,
+        )
+        observed = {
+            (s.symbol, s.day): presence_from_minutes(
+                [b.start for b in s.bars], sorted(s.gap_minutes), params.or_start, params.or_end
+            )
+            for s in sessions
+        }
+        cov = coverage_report(
+            expected,
+            observed,
+            exclusions=exclusions,
+            missing_causes=dict.fromkeys(missing, MISSING_NO_DATA),
+            or_max_gap_minutes=params.or_max_gap_minutes,
+            threshold=coverage_threshold,
+        )
+        if cov.observed != len(sessions):
+            raise FunnelMismatchError(
+                f"coverage observed {cov.observed} != loaded sessions {len(sessions)}"
+            )
+
+        screen = run_screen(cap, params, sessions, tick, equity)
+        reconcile_funnel(cap, screen.funnel)
+        entered = screen.funnel.states[STATE_ENTERED]
+        cand_ids = [c.id for c in params.candidates]
+        if set(screen.trades) != set(cand_ids):
+            raise FunnelMismatchError("screen candidates differ from the spec's candidates")
+        candidates = {cid: summarize(cap, screen.trades[cid]) for cid in cand_ids}
+
+        defect = not cov.meets_threshold
+        cov_dict = dataclasses.asdict(cov)
+        cov_dict["by_year"] = {str(y): v for y, v in sorted(cov.by_year.items())}
+        scopes = sorted({b.scope for b in builds})
+        report: dict[str, Any] = {
+            "label": LABEL,
+            "label_sentence": LABEL_SENTENCE,
+            "status": STATUS_DEFECT if defect else STATUS_COMPLETE,
+            "defect_note": NO_VERDICT_NOTE if defect else None,
+            "run": {
+                "run_id": run_id,
+                "phase": phase.value,
+                "partition": part.value,
+                "citable": cap.citable,
+                "profile": cap.profile,
+            },
+            "spec": {
+                "sha256": view.spec_sha256,
+                "baseline_id": view.baseline_id,
+                "strategy_version": view.strategy_version,
+            },
+            "decision_reference": _decision_block(view),
+            "authorized_range": authorized.as_dict(),
+            "data": {
+                "daily_snapshot": {
+                    "path": str(daily_snapshot),
+                    "sha256": _path_digest(Path(daily_snapshot)),
+                },
+                "minute_bars": {
+                    "path": str(minute_bars),
+                    "sha256": _path_digest(Path(minute_bars)),
+                },
+                "snapshot_manifest_sha256": manifest_sha,
+                "snapshot_manifest": {
+                    "source": manifest.source,
+                    "extracted_at_utc": manifest.extracted_at_utc,
+                    "method": manifest.method,
+                    "cross_table_consistent": manifest.cross_table_consistent,
+                },
+                "code_sha": code_sha,
+                "table_filter": table_filter,
+                "minute_feed": minute_feed,
+                "minute_ts_convention": minute_ts_convention,
+                "universe_scopes": scopes,
+                "exploratory": scopes != ["PIT_FULL"],
+                "provenance": dict(provenance or {}),
+            },
+            "universe_months": month_rows,
+            "coverage": cov_dict,
+            "or_completeness": {
+                "or_max_gap_minutes": params.or_max_gap_minutes,
+                "complete_count": cov.or_complete_count,
+                "of_observed": cov.or_complete_of_observed,
+                "of_expected": cov.or_complete_of_expected,
+            },
+            "funnel": {
+                "eligible": screen.funnel.eligible,
+                "states": screen.funnel.states,
+                "exits": screen.funnel.exits,
+                "reconciliation": {
+                    "ok": True,
+                    "states_sum": sum(screen.funnel.states.values()),
+                    "eligible": screen.funnel.eligible,
+                    "entered": entered,
+                    "exits_sum_by_candidate": {
+                        c: sum(v.values()) for c, v in screen.funnel.exits.items()
+                    },
+                    "expected_symbol_days": cov.expected,
+                    "denominator": cov.denominator,
+                    "loaded": len(sessions),
+                    "missing_symbol_days": len(missing),
+                },
+            },
+            "candidates": candidates,
+            "unavailable_exit_valuation": {
+                "rule": UNAVAILABLE_EXIT_VALUATION_RULE,
+                "unexecutable_by_candidate": {
+                    c: s["unexecutable_exits"] for c, s in candidates.items()
+                },
+                "unexecutable_total": sum(s["unexecutable_exits"] for s in candidates.values()),
+            },
+            "execution_disclosure": {
+                "execution_realism": "NOT_MODELLED",
+                "statement": (
+                    "Fills are bar-level with all-in bps costs. Execution settings present in "
+                    "the spec are not simulated; a non-null value does not imply execution "
+                    "realism."
+                ),
+                "unmodelled_fields_present": list(params.unmodelled_execution),
+            },
+            "exposure_note": (
+                "REPLAY_RNG001 over an already-exposed window: engine validation only, never "
+                "citable."
+                if not cap.citable
+                else (
+                    f"checked against exposure ledger {cap.exposure_ledger_sha256}; the range "
+                    "overlaps no ledger entry and not the R2-excluded window. This run VIEWS "
+                    f"{authorized.start}..{authorized.end}: record it in the exposure ledger "
+                    "before any later run touches overlapping dates."
+                )
+            ),
+            "limitations": [
+                "NYSE schedule from pandas_market_calendars; not independently verified "
+                "against vendor session data",
+                "regular-session minutes with no bar are DATA_GAP (no independent no-trade "
+                "evidence supplied)",
+                "DELISTED_BEFORE_DAY exclusions rest on the vendor lastpricedate listing record",
+            ],
+            "optional_bootstrap": None,
+        }
+        if statistics_config is not None and not defect:
+            eligible_days = sorted({s.day for s in sessions})
+            report["optional_bootstrap"] = _bootstrap_section(
+                cap, screen.trades, eligible_days, statistics_config
+            )
+
+        json_bytes = (json.dumps(report, indent=2, allow_nan=False) + "\n").encode()
+        out_dir.mkdir(parents=True, exist_ok=True)
+        with open(json_path, "xb") as fh:
+            written.append(json_path)
+            fh.write(json_bytes)
+        with open(md_path, "x", encoding="utf-8", newline="\n") as fh:
+            written.append(md_path)
+            fh.write(_render_md(report))
+        digest = hashlib.sha256(json_bytes).hexdigest()
+        registry.close_run(run_id, RunStatus.COMPLETED, digest)
+    except BaseException as exc:
+        for p in written:
+            p.unlink(missing_ok=True)
+        _abort(registry, run_id, exc)
+        raise
+    finally:
+        for con in (daily_con, minute_con):
+            if con is not None:
+                con.close()
+    return RunOutcome(run_id, report["status"], json_path, md_path, digest, report, cap)
+
+
+# --------------------------------------------------------------------------- CLI
+
+
+def _build_parser() -> argparse.ArgumentParser:
+    p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawTextHelpFormatter)
+    req = p.add_argument
+    req("--spec", required=True, type=Path)
+    req("--registry", required=True, type=Path)
+    req("--exposure-ledger", required=True, type=Path)
+    req("--daily-snapshot", required=True, type=Path)
+    req("--snapshot-manifest", required=True, type=Path)
+    req("--minute-bars", required=True, type=Path)
+    req("--minute-feed", required=True)
+    req("--minute-ts-convention", required=True)
+    req("--date-start", required=True)
+    req("--date-end", required=True)
+    req("--partition", required=True, choices=PARTITION_CHOICES)
+    req("--table-filter", required=True)
+    req("--lookback-calendar-days", required=True, type=int)
+    req("--coverage-threshold", required=True, type=float)
+    req("--equity", required=True, type=float)
+    req("--tick", required=True, type=float)
+    req("--code-sha", required=True)
+    req("--out-dir", required=True, type=Path)
+    req("--exploratory-scope-amendment-id", default=None)
+    req("--raw-vendor-rows-attested", action="store_true")
+    req("--provenance", action="append", default=[], metavar="KEY=VALUE")
+    req("--statistics-config", type=Path, default=None)
+    req("--dry-plan", action="store_true")
+    return p
+
+
+def main(argv: list[str] | None = None) -> int:
+    a = _build_parser().parse_args(argv)
+    try:
+        if a.dry_plan:
+            out = plan(
+                spec_path=a.spec,
+                date_start=a.date_start,
+                date_end=a.date_end,
+                partition=a.partition,
+                daily_snapshot=a.daily_snapshot,
+                minute_bars=a.minute_bars,
+            )
+            print(json.dumps(out, indent=2, sort_keys=True))
+            return EXIT_OK
+        prov: dict[str, str] = {}
+        for item in a.provenance:
+            k, sep, v = item.partition("=")
+            if not sep or not k:
+                raise DescriptiveRunRefusal(f"--provenance needs KEY=VALUE, got {item!r}")
+            prov[k] = v
+        stats = (
+            json.loads(a.statistics_config.read_text(encoding="utf-8"))
+            if a.statistics_config
+            else None
+        )
+        outcome = run(
+            spec_path=a.spec,
+            registry_path=a.registry,
+            exposure_ledger_path=a.exposure_ledger,
+            daily_snapshot=a.daily_snapshot,
+            snapshot_manifest=a.snapshot_manifest,
+            minute_bars=a.minute_bars,
+            minute_feed=a.minute_feed,
+            minute_ts_convention=a.minute_ts_convention,
+            date_start=a.date_start,
+            date_end=a.date_end,
+            partition=a.partition,
+            table_filter=a.table_filter,
+            lookback_calendar_days=a.lookback_calendar_days,
+            coverage_threshold=a.coverage_threshold,
+            equity=a.equity,
+            tick=a.tick,
+            code_sha=a.code_sha,
+            out_dir=a.out_dir,
+            exploratory_scope_amendment_id=a.exploratory_scope_amendment_id,
+            raw_vendor_rows_attested=a.raw_vendor_rows_attested,
+            provenance=prov,
+            statistics_config=stats,
+        )
+    except Exception as exc:  # every refusal is reported, run already ABORTED
+        print(f"REFUSED: {type(exc).__name__}: {exc}", file=sys.stderr)
+        return EXIT_REFUSED
+    print(
+        f"{outcome.status} run={outcome.run_id} report={outcome.report_json} "
+        f"sha256={outcome.report_sha256}"
+    )
+    return EXIT_DEFECT if outcome.status == STATUS_DEFECT else EXIT_OK
+
+
+if __name__ == "__main__":
+    sys.exit(main())
