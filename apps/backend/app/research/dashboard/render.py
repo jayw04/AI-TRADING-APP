@@ -8,7 +8,7 @@ Alerts, and the experiment genealogy (DAG). Pure read of the registry; no comput
 
 from __future__ import annotations
 
-from app.licensing import stamp, write_internal_report
+from app.licensing import ALPACA_MARKET_DATA, stamp, write_internal_report
 from app.research.registry import ExperimentRecord, ResearchStore
 
 
@@ -87,9 +87,16 @@ def _lineage(store: ResearchStore, limit: int) -> list[str]:
 
 def dashboard_sources(store: ResearchStore) -> list[str]:
     """Licence source ids behind the dashboard: the provider of every registered dataset (PU-1).
-    Unregistered providers resolve to UNKNOWN in the licence registry; none recorded is UNKNOWN."""
+    Any ``alpaca*`` provider is the single ``alpaca_market_data`` source. Other unregistered
+    providers resolve to UNKNOWN in the licence registry; none recorded is UNKNOWN."""
     rows = store.con.execute("SELECT DISTINCT provider FROM datasets").fetchall()
-    return sorted({str(r[0]) for r in rows if r[0]})
+    return sorted(
+        {
+            ALPACA_MARKET_DATA if str(r[0]).strip().lower().startswith("alpaca") else str(r[0])
+            for r in rows
+            if r[0]
+        }
+    )
 
 
 def render_dashboard(store: ResearchStore, *, limit: int = 25) -> str:
