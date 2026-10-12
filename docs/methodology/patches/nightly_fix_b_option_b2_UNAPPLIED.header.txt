@@ -1,0 +1,16 @@
+UNAPPLIED PATCH v2 - nightly defect B, option B2, FAIL-CLOSED. NOT a decision.
+==========================================================================
+Specification: docs/methodology/Nightly_Fix_B_Fail_Closed_B2_Spec_v0.1.md (behaviour table, drift analysis,
+B3 comparison, Linux first-run commands). Read it before applying.
+Status : prepared 2026-10-10 against origin/main d61f313a; v2 supersedes the first (non-fail-closed) patch.
+Fail-closed: every missing-evidence case (no/empty seed, uv missing or wrong version, compile/network error,
+         timeout, empty output) is a distinct non-zero exit (10-16); only an exact seeded match exits 0.
+Verified: 31 offline unit tests pass locally with a fake uv; with the patch applied temporarily,
+         `--recompile` without uv exited 11. NOT verified (uv not installed; nothing installed): that uv 0.12.0
+         reuses the existing output file as preferences and reproduces all four committed bodies byte-for-byte on
+         Linux x86_64 / CPython 3.12.13. If that fails, do not loosen the comparison; return for a B3 ruling.
+Scope  : scripts/check_dependency_locks.py + apps/backend/tests/ci/test_check_dependency_locks.py (new).
+         The runbook (docs/runbook/dependency-locks.md, Verification section) must also be reworded; not included.
+Cost   : scripts/check_dependency_locks.py is a GLOBAL classifier path: FULL for all four projects, about 30-35
+         runner minutes. 2-hour walk-away. Merge not approved.
+Apply  : git apply --check docs/methodology/patches/nightly_fix_b_option_b2_UNAPPLIED.patch.txt
