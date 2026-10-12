@@ -11,6 +11,9 @@ the signer was allowed to approve, and no authorization claim inside a record is
 (``signer.role`` is a claim that is checked against the roster, never accepted).
 ``SpecView.is_signed`` is deliberately not consulted anywhere in this module.
 
+KNOWN LIMITATION (result objects): ``VerifiedApproval`` is tamper-evident, not unforgeable; see its
+docstring.
+
 Profile (``range002-approval/1``): ECDSA P-256 over SHA-256, DER signature with low-S enforced,
 over ``DOMAIN || canonical_json(payload)``. The wire form is the canonical JSON of
 ``{"payload": {...}, "signature": "<hex>"}`` and is accepted only if the received bytes equal
@@ -30,8 +33,10 @@ durable store is an unresolved human/engineering decision).
 from __future__ import annotations
 
 import hashlib
+import hmac
 import json
 import re
+import secrets
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 from enum import StrEnum
@@ -63,7 +68,7 @@ _SIG = re.compile(r"^[0-9a-f]{16,200}$")
 _TS_FORMAT = "%Y-%m-%dT%H:%M:%SZ"
 _MAX_ENVELOPE_BYTES = 65536
 _MAX_DEPTH = 8
-_SEAL = object()
+_TAG_KEY = secrets.token_bytes(32)  # process-local; never stored, logged or exported
 
 
 class ErrorCode(StrEnum):
@@ -436,21 +441,61 @@ def validate_payload(payload: dict[str, Any]) -> ApprovalRecord:
 # ---- verification ---------------------------------------------------------------------------
 
 
+def _verified_tag(envelope: bytes, roster_sha256: str, time_claimed: bool) -> str:
+    body = {
+        "envelope_sha256": hashlib.sha256(envelope).hexdigest(),
+        "roster_sha256": roster_sha256,
+        "time_evidence_claimed": time_claimed,
+    }
+    message = DOMAIN + b"verified\x00" + canonical_json(body)
+    return hmac.new(_TAG_KEY, message, hashlib.sha256).hexdigest()
+
+
 @dataclass(frozen=True)
 class VerifiedApproval:
-    """Result of a successful verification. Not a P0 approval by itself."""
+    """Evidence that :func:`verify_approval` accepted ``envelope`` in this process.
+
+    This is not a P0 approval and not an unforgeable capability: Python cannot stop code running
+    in the same process from reading module state. What it does guarantee is that a copy, a
+    ``dataclasses.replace`` or a hand-built instance whose fields disagree with the signed bytes
+    is refused. ``check`` re-derives the record from the signed envelope bytes and verifies a
+    process-local MAC over (envelope digest, roster digest, time flag). Consumers that matter must
+    call ``check`` (the ledger does) and rely on the record re-derived from ``envelope`` rather
+    than on the type of the object or on any single field.
+    """
 
     record: ApprovalRecord
     roster_sha256: str
     time_evidence_claimed: bool
     envelope_sha256: str
-    _seal: object = field(default=None, repr=False, compare=False)
+    envelope: bytes
+    _seal: str = field(default="", repr=False, compare=False)
 
     def __post_init__(self) -> None:
-        if self._seal is not _SEAL:
+        self.check()
+
+    def check(self) -> None:
+        if not isinstance(self.envelope, bytes) or not isinstance(self._seal, str):
+            raise _fail(ErrorCode.SCHEMA, "VerifiedApproval is malformed")
+        if hashlib.sha256(self.envelope).hexdigest() != self.envelope_sha256:
+            raise _fail(ErrorCode.SCHEMA, "VerifiedApproval envelope digest does not match")
+        payload, _ = parse_envelope(self.envelope)
+        if validate_payload(payload) != self.record:
+            raise _fail(ErrorCode.SCHEMA, "VerifiedApproval record differs from the signed bytes")
+        expected = _verified_tag(self.envelope, self.roster_sha256, self.time_evidence_claimed)
+        if not hmac.compare_digest(self._seal, expected):
             raise _fail(
                 ErrorCode.SCHEMA, "VerifiedApproval can only be produced by verify_approval"
             )
+
+    def __copy__(self) -> VerifiedApproval:
+        return self
+
+    def __deepcopy__(self, memo: dict[int, Any]) -> VerifiedApproval:
+        return self
+
+    def __reduce__(self) -> Any:
+        raise _fail(ErrorCode.SCHEMA, "VerifiedApproval cannot be serialised")
 
 
 def _check_signature(key: ec.EllipticCurvePublicKey, signature_hex: str, message: bytes) -> None:
@@ -559,7 +604,8 @@ def _verify_approval(
         roster_sha256=pinned_roster_sha256,
         time_evidence_claimed=trusted_time,
         envelope_sha256=hashlib.sha256(raw).hexdigest(),
-        _seal=_SEAL,
+        envelope=bytes(raw),
+        _seal=_verified_tag(bytes(raw), pinned_roster_sha256, trusted_time),
     )
 
 
@@ -570,9 +616,15 @@ class ApprovalLedger:
     """Accepts :class:`VerifiedApproval` objects only once, in a consistent order.
 
     Rules: a record_id or nonce may be accepted once (replay); a record may supersede only
-    records that exist, are still active, cover the same document and scope, and were made by the
-    same signer identity; an APPROVE and a REJECT for the same (document, scope) cannot both be
-    active, so a contrary decision must supersede the earlier one explicitly (conflict).
+    records that exist, are still active, cover the same document, scope, purpose and digests,
+    and were made by the SAME signer identity (one signer can never supersede another).
+
+    Contrary decisions are never dropped. An APPROVE and a REJECT for the same binding may both
+    be active; both are kept as independently identifiable evidence and the binding is reported
+    as an explicit unresolved CONFLICT until the original signer supersedes their own record.
+    ``decision_state`` is fail-closed: it never reports APPROVED while a conflict is unresolved.
+    "APPROVED" means only that active evidence contains no contrary decision; it is not a quorum
+    or sufficiency rule, and it is unrelated to the 17-member trading verdict contract.
     """
 
     def __init__(self) -> None:
@@ -594,9 +646,33 @@ class ApprovalLedger:
             if rid not in self._superseded and r.outcome != "REVOKE" and self._binding(r) == key
         ]
 
+    def unresolved_conflicts(
+        self, document_id: str, document_sha256: str, spec_sha256: str, scope: str, purpose: str
+    ) -> tuple[tuple[str, str], ...]:
+        """(approve_record_id, reject_record_id) pairs that are both still active."""
+        live = self.active(document_id, document_sha256, spec_sha256, scope, purpose)
+        approves = sorted(r.record_id for r in live if r.outcome == "APPROVE")
+        rejects = sorted(r.record_id for r in live if r.outcome == "REJECT")
+        return tuple((a, r) for a in approves for r in rejects)
+
+    def decision_state(
+        self, document_id: str, document_sha256: str, spec_sha256: str, scope: str, purpose: str
+    ) -> str:
+        """NONE, APPROVED, REJECTED or CONFLICT (fail-closed: a conflict is never APPROVED)."""
+        live = self.active(document_id, document_sha256, spec_sha256, scope, purpose)
+        outcomes = {r.outcome for r in live}
+        if outcomes == {"APPROVE", "REJECT"}:
+            return "CONFLICT"
+        if outcomes == {"APPROVE"}:
+            return "APPROVED"
+        if outcomes == {"REJECT"}:
+            return "REJECTED"
+        return "NONE"
+
     def accept(self, verified: VerifiedApproval) -> None:
         if not isinstance(verified, VerifiedApproval):
             raise _fail(ErrorCode.SCHEMA, "only a VerifiedApproval can be accepted")
+        verified.check()  # re-derive from the signed bytes; refuses tampered instances
         rec = verified.record
         if rec.record_id in self._records or rec.nonce in self._nonces:
             raise _fail(ErrorCode.REPLAY, "record_id or nonce already accepted")
@@ -607,11 +683,6 @@ class ApprovalLedger:
             same = (*self._binding(prior), prior.identity) == (*self._binding(rec), rec.identity)
             if not same:
                 raise _fail(ErrorCode.SUPERSESSION, f"{ref!r} is a different document/scope/signer")
-        survivors = [
-            r for r in self.active(*self._binding(rec)) if r.record_id not in rec.supersedes
-        ]
-        if rec.outcome != "REVOKE" and any(r.outcome != rec.outcome for r in survivors):
-            raise _fail(ErrorCode.CONFLICT, "contrary active decision exists; supersede it first")
         self._records[rec.record_id] = rec
         self._nonces.add(rec.nonce)
         self._superseded.update(rec.supersedes)

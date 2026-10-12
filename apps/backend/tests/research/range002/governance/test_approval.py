@@ -8,8 +8,10 @@ from __future__ import annotations
 
 import ast
 import copy
+import dataclasses
 import hashlib
 import json
+import pickle
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
@@ -528,7 +530,18 @@ def test_future_signing_time_and_naive_now_are_refused(w):
 # ---- replay, supersession, conflict ---------------------------------------------------------
 
 
+_BOB_REJECT: dict[str, Any] = {
+    "record_id": "R2",
+    "nonce": "22" * 16,
+    "decision__outcome": "REJECT",
+    "_signer": None,  # filled by _accept (Bob)
+    "signer": {"identity": "SYNTH-BOB", "key_id": "", "role": "SYNTH-VALIDATOR"},
+}
+
+
 def _accept(w: World, ledger: ApprovalLedger, **over: Any) -> None:
+    if over.get("_signer", 0) is None:  # the Bob REJECT fixture: resolve Bob's key lazily
+        over = {**over, "_signer": w.bob, "signer": {**over["signer"], "key_id": w.bob_id}}
     signer = over.pop("_signer", w.alice)
     payload = w.payload(**over)
     outcome = payload["decision"]["outcome"]
@@ -570,30 +583,78 @@ def test_supersession_must_name_an_existing_active_record_by_the_same_signer(w):
     assert twice.value.code == ErrorCode.SUPERSESSION
 
 
-def test_conflicting_decisions_need_an_explicit_supersession(w):
+def test_conflicting_decisions_are_kept_and_reported_not_dropped(w):
     ledger = ApprovalLedger()
     _accept(w, ledger)
-    bob = {"signer": {"identity": "SYNTH-BOB", "key_id": w.bob_id, "role": "SYNTH-VALIDATOR"}}
+    _accept(w, ledger, **_BOB_REJECT)  # a valid REJECT from another authorized signer
+    live = {r.record_id: r.outcome for r in ledger.active(*BINDING)}
+    assert live == {"SYNTH-REC-1": "APPROVE", "R2": "REJECT"}
+    assert ledger.unresolved_conflicts(*BINDING) == (("SYNTH-REC-1", "R2"),)
+    assert ledger.decision_state(*BINDING) == "CONFLICT"
+
+
+def test_conflict_is_order_independent_and_never_reads_as_approved(w):
+    ledger = ApprovalLedger()
+    _accept(w, ledger, **_BOB_REJECT)
+    assert ledger.decision_state(*BINDING) == "REJECTED"
+    _accept(w, ledger)
+    assert ledger.decision_state(*BINDING) == "CONFLICT"
+    assert ledger.unresolved_conflicts(*BINDING) == (("SYNTH-REC-1", "R2"),)
+
+
+def test_same_signer_contrary_decision_without_supersession_is_a_conflict(w):
+    ledger = ApprovalLedger()
+    _accept(w, ledger)
+    _accept(w, ledger, record_id="R3", nonce="33" * 16, decision__outcome="REJECT")
+    assert ledger.decision_state(*BINDING) == "CONFLICT"
+
+
+def test_only_the_original_signer_resolves_their_own_record(w):
+    ledger = ApprovalLedger()
+    _accept(w, ledger)
+    _accept(w, ledger, **_BOB_REJECT)
+    bob = {"identity": "SYNTH-BOB", "key_id": w.bob_id, "role": "SYNTH-VALIDATOR"}
+    with pytest.raises(ApprovalError) as stolen:  # Bob cannot supersede Alice's APPROVE
+        _accept(w, ledger, record_id="R4", nonce="44" * 16, decision__outcome="REVOKE",
+                supersedes=["SYNTH-REC-1"], _signer=w.bob, signer=bob)  # fmt: skip
+    assert stolen.value.code == ErrorCode.SUPERSESSION
+    with pytest.raises(ApprovalError) as other:  # Alice cannot remove Bob's REJECT
+        _accept(w, ledger, record_id="R5", nonce="55" * 16, decision__outcome="REVOKE",
+                supersedes=["R2"])  # fmt: skip
+    assert other.value.code == ErrorCode.SUPERSESSION
+    assert ledger.decision_state(*BINDING) == "CONFLICT"
+    # Alice withdraws her own APPROVE: Bob's REJECT now stands alone.
+    _accept(w, ledger, record_id="R6", nonce="66" * 16, decision__outcome="REVOKE",
+            supersedes=["SYNTH-REC-1"])  # fmt: skip
+    assert ledger.decision_state(*BINDING) == "REJECTED"
+    assert ledger.unresolved_conflicts(*BINDING) == ()
+
+
+def test_repeating_a_conflicting_record_does_not_duplicate_or_erase_evidence(w):
+    ledger = ApprovalLedger()
+    _accept(w, ledger)
+    _accept(w, ledger, **_BOB_REJECT)
     with pytest.raises(ApprovalError) as info:
-        _accept(
-            w,
-            ledger,
-            record_id="R2",
-            nonce="22" * 16,
-            decision__outcome="REJECT",
-            _signer=w.bob,
-            **bob,
-        )
-    assert info.value.code == ErrorCode.CONFLICT
-    _accept(
-        w,
-        ledger,
-        record_id="R3",
-        nonce="33" * 16,
-        decision__outcome="REJECT",
-        supersedes=["SYNTH-REC-1"],
-    )
-    assert [r.outcome for r in ledger.active(*BINDING)] == ["REJECT"]
+        _accept(w, ledger, **_BOB_REJECT)
+    assert info.value.code == ErrorCode.REPLAY
+    assert len(ledger.active(*BINDING)) == 2
+    assert ledger.unresolved_conflicts(*BINDING) == (("SYNTH-REC-1", "R2"),)
+
+
+def test_decision_state_basics_and_revoke_is_not_a_decision(w):
+    ledger = ApprovalLedger()
+    assert ledger.decision_state(*BINDING) == "NONE"
+    _accept(w, ledger)
+    assert ledger.decision_state(*BINDING) == "APPROVED"
+    _accept(w, ledger, record_id="R2", nonce="22" * 16, decision__outcome="REVOKE",
+            supersedes=["SYNTH-REC-1"])  # fmt: skip
+    assert ledger.decision_state(*BINDING) == "NONE"
+
+
+def test_approval_state_is_separate_from_the_trading_verdict_contract():
+    tree = ast.parse(Path(ap.__file__).read_text(encoding="utf-8"))
+    imported = {n.module or "" for n in ast.walk(tree) if isinstance(n, ast.ImportFrom)}
+    assert not any("verdict" in m for m in imported)
 
 
 def test_a_revoke_withdraws_the_record_it_supersedes(w):
@@ -680,15 +741,71 @@ def test_unexpected_exception_types_never_escape_as_something_else(w):
     assert _code(w, w.envelope(w.payload()), expected_scope=None) == ErrorCode.SCOPE_MISMATCH
 
 
-def test_verified_approval_cannot_be_forged_and_the_ledger_refuses_it(w):
+def test_altered_verification_results_cannot_grant_approval(w):
     real = _verify(w, w.envelope(w.payload()))
+    other = _verify(w, w.envelope(w.payload(record_id="SYNTH-REC-9", nonce="99" * 16)))
+    forged_record = dataclasses.replace(
+        real.record, record_id="FORGED", outcome="APPROVE", scope="X"
+    )
+    attempts = [
+        {"record": forged_record},  # fields no longer match the signed bytes
+        {"record": other.record},  # a different genuine record on this envelope
+        {"roster_sha256": "00" * 32},
+        {"time_evidence_claimed": not real.time_evidence_claimed},
+        {"envelope": other.envelope},  # envelope swapped, digest left behind
+        {"envelope": other.envelope, "envelope_sha256": other.envelope_sha256},  # seal mismatch
+        {"envelope_sha256": "00" * 32},
+        {"_seal": "00" * 32},
+        {"_seal": ""},
+        {"_seal": None},
+    ]
+    for change in attempts:
+        with pytest.raises(ApprovalError) as info:
+            dataclasses.replace(real, **change)
+        assert info.value.code == ErrorCode.SCHEMA, change
+
+
+def test_hand_built_results_are_refused(w):
+    real = _verify(w, w.envelope(w.payload()))
+    fields = (real.record, real.roster_sha256, True, real.envelope_sha256, real.envelope)
     with pytest.raises(ApprovalError):
-        ap.VerifiedApproval(real.record, real.roster_sha256, True, real.envelope_sha256)
+        ap.VerifiedApproval(*fields)  # no seal
     with pytest.raises(ApprovalError):
-        ap.VerifiedApproval(real.record, real.roster_sha256, True, "x", _seal=object())
+        ap.VerifiedApproval(*fields, _seal="ab" * 32)
+    with pytest.raises(ApprovalError):
+        ap.VerifiedApproval(real.record, real.roster_sha256, True, "x", b"{}", "ab" * 32)
+    with pytest.raises(ApprovalError):
+        ap.VerifiedApproval(real.record, real.roster_sha256, True, "x", "text", "ab" * 32)  # type: ignore[arg-type]
+
+
+def test_ledger_refuses_an_instance_tampered_after_construction(w):
+    real = _verify(w, w.envelope(w.payload()))
+    other = _verify(w, w.envelope(w.payload(record_id="SYNTH-REC-9", nonce="99" * 16)))
+    object.__setattr__(real, "record", other.record)  # bypasses frozen; check() must notice
+    ledger = ApprovalLedger()
     with pytest.raises(ApprovalError) as info:
-        ApprovalLedger().accept(real.record)  # type: ignore[arg-type]
+        ledger.accept(real)
     assert info.value.code == ErrorCode.SCHEMA
+    assert ledger.active(*BINDING) == []  # nothing was recorded
+    with pytest.raises(ApprovalError) as plain:
+        ApprovalLedger().accept(other.record)  # type: ignore[arg-type]
+    assert plain.value.code == ErrorCode.SCHEMA
+
+
+def test_copies_are_the_same_object_and_serialisation_is_refused(w):
+    real = _verify(w, w.envelope(w.payload()))
+    assert copy.copy(real) is real and copy.deepcopy(real) is real
+    with pytest.raises(ApprovalError):
+        pickle.dumps(real)
+
+
+def test_ledger_stores_the_record_derived_from_the_signed_bytes(w):
+    ledger = ApprovalLedger()
+    real = _verify(w, w.envelope(w.payload()))
+    ledger.accept(real)
+    (stored,) = ledger.active(*BINDING)
+    payload, _ = ap.parse_envelope(real.envelope)
+    assert stored == ap.validate_payload(payload)
 
 
 def test_expected_outcome_and_purpose_are_bound(w):
@@ -787,26 +904,6 @@ def test_ledger_is_keyed_on_digests_and_purpose_not_only_document_and_scope(w):
         _verify(w, w.envelope(purpose), expected_outcome="REJECT", expected_purpose="SYNTH-OTHER")
     )
     assert len(ledger.active(*BINDING)) == 1
-
-
-def test_other_signer_cannot_withdraw_a_record_and_a_revoked_signer_wedges_the_scope(w):
-    # Documented liveness trade-off (review finding 3): only the original signer can supersede.
-    ledger = ApprovalLedger()
-    _accept(w, ledger)
-    bob = {"signer": {"identity": "SYNTH-BOB", "key_id": w.bob_id, "role": "SYNTH-VALIDATOR"}}
-    for outcome in ("REJECT", "REVOKE"):
-        extra = {"supersedes": ["SYNTH-REC-1"]} if outcome == "REVOKE" else {}
-        with pytest.raises(ApprovalError):
-            _accept(
-                w,
-                ledger,
-                record_id="RB-" + outcome,
-                nonce=("55" if outcome == "REJECT" else "66") * 16,
-                decision__outcome=outcome,
-                _signer=w.bob,
-                **bob,
-                **extra,
-            )
 
 
 def test_revoke_of_a_superseded_record_and_supersession_of_a_revoke(w):
