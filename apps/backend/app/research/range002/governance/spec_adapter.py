@@ -88,6 +88,7 @@ class GuardSpecView:
         "max_p3b_attempts",
         "minutes_path",
         "minutes_sha256",
+        "record_kind",
         "p3_criteria",
         "profile",
         "partitions",
@@ -113,6 +114,7 @@ class GuardSpecView:
     decision_partitions: tuple[str, ...]
     minutes_path: str | None
     minutes_sha256: str | None
+    record_kind: str | None
     strategy_version: str | None
     baseline_id: str | None
 
@@ -137,6 +139,7 @@ class GuardSpecView:
         decision_partitions: tuple[str, ...] = (),
         minutes_path: str | None = None,
         minutes_sha256: str | None = None,
+        record_kind: str | None = None,
         strategy_version: str | None = None,
         baseline_id: str | None = None,
     ) -> None:
@@ -162,6 +165,7 @@ class GuardSpecView:
             ("decision_partitions", tuple(decision_partitions)),
             ("minutes_path", minutes_path),
             ("minutes_sha256", minutes_sha256),
+            ("record_kind", record_kind),
             ("strategy_version", strategy_version),
             ("baseline_id", baseline_id),
         ):
@@ -219,6 +223,7 @@ def to_guard_view(view: SpecView) -> GuardSpecView:
         decision_partitions=view.decision_partitions,
         minutes_path=view.minutes_path,
         minutes_sha256=view.minutes_sha256,
+        record_kind=view.record_kind,
         strategy_version=view.strategy_version,
         baseline_id=view.baseline_id,
     )

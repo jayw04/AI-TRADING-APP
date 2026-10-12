@@ -88,8 +88,8 @@ def freeze(draft_path: Path, out_path: Path, *, manifest_path: Path | None = Non
         problems.append(f"decision.decision is {ref.decision!r}; only 'approved' can be frozen")
     if "run" not in ref.scope:
         problems.append("decision.scope lacks 'run'; a RUN spec needs a run-scope decision")
-    if ref.meeting_date > date.today():
-        problems.append(f"decision.meeting_date {ref.meeting_date} is in the future")
+    if ref.decision_date > date.today():
+        problems.append(f"decision.decision_date {ref.decision_date} is in the future")
     try:
         decision_check.check_minutes_file(ref.minutes_path, ref.minutes_sha256)
     except decision_check.MinutesError as exc:

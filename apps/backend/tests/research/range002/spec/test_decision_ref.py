@@ -71,7 +71,8 @@ def test_a_draft_may_carry_no_decision_but_the_key_is_required() -> None:
 @pytest.mark.parametrize(
     "key",
     [
-        "meeting_date",
+        "decision_date",
+        "record_kind",
         "minutes_path",
         "minutes_sha256",
         "decision",
@@ -97,8 +98,12 @@ def test_unknown_keys_refused() -> None:
 @pytest.mark.parametrize(
     ("key", "bad"),
     [
-        ("meeting_date", "2000-1-1x"),
-        ("meeting_date", 20000101),
+        ("decision_date", "2000-1-1x"),
+        ("decision_date", 20000101),
+        ("record_kind", "owner"),
+        ("record_kind", "MEETING_MINUTES"),
+        ("record_kind", ""),
+        ("record_kind", None),
         ("minutes_path", ""),
         ("minutes_path", "   "),
         ("minutes_path", " minutes/x.md"),
@@ -226,7 +231,13 @@ def test_minutes_edit_after_the_fact_is_detected(tmp_path: Path) -> None:
 
 # --- nothing invented, nothing legacy ----------------------------------------------------------
 
-_LEGACY = ("independent_validator", "trading_expert", "signoff", "economic_thesis")
+_LEGACY = (
+    "independent_validator",
+    "trading_expert",
+    "signoff",
+    "economic_thesis",
+    "meeting_date",  # renamed decision_date (2026-10-12 owner-instruction record)
+)
 
 
 def test_no_legacy_role_or_signature_identifier_in_the_research_package() -> None:
@@ -244,7 +255,8 @@ def test_no_legacy_role_or_signature_identifier_in_the_research_package() -> Non
 def test_no_placeholder_signer_in_the_synthetic_decision_block() -> None:
     block = decision_block()
     assert set(block) == {
-        "meeting_date",
+        "decision_date",
+        "record_kind",
         "minutes_path",
         "minutes_sha256",
         "decision",

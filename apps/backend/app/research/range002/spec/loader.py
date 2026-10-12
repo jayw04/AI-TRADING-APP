@@ -96,7 +96,7 @@ class SpecView:
     exits_selection    :class:`ExitSelection`, or None.
     unusable_reasons   why ``has_run_decision`` is False (empty when it is True).
     decision / decision_scope / decision_partitions / minutes_path / minutes_sha256 /
-    meeting_date / strategy_version / baseline_id
+    decision_date / record_kind / strategy_version / baseline_id
                        the decision reference's fields as recorded (None / empty when absent);
                        the guard reads them, the loader grants nothing from them beyond the flag.
     exposure_signed    ``governance.exposure_signed`` (D01 record, shape open), or None.
@@ -140,7 +140,8 @@ class SpecView:
     decision_partitions: tuple[str, ...] = ()
     minutes_path: str | None = None
     minutes_sha256: str | None = None
-    meeting_date: date | None = None
+    decision_date: date | None = None
+    record_kind: str | None = None
     strategy_version: str | None = None
     baseline_id: str | None = None
     _minted: object = field(default=None, init=False, repr=False, compare=False)
@@ -193,7 +194,8 @@ def _build_view(
         decision_partitions=() if d is None else tuple(d.partitions),
         minutes_path=None if d is None else d.minutes_path,
         minutes_sha256=None if d is None else d.minutes_sha256,
-        meeting_date=None if d is None else d.meeting_date,
+        decision_date=None if d is None else d.decision_date,
+        record_kind=None if d is None else d.record_kind,
         strategy_version=None if d is None else d.strategy_version,
         baseline_id=None if d is None else d.baseline_id,
     )

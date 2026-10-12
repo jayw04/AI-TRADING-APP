@@ -57,7 +57,8 @@ DEFAULT_CONFIRMATION = DateRange(*[date.fromisoformat(d) for d in ("2020-01-01",
 _LEDGER_DOC = {
     "schema_version": 1,
     "decision": {
-        "meeting_date": "2000-01-01",
+        "decision_date": "2000-01-01",
+        "record_kind": "meeting_minutes",
         "minutes_path": MINUTES_RELPATH,
         "minutes_sha256": MINUTES_SHA256,
     },
@@ -131,6 +132,7 @@ def _default_guard_fields(exposure_json: str) -> dict[str, Any]:
         "decision_partitions": gv.decision_partitions,
         "minutes_path": gv.minutes_path,
         "minutes_sha256": gv.minutes_sha256,
+        "record_kind": gv.record_kind,
         "strategy_version": gv.strategy_version,
         "baseline_id": gv.baseline_id,
     }
@@ -181,6 +183,7 @@ def forge_guard_view(**changes: Any) -> GuardSpecView:
         decision_partitions=fields["decision_partitions"],
         minutes_path=fields["minutes_path"],
         minutes_sha256=fields["minutes_sha256"],
+        record_kind=fields["record_kind"],
         strategy_version=fields["strategy_version"],
         baseline_id=fields["baseline_id"],
     )

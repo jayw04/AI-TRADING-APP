@@ -9,7 +9,7 @@ importing the other. Assumptions recorded for the integrator:
   decision is exactly ``approved``, its scope includes ``run`` and the recorded spec hash equals
   the recomputed one (content-bound; the minutes file it cites is checked by the guard).
 * ``decision`` / ``decision_scope`` / ``decision_partitions`` / ``minutes_path`` /
-  ``minutes_sha256`` / ``strategy_version`` / ``baseline_id`` are that reference's fields; the
+  ``minutes_sha256`` / ``record_kind`` / ``strategy_version`` / ``baseline_id`` are that reference's fields; the
   guard re-checks decision, scope, partition and the minutes file's hash itself.
 * ``partitions.selection/confirmation/holdout`` are inclusive ``DateRange``s.
 * ``p3_criteria``, ``exits_candidates``, ``exits_selection`` are ``None`` while
@@ -69,6 +69,9 @@ class FrozenSpecView(Protocol):
 
     @property
     def minutes_sha256(self) -> str | None: ...
+
+    @property
+    def record_kind(self) -> str | None: ...
 
     @property
     def strategy_version(self) -> str | None: ...

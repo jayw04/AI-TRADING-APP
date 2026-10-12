@@ -509,8 +509,12 @@ def _repo_relative(value: str) -> str:
 
 
 class DecisionRef(_Model):
-    """Reference to the weekly-meeting decision that covers this spec (pure data, no authority of
-    its own). The meeting minutes are the decision record; this block only POINTS at them and
+    """Reference to the decision that covers this spec (pure data, no authority of its own).
+    ``record_kind`` is ``meeting_minutes`` (a weekly-meeting decision) or ``owner_instruction`` (an
+    explicit between-meeting instruction by the owner, summarized in the next weekly minutes);
+    both kinds carry the same scope/version binding and get identical checks, and there is no
+    default. ``decision_date`` is the date of the meeting OR of the owner's instruction. The
+    minutes file is the decision record; this block only POINTS at it and
     binds the decision to an exact spec version by hash. It is held OUTSIDE the hashed payload
     (as the block it replaced was): the decision attests TO the hash.
 
@@ -520,7 +524,8 @@ class DecisionRef(_Model):
     ``"run"`` in ``scope`` and the requested partition in ``partitions``.
     """
 
-    meeting_date: date
+    decision_date: date
+    record_kind: Literal["meeting_minutes", "owner_instruction"]
     minutes_path: Annotated[str, AfterValidator(_repo_relative)]
     minutes_sha256: str
     decision: Literal["approved", "revise", "defer", "stop"]

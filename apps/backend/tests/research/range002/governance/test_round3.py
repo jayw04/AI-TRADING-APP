@@ -288,9 +288,9 @@ def _auth(spec: Any, registry: Any, ledger: Any, rid: str, **kw: Any) -> Any:
 def test_f2_ledger_cannot_be_constructed_directly() -> None:
     real = ExposureLedger.from_text(DECIDED_LEDGER)
     with pytest.raises((errors.ExposureLedgerError, TypeError)):
-        ExposureLedger((), {"meeting_date": "2000-01-01"}, real.sha256)  # type: ignore[call-arg]
+        ExposureLedger((), {"decision_date": "2000-01-01"}, real.sha256)  # type: ignore[call-arg]
     with pytest.raises(errors.ExposureLedgerError):
-        ExposureLedger(object(), (), {"meeting_date": "2000-01-01"}, real.sha256)  # type: ignore[call-arg, arg-type]
+        ExposureLedger(object(), (), {"decision_date": "2000-01-01"}, real.sha256)  # type: ignore[call-arg, arg-type]
 
 
 def test_f2_ledger_is_immutable() -> None:

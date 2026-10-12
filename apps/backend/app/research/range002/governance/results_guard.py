@@ -217,6 +217,7 @@ from app.research.range002.spec.hashing import CanonicalisationError, content_sh
 from app.research.range002.spec.manifest import GovernanceManifest, load_manifest
 
 _HEX64 = re.compile(r"^[0-9a-f]{64}$")
+_RECORD_KINDS = frozenset({"meeting_minutes", "owner_instruction"})
 
 #: Profiles the guard understands. Anything else (None, a newer build's name, a forged view) is
 #: refused before any state is touched.
@@ -435,6 +436,11 @@ def _check_decision_status(spec: GuardSpecView) -> None:
         raise DecisionMissingError(
             "the spec's decision reference is not bound to this spec hash (has_run_decision is "
             "not True); results_guard refuses it"
+        )
+    if spec.record_kind not in _RECORD_KINDS:
+        raise DecisionMissingError(
+            f"the decision reference's record_kind {spec.record_kind!r} is not one of "
+            f"{sorted(_RECORD_KINDS)}"
         )
     for name in ("minutes_path", "minutes_sha256", "strategy_version", "baseline_id"):
         value = getattr(spec, name)
