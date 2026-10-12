@@ -1,5 +1,7 @@
 # RANGE-002 - P0 Decision Register and Governance Approval Package v0.2
 
+> **SUPERSEDED IN PART (owner direction, Jay Wang, 2026-10-12).** Every requirement in this document for a signature, countersignature, role appointment, roster, signing ceremony, witness, eligibility verifier or separately appointed reviewer is **withdrawn** and blocks no process, document submission, code review or test preparation. The weekly meeting minutes and Jay's explicit instructions are the decision record (`Teams/Strategies/RANG-002/`; `CLAUDE.md`). Technical, data, testing, reproducibility, holdout and operational-risk content below is unchanged.
+
 | Field | Value |
 |---|---|
 | Purpose | One owner-facing register of every formal P0 decision, the controlled genesis-enrollment ceremony, the P3a/P3b attempt-limit analysis, the statistical-validation and data-independence rules, the blocker matrix and critical path, and a blank signature page |

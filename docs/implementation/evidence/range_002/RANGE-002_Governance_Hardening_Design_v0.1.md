@@ -1,5 +1,7 @@
 # RANGE-002 Governance Hardening — Design v0.1 (PR 3, DESIGN ONLY)
 
+> **SUPERSEDED IN PART (owner direction, Jay Wang, 2026-10-12).** Every requirement in this document for a signature, countersignature, role appointment, roster, signing ceremony, witness, eligibility verifier or separately appointed reviewer is **withdrawn** and blocks no process, document submission, code review or test preparation. The weekly meeting minutes and Jay's explicit instructions are the decision record (`Teams/Strategies/RANG-002/`; `CLAUDE.md`). Technical, data, testing, reproducibility, holdout and operational-risk content below is unchanged.
+
 | Field | Value |
 |---|---|
 | Status | **DRAFT FOR OWNER REVIEW. No code is authorized by this document.** |

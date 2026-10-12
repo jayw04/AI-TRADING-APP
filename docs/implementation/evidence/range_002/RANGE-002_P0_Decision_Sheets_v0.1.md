@@ -1,5 +1,7 @@
 # RANGE-002 — P0 Owner Decision Sheets v0.1
 
+> **SUPERSEDED IN PART (owner direction, Jay Wang, 2026-10-12).** Every requirement in this document for a signature, countersignature, role appointment, roster, signing ceremony, witness, eligibility verifier or separately appointed reviewer is **withdrawn** and blocks no process, document submission, code review or test preparation. The weekly meeting minutes and Jay's explicit instructions are the decision record (`Teams/Strategies/RANG-002/`; `CLAUDE.md`). Technical, data, testing, reproducibility, holdout and operational-risk content below is unchanged.
+
 | Field | Value |
 |---|---|
 | Purpose | Plan v0.5 §11.3 action 8: one sheet per P0 decision (D01-D19) and per open item (C2/D09, C10, C12, A1), so the owner can sign quickly |
