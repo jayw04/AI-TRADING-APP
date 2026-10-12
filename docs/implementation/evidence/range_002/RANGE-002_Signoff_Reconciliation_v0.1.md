@@ -10,6 +10,18 @@ Scope notes verified from the checkout:
 - No frozen spec, exposure ledger, economic thesis, `nonequivalence.md`, `hypothesis_lineage.yaml`, `ai_provenance.md`, genesis id or sign-off packet exists in the repository (file search). The committed manifest is entirely null (`RANGE-002_governance_manifest.json`).
 - Status rule applied (revision 2): MISSING = no authenticated record; PENDING-ACCEPTANCE = a person is assigned by the owner but no written acceptance record exists in Git (treated as VACANT for any gate). GENUINE and STALE-HASH rows: none, because no record binding to any hash exists. The "Current holder" column reflects repository records only; "Assigned holder" reflects the owner revision-2 assignments, which are not repository records.
 
+
+## Revision-3 addendum (owner rulings R3, R5; Lane K5). Read this before the table.
+
+**Counting rule.** A sign-off is counted **GENUINE** only if (a) it is a hash-bound record committed to Git, (b) for a decision relayed by the owner (reviewers who do not use GitHub), `relayed_decision_check.py` (Lane K, `test/range002-lane-k-relayed-decision-checker`) returns `GENUINE` for it, **and** (c) PR #740 (all-pairs distinct sign-off check) is merged on `main`. Until #740 merges, a record that passes every other check is `VERIFIED_PENDING_740`, not GENUINE. A relayed record whose only content is owner-authored text is never GENUINE; for the validator role that is a HARD FAIL. The owner relays and commits; the owner does not author a reviewer's decision.
+
+**R5 changes** (supersedes revision 2 on one point): `signoff.trading_expert` now has a **PROPOSED** holder, 方炳雄 (Fang Bingxiong), PENDING owner ruling and acceptance. Effect on this table, not yet applied row by row:
+- Row 2 (`signoff.trading_expert`): MISSING becomes **PENDING-ACCEPTANCE** (proposed holder, no ruling or acceptance yet).
+- Rows 19, 20, 22, 24: the trading-expert half becomes PENDING-ACCEPTANCE; each row stays MISSING until every half exists.
+- B3-1 closes pending the ruling; the trading-expert halves of B3-4, B3-5 and B3-6 likewise. **B3-2 (research lead), B3-3 (needs both a research lead and a trading expert), B3-7 to B3-11 are unchanged.**
+- Recount: GENUINE 0; STALE-HASH 0; PENDING-ACCEPTANCE **5** (rows 2, 3, 15, 16, 31); MISSING **28**. The "no eligible holder" list falls from 18 rows to **at most 17** (row 2 leaves it); rows 19, 20, 22, 24 must be re-checked against their other holderless elements before any further reduction is claimed.
+- Nothing becomes GENUINE: no acceptance record and no ruling exists, and #740 is unmerged.
+
 ## 1. Table
 
 | # | Requirement and where required | Role that must hold it | Current holder | Assigned holder (owner rev. 2; PENDING = no acceptance record in Git, treated as VACANT for any gate) | Artifact and SHA it binds to; does the SHA exist? | Status | Can OWNER (Jay Wang) hold it? |

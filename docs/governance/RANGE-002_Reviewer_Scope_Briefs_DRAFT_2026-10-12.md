@@ -30,6 +30,19 @@
 - 不得向被指名评审人以外的任何人披露；不得用于交易。
   Do not disclose beyond the named reviewers; do not use for trading.
 
+**待审文件与 SHA-256 / Artifact(s) under review** (值取自起草时；发送前请重新计算 / values at drafting time; recompute before sending, a later change makes the record STALE)
+| 路径 / Path | SHA-256 |
+|---|---|
+| `docs/implementation/evidence/range_002/RANGE-002_Baseline_Values_Worksheet_v0.1.md` | `26437b8b3ffda02d4ecc4eb9fd57fc8291eaeca0fdfb51f3fd0ddc69d0e1ba8d` |
+| `docs/implementation/evidence/range_002/RANGE-002_Identity_Probe_Preregistration_v1.json` | `116a0601ff29374a38c4290cc355c506374c7137d420c908a15b76e91e3a17fc` |
+| `docs/implementation/evidence/range_002/RANGE-002_Baseline_Conflict_Provenance_v0.1.md` | `865f7f4db4fdb00fdd337871ab587b7848beff92bf3f24c8779e840c18bda346` |
+| `docs/governance/RANGE-002_Signoff_Scope_by_Gate_v0.1.md` | `5e16fc68feefdc57674bf195844b3c8fe2ab64d719977eb13e089cfac1f2362e` |
+
+**回复要求 / Requirements for your reply** (a reply that lacks any of these cannot be counted)
+1. **用您自己的话 / In your own words** — 不要复制所有者的转述。 Do not paste the owner's paraphrase.
+2. **引用上面的 SHA-256 / Cite the SHA-256 above** — 否则记录会被判定为过期或无效。 Otherwise the record is STALE or INVALID.
+3. **明确的结论 / An explicit conclusion** — 请写明： **同意 / 不同意 / 有条件同意** (有条件时请列出条件)。 Write exactly one of: **同意 (approve) / 不同意 (reject) / 有条件同意 (conditional, list the conditions)**.
+
 ---
 
 ## 2. 肖学焦 — 风险 / 损失控制评审（咨询）/ Risk and loss-control reviewer (advisory)
@@ -49,9 +62,21 @@
 **保密 / Confidential**
 - 与 1 相同。 Same as section 1.
 
+**待审文件与 SHA-256 / Artifact(s) under review** (值取自起草时；发送前请重新计算 / values at drafting time; recompute before sending, a later change makes the record STALE)
+| 路径 / Path | SHA-256 |
+|---|---|
+| `docs/implementation/evidence/range_002/RANGE-002_Baseline_Values_Worksheet_v0.1.md` | `26437b8b3ffda02d4ecc4eb9fd57fc8291eaeca0fdfb51f3fd0ddc69d0e1ba8d` |
+
+仅审阅工作表中标注了您姓名的行。 Review only the worksheet rows tagged with your name.
+
+**回复要求 / Requirements for your reply** (a reply that lacks any of these cannot be counted)
+1. **用您自己的话 / In your own words** — 不要复制所有者的转述。 Do not paste the owner's paraphrase.
+2. **引用上面的 SHA-256 / Cite the SHA-256 above** — 否则记录会被判定为过期或无效。 Otherwise the record is STALE or INVALID.
+3. **明确的结论 / An explicit conclusion** — 请写明： **同意 / 不同意 / 有条件同意** (有条件时请列出条件)。 Write exactly one of: **同意 (approve) / 不同意 (reject) / 有条件同意 (conditional, list the conditions)**.
+
 ---
 
-## 3. 方炳雄 — 退出 / 止盈设计评审（咨询）/ Exit and take-profit design reviewer (advisory)
+## 3. 方炳雄 — 退出 / 止盈设计评审（咨询）及拟任交易专家（待所有者裁定）/ Exit and take-profit design reviewer (advisory) and PROPOSED trading expert (pending owner ruling)
 
 **审查内容 / What you review**
 - 工作表中与退出相关的行：候选退出族、止盈倍数、止损、分批、跟踪止损，以及这些参数**是否来自历史数据**。
@@ -65,6 +90,19 @@
 
 **保密 / Confidential**
 - 与 1 相同。 Same as section 1.
+
+**待审文件与 SHA-256 / Artifact(s) under review** (值取自起草时；发送前请重新计算 / values at drafting time; recompute before sending, a later change makes the record STALE)
+| 路径 / Path | SHA-256 |
+|---|---|
+| `docs/implementation/evidence/range_002/RANGE-002_Baseline_Values_Worksheet_v0.1.md` | `26437b8b3ffda02d4ecc4eb9fd57fc8291eaeca0fdfb51f3fd0ddc69d0e1ba8d` |
+| `docs/governance/RANGE-002_Signoff_Scope_by_Gate_v0.1.md` | `5e16fc68feefdc57674bf195844b3c8fe2ab64d719977eb13e089cfac1f2362e` |
+
+工作表中标注您姓名的退出相关行；若所有者另行裁定，还包括 `signoff.trading_expert` 的范围（见签署范围文件）。 The worksheet rows tagged with your name; and, only if the owner rules, the scope of `signoff.trading_expert` (see the sign-off scope document).
+
+**回复要求 / Requirements for your reply** (a reply that lacks any of these cannot be counted)
+1. **用您自己的话 / In your own words** — 不要复制所有者的转述。 Do not paste the owner's paraphrase.
+2. **引用上面的 SHA-256 / Cite the SHA-256 above** — 否则记录会被判定为过期或无效。 Otherwise the record is STALE or INVALID.
+3. **明确的结论 / An explicit conclusion** — 请写明： **同意 / 不同意 / 有条件同意** (有条件时请列出条件)。 Write exactly one of: **同意 (approve) / 不同意 (reject) / 有条件同意 (conditional, list the conditions)**.
 
 ---
 

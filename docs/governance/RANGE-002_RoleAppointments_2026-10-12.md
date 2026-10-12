@@ -15,13 +15,13 @@
 | Jay Wang | Owner; non-author code reviewer | Owner and gate-setter; reviews the guard-adjacent files per the code-review ruling; holds `signoff.owner`, the run-authorization acts and every "owner act" in the plan. | **GATE** (as owner). The code review is evidence for the merge; it is not a validator sign-off. | **Dual role disclosed** (owner / gate-setter / reviewer). Independence for the run is supplied by the validator, whose sign-off the owner may not hold or waive. | Owner act; not applicable |
 | 陈友潼 (Chen Youtong) | Independent validator | Independent validation of the plan, worksheet, probe pre-registration, spec and criteria **before any probe or loader output exists**. | **GATE** (`signoff.independent_validator` and the validator attestations listed in the sign-off reconciliation). | **NOT ESTABLISHED.** Eligibility is subject to verification; no verifier record exists in Git. The owner cannot waive it. | **PENDING** |
 | 肖学焦 (Xiao Xuejiao) | Risk / loss-control reviewer | Advisory review of risk and loss-limit parameters (per-trade risk, daily-loss, exposure caps, concurrency). | **ADVISORY. No gate sign-off.** | Not assessed. | **PENDING** |
-| 方炳雄 (Fang Bingxiong) | Exit / take-profit design reviewer | Advisory review of exit design, take-profit, stop, scale-out and trailing parameters and how they were chosen. | **ADVISORY. No gate sign-off.** | Not assessed. | **PENDING** |
+| 方炳雄 (Fang Bingxiong) | **Trading expert (PROPOSED gate holder for `signoff.trading_expert`)**; exit / take-profit design reviewer | Advisory review of exit design, take-profit, stop, scale-out and trailing parameters and how they were chosen. If the owner rules and he accepts, also holds the spec's `signoff.trading_expert`. | **PROPOSED GATE for `signoff.trading_expert` only, PENDING owner ruling AND acceptance; ADVISORY on exit design.** Until both exist the gate is VACANT. | Not assessed. The owner may not hold this sign-off (SoD-A, see the reconciliation), so his independence from the owner and the code author must be assessed before the ruling. | **PENDING** (owner ruling and acceptance) |
 | 梁云鹏 (Liang Yunpeng) | Team liaison | Coordination only. | **NONE. No sign-offs of any kind.** | **The owner's relative; may not hold any independence-bearing role.** | n/a |
 
 ## 2. Effect on gates (stated, not decided)
 - With every named non-owner role PENDING, **no independence-bearing gate is satisfied**. The validator gate is VACANT until an acceptance record exists.
-- The advisory reviewers' comments are recorded as advice; no gate depends on them.
-- The spec's `signoff.trading_expert` has **no eligible holder** under these assignments (the two advisory roles hold no gate sign-off and the liaison holds none). See `RANGE-002_Signoff_Reconciliation_v0.1.md`, section 4. This record does not fill it.
+- 肖学焦's comments are advisory; no gate depends on them. 方炳雄's exit-design comments are advisory; his proposed `signoff.trading_expert` would be a **gate** only after the owner rules and he accepts (owner ruling R5, instruction revision 3).
+- The spec's `signoff.trading_expert` has **one PROPOSED holder (方炳雄), PENDING owner ruling and acceptance**; until both exist it is VACANT. This supersedes the earlier statement that it had no eligible holder. The research lead (`governance.roles`) still has none. See `RANGE-002_Signoff_Reconciliation_v0.1.md`, revision-3 addendum.
 
 ## 3. Acceptance blocks (blank; each person completes their own)
 Each block must be a signed record committed to Git before the role is treated as held.
@@ -44,12 +44,14 @@ Each block must be a signed record committed to Git before the role is treated a
 | Confidentiality acknowledgment | |
 | Signature / commit reference | |
 
-### 3.3 方炳雄 (Fang Bingxiong) — exit / take-profit design reviewer (advisory)
+### 3.3 方炳雄 (Fang Bingxiong) — proposed trading expert (gate, pending owner ruling) and exit / take-profit design reviewer (advisory)
 | Field | Entry |
 |---|---|
 | Name | |
 | Date (UTC) | |
-| Statement of acceptance (advisory scope; no gate sign-off) | |
+| Statement of acceptance of the advisory scope | |
+| Statement of acceptance of `signoff.trading_expert` (only if the owner has ruled) | |
+| Statement that no relationship with the owner or code author impairs independence | |
 | Confidentiality acknowledgment | |
 | Signature / commit reference | |
 
