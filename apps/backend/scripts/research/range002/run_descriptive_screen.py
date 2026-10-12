@@ -60,6 +60,8 @@ if str(BACKEND_DIR) not in sys.path:
 
 import duckdb  # noqa: E402
 
+from app.licensing.envelope import sidecar_path, write_sidecar  # noqa: E402
+from app.licensing.render import stamp  # noqa: E402
 from app.research.range002.data.bar_loader import load_sessions  # noqa: E402
 from app.research.range002.data.manifest import (  # noqa: E402
     ManifestError,
@@ -809,7 +811,13 @@ def run(
             fh.write(json_bytes)
         with open(md_path, "x", encoding="utf-8", newline="\n") as fh:
             written.append(md_path)
-            fh.write(_render_md(report))
+            # PU-1: the minute bars are Alpaca SIP (personal use) and the daily snapshot is Sharadar
+            # (licence UNKNOWN), so the readable report carries the fixed footer. report.json keeps
+            # its exact bytes (its digest is bound to the run registry); its scope travels in a sidecar.
+            fh.write(stamp(_render_md(report), sources=PU1_SOURCES))
+        for artifact in (json_path, md_path):
+            write_sidecar(artifact, PU1_SOURCES)
+            written.append(sidecar_path(artifact))
         digest = hashlib.sha256(json_bytes).hexdigest()
         registry.close_run(run_id, RunStatus.COMPLETED, digest)
     except BaseException as exc:
@@ -822,6 +830,11 @@ def run(
             if con is not None:
                 con.close()
     return RunOutcome(run_id, report["status"], json_path, md_path, digest, report, cap)
+
+
+#: Data lineage of every report this runner writes (PU-1). Fixed, not a parameter: the runner reads
+#: SIP minute bars (feed 'sip') and a Sharadar daily snapshot, so its output is never presentable.
+PU1_SOURCES: tuple[str, ...] = ("alpaca_sip", "sharadar")
 
 
 # --------------------------------------------------------------------------- CLI

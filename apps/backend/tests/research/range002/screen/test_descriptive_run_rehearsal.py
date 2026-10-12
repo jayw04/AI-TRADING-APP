@@ -596,3 +596,26 @@ def test_an_unlisted_action_string_is_never_assumed(tmp_path: Path, minutes_root
     kw["delisting_actions"] = ("some_other_string",)  # the exact vendor string is the owner's input
     cov = rds.run(**kw).report["coverage"]
     assert cov["legitimate_exclusions"] == {} and cov["denominator"] == 15
+
+
+# --- PU-1: the runner's reports are personal-use, labelled, and never exportable ---------------
+
+
+def test_reports_carry_pu1_footer_and_sidecars_and_json_bytes_are_unstamped(
+    world: dict[str, Any], tmp_path: Path
+) -> None:
+    from app.licensing.envelope import scope_of_file, sidecar_path
+    from app.licensing.gate import PersonalScopeBlocked
+    from app.licensing.output import export_file_for_external_use
+
+    out = rds.run(**world["kwargs"])
+    footer = "PERSONAL USE ONLY — not for presentation (PU-1)"
+    assert footer in out.report_md.read_text(encoding="utf-8")
+    # report.json is hashed into the run registry and is never altered by labelling
+    assert footer not in out.report_json.read_text(encoding="utf-8")
+    assert out.report_sha256 == file_sha256(out.report_json)
+    for artifact in (out.report_json, out.report_md):
+        assert sidecar_path(artifact).is_file()
+        assert scope_of_file(artifact).blocks_presentation
+        with pytest.raises(PersonalScopeBlocked):
+            export_file_for_external_use(artifact, tmp_path / "out" / artifact.name)
