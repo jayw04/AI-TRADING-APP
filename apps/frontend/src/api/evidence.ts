@@ -15,7 +15,24 @@ export interface Confidence {
   rationale: string[];
 }
 
-export interface KpiRow {
+/** PU-1: licence marking carried by every panel (and every KPI row). A missing field is treated as
+ *  blocked (UNKNOWN) by the page; there is no way to turn the footer off. */
+export type LicenseScope = "COMMERCIAL_OK" | "UNKNOWN" | "PERSONAL";
+
+export interface PanelLicense {
+  license_scope?: LicenseScope;
+  license_sources?: string[];
+  license_footer?: string | null;
+}
+
+export type PanelId =
+  | "confidence"
+  | "kpis"
+  | "research_programs"
+  | "research_status_counts"
+  | "strategies";
+
+export interface KpiRow extends PanelLicense {
   key: string;
   label: string;
   value: number | null;
@@ -45,11 +62,12 @@ export interface StrategyBook {
 
 export interface EvidenceSummary {
   as_of: string;
-  /** PU-1: most restrictive licence scope among the data behind this summary. A missing value
-   *  is treated as UNKNOWN (blocked) by the page. */
-  license_scope?: "COMMERCIAL_OK" | "UNKNOWN" | "PERSONAL";
+  /** PU-1: combined (most restrictive) licence scope of the whole summary. A missing value is
+   *  treated as UNKNOWN (blocked) by the page. Per-panel scopes are in `panels`. */
+  license_scope?: LicenseScope;
   license_sources?: string[];
   license_footer?: string | null;
+  panels?: Partial<Record<PanelId, PanelLicense>>;
   confidence: Confidence;
   kpis: { rows: KpiRow[]; summary: Record<string, number> };
   research_programs: ResearchProgram[];

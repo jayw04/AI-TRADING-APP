@@ -23,6 +23,17 @@ async def test_evidence_summary_shape(client) -> None:
     assert isinstance(body["strategies"], list)
     # default = platform-wide scope
     assert body["scope"]["kind"] == "platform"
+    # PU-1: every panel declares its own licence scope; the top level is the combined scope. A
+    # panel built only from the owner's records is presentable, one built on backtests is not.
+    panels = body["panels"]
+    assert {"confidence", "kpis", "research_programs", "strategies"} <= set(panels)
+    assert all(
+        {"license_scope", "license_sources", "license_footer"} <= set(v) for v in panels.values()
+    )
+    assert panels["confidence"]["license_scope"] == "COMMERCIAL_OK"
+    assert panels["research_programs"]["license_scope"] == "PERSONAL"
+    assert panels["research_programs"]["license_footer"]
+    assert body["license_scope"] == "PERSONAL"
 
 
 async def test_evidence_summary_scoped(client) -> None:

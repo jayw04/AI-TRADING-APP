@@ -1,0 +1,346 @@
+{
+  "schema": 1,
+  "purpose": "PU-1 presentation-gate required tests: every listed test must be collected AND PASSED (not skipped, missing, failed or errored). Verified by scripts/ci_verify_required_tests.py --phases pu1. Covers PERSONAL/UNKNOWN/missing-tag blocking, sidecar-over-envelope, taint propagation through join/resample/backtest, non-suppressible footer, COMMERCIAL_OK pass-through, owner_generated_records, per-panel Evidence scopes and the two PU-1 CI checks. Node ids are relative to apps/backend. Removing or skipping one fails CI; adding a test later needs no manifest change.",
+  "tests": [
+    {
+      "id": "tests/licensing/test_pu1_ci_checks.py::test_real_tree_is_closed",
+      "phase": "pu1"
+    },
+    {
+      "id": "tests/licensing/test_pu1_ci_checks.py::test_unregistered_writer_fails",
+      "phase": "pu1"
+    },
+    {
+      "id": "tests/licensing/test_pu1_ci_checks.py::test_every_entry_kind_is_detected[to_csv]",
+      "phase": "pu1"
+    },
+    {
+      "id": "tests/licensing/test_pu1_ci_checks.py::test_every_entry_kind_is_detected[open_w]",
+      "phase": "pu1"
+    },
+    {
+      "id": "tests/licensing/test_pu1_ci_checks.py::test_every_entry_kind_is_detected[path_open]",
+      "phase": "pu1"
+    },
+    {
+      "id": "tests/licensing/test_pu1_ci_checks.py::test_every_entry_kind_is_detected[json_dump]",
+      "phase": "pu1"
+    },
+    {
+      "id": "tests/licensing/test_pu1_ci_checks.py::test_every_entry_kind_is_detected[shutil]",
+      "phase": "pu1"
+    },
+    {
+      "id": "tests/licensing/test_pu1_ci_checks.py::test_every_entry_kind_is_detected[savefig]",
+      "phase": "pu1"
+    },
+    {
+      "id": "tests/licensing/test_pu1_ci_checks.py::test_every_entry_kind_is_detected[outbound]",
+      "phase": "pu1"
+    },
+    {
+      "id": "tests/licensing/test_pu1_ci_checks.py::test_every_entry_kind_is_detected[render_lib]",
+      "phase": "pu1"
+    },
+    {
+      "id": "tests/licensing/test_pu1_ci_checks.py::test_reading_and_console_output_are_not_entries",
+      "phase": "pu1"
+    },
+    {
+      "id": "tests/licensing/test_pu1_ci_checks.py::test_internal_only_writer_passes_but_outbound_target_does_not",
+      "phase": "pu1"
+    },
+    {
+      "id": "tests/licensing/test_pu1_ci_checks.py::test_gated_entry_must_call_the_gate_before_writing",
+      "phase": "pu1"
+    },
+    {
+      "id": "tests/licensing/test_pu1_ci_checks.py::test_stale_and_duplicate_registry_entries_fail",
+      "phase": "pu1"
+    },
+    {
+      "id": "tests/licensing/test_pu1_ci_checks.py::test_frontend_print_trigger_must_be_registered_and_gated",
+      "phase": "pu1"
+    },
+    {
+      "id": "tests/licensing/test_pu1_ci_checks.py::test_licensing_seam_export_functions_gate_before_writing",
+      "phase": "pu1"
+    },
+    {
+      "id": "tests/licensing/test_pu1_ci_checks.py::test_real_source_map_is_closed_against_the_real_registry",
+      "phase": "pu1"
+    },
+    {
+      "id": "tests/licensing/test_pu1_ci_checks.py::test_new_data_host_without_mapping_fails_the_build",
+      "phase": "pu1"
+    },
+    {
+      "id": "tests/licensing/test_pu1_ci_checks.py::test_mapped_host_whose_source_has_no_registry_row_fails",
+      "phase": "pu1"
+    },
+    {
+      "id": "tests/licensing/test_pu1_ci_checks.py::test_unmapped_alpaca_sdk_namespace_fails",
+      "phase": "pu1"
+    },
+    {
+      "id": "tests/licensing/test_pu1_ci_checks.py::test_new_altdata_source_name_must_be_mapped",
+      "phase": "pu1"
+    },
+    {
+      "id": "tests/licensing/test_pu1_ci_checks.py::test_non_data_host_requires_a_reason",
+      "phase": "pu1"
+    },
+    {
+      "id": "tests/licensing/test_pu1_ci_checks.py::test_pu1_gate_script_and_ci_wiring_exist",
+      "phase": "pu1"
+    },
+    {
+      "id": "tests/licensing/test_pu1_gate.py::test_in_repo_registry_is_hash_pinned_and_classifies_sources",
+      "phase": "pu1"
+    },
+    {
+      "id": "tests/licensing/test_pu1_gate.py::test_unregistered_source_is_unknown_and_blocked",
+      "phase": "pu1"
+    },
+    {
+      "id": "tests/licensing/test_pu1_gate.py::test_scope_order_and_combination",
+      "phase": "pu1"
+    },
+    {
+      "id": "tests/licensing/test_pu1_gate.py::test_every_alpaca_feed_maps_to_the_one_personal_source[sip]",
+      "phase": "pu1"
+    },
+    {
+      "id": "tests/licensing/test_pu1_gate.py::test_every_alpaca_feed_maps_to_the_one_personal_source[SIP]",
+      "phase": "pu1"
+    },
+    {
+      "id": "tests/licensing/test_pu1_gate.py::test_every_alpaca_feed_maps_to_the_one_personal_source[iex]",
+      "phase": "pu1"
+    },
+    {
+      "id": "tests/licensing/test_pu1_gate.py::test_every_alpaca_feed_maps_to_the_one_personal_source[delayed_sip]",
+      "phase": "pu1"
+    },
+    {
+      "id": "tests/licensing/test_pu1_gate.py::test_every_alpaca_feed_maps_to_the_one_personal_source[otc]",
+      "phase": "pu1"
+    },
+    {
+      "id": "tests/licensing/test_pu1_gate.py::test_every_alpaca_feed_maps_to_the_one_personal_source[boats]",
+      "phase": "pu1"
+    },
+    {
+      "id": "tests/licensing/test_pu1_gate.py::test_every_alpaca_feed_maps_to_the_one_personal_source[]",
+      "phase": "pu1"
+    },
+    {
+      "id": "tests/licensing/test_pu1_gate.py::test_every_alpaca_feed_maps_to_the_one_personal_source[None]",
+      "phase": "pu1"
+    },
+    {
+      "id": "tests/licensing/test_pu1_gate.py::test_malformed_or_unreadable_registry_fails_closed[bad-json]",
+      "phase": "pu1"
+    },
+    {
+      "id": "tests/licensing/test_pu1_gate.py::test_malformed_or_unreadable_registry_fails_closed[not-object]",
+      "phase": "pu1"
+    },
+    {
+      "id": "tests/licensing/test_pu1_gate.py::test_malformed_or_unreadable_registry_fails_closed[no-entries]",
+      "phase": "pu1"
+    },
+    {
+      "id": "tests/licensing/test_pu1_gate.py::test_malformed_or_unreadable_registry_fails_closed[missing-file]",
+      "phase": "pu1"
+    },
+    {
+      "id": "tests/licensing/test_pu1_gate.py::test_tampered_registry_fails_pin",
+      "phase": "pu1"
+    },
+    {
+      "id": "tests/licensing/test_pu1_gate.py::test_schema_violations_rejected[bad-scope]",
+      "phase": "pu1"
+    },
+    {
+      "id": "tests/licensing/test_pu1_gate.py::test_schema_violations_rejected[commercial-without-dated-permission]",
+      "phase": "pu1"
+    },
+    {
+      "id": "tests/licensing/test_pu1_gate.py::test_schema_violations_rejected[no-ruling-ref]",
+      "phase": "pu1"
+    },
+    {
+      "id": "tests/licensing/test_pu1_gate.py::test_document_hash_may_be_null_for_personal_and_unknown_only",
+      "phase": "pu1"
+    },
+    {
+      "id": "tests/licensing/test_pu1_gate.py::test_malformed_document_hash_rejected[doc0]",
+      "phase": "pu1"
+    },
+    {
+      "id": "tests/licensing/test_pu1_gate.py::test_malformed_document_hash_rejected[doc1]",
+      "phase": "pu1"
+    },
+    {
+      "id": "tests/licensing/test_pu1_gate.py::test_malformed_document_hash_rejected[doc2]",
+      "phase": "pu1"
+    },
+    {
+      "id": "tests/licensing/test_pu1_gate.py::test_commercial_ok_needs_dated_basis_ruling_and_documents_or_explicit_none",
+      "phase": "pu1"
+    },
+    {
+      "id": "tests/licensing/test_pu1_gate.py::test_alpaca_market_data_entry_records_the_owners_reading_as_structured_data",
+      "phase": "pu1"
+    },
+    {
+      "id": "tests/licensing/test_pu1_gate.py::test_owner_generated_records_is_the_first_commercial_ok_entry",
+      "phase": "pu1"
+    },
+    {
+      "id": "tests/licensing/test_pu1_gate.py::test_owner_generated_records_alone_passes_the_gate_and_carries_no_footer",
+      "phase": "pu1"
+    },
+    {
+      "id": "tests/licensing/test_pu1_gate.py::test_market_data_touching_metric_stays_personal_by_taint_propagation",
+      "phase": "pu1"
+    },
+    {
+      "id": "tests/licensing/test_pu1_gate.py::test_sidecar_governs_over_an_envelope_that_claims_commercial_ok",
+      "phase": "pu1"
+    },
+    {
+      "id": "tests/licensing/test_pu1_gate.py::test_sidecar_over_envelope_commercial_ok_sidecar_passes",
+      "phase": "pu1"
+    },
+    {
+      "id": "tests/licensing/test_pu1_gate.py::test_gate_blocks_personal_and_unknown_identically[alpaca_market_data]",
+      "phase": "pu1"
+    },
+    {
+      "id": "tests/licensing/test_pu1_gate.py::test_gate_blocks_personal_and_unknown_identically[sharadar]",
+      "phase": "pu1"
+    },
+    {
+      "id": "tests/licensing/test_pu1_gate.py::test_gate_blocks_personal_and_unknown_identically[never_heard_of_it]",
+      "phase": "pu1"
+    },
+    {
+      "id": "tests/licensing/test_pu1_gate.py::test_gate_blocks_empty_lineage",
+      "phase": "pu1"
+    },
+    {
+      "id": "tests/licensing/test_pu1_gate.py::test_commercial_ok_only_artifact_passes",
+      "phase": "pu1"
+    },
+    {
+      "id": "tests/licensing/test_pu1_gate.py::test_one_personal_input_taints_a_commercial_artifact",
+      "phase": "pu1"
+    },
+    {
+      "id": "tests/licensing/test_pu1_gate.py::test_producer_cannot_loosen_scope_by_declaration",
+      "phase": "pu1"
+    },
+    {
+      "id": "tests/licensing/test_pu1_gate.py::test_taint_propagates_through_join",
+      "phase": "pu1"
+    },
+    {
+      "id": "tests/licensing/test_pu1_gate.py::test_taint_propagates_through_resample",
+      "phase": "pu1"
+    },
+    {
+      "id": "tests/licensing/test_pu1_gate.py::test_taint_propagates_through_real_backtest",
+      "phase": "pu1"
+    },
+    {
+      "id": "tests/licensing/test_pu1_gate.py::test_tag_envelope_is_additive_and_ordered",
+      "phase": "pu1"
+    },
+    {
+      "id": "tests/licensing/test_pu1_gate.py::test_envelope_scope_untagged_and_forged",
+      "phase": "pu1"
+    },
+    {
+      "id": "tests/licensing/test_pu1_gate.py::test_sidecar_binds_digest_and_missing_sidecar_is_unknown",
+      "phase": "pu1"
+    },
+    {
+      "id": "tests/licensing/test_pu1_gate.py::test_footer_text_is_exact_and_present_on_every_non_ok_render",
+      "phase": "pu1"
+    },
+    {
+      "id": "tests/licensing/test_pu1_gate.py::test_no_public_callable_has_a_suppression_or_override_parameter",
+      "phase": "pu1"
+    },
+    {
+      "id": "tests/licensing/test_pu1_gate.py::test_footer_cannot_be_suppressed_by_env_or_registry_swap",
+      "phase": "pu1"
+    },
+    {
+      "id": "tests/licensing/test_pu1_gate.py::test_export_for_external_use_blocks_personal_and_writes_nothing",
+      "phase": "pu1"
+    },
+    {
+      "id": "tests/licensing/test_pu1_gate.py::test_export_for_external_use_allows_commercial_ok",
+      "phase": "pu1"
+    },
+    {
+      "id": "tests/licensing/test_pu1_gate.py::test_export_file_blocks_personal_unknown_and_unlabelled_files",
+      "phase": "pu1"
+    },
+    {
+      "id": "tests/licensing/test_pu1_gate.py::test_write_internal_report_stamps_and_tags",
+      "phase": "pu1"
+    },
+    {
+      "id": "tests/licensing/test_pu1_gate.py::test_commercial_safe_omits_rather_than_substitutes",
+      "phase": "pu1"
+    },
+    {
+      "id": "tests/licensing/test_pu1_gate.py::test_commercial_safe_with_dead_registry_omits",
+      "phase": "pu1"
+    },
+    {
+      "id": "tests/licensing/test_pu1_gate.py::test_research_dashboard_render_and_write_are_marked",
+      "phase": "pu1"
+    },
+    {
+      "id": "tests/licensing/test_pu1_gate.py::test_research_dashboard_with_no_datasets_is_unknown_and_marked",
+      "phase": "pu1"
+    },
+    {
+      "id": "tests/licensing/test_pu1_gate.py::test_morning_opportunities_report_is_marked",
+      "phase": "pu1"
+    },
+    {
+      "id": "tests/licensing/test_pu1_gate.py::test_evidence_summary_declares_per_panel_scope",
+      "phase": "pu1"
+    },
+    {
+      "id": "tests/licensing/test_pu1_gate.py::test_evidence_license_block_fails_closed_and_every_kpi_row_is_classified",
+      "phase": "pu1"
+    },
+    {
+      "id": "tests/licensing/test_pu1_gate.py::test_dashboard_maps_any_alpaca_provider_to_the_single_market_data_source",
+      "phase": "pu1"
+    },
+    {
+      "id": "tests/api/test_evidence_endpoint.py::test_evidence_summary_shape",
+      "phase": "pu1"
+    },
+    {
+      "id": "tests/api/test_evidence_endpoint.py::test_evidence_summary_scoped",
+      "phase": "pu1"
+    },
+    {
+      "id": "tests/api/test_evidence_endpoint.py::test_research_programs_catalog",
+      "phase": "pu1"
+    },
+    {
+      "id": "tests/api/test_evidence_endpoint.py::test_status_counts_sum_to_total",
+      "phase": "pu1"
+    }
+  ]
+}

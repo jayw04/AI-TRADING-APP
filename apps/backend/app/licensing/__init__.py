@@ -28,6 +28,8 @@ from app.licensing.output import (
     write_internal_report,
 )
 from app.licensing.registry import (
+    ALPACA_MARKET_DATA,
+    OWNER_GENERATED_RECORDS,
     LicenseRegistryError,
     alpaca_feed_source_id,
     load_registry,
@@ -36,6 +38,8 @@ from app.licensing.render import PERSONAL_FOOTER, footer_for, stamp
 from app.licensing.scopes import LicenseScope, Scoped, combine_scopes, derive
 
 __all__ = [
+    "ALPACA_MARKET_DATA",
+    "OWNER_GENERATED_RECORDS",
     "PERSONAL_FOOTER",
     "REASON_CODE",
     "LicenseRegistryError",

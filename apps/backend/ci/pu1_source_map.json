@@ -1,0 +1,104 @@
+{
+  "schema": 1,
+  "purpose": "PU-1 registry closure map: deterministic mapping from ingestion hosts / vendor-SDK imports / snapshot modules to licence-registry source_ids. Verified by apps/backend/scripts/check_pu1_registry_closure.py; an unmapped source, or a mapped source with no registry row, fails the build. Entries marked judgement=true were mapped by the implementing session and are listed for owner review.",
+  "hosts": [
+    {
+      "host": "data.alpaca.markets",
+      "source_id": "alpaca_market_data",
+      "note": "Alpaca market-data REST"
+    },
+    {
+      "host": "data.nasdaq.com",
+      "source_id": "sharadar",
+      "note": "Nasdaq Data Link, SHARADAR datatables"
+    },
+    {
+      "host": "financialmodelingprep.com",
+      "source_id": "fmp",
+      "note": "FMP /stable"
+    },
+    {
+      "host": "api.quiverquant.com",
+      "source_id": "quiver",
+      "note": "Quiver Quant (gov contracts, congress trades, lobbying)"
+    },
+    {
+      "host": "data.sec.gov",
+      "source_id": "sec_edgar",
+      "note": "SEC EDGAR submissions/XBRL",
+      "judgement": true
+    },
+    {
+      "host": "www.sec.gov",
+      "source_id": "sec_edgar",
+      "note": "SEC EDGAR archives / company tickers",
+      "judgement": true
+    },
+    {
+      "host": "api.usaspending.gov",
+      "source_id": "usaspending",
+      "note": "USAspending award cross-check",
+      "judgement": true
+    }
+  ],
+  "non_data_hosts": [
+    {
+      "host": "127.0.0.1",
+      "reason": "loopback; the platform's own services"
+    },
+    {
+      "host": "localhost",
+      "reason": "loopback; the platform's own services"
+    },
+    {
+      "host": "169.254.169.254",
+      "reason": "EC2 instance metadata service (infrastructure, not a data source)"
+    },
+    {
+      "host": "www.anthropic.com",
+      "reason": "documentation URL for LLM pricing, not a data source (LLM calls are governed by ADR 0006)"
+    },
+    {
+      "host": "api.alpaca.markets",
+      "reason": "broker trading/account API (orders, account state); a market-data field read from it is tainted at its point of use, never classified here",
+      "judgement": true
+    },
+    {
+      "host": "paper-api.alpaca.markets",
+      "reason": "broker trading/account API (orders, account state); a market-data field read from it is tainted at its point of use, never classified here",
+      "judgement": true
+    }
+  ],
+  "imports": [
+    {
+      "prefix": "alpaca.data",
+      "source_id": "alpaca_market_data",
+      "note": "Alpaca market-data SDK (bars, trades, quotes, corporate actions, screener, live stream); every feed"
+    }
+  ],
+  "non_data_imports": [
+    {
+      "prefix": "alpaca.trading",
+      "reason": "Alpaca trading SDK: order/account API (the owner's own records), not market data"
+    },
+    {
+      "prefix": "alpaca.common",
+      "reason": "Alpaca SDK shared exception types"
+    },
+    {
+      "exact": "alpaca",
+      "reason": "bare package import used only for the SDK version string"
+    }
+  ],
+  "modules": [
+    {
+      "file": "apps/backend/app/strategies/cash_tbill_benchmark.py",
+      "source_id": "fred",
+      "note": "consumes a frozen FRED DGS3MO snapshot (no network host in code)",
+      "judgement": true
+    }
+  ],
+  "altdata_source_names": {
+    "quiver": "quiver"
+  }
+}

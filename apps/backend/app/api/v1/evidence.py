@@ -25,19 +25,60 @@ from app.db.models.reconciliation_run import ReconciliationRun
 from app.db.models.replay_run import ReplayRun
 from app.db.models.strategy import Strategy
 from app.db.session import get_session
-from app.licensing import PERSONAL_FOOTER, footer_for
+from app.licensing import ALPACA_MARKET_DATA, OWNER_GENERATED_RECORDS, PERSONAL_FOOTER, footer_for
 from app.licensing.gate import safe_effective_scope
+from app.licensing.scopes import combine_scopes
 from app.ops.confidence import ConfidenceSignals, compute_confidence
 from app.ops.kpis import KpiInputs, build_scorecard, scorecard_summary
 from app.research.programs import list_programs, status_counts
 
 router = APIRouter(prefix="/evidence", tags=["evidence"])
 
-# PU-1: licensed data behind the research-program headlines (Sharpe / PF / drawdown figures) and
-# the live books shown on this page. The summary is a presentable surface (it has a Print button),
-# so its scope must be declared: any PERSONAL or UNKNOWN source makes the whole summary
-# non-presentable (taint propagates). Edit ONLY with the registry.
-_EVIDENCE_SOURCES: tuple[str, ...] = ("alpaca_sip", "sharadar", "fmp", "quiver")
+# PU-1: the page is a presentable surface (it has a Print button), so every PANEL declares its own
+# licence scope from what it is actually built from, and the top-level scope is the combined
+# most-restrictive one (taint propagates). A panel built only from the owner's own account /
+# order / gate-refusal / uptime records is ``owner_generated_records`` (COMMERCIAL_OK); anything
+# built on market data, quotes, fills marked to market or backtests carries those vendor sources
+# and is PERSONAL/UNKNOWN. Edit ONLY together with the registry.
+#
+# Panels and why:
+#   confidence          counts from audit_log / reconciliation_runs / replay_runs / snapshot dates.
+#   kpis                every row is a count or ratio of the same owner records (see _KPI_ROW_SOURCES).
+#   research_programs   Sharpe / PF / drawdown headlines from backtests on licensed vendor data.
+#   research_status_counts  derived from research_programs, so it inherits that lineage.
+#   strategies          the owner's strategy configuration rows (name, status, vol-target params).
+_OWNER_RECORDS: tuple[str, ...] = (OWNER_GENERATED_RECORDS,)
+_RESEARCH_SOURCES: tuple[str, ...] = (ALPACA_MARKET_DATA, "sharadar", "fmp", "quiver")
+_PANEL_SOURCES: dict[str, tuple[str, ...]] = {
+    "confidence": _OWNER_RECORDS,
+    "kpis": _OWNER_RECORDS,
+    "research_programs": _RESEARCH_SOURCES,
+    "research_status_counts": _RESEARCH_SOURCES,
+    "strategies": _OWNER_RECORDS,
+}
+# KPI rows split by their own sources. A row that touches market data (slippage vs quotes, fill
+# quality, P&L marked to market) must be listed here with the market-data source so it stays PERSONAL.
+_KPI_ROW_SOURCES: dict[str, tuple[str, ...]] = {
+    "reconciliation_success": _OWNER_RECORDS,
+    "reconciliation_drift": _OWNER_RECORDS,
+    "replay_consistency": _OWNER_RECORDS,
+    "risk_gate_efficacy": _OWNER_RECORDS,
+    "breaker_recovery": _OWNER_RECORDS,
+    "fill_success": _OWNER_RECORDS,
+    "operational_continuity": _OWNER_RECORDS,
+}
+# A KPI row with no declared sources (a new row nobody classified) is UNKNOWN, never owner records.
+
+
+def _license_block(sources: tuple[str, ...]) -> dict[str, Any]:
+    """``license_scope`` / ``license_sources`` / ``license_footer`` for one panel or row. An empty
+    source list is UNKNOWN (fail closed); the footer is present whenever presentation is blocked."""
+    scope = safe_effective_scope(sources=sources)
+    return {
+        "license_scope": scope.name,
+        "license_sources": list(sources),
+        "license_footer": PERSONAL_FOOTER if footer_for(scope) else None,
+    }
 
 
 async def _scalar(session: AsyncSession, stmt: Any) -> Any:
@@ -145,15 +186,29 @@ async def evidence_summary(
     scope = ({"kind": "account", "strategy_id": strategy_id,
               "account_id": account_id, "user_id": user_id}
              if strategy_id is not None else {"kind": "platform"})
-    license_scope = safe_effective_scope(sources=_EVIDENCE_SOURCES)
+    kpi_rows = [{**r, **_license_block(_KPI_ROW_SOURCES.get(str(r.get("key")), ()))} for r in kpis]
+    panels = {name: _license_block(srcs) for name, srcs in _PANEL_SOURCES.items()}
+    # The kpis panel is the most restrictive of its rows: the union of the rows' sources, or no
+    # sources (UNKNOWN) if any row was never classified.
+    row_sources = [tuple(r["license_sources"]) for r in kpi_rows]
+    panels["kpis"] = _license_block(
+        () if (not row_sources or not all(row_sources)) else tuple(sorted({s for r in row_sources for s in r}))
+    )
+    # Top level = combined most-restrictive scope (taken from the panels' SCOPES, so an
+    # unclassified panel cannot be hidden by the other panels' sources).
+    top_scope = combine_scopes(*(blk["license_scope"] for blk in panels.values()))
+    top = {
+        "license_scope": top_scope.name,
+        "license_sources": sorted({s for blk in panels.values() for s in blk["license_sources"]}),
+        "license_footer": PERSONAL_FOOTER if footer_for(top_scope) else None,
+    }
     return {
         "as_of": datetime.now(UTC).isoformat(),
-        "license_scope": license_scope.name,
-        "license_sources": list(_EVIDENCE_SOURCES),
-        "license_footer": PERSONAL_FOOTER if footer_for(license_scope) else None,
+        **top,
+        "panels": panels,
         "scope": scope,
         "confidence": confidence,
-        "kpis": {"rows": kpis, "summary": scorecard_summary(kpis)},
+        "kpis": {"rows": kpi_rows, "summary": scorecard_summary(kpis)},
         "research_programs": list_programs(),
         "research_status_counts": status_counts(),
         "strategies": strategies,
