@@ -91,6 +91,8 @@ def freeze(draft_path: Path, out_path: Path, *, manifest_path: Path | None = Non
         )
     payload = spec.model_dump(mode="json")
     payload["signoff"]["spec_sha256"] = digest
+    if payload.get("profile") is None:  # full profile: frozen file bytes unchanged
+        payload.pop("profile", None)
     _write_new(out_path, _dump(payload))
     try:
         view = load_frozen(out_path)  # round-trip: what we wrote must load, signed, at this hash

@@ -89,6 +89,19 @@ REVIEWED_PURE: tuple[str, ...] = (
     f"{PKG}.spec.schema:DraftSpec.unset_p0_fields",
     f"{PKG}.spec.schema:DraftSpec.missing_signoff_fields",
     f"{PKG}.spec.schema:FrozenSpec.from_draft",
+    f"{PKG}.screen.coverage:presence_from_minutes",  # return-blind presence facts only
+    f"{PKG}.screen.coverage:coverage_report",  # return-blind counts only
+    f"{PKG}.screen.session_calendar:expected_sessions",  # dates and times only
+    f"{PKG}.data.identity_map:build_identity_map",  # interval records only; no prices, no returns
+    f"{PKG}.data.identity_map:ticker_on",
+    f"{PKG}.data.identity_map:permaticker_on",
+    f"{PKG}.data.identity_map:audit_identity",
+    f"{PKG}.data.pit_universe:build_universe_month",  # membership from injected records; no returns
+    f"{PKG}.data.manifest:parse_snapshot_manifest",  # text -> typed manifest; reads no data
+    f"{PKG}.data.manifest:verify_snapshot_files",  # hashes declared files only; reads no values
+    f"{PKG}.data.store_adapter:open_snapshot",  # opens read-only; value reads need a capability
+    f"{PKG}.data.store_adapter:load_identity_records",  # interval metadata only, no prices
+    f"{PKG}.data.store_adapter:load_listings",  # category / delisting metadata only, no prices
     f"{PKG}.spec.schema:FrozenSpec.draft",
     f"{PKG}.spec.schema:FrozenSpec.__setattr__",  # raises: the frozen spec is immutable
     f"{PKG}.spec.genesis:is_canonical_uuid4",  # round 5: genesis id format check
