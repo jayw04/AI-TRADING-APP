@@ -259,3 +259,53 @@ def test_capital_rules_proceeds_are_not_compounded_and_freed_notional_is_reusabl
     big = _trade("DDD", DAY, time(10, 40), time(15, 0), 1.0, qty=12_000, px=10.0)
     run2 = schedule_portfolio(cap, [a, big], one_slot, tie_break="PERMATICKER_ASC")
     assert [t.symbol for t in run2.accepted] == ["AAA"] and run2.rejected == {REJECT_NAME: 1}
+
+
+# --- one-sided lower confidence bound (before any statistical selection) -------------------
+
+
+def test_one_sided_lower_bound_is_the_alpha_quantile_and_matches_the_two_sided_lower_end(
+    cap: object,
+) -> None:
+    from app.research.range002.screen.stats import one_sided_lower_bound
+
+    m = matrix(_ar1_skewed(np.random.default_rng(11), 250, 2, 0.0))
+    lb = one_sided_lower_bound(cap, m, "C0", 0.05, CFG)
+    two = mean_interval(cap, m, "C0", 0.90, CFG)  # (1 - 0.90) / 2 == 0.05 on each side
+    assert lb.lower == pytest.approx(two.lower)
+    assert lb.alpha == 0.05 and lb.config == CFG
+    # a smaller alpha is a more conservative (lower) bound
+    assert one_sided_lower_bound(cap, m, "C0", 0.01, CFG).lower < lb.lower
+
+
+def test_lower_bound_excludes_zero_for_a_planted_edge_and_not_for_a_null(cap: object) -> None:
+    from app.research.range002.screen.stats import one_sided_lower_bound
+
+    edge = matrix(_ar1_skewed(np.random.default_rng(3), 250, 1, 0.6))
+    assert one_sided_lower_bound(cap, edge, "C0", 0.05, CFG).lower > 0
+    raw = _ar1_skewed(np.random.default_rng(4), 250, 1, 0.0)
+    null = matrix(raw - raw.mean(axis=0))  # sample mean exactly 0: no edge is observable
+    assert one_sided_lower_bound(cap, null, "C0", 0.05, CFG).lower < 0
+
+
+def test_lower_bound_is_deterministic_undefined_without_trades_and_needs_a_capability(
+    cap: object,
+) -> None:
+    from app.research.range002.screen.stats import one_sided_lower_bound
+
+    m = matrix(_ar1_skewed(np.random.default_rng(5), 100, 1, 0.1))
+    assert one_sided_lower_bound(cap, m, "C0", 0.05, CFG) == one_sided_lower_bound(
+        cap, m, "C0", 0.05, CFG
+    )
+    empty = DayMatrix(
+        days=DAYS[:5],
+        candidates=("Z",),
+        net_r=np.zeros((5, 1)),
+        trades=np.zeros((5, 1), dtype=np.int64),
+    )
+    assert one_sided_lower_bound(cap, empty, "Z", 0.05, CFG).lower is None  # undefined, not zero
+    with pytest.raises(InvalidCapabilityError):
+        one_sided_lower_bound(None, m, "C0", 0.05, CFG)
+    for bad in (0.0, 1.0, -0.1):
+        with pytest.raises(ParamsUnsetError):
+            one_sided_lower_bound(cap, m, "C0", bad, CFG)

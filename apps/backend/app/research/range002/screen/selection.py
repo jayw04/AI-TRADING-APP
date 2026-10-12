@@ -2,7 +2,8 @@
 
 Not adopted: the amendment says the rule is "implemented only after this amendment is adopted",
 so this is configurable logic with every parameter explicit and nothing chosen. A candidate must
-first pass the eligibility floor; among eligible candidates the best score wins; any candidate
+first pass the eligibility floor (boundary operators, stated: profit factor must be STRICTLY
+GREATER than ``min_pf``, so PF == min_pf is ineligible; trades must be >= ``min_trades``); among eligible candidates the best score wins; any candidate
 within ``delta`` R of the best is a tie resolved by the declared complexity order (first listed
 wins) and by nothing else, so the same inputs always give the same winner. ``delta = 0`` means
 exact ties only. Selection stability is reported as the margin to the runner-up, separately.
@@ -58,7 +59,9 @@ def select_candidate(
             ineligible[s.candidate] = "NO_SCORE"
         elif s.trades < min_trades:
             ineligible[s.candidate] = "TOO_FEW_TRADES"
-        elif s.profit_factor is None or s.profit_factor < min_pf:
+        elif (
+            s.profit_factor is None or s.profit_factor <= min_pf
+        ):  # strict: PF must EXCEED the floor
             ineligible[s.candidate] = "PF_BELOW_FLOOR"
         else:
             live.append(s)

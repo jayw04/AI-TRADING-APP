@@ -157,6 +157,47 @@ def mean_interval(
     )
 
 
+@dataclass(frozen=True)
+class LowerBound:
+    candidate: str
+    observed_mean: float | None
+    lower: float | None
+    alpha: float
+    zero_trade_replicates: int
+    config: BootstrapConfig
+
+
+@requires_capability
+def one_sided_lower_bound(
+    capability: object,
+    matrix: DayMatrix,
+    candidate: str,
+    alpha: float,
+    config: BootstrapConfig,
+) -> LowerBound:
+    """One-sided (1 - alpha) lower confidence bound for one candidate's mean net R.
+
+    The ``alpha`` quantile of the day-cluster stationary-bootstrap replicate means (not
+    recentred): for alpha = 0.05 this is the 95% one-sided lower bound. A bound above zero
+    means the interval excludes zero on that side. It is an ESTIMATION bound for one named
+    candidate; it is not corrected for the choice among K candidates (that is the
+    max-statistic test's job) and a two-sided interval is a different object
+    (``mean_interval``). Replicates with no trades are dropped and counted."""
+    _check(config)
+    if not 0.0 < alpha < 1.0:
+        raise ParamsUnsetError("alpha must be in (0, 1)")
+    k = matrix.candidates.index(candidate)
+    obs = _observed_means(matrix)[k]
+    means, zero = _resample_means(matrix, config)
+    col = means[:, k]
+    col = col[~np.isnan(col)]
+    if len(col) == 0 or np.isnan(obs):
+        return LowerBound(candidate, None, None, alpha, int(zero[:, k].sum()), config)
+    return LowerBound(
+        candidate, float(obs), float(np.quantile(col, alpha)), alpha, int(zero[:, k].sum()), config
+    )
+
+
 @requires_capability
 def max_statistic_test(
     capability: object, matrix: DayMatrix, alpha: float, config: BootstrapConfig
