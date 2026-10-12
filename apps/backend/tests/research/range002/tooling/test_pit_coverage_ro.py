@@ -127,13 +127,46 @@ def _split_store(tmp_path: Path, *, volume_adjusted: bool) -> Path:
 
 def test_volume_semantics_check_recognises_split_adjusted_volume(tmp_path: Path) -> None:
     out = pit_coverage_ro.report(str(_split_store(tmp_path, volume_adjusted=True)))
-    assert "VOLUME_SPLIT_ADJUSTED" in out and "VOLUME_AS_TRADED" not in out
+    assert (
+        "CONSISTENT_WITH_SPLIT_ADJUSTED_VOLUME" in out
+        and "CONSISTENT_WITH_AS_TRADED_VOLUME" not in out
+    )
 
 
 def test_volume_semantics_check_flags_as_traded_volume(tmp_path: Path) -> None:
     out = pit_coverage_ro.report(str(_split_store(tmp_path, volume_adjusted=False)))
-    assert "VOLUME_AS_TRADED" in out and "VOLUME_SPLIT_ADJUSTED" not in out
+    assert (
+        "CONSISTENT_WITH_AS_TRADED_VOLUME" in out
+        and "CONSISTENT_WITH_SPLIT_ADJUSTED_VOLUME" not in out
+    )
 
 
 def test_volume_semantics_check_is_skipped_without_the_columns(store: Path) -> None:
     assert "VOLUME SEMANTICS: SKIPPED" in pit_coverage_ro.report(str(store))
+
+
+def test_volume_semantics_check_does_not_force_an_ambiguous_observation(tmp_path: Path) -> None:
+    """Volume steps by ~sqrt(10) around a 10:1 split: equidistant from both hypotheses."""
+    path = tmp_path / "ambiguous.duckdb"
+    c = duckdb.connect(str(path))
+    c.execute(
+        "CREATE TABLE tickers(permaticker VARCHAR, ticker VARCHAR, isdelisted VARCHAR, firstpricedate DATE, lastpricedate DATE)"
+    )
+    c.execute(
+        "CREATE TABLE sep(ticker VARCHAR, date DATE, close DOUBLE, closeunadj DOUBLE, volume DOUBLE)"
+    )
+    c.execute(
+        "CREATE TABLE actions(date DATE, action VARCHAR, ticker VARCHAR, value DOUBLE, contraticker VARCHAR)"
+    )
+    c.execute("INSERT INTO actions VALUES ('2020-03-02','split','AMB',10.0,NULL)")
+    for d in ["2020-02-24", "2020-02-25", "2020-02-26", "2020-02-27", "2020-02-28"]:
+        c.execute("INSERT INTO sep VALUES ('AMB', ?, 10.0, 100.0, 1000000.0)", [d])
+    for d in ["2020-03-02", "2020-03-03", "2020-03-04", "2020-03-05", "2020-03-06"]:
+        c.execute("INSERT INTO sep VALUES ('AMB', ?, 10.0, 10.0, 3162278.0)", [d])
+    c.close()
+    out = pit_coverage_ro.report(str(path))
+    assert "AMBIGUOUS_VOLUME_EVIDENCE" in out
+    assert (
+        "CONSISTENT_WITH_SPLIT_ADJUSTED_VOLUME" not in out
+        and "CONSISTENT_WITH_AS_TRADED_VOLUME" not in out
+    )
