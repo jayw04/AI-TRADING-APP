@@ -598,6 +598,12 @@
       "reason": "internal research script output (reports/CSV/JSON) written to the owner's local research tree; not an outbound location"
     },
     {
+      "file": "apps/backend/scripts/research/range002/run_descriptive_screen.py",
+      "functions": "*",
+      "classification": "INTERNAL_ONLY",
+      "reason": "RANGE-002 descriptive-run report writer; report.md is footer-stamped and both reports carry PERSONAL/UNKNOWN scope sidecars (alpaca_market_data + sharadar), so the export seam refuses them"
+    },
+    {
       "file": "apps/backend/scripts/research/range002/freeze_spec.py",
       "functions": "*",
       "classification": "INTERNAL_ONLY",

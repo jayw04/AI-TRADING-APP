@@ -834,7 +834,7 @@ def run(
 
 #: Data lineage of every report this runner writes (PU-1). Fixed, not a parameter: the runner reads
 #: SIP minute bars (feed 'sip') and a Sharadar daily snapshot, so its output is never presentable.
-PU1_SOURCES: tuple[str, ...] = ("alpaca_sip", "sharadar")
+PU1_SOURCES: tuple[str, ...] = ("alpaca_market_data", "sharadar")
 
 
 # --------------------------------------------------------------------------- CLI
