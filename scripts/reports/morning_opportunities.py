@@ -22,6 +22,18 @@ import argparse
 import glob
 import json
 import os
+import sys
+
+# PU-1: this report is a user-facing watchlist built from Alpaca premarket market data (declared
+# as alpaca_sip; non-COMMERCIAL_OK either way), so it carries the fixed personal-use footer.
+# app.licensing is a leaf package; the path insert lets the script run from a repo checkout as well
+# as inside the backend container.
+_BACKEND = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "apps", "backend")
+if os.path.isdir(_BACKEND) and _BACKEND not in sys.path:
+    sys.path.insert(0, _BACKEND)
+from app.licensing import stamp  # noqa: E402
+
+REPORT_SOURCES = ("alpaca_sip",)
 
 # ADR-0037 label whitelist — the ONLY vocabulary allowed on this report.
 LABEL = "Backtest Pending"  # GAPPER-001 is pre-registered but not validated → Backtest Pending
@@ -141,7 +153,7 @@ def main() -> None:
         return
     with open(path, encoding="utf-8") as fh:
         record = json.load(fh)
-    print(render(record, fresh=fresh, total=total))
+    print(stamp(render(record, fresh=fresh, total=total), sources=REPORT_SOURCES))
 
 
 if __name__ == "__main__":

@@ -8,6 +8,7 @@ Alerts, and the experiment genealogy (DAG). Pure read of the registry; no comput
 
 from __future__ import annotations
 
+from app.licensing import stamp, write_internal_report
 from app.research.registry import ExperimentRecord, ResearchStore
 
 
@@ -84,8 +85,17 @@ def _lineage(store: ResearchStore, limit: int) -> list[str]:
     return out + [""]
 
 
+def dashboard_sources(store: ResearchStore) -> list[str]:
+    """Licence source ids behind the dashboard: the provider of every registered dataset (PU-1).
+    Unregistered providers resolve to UNKNOWN in the licence registry; none recorded is UNKNOWN."""
+    rows = store.con.execute("SELECT DISTINCT provider FROM datasets").fetchall()
+    return sorted({str(r[0]) for r in rows if r[0]})
+
+
 def render_dashboard(store: ResearchStore, *, limit: int = 25) -> str:
-    """Render the full dashboard Markdown from the registry."""
+    """Render the full dashboard Markdown from the registry.
+
+    PU-1: carries the fixed personal-use footer unless every dataset provider is COMMERCIAL_OK."""
     parts = ["# Research Engine — dashboard\n",
              "_Auto-generated from the research registry (read-only)._\n"]
     parts += _kpis(store)
@@ -93,12 +103,14 @@ def render_dashboard(store: ResearchStore, *, limit: int = 25) -> str:
     parts += _strategies(store)
     parts += _alerts(store)
     parts += _lineage(store, limit)
-    return "\n".join(parts) + "\n"
+    return stamp("\n".join(parts) + "\n", sources=dashboard_sources(store))
 
 
 def write_dashboard(store: ResearchStore, path: str, *, limit: int = 25) -> str:
     from pathlib import Path
-    text = render_dashboard(store, limit=limit)
-    Path(path).parent.mkdir(parents=True, exist_ok=True)
-    Path(path).write_text(text, encoding="utf-8")
+
+    # PU-1: internal research output — footer when not COMMERCIAL_OK, plus a scope sidecar.
+    write_internal_report(
+        Path(path), render_dashboard(store, limit=limit), sources=dashboard_sources(store)
+    )
     return path
