@@ -32,8 +32,8 @@ from app.research.range002.governance.run_registry import RunRegistry, RunStatus
 
 from .conftest import (
     CODE_SHA,
+    DECIDED_LEDGER,
     MANIFEST_SHA,
-    SIGNED_LEDGER,
     SPEC_SHA,
     SYNTH_GENESIS_ID,
     complete_prereqs,
@@ -44,7 +44,7 @@ from .conftest import (
     open_run,
 )
 
-LED = ExposureLedger.from_text(SIGNED_LEDGER)
+LED = ExposureLedger.from_text(DECIDED_LEDGER)
 _P5_RANGE = DateRange(date(2026, 9, 1), date(2026, 12, 31))
 
 

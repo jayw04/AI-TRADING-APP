@@ -5,8 +5,12 @@ this structural ``Protocol`` so the two can be integrated without either
 importing the other. Assumptions recorded for the integrator:
 
 * ``spec_sha256`` is the 64-hex canonical hash of the frozen spec.
-* ``is_signed`` is True only when the sign-off fields are populated and the recorded hash
-  matches the recomputed one (content-bound, not an authenticated signature).
+* ``has_run_decision`` is True only when the spec's meeting-decision reference is present, its
+  decision is exactly ``approved``, its scope includes ``run`` and the recorded spec hash equals
+  the recomputed one (content-bound; the minutes file it cites is checked by the guard).
+* ``decision`` / ``decision_scope`` / ``decision_partitions`` / ``minutes_path`` /
+  ``minutes_sha256`` / ``record_kind`` / ``strategy_version`` / ``baseline_id`` are that reference's fields; the
+  guard re-checks decision, scope, partition and the minutes file's hash itself.
 * ``partitions.selection/confirmation/holdout`` are inclusive ``DateRange``s.
 * ``p3_criteria``, ``exits_candidates``, ``exits_selection`` are ``None`` while
   the corresponding P0 decision (D17 / D19) is unset; any other value (even an
@@ -49,7 +53,31 @@ class FrozenSpecView(Protocol):
     def spec_sha256(self) -> str: ...
 
     @property
-    def is_signed(self) -> bool: ...
+    def has_run_decision(self) -> bool: ...
+
+    @property
+    def decision(self) -> str | None: ...
+
+    @property
+    def decision_scope(self) -> tuple[str, ...]: ...
+
+    @property
+    def decision_partitions(self) -> tuple[str, ...]: ...
+
+    @property
+    def minutes_path(self) -> str | None: ...
+
+    @property
+    def minutes_sha256(self) -> str | None: ...
+
+    @property
+    def record_kind(self) -> str | None: ...
+
+    @property
+    def strategy_version(self) -> str | None: ...
+
+    @property
+    def baseline_id(self) -> str | None: ...
 
     @property
     def partitions(self) -> PartitionRangesView: ...

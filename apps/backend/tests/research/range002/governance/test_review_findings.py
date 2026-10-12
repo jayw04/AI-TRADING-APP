@@ -43,6 +43,7 @@ from app.research.range002.governance.run_registry import RunRegistry, RunStatus
 from app.research.range002.governance.spec_adapter import GuardSpecView
 
 from .conftest import (
+    LEDGER_DECISION_JSON,
     LEDGER_SHA,
     SPEC_SHA,
     SYNTH_GENESIS_ID,
@@ -283,7 +284,7 @@ def test_h3_duck_typed_look_alike_is_refused(
     @dataclass(frozen=True)
     class LookAlike:
         spec_sha256: str = SPEC_SHA
-        is_signed: bool = True
+        has_run_decision: bool = True
         partitions: Any = spec.partitions
         p3_criteria: Any = "x"
         exits_candidates: Any = "x"
@@ -302,7 +303,7 @@ def test_h3_subclass_and_direct_construction_are_refused(
 ) -> None:
     with pytest.raises(SpecViewNotTrustedError):
         GuardSpecView(  # type: ignore[call-arg]
-            object(), spec_sha256=SPEC_SHA, is_signed=True, partitions=spec.partitions,
+            object(), spec_sha256=SPEC_SHA, has_run_decision=True, partitions=spec.partitions,
             p3_criteria=1, exits_candidates=1, exits_selection=1, exposed=(),
             exposure_signed=None, registry_genesis_id=None, max_p3a_attempts=None,
             max_p3b_attempts=None,
@@ -317,7 +318,7 @@ def test_h3_subclass_and_direct_construction_are_refused(
 
 def test_h3_view_is_immutable_and_uncopyable(spec: GuardSpecView) -> None:
     with pytest.raises(AttributeError):
-        spec.is_signed = False  # type: ignore[misc]
+        spec.has_run_decision = False  # type: ignore[misc]
     with pytest.raises(AttributeError):
         del spec.spec_sha256
     with pytest.raises(AttributeError):
@@ -352,12 +353,11 @@ def test_h3_exposure_binding_absent_or_mismatched_refused(
         )  # fmt: skip
 
 
-def test_h3_a_different_signed_ledger_is_refused_even_if_well_formed(
+def test_h3_a_different_decided_ledger_is_refused_even_if_well_formed(
     spec: GuardSpecView, registry: RunRegistry
 ) -> None:
     other = ExposureLedger.from_text(
-        '{"schema_version": 1, "signoff": {"signed_by": "s", "signed_on": "2026-10-01"},'
-        ' "entries": []}'
+        '{"schema_version": 1, "decision": ' + LEDGER_DECISION_JSON + ', "entries": []}'
     )
     assert other.sha256 != LEDGER_SHA
     rid = open_run(registry)

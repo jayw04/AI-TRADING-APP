@@ -4,11 +4,14 @@ from __future__ import annotations
 
 import atexit
 import copy
+import hashlib
 import json
 import os
 import shutil
 import sys
 import tempfile
+from collections.abc import Iterator
+from contextlib import contextmanager
 from pathlib import Path
 from typing import Any
 
@@ -16,13 +19,62 @@ import pytest
 
 from app.research.range002.spec.schema import draft_skeleton
 
-SIGNOFF = {
-    "owner": "SYNTH-OWNER",
-    "trading_expert": "SYNTH-EXPERT",
-    "independent_validator": "SYNTH-VALIDATOR",
-    "date": "2000-01-01",
-    "spec_sha256": None,
-}
+# --- synthetic meeting minutes. A real decision cites a committed minutes file; the tests write
+# one under a temp directory and point the (private) minutes-root test seam at it. The content is
+# obviously synthetic and names no person.
+MINUTES_RELPATH = "minutes/2000-01-01_synthetic_meeting.md"
+MINUTES_BYTES = (
+    b"# SYNTHETIC weekly meeting minutes (test fixture)\n"
+    b"date: 2000-01-01\nissue: synthetic spec baseline\ndecision: approved\n"
+    b"scope: run REPLAY_RNG001 DEVELOPMENT_SELECTION DEVELOPMENT_CONFIRMATION HOLDOUT\n"
+)
+MINUTES_SHA256 = hashlib.sha256(MINUTES_BYTES).hexdigest()
+SYNTH_MINUTES_DIR = Path(tempfile.mkdtemp(prefix="range002-synth-minutes-"))
+atexit.register(shutil.rmtree, SYNTH_MINUTES_DIR, ignore_errors=True)
+(SYNTH_MINUTES_DIR / MINUTES_RELPATH).parent.mkdir(parents=True)
+(SYNTH_MINUTES_DIR / MINUTES_RELPATH).write_bytes(MINUTES_BYTES)
+
+
+@contextmanager
+def synthetic_minutes_root() -> Iterator[None]:
+    """Point the (private) minutes-root test seam at the synthetic minutes directory."""
+    from app.research.range002.spec import decision
+
+    saved = decision._MINUTES_ROOT
+    decision._MINUTES_ROOT = SYNTH_MINUTES_DIR
+    try:
+        yield
+    finally:
+        decision._MINUTES_ROOT = saved
+
+
+#: Partitions the default synthetic decision covers (PAPER is refused outright by the guard).
+SYNTH_DECISION_PARTITIONS = [
+    "REPLAY_RNG001",
+    "DEVELOPMENT_SELECTION",
+    "DEVELOPMENT_CONFIRMATION",
+    "HOLDOUT",
+]
+
+
+def decision_block(**overrides: Any) -> dict[str, Any]:
+    """A synthetic, approved, run-scope decision reference; ``spec_sha256`` is None (the freeze
+    tool fills it). ``overrides`` replace fields."""
+    block: dict[str, Any] = {
+        "decision_date": "2000-01-01",
+        "record_kind": "meeting_minutes",
+        "minutes_path": MINUTES_RELPATH,
+        "minutes_sha256": MINUTES_SHA256,
+        "decision": "approved",
+        "scope": ["build", "run"],
+        "partitions": list(SYNTH_DECISION_PARTITIONS),
+        "strategy_version": "SYNTH-V1",
+        "baseline_id": "SYNTH-BASELINE-1",
+        "spec_sha256": None,
+    }
+    block.update(overrides)
+    return block
+
 
 #: Synthetic registry genesis id; governance test helpers enroll registries carrying exactly this id.
 SYNTH_GENESIS_ID = "5eed5eed-5eed-4eed-9eed-5eed5eed5eed"  # canonical lowercase UUIDv4
@@ -54,8 +106,11 @@ def get_path(payload: dict[str, Any], path: str) -> Any:
 _P0_VALUES: dict[str, Any] = {
     "registration.related_programs": "SYNTH",
     "universe.n": 3,
+    "universe.category_map": ["Domestic Common Stock"],
     "data.vendor": "SYNTH-VENDOR",
     "data.fetch_mode": "SYNTH-MODE",
+    "data.daily_price_basis": "SEP_SPLIT_ADJUSTED",
+    "data.intraday_price_basis": "raw",
     "signal.or_completeness_rule": "SYNTH",
     "signal.min_or_width_ticks": 2,
     "exits.candidates": CANDIDATES,
@@ -71,6 +126,7 @@ _P0_VALUES: dict[str, Any] = {
     "costs.accounting_mode": "all_in",
     "costs.components": ["SYNTH"],
     "risk.per_trade_pct": 0.1,
+    "risk.per_trade_unit": "percent",
     "risk.per_name_cap": 0.2,
     "risk.gross_cap": 0.3,
     "risk.max_concurrent": 2,
@@ -114,8 +170,6 @@ _P0_VALUES: dict[str, Any] = {
     "p5.cost_ratio_contract": "SYNTH",
     "p5.shadow_acceptance": "SYNTH",
     "diagnostics.taxonomy": "SYNTH",
-    "governance.economic_thesis_sha": "ab" * 32,
-    "governance.roles": {"synthetic": "SYNTH"},
     "governance.exposure_signed": {"synthetic": "SYNTH"},
     "governance.registry_genesis_id": SYNTH_GENESIS_ID,
 }
@@ -123,13 +177,14 @@ _P0_VALUES: dict[str, Any] = {
 P0_PATHS = tuple(_P0_VALUES)
 
 
-def complete_payload(*, signed: bool = True) -> dict[str, Any]:
-    """A complete synthetic draft: every P0 field set; sign-off filled when ``signed``."""
+def complete_payload(*, decided: bool = True) -> dict[str, Any]:
+    """A complete synthetic draft: every P0 field set; the synthetic decision reference is
+    filled when ``decided`` (otherwise ``decision`` is null: no decision recorded)."""
     payload = draft_skeleton()
     for path, value in _P0_VALUES.items():
         set_path(payload, path, copy.deepcopy(value))
-    if signed:
-        payload["signoff"] = dict(SIGNOFF)
+    if decided:
+        payload["decision"] = decision_block()
     return payload
 
 
