@@ -1,0 +1,45 @@
+{
+  "record_type": "range002.identity_probe_preregistration.v1",
+  "status": "FROZEN BEFORE ANY REAL DATA EXISTS. Changing any value changes the file digest pinned in identity_probe.py and fails the test; a new version file is required instead.",
+  "question": "Does the vendor response (TICKERS rows plus ACTIONS rows for a probe sample) actually contain the historical identity intervals needed to reconstruct point-in-time membership, so that raw rows should be RETAINED, or must the universe be restricted under an explicit scope amendment?",
+  "decision_labels": ["RETAIN_RAW_INTERVALS", "SCOPE_AMENDMENT"],
+  "per_issuer_labels": [
+    "CLEAN_SINGLE_INTERVAL",
+    "TICKER_CHANGE_INTERVALS_PRESENT",
+    "TICKER_CHANGE_CURRENT_ONLY",
+    "SUCCESSOR_IDENTITY_RESOLVED",
+    "INTERVAL_GAP_EXPLAINED",
+    "INTERVAL_GAP_UNEXPLAINED",
+    "AMBIGUOUS_MAPPING",
+    "INVALID_RECORD"
+  ],
+  "blocking_labels": [
+    "TICKER_CHANGE_CURRENT_ONLY",
+    "INTERVAL_GAP_UNEXPLAINED",
+    "AMBIGUOUS_MAPPING",
+    "INVALID_RECORD"
+  ],
+  "identity_change_labels": [
+    "TICKER_CHANGE_INTERVALS_PRESENT",
+    "TICKER_CHANGE_CURRENT_ONLY",
+    "SUCCESSOR_IDENTITY_RESOLVED"
+  ],
+  "parameters": {
+    "min_issuers_in_sample": 10,
+    "min_identity_change_cases": 3,
+    "gap_days_threshold": 7,
+    "change_action_substring": "tickerchange"
+  },
+  "decision_rule": "RETAIN_RAW_INTERVALS if and only if ALL of: (1) issuers_in_sample >= min_issuers_in_sample; (2) identity_change_cases >= min_identity_change_cases (so the absence of failures is not vacuous); (3) the count of issuers carrying any blocking label is exactly 0. Otherwise SCOPE_AMENDMENT. There is no third outcome: an insufficient or unusual response fails closed.",
+  "label_precedence": ["INVALID_RECORD", "AMBIGUOUS_MAPPING", "TICKER_CHANGE_CURRENT_ONLY", "INTERVAL_GAP_UNEXPLAINED", "INTERVAL_GAP_EXPLAINED", "SUCCESSOR_IDENTITY_RESOLVED", "TICKER_CHANGE_INTERVALS_PRESENT", "CLEAN_SINGLE_INTERVAL"],
+  "definitions": {
+    "interval": "[firstpricedate, lastpricedate]; a row with isdelisted false and no lastpricedate is open-ended",
+    "overlap": "two intervals share at least one calendar day",
+    "TICKER_CHANGE_CURRENT_ONLY": "an identity change is evidenced (a second ticker string in the rows for the issuer, or an ACTIONS row whose action contains change_action_substring and whose ticker or contraticker is one of the issuer's tickers) but the TICKERS rows give only ONE ticker interval for that issuer",
+    "SUCCESSOR_IDENTITY_RESOLVED": "one ticker string is carried by two or more permatickers whose intervals do not overlap and each of which has both dates",
+    "INTERVAL_GAP_EXPLAINED": "consecutive intervals of one issuer are more than gap_days_threshold apart and an ACTIONS row of the issuer dates inside the gap",
+    "AMBIGUOUS_MAPPING": "intervals overlap for one ticker across different permatickers, or for one permaticker across different tickers"
+  },
+  "output_never_includes": ["prices", "returns", "volumes", "pnl"],
+  "not_established_by_this_probe": "SIP intraday coverage of delisted names; adjustment semantics; licence to retain; any strategy result."
+}
