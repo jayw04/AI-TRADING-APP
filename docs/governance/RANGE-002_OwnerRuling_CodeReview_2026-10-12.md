@@ -13,7 +13,8 @@ Date: 2026-10-12 · Baseline: 1ecf811b (CI #1851)
    account jayw04 before a separate identity existed; they were re-created under machine
    identity <TBD: supplied by the owner> with tree-SHA equality verified by
    <script path: apps/backend/scripts/research/range002/recreate_under_identity.py,
-   script SHA-256: 56291316fb9519242a5829a52e149c1ad3978fd0de3f51cf47f85badd328ae60,
+   script SHA-256 (of the committed bytes at commit 74f27261 on the tool PR):
+   81f4af00201cb4a2062c26bc0897c655632354a4c9635a003b4a458fc4f767c5,
    output: TBD - produced when the re-creation is executed>.
    Jay Wang wrote none of the guard-adjacent changes.
 2. Non-author reviewer: Jay Wang.
