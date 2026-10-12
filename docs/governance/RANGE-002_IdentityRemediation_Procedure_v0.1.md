@@ -1,0 +1,51 @@
+# RANGE-002 identity remediation: procedure and branch-protection findings (PREPARE ONLY)
+
+| Field | Value |
+|---|---|
+| Status | **DRAFT. NOTHING IS EXECUTED, PUSHED OR MERGED.** `[MERGE NOT APPROVED]` |
+| Owner ruling | R1: agent-authored commits are re-created under a separate machine identity supplied by the owner; no branch-protection exception. R4: any new head SHA restarts the 2-hour walk-away and needs a fresh CI run. |
+| Tool | `apps/backend/scripts/research/range002/recreate_under_identity.py`, sha256 `56291316fb9519242a5829a52e149c1ad3978fd0de3f51cf47f85badd328ae60` (git blob `a63556cc7863d8a70d9633f064bcb1c48ede2f01`) |
+| Tests | `apps/backend/tests/research/range002/identity_remediation/` (10, synthetic temporary repo) |
+| Established | The procedure preserves each commit's tree SHA, message bytes and dates and changes only name/email and the parent chain; verified on the three real branches in a **local dry run** (section 2). |
+| NOT established | That the re-created commits pass CI or review: a new head SHA has no CI run and no walk-away yet. No credential was used and nothing was pushed. |
+
+## 1. Procedure (F1)
+Inputs from the owner (placeholders; the tool refuses unset or `<TBD>` values): `MACHINE_NAME`, `MACHINE_EMAIL`, and the machine identity's push credentials (never read by the tool).
+
+For each branch, with `BASE` = **the branch's merge-base** (`git merge-base origin/main <branch>`):
+1. `plan` lists the commits (old SHA, tree, author). Merges are refused.
+2. `recreate --base BASE --branch <branch> --new-ref refs/heads/<branch>-reid` rebuilds each commit with `git commit-tree` from the original tree, original message bytes and original dates, new name/email, new parent chain. Deterministic: the same inputs give the same SHAs.
+3. `verify --base BASE --branch <branch> --new-ref refs/heads/<branch>-reid --expect-email $MACHINE_EMAIL` prints per commit `old tree  new tree  MATCH|MISMATCH` and exits nonzero on any tree, message, identity or count difference.
+4. `print-push` prints the push command only. Pushing is a separate owner go-ahead.
+
+A BASE that is not an ancestor of the branch is **refused** (it would silently change the effective diff). That is not hypothetical: see #740.
+
+## 2. Local dry run on the real branches (fake identity, local refs only, deleted afterwards)
+
+| PR | Branch | Base used | Old tree = New tree | Result |
+|---|---|---|---|---|
+| #755 | `feat/range002-screen-kernel` | `origin/main` `9d90d96c` | `373c6b449d3e5310d2027b9643454fc5e93c8604` | MATCH, VERIFIED |
+| #760 | `test/range002-lane-d-identity-probe` | `origin/main` `9d90d96c` | `207d16c80072ac1a4f44992365fa22ec61496fcf` | MATCH, VERIFIED |
+| #740 | head `8792e043` | merge-base `d61f313a` (**not** `origin/main`) | `6bf3f2b682f0e8d3ab74b5ef176a2eaac4a8d062` | MATCH, VERIFIED; against `origin/main` the tool **refused** |
+
+**#740 is stale.** It was cut from `d61f313a`; `main` is at `9d90d96c`. Branch protection (section 3) requires branches to be up to date, so #740 needs a rebase onto `main`, which is itself a new head SHA (R4) with a fresh CI run and walk-away. Re-creating identity and rebasing are two separate reviewed steps.
+
+## 3. `main` branch protection and rulesets (F3, read-only)
+
+| Control | State |
+|---|---|
+| Required status checks | `Python CI Gate`, **strict = true** (branch must be up to date) |
+| Required pull-request reviews | **NOT CONFIGURED** (no required approvals, no dismiss-stale, no code-owner requirement) |
+| CODEOWNERS | none |
+| Rulesets | none |
+| Require conversation resolution | off |
+| Require signed commits | off |
+| Linear history | off |
+| Enforce for admins | **on** |
+| Force pushes / deletions | disabled |
+| Merge methods allowed | merge commit, squash, rebase |
+| Who may merge | anyone with write access, once `Python CI Gate` is green and the branch is up to date |
+
+**Does "machine identity + the owner's review" satisfy these with no exception? Yes, trivially, because GitHub requires no review at all.** Nothing mechanical needs an exception.
+
+**The consequence the owner should weigh:** GitHub does not enforce independent review on this repository. The non-author-review requirement exists only as a governance control (the owner ruling and the reviewer's per-file evidence). The owner could merge any PR on a green gate with no review and GitHub would allow it. If the owner wants the platform to enforce it, the exact change is: enable "Require a pull request before merging" with at least 1 approving review; enable "Dismiss stale pull request approvals when new commits are pushed" (this makes R4 mechanical); optionally add a CODEOWNERS file naming the guard-adjacent paths with "Require review from Code Owners"; consider "Require conversation resolution". With those settings the machine identity as author plus the owner's approving review satisfies them with no exception. **This agent changed no setting.**
