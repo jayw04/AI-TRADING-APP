@@ -164,3 +164,26 @@ def test_a_base_that_is_not_an_ancestor_of_the_branch_is_refused(repo: Path) -> 
         run("recreate", "--base", merge_base, "--branch", "feature", "--new-ref", "refs/heads/ok")
         == 0
     )
+
+
+def test_manifest_preserves_original_attribution_and_names_a_rollback_ref(
+    repo: Path, capsys
+) -> None:  # type: ignore[no-untyped-def]
+    import json
+
+    run("recreate", "--base", "main", "--branch", "feature", "--new-ref", "refs/heads/remade")
+    capsys.readouterr()
+    assert run("manifest", "--base", "main", "--branch", "feature", "--new-ref", "remade") == 0
+    m = json.loads(capsys.readouterr().out)
+    old = sh(repo, "rev-list", "--reverse", "main..feature").split()
+    new = sh(repo, "rev-list", "--reverse", "main..remade").split()
+    assert [c["old_sha"] for c in m["commits"]] == old and [
+        c["new_sha"] for c in m["commits"]
+    ] == new
+    assert all(
+        OWNER[1] in c["original_author"] and OWNER[1] in c["original_committer"]
+        for c in m["commits"]
+    )
+    assert m["rollback_target"] == old[-1] and m["rollback_ref"].startswith(
+        "refs/rollback/feature-"
+    )

@@ -4,7 +4,7 @@
 |---|---|
 | Status | **DRAFT. NOTHING IS EXECUTED, PUSHED OR MERGED.** `[MERGE NOT APPROVED]` |
 | Owner ruling | R1: agent-authored commits are re-created under a separate machine identity supplied by the owner; no branch-protection exception. R4: any new head SHA restarts the 2-hour walk-away and needs a fresh CI run. |
-| Tool | `apps/backend/scripts/research/range002/recreate_under_identity.py`, sha256 `56291316fb9519242a5829a52e149c1ad3978fd0de3f51cf47f85badd328ae60` (git blob `a63556cc7863d8a70d9633f064bcb1c48ede2f01`) |
+| Tool | `apps/backend/scripts/research/range002/recreate_under_identity.py` (this PR). Its SHA-256 is **the SHA-256 of the file as committed** (LF bytes): obtain it with `git show <commit>:apps/backend/scripts/research/range002/recreate_under_identity.py \| sha256sum`. **Correction:** an earlier revision of this record quoted `56291316…`, which was computed on a CRLF Windows working copy and does not match the committed bytes; a hash of a working copy is not evidence. |
 | Tests | `apps/backend/tests/research/range002/identity_remediation/` (10, synthetic temporary repo) |
 | Established | The procedure preserves each commit's tree SHA, message bytes and dates and changes only name/email and the parent chain; verified on the three real branches in a **local dry run** (section 2). |
 | NOT established | That the re-created commits pass CI or review: a new head SHA has no CI run and no walk-away yet. No credential was used and nothing was pushed. |
@@ -49,3 +49,37 @@ A BASE that is not an ancestor of the branch is **refused** (it would silently c
 **Does "machine identity + the owner's review" satisfy these with no exception? Yes, trivially, because GitHub requires no review at all.** Nothing mechanical needs an exception.
 
 **The consequence the owner should weigh:** GitHub does not enforce independent review on this repository. The non-author-review requirement exists only as a governance control (the owner ruling and the reviewer's per-file evidence). The owner could merge any PR on a green gate with no review and GitHub would allow it. If the owner wants the platform to enforce it, the exact change is: enable "Require a pull request before merging" with at least 1 approving review; enable "Dismiss stale pull request approvals when new commits are pushed" (this makes R4 mechanical); optionally add a CODEOWNERS file naming the guard-adjacent paths with "Require review from Code Owners"; consider "Require conversation resolution". With those settings the machine identity as author plus the owner's approving review satisfies them with no exception. **This agent changed no setting.**
+
+## 4. Exact scope for the owner to authorize (round 4; NOTHING in this section is authorized or executed)
+
+The owner selects the machine identity and names the branches. **Authorization of #755 does not authorize #756-#766**, and **#740 is not an identity-only case** (section 5).
+
+| Item | Value |
+|---|---|
+| Identity mapping | `jayw04 <37512854+jayw04@users.noreply.github.com>` (author and committer of every listed commit) → `<TBD: machine identity chosen by the owner>` |
+| Credentials | Configured by the owner in the local credential helper. The tool never reads or stores them; do not paste them into chat, documents or Git. |
+| Proposed first scope | **#755 only** (`feat/range002-screen-kernel`) |
+| Base | `origin/main` `9d90d96cbf4cb4f3847b092742c727211a697665` (an ancestor of the branch, so the tool accepts it) |
+| Commits | 1: old `1ecf811b0b4ed7699bb4650c22387e1242f98e74`, tree `373c6b449d3e5310d2027b9643454fc5e93c8604` |
+| Rollback reference | `refs/rollback/range002-screen-kernel-1ecf811b0b4e` → `1ecf811b…` (create locally and keep the old remote branch; nothing is deleted) |
+| Provenance record | `manifest --base … --branch … --new-ref …` prints, per commit, the **original** author, committer, dates, tree and the new SHA. The owner commits that JSON next to the change. Re-creating changes commit metadata only: **it does not create reviewer independence** and must not erase who wrote what. |
+| Tree-equality check | `verify --expect-email <machine email>`; exit 0 only if every tree and message matches and the identity is the expected one |
+| After the push | New head SHA ⇒ **fresh exact-SHA CI, the review, and the 2-hour walk-away all restart** (R4). The old reviews/CI do not carry over. Final approval must name the final reviewed head. |
+
+## 5. #740 is a separate content integration
+
+- **What it is:** 5 files, +407/-1: `spec/schema.py`, `spec/loader.py`, `scripts/research/range002/freeze_spec.py`, `spec/__init__.py`, and a new test. It makes freeze reject non-distinct or invisible-character sign-off role strings. It is **Level 1 string comparison, not identity verification** (its own text says so).
+- **Why identity tooling cannot do it:** it was cut from `d61f313a`, `main` is at `9d90d96c`, and it **overlaps #755 on three files** (`schema.py`, `loader.py`, `freeze_spec.py`). Whichever merges second needs a real rebase and conflict resolution: a content change, a new head SHA, fresh CI, a new review and a new walk-away. The tool refuses a moved base for exactly this reason.
+- **Order consequence:** both touch guard-adjacent files. Merging them one at a time means the second must be reviewed on its integrated diff.
+
+## 6. What the governing requirements say, verified (R3 / R4 and GitHub are separate)
+
+| Requirement | Exact source text | What it requires | Satisfied by GitHub protection? |
+|---|---|---|---|
+| **R3** | Owner instruction rev. 3: "#740 is a precondition: no sign-off may be counted GENUINE until #740 is merged on main." | Governs **counting sign-offs GENUINE**. It does not, as written, bar merging #755, building tooling or reviewing. **It names no alternative route**; a different route needs an adopted amendment. | No. Branch protection knows nothing about it. |
+| **R4** | "Any new head SHA restarts the 2-hour walk-away and requires a fresh CI run. Nothing carries over from the old commit." | Applies to every head change, including an identity-only re-creation and a #740 rebase. | **Partly.** `strict` status checks force a fresh gate on a new SHA, but nothing enforces the walk-away or review restart (no required reviews, no dismiss-stale). |
+| Walk-away policy | `CLAUDE.md`: PRs sit open at least 1 hour; "consequential" PRs (guard/live path) at least 2 hours. | Time between ready-for-review and merge. | No (not enforced by GitHub). |
+| Non-author review | Owner ruling (#756): reviewer must differ from the author; per-file evidence required; a bare approval does not satisfy it. | A governance control. | **No.** GitHub requires no review at all; a green gate alone would let a merge through. |
+| Required check | Branch protection: `Python CI Gate`, strict | Mechanical gate on the exact head | Yes. This is the only mechanical requirement. |
+
+**Conclusion:** satisfying GitHub protection (a green strict `Python CI Gate`) does not establish governance compliance. R3, R4, the walk-away and the per-file review each need their own evidence.

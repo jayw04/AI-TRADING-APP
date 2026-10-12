@@ -3,6 +3,7 @@
     recreate_under_identity.py plan   --base BASE --branch BRANCH
     recreate_under_identity.py recreate --base BASE --branch BRANCH --new-ref REF
     recreate_under_identity.py verify --base BASE --branch BRANCH --new-ref REF [--expect-email E]
+    recreate_under_identity.py manifest --base BASE --branch BRANCH [--new-ref REF]
     recreate_under_identity.py print-push --new-ref REF --remote R --target-branch B
 
 Identity comes from the environment: ``MACHINE_NAME`` and ``MACHINE_EMAIL`` (placeholders such as
@@ -137,6 +138,44 @@ def cmd_verify(a: argparse.Namespace) -> int:
     return 0 if ok else 1
 
 
+def cmd_manifest(a: argparse.Namespace) -> int:
+    """JSON provenance record: ORIGINAL author/committer/dates and tree per commit, the new SHA when
+    ``--new-ref`` is given, and the rollback reference to keep. Re-creating changes commit metadata
+    only; it does not create reviewer independence and it must not erase who wrote what, so this
+    record (committed by the owner alongside the change) preserves the original attribution."""
+    import json
+
+    old = linear_commits(a.base, a.branch)
+    new = linear_commits(a.base, a.new_ref) if a.new_ref else []
+    out = []
+    for i, c in enumerate(old):
+        f, msg = raw_commit(c)
+        row = {
+            "old_sha": c,
+            "tree": f["tree"],
+            "original_author": f["author"],
+            "original_committer": f["committer"],
+            "subject": msg.decode(errors="replace").splitlines()[0] if msg else "",
+        }
+        if i < len(new):
+            row["new_sha"] = new[i]
+        out.append(row)
+    tip = old[-1] if old else rev(a.base)
+    print(
+        json.dumps(
+            {
+                "branch": a.branch,
+                "base": rev(a.base),
+                "rollback_ref": f"refs/rollback/{a.branch.split('/')[-1]}-{tip[:12]}",
+                "rollback_target": tip,
+                "commits": out,
+            },
+            indent=2,
+        )
+    )
+    return 0
+
+
 def cmd_print_push(a: argparse.Namespace) -> int:
     print(
         "# PRINT ONLY. Run after the owner's separate go-ahead, with the machine identity's credentials."
@@ -151,12 +190,14 @@ def main(argv: list[str]) -> int:
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
     )
     sub = p.add_subparsers(dest="cmd", required=True)
-    for name in ("plan", "recreate", "verify"):
+    for name in ("plan", "recreate", "verify", "manifest"):
         s = sub.add_parser(name)
         s.add_argument("--base", required=True)
         s.add_argument("--branch", required=True)
         if name in ("recreate", "verify"):
             s.add_argument("--new-ref", required=True)
+        if name == "manifest":
+            s.add_argument("--new-ref", default="")
         if name == "verify":
             s.add_argument("--expect-email", default="")
     s = sub.add_parser("print-push")
@@ -168,6 +209,7 @@ def main(argv: list[str]) -> int:
         "plan": cmd_plan,
         "recreate": cmd_recreate,
         "verify": cmd_verify,
+        "manifest": cmd_manifest,
         "print-push": cmd_print_push,
     }[a.cmd](a)
 
