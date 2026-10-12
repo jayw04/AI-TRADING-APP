@@ -1,5 +1,8 @@
 # REVIEW_PACKET_RANGE-002 — reviewer packet for PR #755
 
+> **Revision 4 (2026-10-12): the reviewer, identity and walk-away parts of this packet are SUPERSEDED.** The weekly meeting minutes are now the decision record (Teams/Strategies/RANG-002). Sections 1 (reviewer, identity and walk-away rows), 5, 6 (per-file reviewer comment template) and 7 (reviewer assignment table) describe the retired non-author-reviewer gate and are kept only for history. What remains in force is the **technical content**: the per-file change, invariant, proving test and riskiest lines in section 2, and the hazard-branch review focus in 7.1. A technical review is findings plus regression evidence plus CI; AI analysis is not evidence that a person reviewed.
+
+
 | Field | Value |
 |---|---|
 | Status | **PREPARATION. NOT A REVIEW. NOT AN APPROVAL.** `[MERGE NOT APPROVED]` |
