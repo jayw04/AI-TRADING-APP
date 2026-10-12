@@ -15,6 +15,12 @@ confidence score, and transitions the experiment's research_state **with a reaso
 (the registry's "why" audit trail). Deployment transitions stay owner-driven via
 the promotion workflow (docs/runbook/promotion-workflow.md) — the gate validates;
 it never deploys.
+
+A **thin-sample** pass (GO_WARNING) is only recorded as VALIDATED when the caller
+supplies ``recorded_decision`` — a plain identifier/date referencing Jay's recorded
+instruction or a weekly meeting decision (e.g. ``"2026-10-12 weekly meeting #3"``).
+It is a reference, not a signer or a signature; it is written into the transition
+reason (the registry's audit trail). Without it the experiment stays RESEARCH.
 """
 
 from __future__ import annotations
@@ -248,30 +254,55 @@ def evaluate(metrics: Metrics, profile: GateProfile) -> GateResult:
     if not strong:
         reasons.append(
             f"{profile.evidence_key}={evidence} in [{profile.evidence_floor},"
-            f"{profile.evidence_strong}) → owner signoff (thin sample)"
+            f"{profile.evidence_strong}) → recorded decision required (thin sample)"
         )
     return _result(verdict, "VALIDATED", reasons)
+
+
+def _clean_decision_ref(recorded_decision: str | None) -> str | None:
+    """Normalize the caller-supplied decision reference; blank counts as absent."""
+    if recorded_decision is None:
+        return None
+    if not isinstance(recorded_decision, str):
+        raise TypeError("recorded_decision must be a plain identifier/date string or None")
+    ref = " ".join(recorded_decision.split())
+    return ref or None
 
 
 def gate_experiment(
     store: ResearchStore, experiment_id: str, *, profile: GateProfile | str,
     metrics: Metrics | None = None, actor: str = "promotion_gate",
+    recorded_decision: str | None = None,
 ) -> GateResult:
     """Gate a recorded experiment: evaluate the profile against its metrics, store
     the confidence score, and transition the experiment's research_state **with a
     reason**. ``metrics`` defaults to the experiment's ``metrics_summary`` (pass a
-    sub-slice for a multi-factor experiment). Returns the ``GateResult``."""
+    sub-slice for a multi-factor experiment). Returns the ``GateResult``.
+
+    ``recorded_decision`` references the recorded decision (Jay's recorded
+    instruction or a weekly meeting decision) that accepts a thin-sample
+    (GO_WARNING) pass. It is required only for that verdict: without it the
+    experiment is **not** validated (stays RESEARCH, no transition) and the returned
+    result says so. Evidence thresholds and every other verdict are unaffected."""
     prof = PROFILES[profile] if isinstance(profile, str) else profile
+    decision_ref = _clean_decision_ref(recorded_decision)
     exp = store.get_experiment(experiment_id)
     if exp is None:
         raise ValueError(f"experiment {experiment_id} not found")
     result = evaluate(metrics if metrics is not None else exp.metrics_summary, prof)
 
     store.set_experiment_confidence(experiment_id, result.confidence_score)
+    if result.verdict == "GO_WARNING" and decision_ref is None:
+        # Thin sample with no recorded decision: refuse the VALIDATED transition.
+        result.research_state = "RESEARCH"
+        result.reasons.append("no recorded decision supplied → not validated; stays RESEARCH")
+        return result
     if result.research_state in ("VALIDATED", "REJECTED"):
         reason = f"gate[{prof.name}] {result.verdict} (confidence {result.confidence_score})"
         if result.reasons:
             reason += " — " + "; ".join(result.reasons)
+        if result.verdict == "GO_WARNING":
+            reason += f"; recorded decision: {decision_ref}"
         store.transition(entity_type="experiment", entity_id=experiment_id, axis="research",
                          to_state=result.research_state, reason=reason, actor=actor)
     return result

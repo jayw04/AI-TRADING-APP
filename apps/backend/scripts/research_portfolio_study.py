@@ -222,6 +222,10 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--n", type=int, default=200)
     ap.add_argument("--top-quantile", type=float, default=0.20)
     ap.add_argument("--report-dir", default="../../research/portfolio_study")
+    ap.add_argument("--recorded-decision", default=None,
+                    help="identifier/date of the recorded decision (Jay's instruction or a "
+                         "weekly meeting decision) accepting thin-sample GO_WARNING passes; "
+                         "without it a thin sample is not validated")
     args = ap.parse_args(argv)
 
     from app.research.comparison import compare_experiments
@@ -251,7 +255,8 @@ def main(argv: list[str] | None = None) -> int:
                 labels[eid] = label
                 print(f"ran {label} -> {eid}")
 
-        gate_results = {labels[e]: gate_experiment(rstore, e, profile="portfolio_backtest")
+        gate_results = {labels[e]: gate_experiment(rstore, e, profile="portfolio_backtest",
+                                                         recorded_decision=args.recorded_decision)
                         for e in ids}
         cmp = compare_experiments(rstore, ids, _COMPARE_METRICS)
 

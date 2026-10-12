@@ -61,8 +61,8 @@ def test_clean_pass_is_go_no_warnings():
 def test_thin_sample_30_to_49_is_go_warning():
     v = evaluate_gate(_good_is(trade_count=35), _good_oos(), all_trades_closed=True)
     assert v.verdict == "GO-WARNING"
-    assert not v.go and v.eligible  # eligible, but needs Owner signoff
-    assert any("Owner signoff required" in w for w in v.warnings)
+    assert not v.go and v.eligible  # eligible, but needs a recorded decision
+    assert any("recorded decision required" in w for w in v.warnings)
 
 
 def test_below_30_trades_is_inconclusive():

@@ -28,7 +28,9 @@ Every transition records a **reason** in the `transitions` log.
 ## The gate verdicts
 
 - **GO** — all criteria pass and the sample is strong (evidence ≥ strong threshold). VALIDATED.
-- **GO_WARNING** — all criteria pass but the sample is thin (floor ≤ evidence < strong). VALIDATED, **but owner signoff required** before paper.
+- **GO_WARNING** — all criteria pass but the sample is thin (floor ≤ evidence < strong). VALIDATED **only when a recorded decision is supplied** (Jay's recorded instruction or a weekly meeting
+  decision, referenced by a plain identifier/date via `recorded_decision`; no named signer or signature).
+  Without it the experiment stays RESEARCH and the transition is not recorded.
 - **NO-GO** — at least one criterion fails. REJECTED.
 - **INCONCLUSIVE** — below the evidence floor (can't pass or fail). Stays RESEARCH; gather more evidence (widen window, more trades).
 
