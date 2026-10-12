@@ -20,7 +20,13 @@ from typing import Any
 import pytest
 
 from app.research.range002.spec.loader import SpecSchemaError, parse_draft, spec_sha256
-from app.research.range002.spec.schema import P5, DraftSpec, FrozenSpec, draft_skeleton
+from app.research.range002.spec.schema import (
+    P5,
+    DraftSpec,
+    FrozenSpec,
+    UnsetP0FieldsError,
+    draft_skeleton,
+)
 
 from ._fixtures import complete_payload, get_path, set_path
 
@@ -144,6 +150,77 @@ def test_skeleton_and_complete_payload_parse_with_the_v1_p5_block():
         assert (spec.p5.min_days, spec.p5.min_trades, spec.p5.max_cost_ratio) == (60, 100, 1.5)
 
 
+# ---- G-04b: the v1 P5 constants as CONTRACT behavior (historical v1 pins) -------------------
+# HISTORICAL v1 compatibility pins: parse_draft rejects any p5 value other than the three fixed
+# v1 constants. They record today's behavior; they are not adopted v2/P5 policy, and the 120-day
+# proposal stays unadopted.
+
+
+@pytest.mark.parametrize(
+    ("field", "bad"),
+    [
+        ("min_days", 59),
+        ("min_days", 61),
+        ("min_days", 120),
+        ("min_days", 0),
+        ("min_trades", 99),
+        ("min_trades", 101),
+        ("min_trades", 0),
+        ("max_cost_ratio", 1.4),
+        ("max_cost_ratio", 1.6),
+        ("max_cost_ratio", 0.0),
+    ],
+)
+def test_p5_fixed_constants_reject_any_other_value_in_v1(field, bad):
+    payload = complete_payload()
+    set_path(payload, f"p5.{field}", bad)
+    assert f"p5.{field}" in _names(_problems(payload))
+
+
+@pytest.mark.parametrize(
+    ("field", "bad"),
+    [
+        ("min_days", 60.0),
+        ("min_days", "60"),
+        ("min_days", None),
+        ("min_trades", 100.0),
+        ("min_trades", "100"),
+        ("min_trades", None),
+        ("max_cost_ratio", "1.5"),
+        ("max_cost_ratio", None),
+    ],
+)
+def test_p5_fixed_constants_are_type_strict_in_v1(field, bad):
+    # Existing strict-model behavior: no lax coercion of the right number in the wrong type.
+    payload = complete_payload()
+    set_path(payload, f"p5.{field}", bad)
+    assert f"p5.{field}" in _names(_problems(payload))
+
+
+@pytest.mark.parametrize("field", ["min_days", "min_trades", "max_cost_ratio"])
+def test_p5_fixed_constants_are_required_keys_in_v1(field):
+    payload = complete_payload()
+    del payload["p5"][field]
+    assert f"p5.{field}" in _names(_problems(payload))
+
+
+def test_p5_wrong_constants_are_all_reported_together_in_v1():
+    payload = complete_payload()
+    set_path(payload, "p5.min_days", 61)
+    set_path(payload, "p5.min_trades", 101)
+    set_path(payload, "p5.max_cost_ratio", 1.6)
+    names = _names(_problems(payload))
+    assert {"p5.min_days", "p5.min_trades", "p5.max_cost_ratio"} <= set(names)
+
+
+def test_p5_constants_do_not_perturb_other_fields_when_correct_in_v1():
+    payload = complete_payload()
+    set_path(payload, "p5.min_days", 60)
+    set_path(payload, "p5.min_trades", 100)
+    set_path(payload, "p5.max_cost_ratio", 1.5)
+    assert parse_draft(payload).p5.min_days == 60
+
+
 # ---- G-05: the hashed content is everything except the sign-off block -----------------------
 
 
@@ -213,6 +290,64 @@ def test_skeleton_unset_list_is_sorted_and_excludes_signoff_and_ledger_id():
     assert unset == sorted(unset)
     assert "registration.trial_ledger_id" not in unset
     assert not any(path.split(".")[0] == "signoff" for path in unset)
+
+
+# ---- G-06b: freeze refusal while P0 leaves are unset (historical v1 behavior) ---------------
+
+
+def test_freezing_the_skeleton_is_refused_and_names_every_unset_leaf():
+    spec = parse_draft(draft_skeleton())
+    unset = spec.unset_p0_fields()
+    assert unset
+    with pytest.raises(UnsetP0FieldsError) as info:
+        FrozenSpec.from_draft(spec)
+    assert list(info.value.fields) == unset
+    assert str(len(unset)) in str(info.value)
+    assert all(leaf in str(info.value) for leaf in unset)
+
+
+def test_unset_error_is_a_value_error_and_direct_construction_is_refused_too():
+    assert issubclass(UnsetP0FieldsError, ValueError)
+    with pytest.raises(UnsetP0FieldsError):
+        FrozenSpec(parse_draft(draft_skeleton()))
+
+
+def test_the_skeleton_unset_leaves_include_the_p5_leaves():
+    unset = parse_draft(draft_skeleton()).unset_p0_fields()
+    assert "p5.account_id" in unset
+    assert any(path.startswith("p5.") for path in unset)
+
+
+@pytest.mark.parametrize(
+    "leaf",
+    ["p5.account_id", "p5.degradation_tolerance", "p5.cost_ratio_contract", "p5.shadow_acceptance"],
+)
+def test_a_single_unset_p5_leaf_alone_blocks_the_freeze(leaf):
+    payload = complete_payload(signed=False)
+    set_path(payload, leaf, None)
+    spec = parse_draft(payload)
+    assert spec.unset_p0_fields() == [leaf]
+    with pytest.raises(UnsetP0FieldsError) as info:
+        FrozenSpec.from_draft(spec)
+    assert info.value.fields == (leaf,)
+    assert leaf in str(info.value)
+
+
+def test_a_single_unset_non_p5_leaf_alone_blocks_the_freeze():
+    payload = complete_payload(signed=False)
+    set_path(payload, "governance.economic_thesis_sha", None)
+    spec = parse_draft(payload)
+    with pytest.raises(UnsetP0FieldsError) as info:
+        FrozenSpec.from_draft(spec)
+    assert info.value.fields == ("governance.economic_thesis_sha",)
+
+
+def test_a_complete_draft_freezes_and_exposes_the_same_draft():
+    spec = parse_draft(complete_payload(signed=False))
+    frozen = FrozenSpec.from_draft(spec)
+    assert frozen.draft is spec
+    with pytest.raises(AttributeError):
+        frozen.draft = spec  # type: ignore[misc]
 
 
 # ---- G-07: the SpecSchemaError contract -----------------------------------------------------
