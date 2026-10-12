@@ -15,12 +15,103 @@ Scope notes verified from the checkout:
 
 **Counting rule.** A sign-off is counted **GENUINE** only if (a) it is a hash-bound record committed to Git, (b) for a decision relayed by the owner (reviewers who do not use GitHub), `relayed_decision_check.py` (Lane K, `test/range002-lane-k-relayed-decision-checker`) returns `GENUINE` for it, **and** (c) PR #740 (all-pairs distinct sign-off check) is merged on `main`. Until #740 merges, a record that passes every other check is `VERIFIED_PENDING_740`, not GENUINE. A relayed record whose only content is owner-authored text is never GENUINE; for the validator role that is a HARD FAIL. The owner relays and commits; the owner does not author a reviewer's decision.
 
-**R5 changes** (supersedes revision 2 on one point): `signoff.trading_expert` now has a **PROPOSED** holder, 方炳雄 (Fang Bingxiong), PENDING owner ruling and acceptance. Effect on this table, not yet applied row by row:
-- Row 2 (`signoff.trading_expert`): MISSING becomes **PENDING-ACCEPTANCE** (proposed holder, no ruling or acceptance yet).
-- Rows 19, 20, 22, 24: the trading-expert half becomes PENDING-ACCEPTANCE; each row stays MISSING until every half exists.
-- B3-1 closes pending the ruling; the trading-expert halves of B3-4, B3-5 and B3-6 likewise. **B3-2 (research lead), B3-3 (needs both a research lead and a trading expert), B3-7 to B3-11 are unchanged.**
-- Recount: GENUINE 0; STALE-HASH 0; PENDING-ACCEPTANCE **5** (rows 2, 3, 15, 16, 31); MISSING **28**. The "no eligible holder" list falls from 18 rows to **at most 17** (row 2 leaves it); rows 19, 20, 22, 24 must be re-checked against their other holderless elements before any further reduction is claimed.
-- Nothing becomes GENUINE: no acceptance record and no ruling exists, and #740 is unmerged.
+**R5 changes** (supersedes revision 2 on one point): `signoff.trading_expert` now has a **PROPOSED** holder, 方炳雄 (Fang Bingxiong), PENDING owner ruling and acceptance. 陈友潼 (Chen Youtong) is the selected independent validator, PENDING acceptance. 肖学焦 (Xiao Xuejiao) is advisory with no gate. 梁云鹏 (Liang Yunpeng) holds none. **PENDING = VACANT for any gate.** Nothing is GENUINE before PR #740 merges (R3).
+
+### Individual recount of all 33 rows under R5 (supersedes the revision-3 estimate "5 / 28 / at most 17")
+
+Rule applied to each row, so the count can be checked: **PENDING-ACCEPTANCE** only if, once the named person's acceptance (and, for row 2, the owner's ruling) is recorded, no other element of the row is missing. **MISSING** otherwise, including a row where a person element is PENDING but another element (an owner act, a hash that does not exist, a holderless role) is also absent. **GENUINE** and **STALE-HASH**: none (no record binds to any hash; #740 unmerged). Column "Holderless (B3-n)" lists only elements that still have NO named person after R5. A PENDING person is not holderless; the element is VACANT but fillable.
+
+| Row | Status after R5 | What exactly remains vacant or missing | Holderless (B3-n) after R5 |
+|---|---|---|---|
+| 1 | MISSING | Owner's typed `signoff.owner` bound to a frozen `spec_sha256` (neither exists) | none |
+| 2 | **PENDING-ACCEPTANCE** (was MISSING) | Owner ruling on 方炳雄 as gate holder AND his written acceptance (blocks 3.3 blank); his advisory-only text in RoleAppointments must be superseded by the ruling. Independence statements (V-2.6, V-2.7) for him: none on file | none (B3-1 closed pending ruling) |
+| 3 | PENDING-ACCEPTANCE | 陈友潼's written acceptance (RoleAppointments 3.1 blank); validator eligibility is row 13 | none |
+| 4 | MISSING | `signoff.date`, set at signing | none |
+| 5 | MISSING | Tool output; no frozen spec exists | none |
+| 6 | MISSING | Owner's signed exposure conclusion carrying the ledger sha256; ledger does not exist | none |
+| 7 | MISSING | Signed exposure ledger and the WP0.6 contact audit incl. AI-session history; nobody named to audit or hold custody | **B3-8** (auditor / custodian) |
+| 8 | MISSING | Manifest triple `approved_*` (all null); a reviewer other than the owner for the manifest PR | **B3-9** (manifest-PR reviewer) |
+| 9 | MISSING | Genesis ceremony: location, operator, witness who is not the operator, written authorization | **B3-9** (operator, witness) |
+| 10 | MISSING | Owner's attempt limits in manifest and spec (equal) and the C-DR ruling | none |
+| 11 | MISSING | D08 `governance.roles` (names, SoD option); research lead absent. Exempt under the screen profile | **B3-2** (research lead) |
+| 12 | MISSING | D13 thesis signed by research lead AND trading expert; file and hash absent. Exempt under the screen profile | **B3-2** (research lead); **B3-3** (needs the research lead; its trading-expert half is PENDING under R5) |
+| 13 | MISSING | Appointment act by the owner; eligibility verification; confirmation evidence references (appointee 陈友潼 PENDING) | **B3-7** (eligibility verifier; no verifier named, none to be invented) |
+| 14 | MISSING | VIR V-2.1 roster document with three legal names and contact routes; hash-pinned | none (owner compiles; validator cross-check PENDING) |
+| 15 | PENDING-ACCEPTANCE | 陈友潼's V-2.2 attestation and the author list produced by someone other than the validator; can be verified only as "self-attested" while the owner is the sole verifier (VIR:51) | none as a holder; B3-7 limits the verification's independence |
+| 16 | **MISSING** (revision 3 had it PENDING-ACCEPTANCE; corrected) | 陈友潼's V-2.3 attestation (PENDING) AND the exposure ledger it is reconciled with (row 7, absent) AND a ledger custodian | **B3-8** (custodian) |
+| 17 | MISSING | V-2.6 statement for every signer and V-2.7 disclosure; validator's statement PENDING; the owner's statement must be reviewed by the validator | none |
+| 18 | MISSING | V-8 owner selection table (all blank) and D08 option signature; named verifiers; Level 2 key administrator (Level 2 not built) | **B3-7** (named verifiers); **B3-11** (key administrator, deferred) |
+| 19 | MISSING | A1 not final and unsigned (REG P-3: reconciliation memo and independent methodology review first). Three signatures: owner, trading expert (方炳雄, PENDING), validator (陈友潼, PENDING). A1-bytes SHA not computed | none (trading-expert row now PENDING, not holderless) |
+| 20 | MISSING | Owner's values for D06, D17, D18, D19, D02 (blank; A-SCREEN values proposed only); trading-expert review of D19 (方炳雄 PENDING); validator confirmation of D06 / `select_exit` (陈友潼 PENDING; deferred past stage 1) | none |
+| 21 | MISSING | D09 non-equivalence statement, C2 overlap limit, criteria 2 and 3 findings (trading-expert 方炳雄 PENDING, validator 陈友潼 PENDING), owner countersignature; check tool not built | none |
+| 22 | MISSING | G10-REDUNDANCY comparator policy: binding alternative BLANK, requirement itself PROPOSED; trading-expert review (方炳雄 PENDING), validator review (陈友潼 PENDING) | none |
+| 23 | MISSING | D07 P5 policy and `p5.account_id` resolution (owner); validator review of the schema change (PENDING). Exempt under the screen profile | none |
+| 24 | MISSING | Owner values for D03, D04, D05, D10, D11, D12, D14, D15, D16 (all blank). Advisory input only: 方炳雄 on exit mechanics, 肖学焦 on risk values; neither signs, so no gate depends on them | none (the former B3-4 trading-expert input is PENDING and advisory) |
+| 25 | MISSING | WP0.8 AI provenance record and "the human who confirmed final logic" | **B3-10** |
+| 26 | MISSING | WP0.10 feasibility, WP0.11 lineage, WP0.12 order contract and their reviewers | **B3-10** (reviewers) |
+| 27 | MISSING | SHA-256 of every signed document at a named commit; computed at signing time | none |
+| 28 | MISSING | C12 named isolated research environment and its accountable person | **B3-10** (accountable person) |
+| 29 | MISSING | Owner's authenticated adoption of A-SCREEN s6, s6b, s6c, s7 before any result; validator confirmation of s6c before an inferential verdict (陈友潼 PENDING) | none |
+| 30 | MISSING | Vendor written answers on storage, AWS host use, sharing, adjustment, delisted coverage | none (owner obtains) |
+| 31 | PENDING-ACCEPTANCE | Non-author review by Jay Wang (dual role; eligibility UNKNOWN where the owner directed the change; AMD:49), Backend FULL, ADR 0043 gate, Linux acceptance, two-hour walk-away, then the merge commit | none |
+| 32 | MISSING | Owner's run authorization; run registered first with trial-ledger row (R8); depends on rows 1-3, 6-8, 10 | none |
+| 33 | MISSING | Post-run audit pack; not a precondition of anything | none |
+
+**Totals.** GENUINE **0**; STALE-HASH **0**; PENDING-ACCEPTANCE **4** (rows 2, 3, 15, 31); MISSING **29**. Revision 3's "5 / 28" counted row 16 as PENDING-ACCEPTANCE; row 16 also needs the ledger (row 7) and a custodian (B3-8), so it is MISSING.
+
+**Holderless after R5: 12 rows** (7, 8, 9, 11, 12, 13, 15, 16, 18, 25, 26, 28; the 15 is a verification-independence limit, not a missing attestor). Rows 2, 19, 20, 21, 22, 24 LEAVE the revision-2 list of 18 (row 21 also leaves because its trading-expert half is B3-5). Holderless elements remaining: B3-2, B3-3 (research-lead half), B3-7, B3-8, B3-9, B3-10, B3-11. B3-1, B3-4, B3-5, B3-6 are closed pending the owner ruling and acceptance; they are PENDING, not satisfied.
+
+**Rows 19, 20, 22, 24 explicitly.** Each stays MISSING. The trading-expert element in each is PENDING-ACCEPTANCE and VACANT for any gate (B3-4 for 19, 20, 22, 24; B3-6 additionally for 22). None has a holderless element left. What keeps each MISSING is not a person: 19 an unfinished, unsigned A1 plus two PENDING signers; 20 and 24 owner values that are blank; 22 a blank binding alternative on a PROPOSED requirement.
+
+**Nothing becomes GENUINE** under R5: no ruling and no acceptance record exists, no record binds to a hash, and #740 is unmerged.
+
+### Why PR #740 is required, and whether R3 allows another route (verified, read-only)
+
+- **What R3 literally says (owner text):** "R3. #740 is a precondition: no sign-off may be counted GENUINE until #740 is merged on main."
+- **What it restricts:** the word GENUINE in this table. Counting is forbidden before the merge. It restricts counting, not typing: the freeze tool accepts three non-blank strings today (SCH `missing_signoff_fields`; FRZ:80-85).
+- **What #740 does** (`gh pr view 740`: OPEN, head `fix/range002-signoff-distinct-roles`, 5 files, "[MERGE NOT APPROVED]", "Level 1 only"): `freeze_spec` refuses `owner`, `trading_expert`, `independent_validator` strings that are equal after NFKC/casefold/whitespace normalisation, or that contain invisible or control characters; `load_frozen` reports `is_signed` False for the same conditions. It adds `SignoffRolesNotDistinctError`, `SignoffRoleCharactersError` and 150 tests. Its own text: not identity verification; homoglyphs, aliases and name-order variants are not caught; "Must merge before the first real spec freeze".
+- **No alternative route is named.** R3 contains no exception clause, no waiver mechanism and no substitute check. I find none elsewhere in the owner rulings quoted in the repository. I do not infer one.
+- **A bypass would need an adopted amendment.** Counting a sign-off GENUINE before the merge would be a change to R3 itself, so it needs an authenticated amendment of the ruling by the owner. Typing three distinct names, or running the freeze from a branch carrying the #740 code, does not alter what R3 permits to be counted.
+- **What a checker can and cannot do.** #740 validates the STRUCTURE of the evidence (three normalised strings, pairwise distinct, no invisible characters). It cannot establish that a named person exists, agreed, read the document or is independent (VIR V-1, V-4). Genuine human intent is supplied only by an acceptance record and a hash-bound record committed to Git (counting rule (a) and (b) above). #740 therefore removes one defect (a typo or invisible-character collision passing as "distinct"); it does not and cannot create a genuine sign-off.
+- **Consequence.** Until #740 merges on main, even a fully accepted and hash-bound record is `VERIFIED_PENDING_740`. #740 also needs its own separate merge authorization and the walk-away interval (its body).
+
+## Governing set for FREEZE and the first descriptive RUN (screen profile; revision 3)
+
+Scope: the SMALLEST set that the repository's code or an adopted owner ruling requires for (i) a real `freeze_spec` of a screen-profile spec and (ii) the first governed P3A descriptive run (A-SCREEN stage 1, 2016-2019). It does NOT include VALIDATION (stage-2 selection, P3b, P4) or PROMOTION (P5, P6). Verified against `RANGE-002_Signoff_Scope_by_Gate_v0.1.md` (Lane G): clause citations re-read in `C:\LLM-APP\wt-r002-g` (`ea38ad69`, docs-only on top of `origin/main` `9d90d96c`, so `apps/` equals main) (`spec/schema.py`, `scripts/research/range002/freeze_spec.py`, `governance/results_guard.py`, `governance/exposure_ledger.py`) and in the A-SCREEN file; screen-profile code is on the unmerged branch `feat/range002-screen-kernel` (`1ecf811b`) and its behaviour is as described in A-SCREEN 3a, not verified on main. Where I differ from Lane G it is stated.
+
+| Needed for | Rows | Why (clause) |
+|---|---|---|
+| FREEZE | 1, 2, 3, 4 | `missing_signoff_fields` tests the three names and the date for every profile (SCH, unconditional; the screen profile exempts none); `freeze_spec` refuses on any (FRZ:80-85); the guard refuses an unsigned spec (RG:370). Under R3 and the counting rule above none counts GENUINE before #740 merges |
+| FREEZE | 5 | `spec_sha256` computed by the tool over everything except `signoff` (FRZ:86-93) |
+| FREEZE | 6, 7 | `governance.exposure_signed` is a required field and must carry the ledger's 64-hex sha (RG `_check_exposure_binding` l.408-420). The ledger digest is computed over the whole document (EL `content_sha256(doc)`), whose `signoff` block is part of that document, so the ledger is signed before its sha can be bound; the guard also calls `require_signed` at every run (RG:726). Lane G placed row 7 at FREEZE as well |
+| FREEZE | 8, 9, 10 | `manifest.require_genesis`, `require_limits`, `check_genesis`, `check_limits` (FRZ:73-79); genesis id exists only after the ceremony (row 9) |
+| FREEZE | 20 (subset), 24 (subset) | Fields in the screen required list must be non-null: D17 `p3.criteria`, D19 `exits.*`, D18 `gates.basis` / `trade_unit`; D03 `universe.n` / `data.vendor`, D11 `data.fetch_mode`, D15 `costs.*`, the D05 / D14 fields in the list (A-SCREEN 3a, 7; schema `SCREEN_V2_REQUIRED`). The seven contested values are the decision batch in `RANGE-002_Baseline_Conflict_Provenance_v0.1.md` section 8 (PR #763) |
+| FREEZE | 29 | A-SCREEN O-5 "fail closed for RUN until adopted"; R-e; blocker 7: criteria, separation and configuration adopted in an authenticated record before any result (AMD:124, :170) |
+| FREEZE | 13 | Owner ruling 5 / REG ACC-R1L1b: a genuinely independent validator "before formal P0 approval or real specification freeze"; R-b. Needs the appointment act and an eligibility verification |
+| FREEZE (before it, or the hash is re-done) | 31 | The profile block and its `required_fields_sha256` are in the spec hash and are computed by code that is not on main (A-SCREEN 3a, blocker 1). A freeze under unreviewed code can be invalidated by review changes |
+| FREEZE (Plan text; see caveat) | 19 | Plan v0.5 header, "Precedence": until A1 is signed "do not freeze a spec under either form". A-SCREEN R-a to R-g do not list A1, and Lane G marks this scope UNKNOWN. Because the Plan text is explicit and no adopted record relaxes it, I include row 19 until the owner adopts an amendment that says otherwise |
+| FREEZE (reduced) | 27 | Not the whole packet: only a per-signer, hash-bound record committed to Git for each signature actually counted (counting rule (a)). The full document-hash packet is a P0-exit item |
+| RUN (adds to the above) | 28, 30 | R-f and A-SCREEN section 4: "Do not fetch or store bulk history until (1)-(3) are answered"; C12 environment named before the pull |
+| RUN (adds) | 32 | R-g and `results_guard` attempt-limit and registry checks (RG:756-760); run registered first with the trial-ledger row (R8) |
+
+**Not in the smallest set, and why**
+- Rows 11, 12, 23: fields are in `SCREEN_V1_EXEMPT` (A-SCREEN 3a, :157); required again only for the full profile or PROMOTION.
+- Rows 14, 15, 16, 17, 18: VIR:45 RECOMMENDS V-2.1, V-2.2, V-2.3, V-2.6 "as minimum for any real freeze". They are recommendations until the owner's V-8 table makes them required; the V-8 table (VIR:104-121, blank) is itself the act that decides. Listed as conditional, not governing. If V-8 selects them, rows 15 and 16 become FREEZE items.
+- Rows 21, 25, 26: P0-exit items with no screen-path clause (26: WP0.11 appears only as D01 evidence for row 6).
+- Row 22: PROPOSED requirement with a blank binding alternative (VNEXT A2.9); it would join the FREEZE set only if the owner adopts G10-C1. Lane G listed it as conditional at STEP-6; I do not include it.
+- Row 33: post-run.
+
+**Size.** FREEZE: rows 1-10, 13, 19, 20s, 24s, 27 (reduced), 29, 31. First descriptive RUN adds 28, 30, 32. Conditional: 14-18 (owner V-8). Holderless elements that remain INSIDE this set: B3-7 (row 13 eligibility verifier), B3-8 (row 7 auditor / custodian), B3-9 (rows 8, 9 reviewer, operator, witness), B3-10 (row 28 accountable person). B3-2, B3-3 and B3-11 are outside it. PENDING persons inside it: 方炳雄 (row 2, plus rows 19 and 20), 陈友潼 (rows 3, 13 appointee, 19, 29), Jay Wang as non-author reviewer (row 31).
+
+**Validator evidence still missing (VIR), without repeating completed reviews.** Excluded as done and not to be repeated: his plan review (O-10) and the owner-reported qualification and independence confirmations, which are "received, evidence references pending". The reconciliation of those references is an evidence-reconciliation task, not a new request. Missing specific items:
+1. His signed acceptance record (RoleAppointments 3.1: name, date, scope, statement that no relationship with the owner, code author or liaison impairs independence, confidentiality, signature): blank.
+2. V-2.1 roster entry: legal name and contact route; the three signers shown as three individuals: absent.
+3. V-2.2 attestation of no authorship of or commit to the engine, spec or freeze tooling, with a repo author list produced by someone other than the validator: absent; the verifier is the owner, so it can only be "self-attested" (VIR:51, :56).
+4. V-2.3 attestation of no prior exposure to RANGE-002 results, reconciled with the exposure ledger: absent; blocked on the ledger (row 7).
+5. V-2.6 conflict-of-interest statement and V-2.7 disclosure of whether and by whom he is employed, paid or directed (VIR V-9 question 2): absent.
+6. The eligibility verification of the appointment (row 13): no verifier named; none to be invented (A-SCREEN O-10).
+7. The V-8 owner selection table and D08 option signature: blank.
+Not needed for stage 1: validator confirmation of D06 numbers, `select_exit` and the max-statistic test (REG:92, :99; AMD:128, "before an inferential verdict"); V-2.4, V-2.5, V-2.8, V-2.9, V-2.10 (Level 2, not built).
 
 ## 1. Table
 
@@ -114,4 +205,4 @@ Assignments as recorded by the owner (revision 2; no acceptance record for any o
 
 Held, but gated on acceptance (not "no holder"): `signoff.independent_validator` and all validator attestations/confirmations (rows 3, 13, 15, 16, 17, 19-23, 29) are assigned to Chen Youtong and are PENDING-ACCEPTANCE. Until a written acceptance record exists in Git they are VACANT for every gate. The validator sign-off may not be waived by the owner and may not be held by the owner (REG s6.1 ruling 5; VIR V-5.1 SoD-A and SoD-C). Row 31 (non-author code reviewer, Jay Wang) is also PENDING-ACCEPTANCE; the owner holds both the authorizing role (row 32) and the non-author review role, which AMD:49 requires to be "an eligible non-author reviewer"; eligibility of a reviewer who directed the change is UNKNOWN and VIR V-3 line 51 flags that conflict. Role-only (not sign-offs): risk/loss-control reviewer Xiao Xuejiao has no spec field or gate slot (grep of SCH finds none); the team liaison has no slot and no sign-off of any kind.
 
-Count by status (33 rows): GENUINE 0; STALE-HASH 0; PENDING-ACCEPTANCE 4 (rows 3, 15, 16, 31); MISSING 29, of which 8 have a validator element PENDING-ACCEPTANCE (rows 13, 17, 19, 20, 21, 22, 23, 29) and 18 rows (2, 7, 8, 9, 11, 12, 13, 15, 16, 18, 19, 20, 21, 22, 24, 25, 26, 28) depend wholly or partly on a role with no eligible holder (B3).
+**Superseded by the individual recount in the Revision-3 addendum (PENDING-ACCEPTANCE 4: rows 2, 3, 15, 31; MISSING 29; 12 rows with a remaining holderless element).** Revision-2 count, retained for history: Count by status (33 rows): GENUINE 0; STALE-HASH 0; PENDING-ACCEPTANCE 4 (rows 3, 15, 16, 31); MISSING 29, of which 8 have a validator element PENDING-ACCEPTANCE (rows 13, 17, 19, 20, 21, 22, 23, 29) and 18 rows (2, 7, 8, 9, 11, 12, 13, 15, 16, 18, 19, 20, 21, 22, 24, 25, 26, 28) depend wholly or partly on a role with no eligible holder (B3).
