@@ -309,3 +309,67 @@ def test_lower_bound_is_deterministic_undefined_without_trades_and_needs_a_capab
     for bad in (0.0, 1.0, -0.1):
         with pytest.raises(ParamsUnsetError):
             one_sided_lower_bound(cap, m, "C0", bad, CFG)
+
+
+# --- percentile construction and alpha handling, deterministic (no sampling involved) --------
+
+
+def _inject(monkeypatch, replicates: np.ndarray) -> None:  # type: ignore[no-untyped-def]
+    """Replace the resampler with a KNOWN replicate-mean array so the bound is a pure function."""
+    from app.research.range002.screen import stats as stats_mod
+
+    zero = np.isnan(replicates)
+    monkeypatch.setattr(stats_mod, "_resample_means", lambda m, c: (replicates, zero))
+
+
+@pytest.mark.parametrize("alpha", [0.01, 0.05, 0.10, 0.50, 0.95])
+def test_lower_bound_is_exactly_the_alpha_quantile_of_the_replicate_means(
+    cap: object, monkeypatch, alpha: float
+) -> None:  # type: ignore[no-untyped-def]
+    from app.research.range002.screen.stats import one_sided_lower_bound
+
+    reps = np.arange(1, 101, dtype=float).reshape(-1, 1)  # replicate means 1..100, one candidate
+    _inject(monkeypatch, reps)
+    m = matrix(np.full((10, 1), 0.5))
+    lb = one_sided_lower_bound(cap, m, "C0", alpha, BootstrapConfig(10.0, 100, 1))
+    assert lb.lower == pytest.approx(np.quantile(np.arange(1, 101), alpha))  # linear interpolation
+    assert lb.observed_mean == pytest.approx(0.5) and lb.alpha == alpha
+
+
+def test_the_95_percent_bound_selects_the_5th_percentile_not_the_95th(
+    cap: object, monkeypatch
+) -> None:  # type: ignore[no-untyped-def]
+    from app.research.range002.screen.stats import one_sided_lower_bound
+
+    _inject(monkeypatch, np.arange(1, 101, dtype=float).reshape(-1, 1))
+    m = matrix(np.full((10, 1), 0.5))
+    lb = one_sided_lower_bound(cap, m, "C0", 0.05, BootstrapConfig(10.0, 100, 1))
+    assert lb.lower == pytest.approx(5.95)  # 5th percentile of 1..100 (linear): 1 + 0.05 * 99
+    assert lb.lower < 50 < np.quantile(np.arange(1, 101), 0.95)
+
+
+def test_alpha_is_monotone_and_nan_replicates_are_dropped_and_counted(
+    cap: object, monkeypatch
+) -> None:  # type: ignore[no-untyped-def]
+    from app.research.range002.screen.stats import one_sided_lower_bound
+
+    reps = np.arange(1, 101, dtype=float).reshape(-1, 1)
+    reps[:10, 0] = np.nan  # ten replicates with no trades
+    _inject(monkeypatch, reps)
+    m = matrix(np.full((10, 1), 0.5))
+    cfg = BootstrapConfig(10.0, 100, 1)
+    lows = [one_sided_lower_bound(cap, m, "C0", a, cfg).lower for a in (0.01, 0.05, 0.25, 0.75)]
+    assert lows == sorted(lows) and lows[0] < lows[-1]
+    lb = one_sided_lower_bound(cap, m, "C0", 0.05, cfg)
+    assert lb.zero_trade_replicates == 10
+    assert lb.lower == pytest.approx(
+        np.quantile(np.arange(11, 101), 0.05)
+    )  # NaNs excluded, not zero
+
+
+def test_constant_daily_result_gives_that_value_for_every_alpha(cap: object) -> None:
+    from app.research.range002.screen.stats import one_sided_lower_bound
+
+    m = matrix(np.full((60, 1), 0.25))
+    for a in (0.01, 0.05, 0.5, 0.99):
+        assert one_sided_lower_bound(cap, m, "C0", a, CFG).lower == pytest.approx(0.25)
