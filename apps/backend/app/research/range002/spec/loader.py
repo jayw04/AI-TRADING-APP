@@ -31,7 +31,7 @@ class SpecSchemaError(ValueError):
 
 
 class SpecHashMismatchError(ValueError):
-    """The content no longer hashes to the recorded ``signoff.spec_sha256``. Loader refuses."""
+    """The content no longer hashes to the recorded ``decision.spec_sha256``. Loader refuses."""
 
     def __init__(self, recorded: str, computed: str) -> None:
         self.recorded = recorded
@@ -73,7 +73,7 @@ def load_draft(path: Path) -> DraftSpec:
 
 
 def spec_sha256(spec: DraftSpec) -> str:
-    """Stable hash of the spec content (everything except the ``signoff`` block)."""
+    """Stable hash of the spec content (everything except the ``decision`` block)."""
     return content_sha256(spec.hashable_payload())
 
 
@@ -84,15 +84,21 @@ class SpecView:
     Attributes
     ----------
     spec_sha256        recomputed content hash (never the recorded one).
-    is_signed          True only if every sign-off field is present AND the recorded hash equals
-                       ``spec_sha256``. An unsigned spec is unusable for any guarded run.
+    has_run_decision   True only if a meeting-decision reference is present, its decision is
+                       exactly ``approved``, its scope includes ``run`` AND its recorded spec hash
+                       equals ``spec_sha256``. Without it the spec is unusable for any guarded run.
+                       It does NOT check the minutes file (the guard does, at use time).
     partitions         name -> (start, end) for ``development_selection``,
                        ``development_confirmation`` and ``holdout``; inclusive dates.
     exposed_windows    exposure windows (inclusive) that no decisive run may touch.
     p3_criteria        the D17 block, or None.
     exits_candidates   tuple of :class:`ExitCandidate`, or None.
     exits_selection    :class:`ExitSelection`, or None.
-    unusable_reasons   why ``is_signed`` is False (empty when signed).
+    unusable_reasons   why ``has_run_decision`` is False (empty when it is True).
+    decision / decision_scope / decision_partitions / minutes_path / minutes_sha256 /
+    meeting_date / strategy_version / baseline_id
+                       the decision reference's fields as recorded (None / empty when absent);
+                       the guard reads them, the loader grants nothing from them beyond the flag.
     exposure_signed    ``governance.exposure_signed`` (D01 record, shape open), or None.
     registry_genesis_id  ``governance.registry_genesis_id`` (P0), or None while unset.
     max_p3a_attempts / max_p3b_attempts  ``p3.max_p3a_attempts`` / ``p3.max_p3b_attempts`` (P0).
@@ -106,18 +112,18 @@ class SpecView:
 
     Provenance (Level 1: accidental misuse and casual bypass): only :func:`load_frozen` stamps a
     view with a private mint, and ``spec_adapter.to_guard_view`` accepts only stamped views, so
-    a hand-built ``SpecView(is_signed=True, ...)`` or ``dataclasses.replace(view, ...)`` (the
+    a hand-built ``SpecView(has_run_decision=True, ...)`` or ``dataclasses.replace(view, ...)`` (the
     mint is a non-init field and is not carried over) is refused. A minted view also REFUSES
     ``copy.copy`` / ``copy.deepcopy`` / pickling (:class:`SpecViewNotCopyableError`), because a
     plain copy would carry the mint. That is the whole guarantee: a minted view cannot be
     duplicated through the standard copy protocols; code that reads the module-private mint or
-    writes ``_minted`` directly is outside the threat model. "Signed" means the sign-off fields
-    are non-empty and the recorded hash equals the recomputed hash; it is not an authenticated
-    signature (Level 2, design pending).
+    writes ``_minted`` directly is outside the threat model. "Has a run decision" means the
+    reference names an approved decision with run scope and the recorded hash equals the
+    recomputed hash; the minutes it cites are the record, and nothing here authenticates them.
     """
 
     spec_sha256: str
-    is_signed: bool
+    has_run_decision: bool
     partitions: Mapping[str, tuple[date, date]]
     exposed_windows: tuple[tuple[date, date], ...]
     p3_criteria: Any | None
@@ -128,6 +134,15 @@ class SpecView:
     registry_genesis_id: str | None = None
     max_p3a_attempts: int | None = None
     max_p3b_attempts: int | None = None
+    profile: str = "full"  # "full" | "screen" (A-SCREEN O-8 B); part of the spec hash when "screen"
+    decision: str | None = None
+    decision_scope: tuple[str, ...] = ()
+    decision_partitions: tuple[str, ...] = ()
+    minutes_path: str | None = None
+    minutes_sha256: str | None = None
+    meeting_date: date | None = None
+    strategy_version: str | None = None
+    baseline_id: str | None = None
     _minted: object = field(default=None, init=False, repr=False, compare=False)
 
     def __copy__(self) -> SpecView:
@@ -152,9 +167,10 @@ def _build_view(
     spec: DraftSpec, *, spec_sha256: str, unusable_reasons: tuple[str, ...]
 ) -> SpecView:
     p = spec.partitions
+    d = spec.decision
     return SpecView(
         spec_sha256=spec_sha256,
-        is_signed=not unusable_reasons,
+        has_run_decision=not unusable_reasons,
         partitions=MappingProxyType(
             {
                 "development_selection": p.development_selection,
@@ -171,6 +187,15 @@ def _build_view(
         registry_genesis_id=spec.governance.registry_genesis_id,
         max_p3a_attempts=spec.p3.max_p3a_attempts,
         max_p3b_attempts=spec.p3.max_p3b_attempts,
+        profile="full" if spec.profile is None else spec.profile.name,
+        decision=None if d is None else d.decision,
+        decision_scope=() if d is None else tuple(d.scope),
+        decision_partitions=() if d is None else tuple(d.partitions),
+        minutes_path=None if d is None else d.minutes_path,
+        minutes_sha256=None if d is None else d.minutes_sha256,
+        meeting_date=None if d is None else d.meeting_date,
+        strategy_version=None if d is None else d.strategy_version,
+        baseline_id=None if d is None else d.baseline_id,
     )
 
 
@@ -179,18 +204,28 @@ def load_frozen(path: Path) -> SpecView:
 
     Raises :class:`SpecSchemaError` for schema problems, :class:`UnsetP0FieldsError` if any P0
     field is unset, and :class:`SpecHashMismatchError` if the content was edited after freezing.
-    A spec with missing/empty sign-off is returned with ``is_signed=False`` rather than raised,
-    so callers can report *why* it is unusable.
+    A spec with no usable run decision (absent, not ``approved``, scope without ``run``, or no
+    recorded spec hash) is returned with ``has_run_decision=False`` rather than raised, so
+    callers can report *why* it is unusable. A recorded hash that differs from the recomputed
+    one is always refused (the spec was edited after the decision was bound to it).
     """
     spec = load_draft(Path(path))
     FrozenSpec.from_draft(spec)  # raises UnsetP0FieldsError naming every unset field
     computed = spec_sha256(spec)
-    recorded = spec.signoff.spec_sha256
+    d = spec.decision
+    recorded = None if d is None else d.spec_sha256
     if recorded is not None and recorded != computed:
         raise SpecHashMismatchError(recorded, computed)
-    reasons = [f"{name} missing" for name in spec.missing_signoff_fields()]
-    if recorded is None:
-        reasons.append("signoff.spec_sha256 missing")
+    reasons: list[str] = []
+    if d is None:
+        reasons.append("decision missing")
+    else:
+        if d.decision != "approved":
+            reasons.append(f"decision is {d.decision!r}, not 'approved'")
+        if "run" not in d.scope:
+            reasons.append("decision scope lacks 'run'")
+        if recorded is None:
+            reasons.append("decision.spec_sha256 missing")
     view = _build_view(spec, spec_sha256=computed, unusable_reasons=tuple(reasons))
     object.__setattr__(view, "_minted", _MINT)  # only this function mints a trusted view
     return view

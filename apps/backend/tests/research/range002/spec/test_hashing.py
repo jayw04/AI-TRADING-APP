@@ -98,8 +98,6 @@ def test_changing_any_p0_field_changes_the_hash(path):
         edited["exits"]["candidates"][0]["id"] = "Z9"
     elif path == "exits.complexity_order":
         edited["exits"]["complexity_order"] = ["time", "fixed_r", "scale_out", "trailing"]
-    elif path == "governance.economic_thesis_sha":
-        edited["governance"]["economic_thesis_sha"] = "cd" * 32
     elif path == "governance.registry_genesis_id":
         edited["governance"]["registry_genesis_id"] = OTHER_GENESIS_ID
     elif path == "execution.bar_timestamp_convention":
@@ -114,6 +112,8 @@ def test_changing_any_p0_field_changes_the_hash(path):
         edited["stats"]["alpha_one_sided"] = 0.08
     elif path == "stats.bootstrap.confidence_level":
         edited["stats"]["bootstrap"]["confidence_level"] = 0.8
+    elif path == "risk.per_trade_unit":
+        edited["risk"]["per_trade_unit"] = "fraction"
     elif path == "gates.basis":
         edited["gates"]["basis"] = "portfolio_constrained"
     elif isinstance(old, list):
@@ -136,10 +136,15 @@ def test_changing_a_candidate_param_or_order_changes_the_hash():
     assert spec_sha256(parse_draft(p)) != h
 
 
-def test_signoff_is_not_part_of_the_hash():
-    a = complete_payload(signed=True)
-    b = complete_payload(signed=False)
+def test_decision_is_not_part_of_the_hash():
+    a = complete_payload(decided=True)
+    b = complete_payload(decided=False)
     assert spec_sha256(parse_draft(a)) == spec_sha256(parse_draft(b))
+    c = complete_payload(decided=True)
+    c["decision"]["decision"] = "stop"
+    c["decision"]["baseline_id"] = "OTHER"
+    assert spec_sha256(parse_draft(c)) == spec_sha256(parse_draft(a))
+    assert "decision" not in parse_draft(a).hashable_payload()
 
 
 def test_file_sha256_matches_bytes(tmp_path):

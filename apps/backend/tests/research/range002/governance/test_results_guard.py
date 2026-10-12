@@ -8,7 +8,13 @@ from typing import Any
 import pytest
 
 from app.research.range002.governance.errors import (
-    ExposureLedgerNotSignedError,
+    DecisionMinutesMismatchError,
+    DecisionMinutesMissingError,
+    DecisionMissingError,
+    DecisionNotApprovedError,
+    DecisionPartitionError,
+    DecisionScopeError,
+    ExposureLedgerDecisionMissingError,
     ExposureOverlapError,
     HoldoutAlreadyOpenedError,
     HoldoutTokenInvalidError,
@@ -19,7 +25,6 @@ from app.research.range002.governance.errors import (
     RunNotRegisteredError,
     SpecIncompleteError,
     SpecNotFrozenError,
-    SpecNotSignedError,
     SpecViewNotTrustedError,
 )
 from app.research.range002.governance.exposure_ledger import ExposureLedger
@@ -41,9 +46,10 @@ from app.research.range002.governance.run_registry import RunRegistry, RunStatus
 from app.research.range002.governance.spec_adapter import GuardSpecView
 
 from .conftest import (
+    LEDGER_DECISION_JSON,
     SPEC_SHA,
     SYNTH_GENESIS_ID,
-    UNSIGNED_LEDGER,
+    UNDECIDED_LEDGER,
     complete_prereqs,
     evidence_for,
     make_spec,
@@ -134,13 +140,13 @@ def test_determinism_same_inputs_same_capability_fields(
 def test_determinism_refusals_repeat(
     spec: GuardSpecView, registry: RunRegistry, ledger: ExposureLedger
 ) -> None:
-    bad = make_spec(is_signed=False)
+    bad = make_spec(has_run_decision=False)
     for _ in range(3):
-        with pytest.raises(SpecNotSignedError):
+        with pytest.raises(DecisionMissingError):
             go(bad, registry, ledger)
 
 
-# --- (a) frozen and signed -----------------------------------------------------
+# --- (a) frozen and carrying an approved run decision ----------------------------
 
 
 @pytest.mark.parametrize("sha", ["", "xyz", "A" * 64, "a" * 63, None, 5])
@@ -151,12 +157,127 @@ def test_unfrozen_spec_refused(
         go(make_spec(spec_sha256=sha), registry, ledger, run_id="whatever")
 
 
-@pytest.mark.parametrize("signed", [False, None, "yes", 1])
-def test_unsigned_spec_refused(
-    spec: GuardSpecView, registry: RunRegistry, ledger: ExposureLedger, signed: Any
+@pytest.mark.parametrize("flag", [False, None, "yes", 1])
+def test_spec_without_run_decision_flag_refused(
+    spec: GuardSpecView, registry: RunRegistry, ledger: ExposureLedger, flag: Any
 ) -> None:
-    with pytest.raises(SpecNotSignedError):
-        go(make_spec(is_signed=signed), registry, ledger, run_id="whatever")
+    with pytest.raises(DecisionMissingError):
+        go(make_spec(has_run_decision=flag), registry, ledger, run_id="whatever")
+
+
+def test_spec_with_no_decision_refused(registry: RunRegistry, ledger: ExposureLedger) -> None:
+    with pytest.raises(DecisionMissingError):
+        go(make_spec(decision=None), registry, ledger, run_id="whatever")
+
+
+@pytest.mark.parametrize("decision", ["revise", "defer", "stop", "APPROVED", "approve", "", 1])
+def test_decision_other_than_approved_refused(
+    registry: RunRegistry, ledger: ExposureLedger, decision: Any
+) -> None:
+    """Only the exact string 'approved' authorizes anything."""
+    with pytest.raises(DecisionNotApprovedError):
+        go(make_spec(decision=decision), registry, ledger, run_id="whatever")
+
+
+@pytest.mark.parametrize("scope", [(), ("build",), ("RUN",), ("runs",)])
+def test_decision_scope_without_run_refused(
+    registry: RunRegistry, ledger: ExposureLedger, scope: Any
+) -> None:
+    with pytest.raises(DecisionScopeError):
+        go(make_spec(decision_scope=scope), registry, ledger, run_id="whatever")
+
+
+@pytest.mark.parametrize(
+    ("phase", "partition", "covered"),
+    [
+        (Phase.P3A, Partition.DEVELOPMENT_SELECTION, ("DEVELOPMENT_CONFIRMATION", "HOLDOUT")),
+        (Phase.P3B, Partition.DEVELOPMENT_CONFIRMATION, ("DEVELOPMENT_SELECTION",)),
+        (Phase.P4, Partition.HOLDOUT, ("DEVELOPMENT_SELECTION", "DEVELOPMENT_CONFIRMATION")),
+        (Phase.P2, Partition.REPLAY_RNG001, ("DEVELOPMENT_SELECTION",)),
+    ],
+)
+def test_partition_not_covered_by_decision_refused(
+    registry: RunRegistry,
+    ledger: ExposureLedger,
+    phase: Phase,
+    partition: Partition,
+    covered: tuple[str, ...],
+) -> None:
+    with pytest.raises(DecisionPartitionError, match=partition.value):
+        go(
+            make_spec(decision_partitions=covered),
+            registry,
+            ledger,
+            phase,
+            partition,
+            requested_range=(
+                DateRange(date(2026, 1, 2), date(2026, 6, 12))
+                if partition is Partition.REPLAY_RNG001
+                else None
+            ),
+        )
+
+
+def test_decision_partition_error_is_a_scope_error() -> None:
+    assert issubclass(DecisionPartitionError, DecisionScopeError)
+
+
+@pytest.mark.parametrize(
+    "field", ["minutes_path", "minutes_sha256", "strategy_version", "baseline_id"]
+)
+@pytest.mark.parametrize("value", [None, "", "   ", 5])
+def test_decision_reference_with_missing_field_refused(
+    registry: RunRegistry, ledger: ExposureLedger, field: str, value: Any
+) -> None:
+    with pytest.raises(DecisionMissingError):
+        go(make_spec(**{field: value}), registry, ledger, run_id="whatever")
+
+
+def test_decision_minutes_sha_must_be_hex64(registry: RunRegistry, ledger: ExposureLedger) -> None:
+    with pytest.raises(DecisionMissingError):
+        go(make_spec(minutes_sha256="Z" * 64), registry, ledger, run_id="whatever")
+
+
+# --- (b3) the minutes file the decision cites -----------------------------------
+
+
+def test_minutes_file_missing_refused(registry: RunRegistry, ledger: ExposureLedger) -> None:
+    with pytest.raises(DecisionMinutesMissingError):
+        go(make_spec(minutes_path="minutes/does_not_exist.md"), registry, ledger)
+
+
+def test_minutes_file_hash_mismatch_refused(registry: RunRegistry, ledger: ExposureLedger) -> None:
+    with pytest.raises(DecisionMinutesMismatchError):
+        go(make_spec(minutes_sha256="0" * 64), registry, ledger)
+
+
+def test_minutes_file_edited_after_the_decision_refused(
+    registry: RunRegistry, ledger: ExposureLedger, tmp_path: Any, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from app.research.range002.spec import decision as decision_module
+    from tests.research.range002.spec._fixtures import MINUTES_BYTES, MINUTES_RELPATH
+
+    root = tmp_path / "root"
+    target = root / MINUTES_RELPATH
+    target.parent.mkdir(parents=True)
+    target.write_bytes(MINUTES_BYTES)
+    monkeypatch.setattr(decision_module, "_MINUTES_ROOT", root)
+    spec = make_spec()
+    assert go(spec, registry, ledger).partition is Partition.DEVELOPMENT_SELECTION
+    target.write_bytes(MINUTES_BYTES + b"decision: stop\n")  # minutes changed afterwards
+    with pytest.raises(DecisionMinutesMismatchError):
+        go(spec, registry, ledger)
+
+
+@pytest.mark.parametrize(
+    "path",
+    ["../outside.md", "/etc/passwd", "a//b.md", "C:minutes.md", "minutes\\x.md", "./x.md", ""],
+)
+def test_minutes_path_escaping_the_root_refused(
+    registry: RunRegistry, ledger: ExposureLedger, path: str
+) -> None:
+    with pytest.raises((DecisionMinutesMissingError, DecisionMissingError)):
+        go(make_spec(minutes_path=path), registry, ledger)
 
 
 def test_missing_attributes_fail_closed(registry: RunRegistry, ledger: ExposureLedger) -> None:
@@ -249,8 +370,7 @@ def test_r2_window_never_authorized_even_if_spec_and_ledger_are_silent(
     registry: RunRegistry,
 ) -> None:
     empty_signed = ExposureLedger.from_text(
-        '{"schema_version": 1, "signoff": {"signed_by": "s", "signed_on": "2026-10-01"},'
-        ' "entries": []}'
+        '{"schema_version": 1, "decision": ' + LEDGER_DECISION_JSON + ', "entries": []}'
     )
     spec = spec_for(empty_signed, exposed_windows=())
     rng = DateRange(R2_EXCLUDED_WINDOW.start, R2_EXCLUDED_WINDOW.end)
@@ -279,7 +399,7 @@ def test_ledger_overlap_refused_including_holdout_contact(
     registry: RunRegistry,
 ) -> None:
     led = ExposureLedger.from_text(
-        '{"schema_version": 1, "signoff": {"signed_by": "s", "signed_on": "2026-10-01"},'
+        '{"schema_version": 1, "decision": ' + LEDGER_DECISION_JSON + ","
         ' "entries": [{"id": "holdout-contact", "start": "2023-05-01", "end": "2023-05-02",'
         ' "description": "d", "source": "s", "observed_by": "o"}]}'
     )
@@ -287,19 +407,47 @@ def test_ledger_overlap_refused_including_holdout_contact(
         go(spec_for(led), registry, led, Phase.P4, Partition.HOLDOUT)
 
 
-def test_unsigned_exposure_ledger_refused(spec: GuardSpecView, registry: RunRegistry) -> None:
-    with pytest.raises(ExposureLedgerNotSignedError):
-        go(spec, registry, ExposureLedger.from_text(UNSIGNED_LEDGER))
+def test_exposure_ledger_without_decision_refused(
+    spec: GuardSpecView, registry: RunRegistry
+) -> None:
+    with pytest.raises(ExposureLedgerDecisionMissingError):
+        go(spec, registry, ExposureLedger.from_text(UNDECIDED_LEDGER))
+
+
+def test_exposure_ledger_minutes_missing_refused(registry: RunRegistry, tmp_path: Any) -> None:
+    import json
+
+    from .conftest import DECIDED_LEDGER
+
+    doc = json.loads(DECIDED_LEDGER)
+    doc["decision"]["minutes_path"] = "minutes/absent.md"
+    led = ExposureLedger.from_text(json.dumps(doc))
+    with pytest.raises(DecisionMinutesMissingError, match="exposure ledger"):
+        go(spec_for(led), registry, led)
+
+
+def test_exposure_ledger_minutes_hash_mismatch_refused(
+    registry: RunRegistry, tmp_path: Any
+) -> None:
+    import json
+
+    from .conftest import DECIDED_LEDGER
+
+    doc = json.loads(DECIDED_LEDGER)
+    doc["decision"]["minutes_sha256"] = "1" * 64
+    led = ExposureLedger.from_text(json.dumps(doc))
+    with pytest.raises(DecisionMinutesMismatchError, match="exposure ledger"):
+        go(spec_for(led), registry, led)
 
 
 def test_replay_rng001_allowed_on_exposed_data_but_never_citable(
     spec: GuardSpecView, registry: RunRegistry
 ) -> None:
-    unsigned = ExposureLedger.from_text(UNSIGNED_LEDGER)  # not even consulted
+    undecided = ExposureLedger.from_text(UNDECIDED_LEDGER)  # not even consulted
     cap = go(
         spec,
         registry,
-        unsigned,
+        undecided,
         Phase.P2,
         Partition.REPLAY_RNG001,
         requested_range=DateRange(date(2026, 1, 2), date(2026, 6, 12)),
@@ -309,7 +457,7 @@ def test_replay_rng001_allowed_on_exposed_data_but_never_citable(
     assert "citable=False" in repr(cap)
 
 
-def test_replay_still_requires_registry_row_and_signed_spec(
+def test_replay_still_requires_registry_row_and_run_decision(
     spec: GuardSpecView, registry: RunRegistry, ledger: ExposureLedger
 ) -> None:
     rng = DateRange(date(2026, 1, 2), date(2026, 6, 12))
@@ -323,9 +471,9 @@ def test_replay_still_requires_registry_row_and_signed_spec(
             run_id="none",
             requested_range=rng,
         )
-    with pytest.raises(SpecNotSignedError):
+    with pytest.raises(DecisionMissingError):
         go(
-            make_spec(is_signed=False),
+            make_spec(has_run_decision=False),
             registry,
             ledger,
             Phase.P2,

@@ -27,9 +27,9 @@ from tests.research.range002.spec._fixtures import make_hardlink, make_symlink
 
 from .conftest import (
     CODE_SHA,
+    DECIDED_LEDGER,
     DEFAULT_SELECTION,
     MANIFEST_SHA,
-    SIGNED_LEDGER,
     SPEC_SHA,
     SYNTH_GENESIS_ID,
     make_spec,
@@ -286,15 +286,15 @@ def _auth(spec: Any, registry: Any, ledger: Any, rid: str, **kw: Any) -> Any:
 
 
 def test_f2_ledger_cannot_be_constructed_directly() -> None:
-    real = ExposureLedger.from_text(SIGNED_LEDGER)
+    real = ExposureLedger.from_text(DECIDED_LEDGER)
     with pytest.raises((errors.ExposureLedgerError, TypeError)):
-        ExposureLedger((), {"signed_by": "x", "signed_on": "2026-01-01"}, real.sha256)  # type: ignore[call-arg]
+        ExposureLedger((), {"meeting_date": "2000-01-01"}, real.sha256)  # type: ignore[call-arg]
     with pytest.raises(errors.ExposureLedgerError):
-        ExposureLedger(object(), (), {"signed_by": "x", "signed_on": "2026-01-01"}, real.sha256)  # type: ignore[call-arg, arg-type]
+        ExposureLedger(object(), (), {"meeting_date": "2000-01-01"}, real.sha256)  # type: ignore[call-arg, arg-type]
 
 
 def test_f2_ledger_is_immutable() -> None:
-    led = ExposureLedger.from_text(SIGNED_LEDGER)
+    led = ExposureLedger.from_text(DECIDED_LEDGER)
     with pytest.raises((AttributeError, TypeError)):
         led._sha256 = "0" * 64  # type: ignore[misc]
     with pytest.raises((AttributeError, TypeError)):
@@ -305,7 +305,7 @@ def test_f2_duck_typed_collaborators_are_refused_by_name(tmp_path: Path) -> None
     spec = make_spec()
     reg = new_registry(tmp_path / "runs.jsonl")
     rid = open_run(reg)
-    led = ExposureLedger.from_text(SIGNED_LEDGER)
+    led = ExposureLedger.from_text(DECIDED_LEDGER)
 
     class FakeRegistry:
         def __getattr__(self, name: str) -> Any:
@@ -315,8 +315,8 @@ def test_f2_duck_typed_collaborators_are_refused_by_name(tmp_path: Path) -> None
         sha256 = led.sha256
         entries = ()
 
-        def require_signed(self) -> None:
-            return None
+        def require_decision(self) -> dict[str, str]:
+            return {}
 
         def overlaps(self, window: DateRange) -> tuple[()]:
             return ()
@@ -342,7 +342,7 @@ def test_f2_subclassed_registry_is_refused(tmp_path: Path) -> None:
     reg = Sub(tmp_path / "runs.jsonl")
     rid = open_run(reg)
     with pytest.raises(errors.RegistryNotTrustedError):
-        _auth(make_spec(), reg, ExposureLedger.from_text(SIGNED_LEDGER), rid)
+        _auth(make_spec(), reg, ExposureLedger.from_text(DECIDED_LEDGER), rid)
 
 
 # --- F3: GuardSpecView only from a SpecView minted by load_frozen ---------------------------
@@ -354,7 +354,7 @@ def test_f3_hand_built_spec_view_is_refused() -> None:
 
     hand = SpecView(
         spec_sha256="a" * 64,
-        is_signed=True,
+        has_run_decision=True,
         partitions={
             "development_selection": (date(2016, 1, 1), date(2019, 12, 31)),
             "development_confirmation": (date(2020, 1, 1), date(2021, 12, 31)),
@@ -375,9 +375,9 @@ def test_f3_dataclasses_replace_of_a_real_view_loses_the_mint(tmp_path: Path) ->
 
     from .conftest import load_synthetic_view
 
-    real = load_synthetic_view(tmp_path, signed=False)
-    assert isinstance(real, SpecView) and real.is_signed is False
-    forged = dataclasses.replace(real, is_signed=True)
+    real = load_synthetic_view(tmp_path, decided=False)
+    assert isinstance(real, SpecView) and real.has_run_decision is False
+    forged = dataclasses.replace(real, has_run_decision=True)
     with pytest.raises(errors.SpecViewNotTrustedError):
         to_guard_view(forged)
 
@@ -393,5 +393,5 @@ def test_f3_real_load_path_is_accepted(tmp_path: Path) -> None:
 
     from .conftest import load_synthetic_view
 
-    gv = to_guard_view(load_synthetic_view(tmp_path, signed=True))
-    assert gv.is_signed is True
+    gv = to_guard_view(load_synthetic_view(tmp_path, decided=True))
+    assert gv.has_run_decision is True

@@ -4,10 +4,11 @@ The two were built independently; this is the single place where they meet. It
 carries these semantic obligations, each covered by ``test_spec_integration``:
 
 * ``spec_sha256`` is the loader's recomputed hash, never a recorded one;
-* ``is_signed`` is the loader's flag (sign-off fields non-empty AND recorded hash equals the
-  recomputed hash), passed through unchanged. That is "frozen, sign-off fields present", NOT
-  an authenticated signature: nothing verifies who typed the sign-off (Level 2, design
-  pending);
+* ``has_run_decision`` is the loader's flag (an approved decision with run scope whose recorded
+  spec hash equals the recomputed hash), passed through unchanged, together with the decision
+  reference's fields (decision, scope, partitions, minutes path and hash, strategy version,
+  baseline id) for the guard's own checks. The meeting minutes are the record; nothing here
+  authenticates them (Level 2, design pending);
 * every window the spec marks exposed reaches the guard as a ``DateRange``;
 * ``exposure_signed`` is the spec's D01 record, passed through for the guard's
   exposure-ledger binding check.
@@ -77,18 +78,26 @@ class GuardSpecView:
         "exits_candidates",
         "exits_selection",
         "exposed",
+        "baseline_id",
+        "decision",
+        "decision_partitions",
+        "decision_scope",
         "exposure_signed",
-        "is_signed",
+        "has_run_decision",
         "max_p3a_attempts",
         "max_p3b_attempts",
+        "minutes_path",
+        "minutes_sha256",
         "p3_criteria",
+        "profile",
         "partitions",
         "registry_genesis_id",
         "spec_sha256",
+        "strategy_version",
     )
 
     spec_sha256: str
-    is_signed: bool
+    has_run_decision: bool
     partitions: _Partitions
     p3_criteria: Any | None
     exits_candidates: Any | None
@@ -98,13 +107,21 @@ class GuardSpecView:
     registry_genesis_id: str | None
     max_p3a_attempts: int | None
     max_p3b_attempts: int | None
+    profile: str
+    decision: str | None
+    decision_scope: tuple[str, ...]
+    decision_partitions: tuple[str, ...]
+    minutes_path: str | None
+    minutes_sha256: str | None
+    strategy_version: str | None
+    baseline_id: str | None
 
     def __init__(
         self,
         issue_token: object,
         *,
         spec_sha256: str,
-        is_signed: bool,
+        has_run_decision: bool,
         partitions: _Partitions,
         p3_criteria: Any | None,
         exits_candidates: Any | None,
@@ -114,6 +131,14 @@ class GuardSpecView:
         registry_genesis_id: str | None,
         max_p3a_attempts: int | None,
         max_p3b_attempts: int | None,
+        profile: str = "full",
+        decision: str | None = None,
+        decision_scope: tuple[str, ...] = (),
+        decision_partitions: tuple[str, ...] = (),
+        minutes_path: str | None = None,
+        minutes_sha256: str | None = None,
+        strategy_version: str | None = None,
+        baseline_id: str | None = None,
     ) -> None:
         if issue_token is not _ISSUE_VIEW:
             raise SpecViewNotTrustedError(
@@ -121,7 +146,7 @@ class GuardSpecView:
             )
         for name, value in (
             ("spec_sha256", spec_sha256),
-            ("is_signed", is_signed),
+            ("has_run_decision", has_run_decision),
             ("partitions", partitions),
             ("p3_criteria", deep_freeze(p3_criteria)),
             ("exits_candidates", deep_freeze(exits_candidates)),
@@ -131,6 +156,14 @@ class GuardSpecView:
             ("registry_genesis_id", registry_genesis_id),
             ("max_p3a_attempts", max_p3a_attempts),
             ("max_p3b_attempts", max_p3b_attempts),
+            ("profile", profile),
+            ("decision", decision),
+            ("decision_scope", tuple(decision_scope)),
+            ("decision_partitions", tuple(decision_partitions)),
+            ("minutes_path", minutes_path),
+            ("minutes_sha256", minutes_sha256),
+            ("strategy_version", strategy_version),
+            ("baseline_id", baseline_id),
         ):
             object.__setattr__(self, name, value)
 
@@ -166,7 +199,7 @@ def to_guard_view(view: SpecView) -> GuardSpecView:
     return GuardSpecView(
         _ISSUE_VIEW,
         spec_sha256=view.spec_sha256,
-        is_signed=view.is_signed,
+        has_run_decision=view.has_run_decision,
         partitions=_Partitions(
             selection=rng("development_selection"),
             confirmation=rng("development_confirmation"),
@@ -180,4 +213,12 @@ def to_guard_view(view: SpecView) -> GuardSpecView:
         registry_genesis_id=view.registry_genesis_id,
         max_p3a_attempts=view.max_p3a_attempts,
         max_p3b_attempts=view.max_p3b_attempts,
+        profile=view.profile,
+        decision=view.decision,
+        decision_scope=view.decision_scope,
+        decision_partitions=view.decision_partitions,
+        minutes_path=view.minutes_path,
+        minutes_sha256=view.minutes_sha256,
+        strategy_version=view.strategy_version,
+        baseline_id=view.baseline_id,
     )
