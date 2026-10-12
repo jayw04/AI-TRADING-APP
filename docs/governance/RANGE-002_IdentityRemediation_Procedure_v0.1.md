@@ -92,3 +92,14 @@ Convention: every recorded file hash is the SHA-256 of the file's **committed by
 |---|---|---|
 | `apps/backend/scripts/research/range002/recreate_under_identity.py` | `74f27261631dbef3bfa08333ac153036609db8a1` (this PR) | `81f4af00201cb4a2062c26bc0897c655632354a4c9635a003b4a458fc4f767c5` |
 | `docs/implementation/evidence/range_002/RANGE-002_Identity_Probe_Preregistration_v1.json` | `b1a38d8e7290425b1206bb90e347caace04a17f2` (#760) | `116a0601ff29374a38c4290cc355c506374c7137d420c908a15b76e91e3a17fc` |
+
+### 5.1 Overlap reconciliation preview (round 5; LOCAL ONLY, not pushed, changes neither PR)
+
+A trial merge of #740 (`8792e043b6bb…`, tree `6bf3f2b682f0e8d3ab74b5ef176a2eaac4a8d062`) was made in a throwaway worktree to find the real conflict, not to integrate it.
+
+| Combination | Result | Verification |
+|---|---|---|
+| #755 `1ecf811b0b4ed7699bb4650c22387e1242f98e74` + #740 | **One** conflict block, in `spec/schema.py`: both sides add code at the same insertion point (#755: the screen-profile section; #740: two sign-off helper functions). `loader.py` and `freeze_spec.py` auto-merge. Resolution: keep both, in that order. | Full `tests/research/range002` pass (including #740's `test_signoff_roles.py`), ruff clean, mypy clean (40 files). Preview commit `1b1196fcdec1ba2f083d221b1eec0eb6f1170617`. |
+| Hazard branch `21f8ea5c133703f68921a3ecef2998fb48b98dbd` + #740 | Same single block, same resolution. | Same checks pass. Preview commit `f3038a53…` |
+
+**What this is not:** an integration. Whichever PR merges second needs this resolution made in a real commit, which is a **new head SHA** with fresh exact-SHA CI, a new per-file review and a new walk-away (R4). The previews are discardable and are not evidence for any PR. Recommended order to minimise rework: merge #740 first only if its own review is complete; otherwise integrate #740 onto the final #755 head once, then stack the hazard branch on that.
