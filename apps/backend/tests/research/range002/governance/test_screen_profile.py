@@ -3,7 +3,7 @@
 What is proved here: the profile has an exact, tested required-field contract; it is inside the
 spec hash and bound to the capability; it authorises only (P2, REPLAY_RNG001) and
 (P3A, DEVELOPMENT_SELECTION); every other phase is refused by name; the full profile is
-unchanged; sign-off, exposure, genesis and attempt-limit controls still apply. None of this
+unchanged; decision, exposure, genesis and attempt-limit controls still apply. None of this
 selects a P0 value or approves anything.
 """
 
@@ -41,14 +41,14 @@ from app.research.range002.spec.schema import (
     SCREEN_V1_EXEMPT,
     SCREEN_V1_REQUIRED,
     SCREEN_V1_REQUIRED_SHA256,
-    SignoffMissingError,
+    DecisionRefError,
     UnsetP0FieldsError,
     draft_skeleton,
 )
 from tests.research.range002.governance.conftest import (
+    DECIDED_LEDGER,
     LEDGER_SHA,
-    SIGNED_LEDGER,
-    UNSIGNED_LEDGER,
+    UNDECIDED_LEDGER,
     new_registry,
     open_run,
 )
@@ -70,7 +70,7 @@ PROFILE_BLOCK = {
 
 
 def screen_payload(*, signed: bool = True) -> dict[str, Any]:
-    payload = complete_payload(signed=signed)
+    payload = complete_payload(decided=signed)
     for path in SCREEN_V1_EXEMPT:
         set_path(payload, path, None)
     set_path(payload, "governance.exposure_signed", {"exposure_ledger_sha256": LEDGER_SHA})
@@ -79,7 +79,7 @@ def screen_payload(*, signed: bool = True) -> dict[str, Any]:
 
 
 def full_payload() -> dict[str, Any]:
-    payload = complete_payload(signed=True)
+    payload = complete_payload(decided=True)
     set_path(payload, "governance.exposure_signed", {"exposure_ledger_sha256": LEDGER_SHA})
     return payload
 
@@ -97,7 +97,7 @@ def view_for(tmp: Path, payload: dict[str, Any], name: str = "s") -> GuardSpecVi
 
 
 def ledger() -> ExposureLedger:
-    return ExposureLedger.from_text(SIGNED_LEDGER)
+    return ExposureLedger.from_text(DECIDED_LEDGER)
 
 
 def issue(
@@ -180,8 +180,10 @@ def test_required_list_covers_everything_that_changes_signals_fills_costs_or_int
         "controls.naive_orb.definition",
     }
     assert must <= set(SCREEN_V1_REQUIRED)
-    assert "governance.roles" in SCREEN_V1_EXEMPT  # Research Lead/thesis stay P0-exit items
-    assert "governance.economic_thesis_sha" in SCREEN_V1_EXEMPT
+    # the role / thesis-signature fields were removed from the spec (meeting-decision migration)
+    assert not any(
+        p in SCREEN_V1_EXEMPT for p in ("governance.roles", "governance.economic_thesis_sha")
+    )
     assert not any(p.startswith("p5.") for p in SCREEN_V1_REQUIRED)
 
 
@@ -191,7 +193,7 @@ def test_required_list_covers_everything_that_changes_signals_fills_costs_or_int
 def test_screen_spec_freezes_with_exempt_fields_null_and_loads_as_screen(tmp_path: Path) -> None:
     out = freeze(tmp_path, screen_payload())
     view = load_frozen(out)
-    assert view.profile == "screen" and view.is_signed
+    assert view.profile == "screen" and view.has_run_decision
     assert json.loads(out.read_text())["profile"] == PROFILE_BLOCK
     assert to_guard_view(view).profile == "screen"
 
@@ -201,7 +203,7 @@ def test_same_content_without_profile_is_the_full_profile_and_refuses(tmp_path: 
     del payload["profile"]
     with pytest.raises(UnsetP0FieldsError) as exc:
         freeze(tmp_path, payload)
-    assert "governance.roles" in exc.value.fields and "p5.account_id" in exc.value.fields
+    assert "diagnostics.taxonomy" in exc.value.fields and "p5.account_id" in exc.value.fields
 
 
 @pytest.mark.parametrize(
@@ -224,10 +226,20 @@ def test_missing_required_value_refused_by_name(tmp_path: Path, path: str) -> No
     assert path in exc.value.fields
 
 
-def test_missing_signoff_still_refused(tmp_path: Path) -> None:
+def test_missing_decision_still_refused(tmp_path: Path) -> None:
     payload = screen_payload()
-    payload["signoff"]["independent_validator"] = None
-    with pytest.raises(SignoffMissingError):
+    payload["decision"] = None
+    with pytest.raises(DecisionRefError):
+        freeze(tmp_path, payload)
+
+
+@pytest.mark.parametrize("outcome", ["revise", "defer", "stop"])
+def test_screen_spec_with_non_approved_decision_refused_at_freeze(
+    tmp_path: Path, outcome: str
+) -> None:
+    payload = screen_payload()
+    payload["decision"]["decision"] = outcome
+    with pytest.raises(DecisionRefError):
         freeze(tmp_path, payload)
 
 
@@ -258,7 +270,7 @@ def test_profile_is_inside_the_hash_and_full_hash_is_unchanged() -> None:
     payload = full_payload()
     draft = parse_draft(payload)
     expected = {
-        k: v for k, v in draft.model_dump(mode="json").items() if k not in ("signoff", "profile")
+        k: v for k, v in draft.model_dump(mode="json").items() if k not in ("decision", "profile")
     }
     assert spec_sha256(draft) == content_sha256(expected)
     assert "profile" not in draft.hashable_payload()
@@ -335,7 +347,14 @@ def test_unknown_or_missing_profile_on_a_view_is_refused(tmp_path: Path) -> None
         forged = GuardSpecView(
             spec_adapter._ISSUE_VIEW,
             spec_sha256=good.spec_sha256,
-            is_signed=True,
+            has_run_decision=True,
+            decision=good.decision,
+            decision_scope=good.decision_scope,
+            decision_partitions=good.decision_partitions,
+            minutes_path=good.minutes_path,
+            minutes_sha256=good.minutes_sha256,
+            strategy_version=good.strategy_version,
+            baseline_id=good.baseline_id,
             partitions=good.partitions,
             p3_criteria=good.p3_criteria,
             exits_candidates=good.exits_candidates,
@@ -387,20 +406,20 @@ def test_date_range_limits_still_apply_to_the_screen_profile(tmp_path: Path) -> 
         )
 
 
-def test_unsigned_exposure_ledger_still_refused_for_screen_p3a(tmp_path: Path) -> None:
-    from app.research.range002.governance.errors import ExposureLedgerNotSignedError
+def test_exposure_ledger_without_decision_still_refused_for_screen_p3a(tmp_path: Path) -> None:
+    from app.research.range002.governance.errors import ExposureLedgerDecisionMissingError
 
     view = view_for(tmp_path, screen_payload())
     registry = new_registry(tmp_path / "runs.jsonl")
     run_id = open_run(registry, Phase.P3A, Partition.DEVELOPMENT_SELECTION, view.spec_sha256)
-    with pytest.raises(ExposureLedgerNotSignedError):
+    with pytest.raises(ExposureLedgerDecisionMissingError):
         authorize(
             spec=view,
             phase=Phase.P3A,
             partition=Partition.DEVELOPMENT_SELECTION,
             run_id=run_id,
             registry=registry,
-            exposure_ledger=ExposureLedger.from_text(UNSIGNED_LEDGER),
+            exposure_ledger=ExposureLedger.from_text(UNDECIDED_LEDGER),
         )
 
 

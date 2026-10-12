@@ -8,10 +8,12 @@
 Freezing REFUSES (exit 2) unless the committed, OWNER-APPROVED governance manifest
 (docs/implementation/evidence/range_002/RANGE-002_governance_manifest.json, fixed path) names a
 registry genesis id equal to the spec's and pre-registered P3 attempt limits equal to the spec's
-(Round 5 N-A; an unset/null manifest refuses), unless every P0 field is set AND the human sign-off fields (owner,
-trading_expert, independent_validator, date) are already present in the draft. This tool never
-fabricates a sign-off and never picks a value for an open decision (rule R9). It computes
-``signoff.spec_sha256`` itself, never overwrites an existing frozen file, and does no data access.
+(Round 5 N-A; an unset/null manifest refuses), unless every P0 field is set AND the draft already
+carries a meeting-decision reference (``decision``): an ``approved`` decision whose scope includes
+``run``, whose partitions are named, and whose cited minutes file exists and hashes to
+``decision.minutes_sha256``. The weekly meeting minutes are the decision record. This tool never
+fabricates a decision reference and never picks a value for an open decision (rule R9). It computes
+``decision.spec_sha256`` itself, never overwrites an existing frozen file, and does no data access.
 """
 
 from __future__ import annotations
@@ -26,6 +28,7 @@ BACKEND_DIR = Path(__file__).resolve().parents[3]
 if str(BACKEND_DIR) not in sys.path:
     sys.path.insert(0, str(BACKEND_DIR))
 
+from app.research.range002.spec import decision as decision_check  # noqa: E402
 from app.research.range002.spec.loader import (  # noqa: E402
     SpecHashMismatchError,
     SpecSchemaError,
@@ -35,8 +38,8 @@ from app.research.range002.spec.loader import (  # noqa: E402
 )
 from app.research.range002.spec.manifest import ManifestError, load_manifest  # noqa: E402
 from app.research.range002.spec.schema import (  # noqa: E402
+    DecisionRefError,
     FrozenSpec,
-    SignoffMissingError,
     UnsetP0FieldsError,
     draft_skeleton,
 )
@@ -77,26 +80,36 @@ def freeze(draft_path: Path, out_path: Path, *, manifest_path: Path | None = Non
     FrozenSpec.from_draft(spec)  # UnsetP0FieldsError naming every unset P0 field
     manifest.check_genesis(spec.governance.registry_genesis_id, what="spec")
     manifest.check_limits(spec.p3.max_p3a_attempts, spec.p3.max_p3b_attempts)
-    missing = spec.missing_signoff_fields()
-    if missing:
-        raise SignoffMissingError(missing)
-    signed_on = spec.signoff.date
-    if signed_on is not None and signed_on > date.today():
-        raise SpecSchemaError([f"signoff.date: {signed_on} is in the future"])
+    ref = spec.decision
+    if ref is None:
+        raise DecisionRefError(["decision: no meeting-decision reference in the draft"])
+    problems: list[str] = []
+    if ref.decision != "approved":
+        problems.append(f"decision.decision is {ref.decision!r}; only 'approved' can be frozen")
+    if "run" not in ref.scope:
+        problems.append("decision.scope lacks 'run'; a RUN spec needs a run-scope decision")
+    if ref.meeting_date > date.today():
+        problems.append(f"decision.meeting_date {ref.meeting_date} is in the future")
+    try:
+        decision_check.check_minutes_file(ref.minutes_path, ref.minutes_sha256)
+    except decision_check.MinutesError as exc:
+        problems.append(f"decision.minutes: {exc}")
+    if problems:
+        raise DecisionRefError(problems)
     digest = spec_sha256(spec)
-    preset = spec.signoff.spec_sha256
+    preset = ref.spec_sha256
     if preset is not None and preset != digest:
         raise SpecSchemaError(
-            [f"signoff.spec_sha256: draft carries {preset} but content hashes to {digest}"]
+            [f"decision.spec_sha256: draft carries {preset} but content hashes to {digest}"]
         )
     payload = spec.model_dump(mode="json")
-    payload["signoff"]["spec_sha256"] = digest
+    payload["decision"]["spec_sha256"] = digest
     if payload.get("profile") is None:  # full profile: frozen file bytes unchanged
         payload.pop("profile", None)
     _write_new(out_path, _dump(payload))
     try:
-        view = load_frozen(out_path)  # round-trip: what we wrote must load, signed, at this hash
-        if not view.is_signed or view.spec_sha256 != digest:
+        view = load_frozen(out_path)  # round-trip: what we wrote must load, decided, at this hash
+        if not view.has_run_decision or view.spec_sha256 != digest:
             raise RuntimeError("freeze round-trip failed; frozen file removed")
     except BaseException:
         # Whatever went wrong, never leave a frozen file that did not round-trip.
@@ -120,10 +133,10 @@ def main(argv: list[str] | None = None, *, manifest_path: Path | None = None) ->
             return EXIT_OK
         if args.verify:
             view = load_frozen(args.verify)
-            print(f"spec_sha256={view.spec_sha256} is_signed={view.is_signed}")
+            print(f"spec_sha256={view.spec_sha256} has_run_decision={view.has_run_decision}")
             for reason in view.unusable_reasons:
                 print(f"UNUSABLE: {reason}")
-            return EXIT_OK if view.is_signed else EXIT_REFUSED
+            return EXIT_OK if view.has_run_decision else EXIT_REFUSED
         if not args.draft or not args.out:
             ap.error("DRAFT and --out are required to freeze")
         digest = freeze(args.draft, args.out, manifest_path=manifest_path)
@@ -131,7 +144,7 @@ def main(argv: list[str] | None = None, *, manifest_path: Path | None = None) ->
         return EXIT_OK
     except (
         UnsetP0FieldsError,
-        SignoffMissingError,
+        DecisionRefError,
         SpecSchemaError,
         SpecHashMismatchError,
         ManifestError,

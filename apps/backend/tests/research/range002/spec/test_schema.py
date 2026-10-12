@@ -63,7 +63,7 @@ def test_skeleton_is_a_valid_draft_with_every_p0_unset():
     unset = draft.unset_p0_fields()
     assert set(unset) == set(P0_PATHS)
     assert "registration.trial_ledger_id" not in unset  # run_registry's, not a P0 decision
-    assert not any(p.startswith("signoff") for p in unset)
+    assert not any(p.startswith("decision") for p in unset)
 
 
 def test_skeleton_leaves_open_decisions_null():
@@ -114,10 +114,10 @@ def test_blank_open_values_count_as_unset():
     payload = complete_payload()
     set_path(payload, "gates.win_rate", "  ")
     set_path(payload, "costs.components", [])
-    set_path(payload, "governance.roles", {"owner": None})
+    set_path(payload, "governance.exposure_signed", {"exposure_ledger_sha256": None})
     unset = parse_draft(payload).unset_p0_fields()
     assert "gates.win_rate" in unset and "costs.components" in unset
-    assert "governance.roles.owner" in unset
+    assert "governance.exposure_signed.exposure_ledger_sha256" in unset
 
 
 def test_complete_synthetic_spec_freezes():
@@ -161,7 +161,7 @@ def test_fixed_skeleton_values_cannot_be_altered(path, bad):
         ("risk.per_trade_pct", -1),
         ("execution.vendor_delay_ms", -1),
         ("execution.order_type", "market"),
-        ("governance.economic_thesis_sha", "xyz"),
+        ("governance.registry_genesis_id", "xyz"),
         ("stats.bootstrap.method", " "),
     ],
 )

@@ -39,7 +39,7 @@ EXIT_FAMILIES: tuple[str, ...] = ("time", "fixed_r", "trailing", "scale_out")
 MAX_EXIT_CANDIDATES = 8
 
 # Dotted paths that are legitimately null at freeze time (not P0 decisions).
-# registration.trial_ledger_id is assigned by run_registry; `signoff` is checked separately.
+# registration.trial_ledger_id is assigned by run_registry; `decision` is checked separately.
 _NON_P0_NULLABLE = frozenset({"registration.trial_ledger_id", "profile"})
 
 _ID_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_\-]{0,31}$")
@@ -57,12 +57,13 @@ class UnsetP0FieldsError(ValueError):
         )
 
 
-class SignoffMissingError(ValueError):
-    """Sign-off fields are absent. The freeze tool never fabricates them."""
+class DecisionRefError(ValueError):
+    """The meeting-decision reference is absent or not usable. The freeze tool never fabricates
+    one: every field comes from the recorded meeting minutes."""
 
-    def __init__(self, fields: Sequence[str]) -> None:
-        self.fields: tuple[str, ...] = tuple(fields)
-        super().__init__("sign-off field(s) missing: " + ", ".join(self.fields))
+    def __init__(self, problems: Sequence[str]) -> None:
+        self.problems: tuple[str, ...] = tuple(problems)
+        super().__init__("meeting-decision reference problem(s): " + "; ".join(self.problems))
 
 
 # --------------------------------------------------------------------------- helpers
@@ -473,23 +474,14 @@ class Diagnostics(_OpenFieldsModel):
 
 
 class Governance(_OpenFieldsModel):
-    economic_thesis_sha: str | None  # P0: D13
-    roles: OpenValue  # P0: D08
-    # D01: the owner's signed conclusion on exposure / holdout applicability. Content is the
-    # owner's record (who, when, which exposure-ledger sha256); the schema does not shape it.
+    # D01: the recorded conclusion on exposure / holdout applicability. Content is the
+    # meeting record's (which decision, which exposure-ledger sha256); the schema does not shape it.
     exposure_signed: OpenValue  # P0: D01
     # Round 4 (N1): the genesis id of the one run registry this spec may open runs in. Created by
     # RunRegistry.enroll_new and copied here by the owner BEFORE freezing; unset at draft, no
     # default. A canonical lowercase UUIDv4 string (uuid.uuid4()). Level 1: an identity marker
     # that binds a spec to a registry file's genesis row; it is NOT authentication.
     registry_genesis_id: str | None  # P0
-
-    @field_validator("economic_thesis_sha")
-    @classmethod
-    def _sha_ok(cls, v: str | None) -> str | None:
-        if v is not None and not _SHA_RE.fullmatch(v):
-            raise ValueError("must be a lowercase 64-hex sha256")
-        return v
 
     @field_validator("registry_genesis_id")
     @classmethod
@@ -499,19 +491,86 @@ class Governance(_OpenFieldsModel):
         return v
 
 
-class Signoff(_Model):
-    owner: str | None
-    trading_expert: str | None
-    independent_validator: str | None
-    date: date | None
+DECISION_VALUES = ("approved", "revise", "defer", "stop")
+DECISION_SCOPES = ("build", "run")
+_PARTITION_NAME_RE = re.compile(r"^[A-Z][A-Z0-9_]{0,63}$")
+
+
+def _repo_relative(value: str) -> str:
+    """A committed minutes file's repo-relative path: forward slashes, no absolute form, no
+    ``..`` or ``.`` segment, no empty segment, no drive letter."""
+    if not value.strip() or value != value.strip():
+        raise ValueError("minutes_path must be a non-blank, trimmed string")
+    if "\\" in value or value.startswith("/") or re.match(r"^[A-Za-z]:", value):
+        raise ValueError("minutes_path must be a repo-relative path with forward slashes")
+    if any(seg in ("", ".", "..") for seg in value.split("/")):
+        raise ValueError("minutes_path must not contain empty, '.' or '..' segments")
+    return value
+
+
+class DecisionRef(_Model):
+    """Reference to the weekly-meeting decision that covers this spec (pure data, no authority of
+    its own). The meeting minutes are the decision record; this block only POINTS at them and
+    binds the decision to an exact spec version by hash. It is held OUTSIDE the hashed payload
+    (as the block it replaced was): the decision attests TO the hash.
+
+    ``minutes_sha256`` is the SHA-256 of the committed minutes file's bytes; the guard re-reads the
+    file and compares. ``spec_sha256`` is filled by the freeze tool, never by hand: ``None`` only
+    in a draft. Only ``decision == "approved"`` authorizes anything, and a results run needs
+    ``"run"`` in ``scope`` and the requested partition in ``partitions``.
+    """
+
+    meeting_date: date
+    minutes_path: Annotated[str, AfterValidator(_repo_relative)]
+    minutes_sha256: str
+    decision: Literal["approved", "revise", "defer", "stop"]
+    scope: tuple[Literal["build", "run"], ...]
+    partitions: tuple[str, ...]
+    strategy_version: str
+    baseline_id: str
     spec_sha256: str | None
 
-    @field_validator("spec_sha256")
+    @field_validator("minutes_sha256", "spec_sha256")
     @classmethod
     def _sha_ok(cls, v: str | None) -> str | None:
         if v is not None and not _SHA_RE.fullmatch(v):
             raise ValueError("must be a lowercase 64-hex sha256")
         return v
+
+    @field_validator("strategy_version", "baseline_id")
+    @classmethod
+    def _non_blank(cls, v: str) -> str:
+        if not v.strip() or v != v.strip():
+            raise ValueError("must be a non-blank, trimmed string")
+        return v
+
+    @field_validator("scope")
+    @classmethod
+    def _scope_ok(cls, v: tuple[str, ...]) -> tuple[str, ...]:
+        if not v:
+            raise ValueError("scope must name at least one of 'build', 'run'")
+        if len(set(v)) != len(v):
+            raise ValueError("scope entries must be unique")
+        return v
+
+    @field_validator("partitions")
+    @classmethod
+    def _partitions_ok(cls, v: tuple[str, ...]) -> tuple[str, ...]:
+        if any(not _PARTITION_NAME_RE.fullmatch(p) for p in v):
+            raise ValueError("partition names must be upper-case identifiers such as 'HOLDOUT'")
+        if len(set(v)) != len(v):
+            raise ValueError("partition names must be unique")
+        return v
+
+    @model_validator(mode="after")
+    def _scope_partitions_consistent(self) -> DecisionRef:
+        if "run" in self.scope and not self.partitions:
+            raise ValueError("a decision whose scope includes 'run' must name its partitions")
+        if "run" not in self.scope and self.partitions:
+            raise ValueError(
+                "partitions may be named only by a decision whose scope includes 'run'"
+            )
+        return self
 
 
 # --------------------------------------------------------------------------- screen profile (A-SCREEN, O-8 B)
@@ -585,8 +644,6 @@ SCREEN_V1_EXEMPT = (
     "data.intraday_price_basis",
     "risk.per_trade_unit",
     "universe.category_map",
-    "governance.economic_thesis_sha",
-    "governance.roles",
     "p5.account_id",
     "p5.cost_ratio_contract",
     "p5.degradation_tolerance",
@@ -686,8 +743,6 @@ SCREEN_V2_REQUIRED = (
 #: v2 exempt = v1 exempt minus the hazard A/B/D fields that v2 requires, as a literal (an exact
 #: partition of the P0 set with SCREEN_V2_REQUIRED / _DEFERRED / _UNMODELLED; a test asserts both).
 SCREEN_V2_EXEMPT = (
-    "governance.economic_thesis_sha",
-    "governance.roles",
     "p5.account_id",
     "p5.cost_ratio_contract",
     "p5.degradation_tolerance",
@@ -754,7 +809,8 @@ class DraftSpec(_Model):
     p5: P5
     diagnostics: Diagnostics
     governance: Governance
-    signoff: Signoff
+    #: the meeting-decision reference; null = no decision recorded yet. Outside the hash.
+    decision: DecisionRef | None
     profile: ScreenProfileDecl | ScreenProfileDeclV2 | None = None
 
     @field_validator("spec_version", mode="before")
@@ -765,12 +821,12 @@ class DraftSpec(_Model):
         return v
 
     def hashable_payload(self) -> dict[str, Any]:
-        """The content the spec hash covers: everything except ``signoff``.
+        """The content the spec hash covers: everything except ``decision``.
 
-        Sign-off attests TO the hash, so it cannot be inside it.
+        The decision attests TO the hash, so it cannot be inside it.
         """
         payload = self.model_dump(mode="json")
-        payload.pop("signoff")
+        payload.pop("decision")
         if payload.get("profile") is None:  # the FULL profile: hash unchanged by this feature
             payload.pop("profile", None)
         return payload
@@ -785,18 +841,6 @@ class DraftSpec(_Model):
             )
             out = [path for path in out if path in required]
         return sorted(out)
-
-    def missing_signoff_fields(self) -> list[str]:
-        """Sign-off fields a human must supply. ``spec_sha256`` is excluded: the tool computes it."""
-        s = self.signoff
-        missing = [
-            f"signoff.{name}"
-            for name in ("owner", "trading_expert", "independent_validator")
-            if not (getattr(s, name) or "").strip()
-        ]
-        if s.date is None:
-            missing.append("signoff.date")
-        return missing
 
 
 def _is_blank(value: Any) -> bool:
@@ -816,7 +860,7 @@ def _walk_unset(node: dict[str, Any], path: str, out: list[str]) -> None:
     structurally elsewhere and not walked; dicts inside open P0 values are."""
     for key, value in node.items():
         child = f"{path}.{key}" if path else key
-        if child == "signoff" or child in _NON_P0_NULLABLE:
+        if child == "decision" or child in _NON_P0_NULLABLE:
             continue
         if isinstance(value, dict) and value:
             _walk_unset(value, child, out)
@@ -974,29 +1018,24 @@ def draft_skeleton() -> dict[str, Any]:
         },
         "diagnostics": {"taxonomy": None},
         "governance": {
-            "economic_thesis_sha": None,
-            "roles": None,
             "exposure_signed": None,
             "registry_genesis_id": None,
         },
-        "signoff": {
-            "owner": None,
-            "trading_expert": None,
-            "independent_validator": None,
-            "date": None,
-            "spec_sha256": None,
-        },
+        "decision": None,
     }
 
 
 __all__ = [
     "EXIT_FAMILIES",
     "MAX_EXIT_CANDIDATES",
+    "DECISION_SCOPES",
+    "DECISION_VALUES",
+    "DecisionRef",
+    "DecisionRefError",
     "DraftSpec",
     "ExitCandidate",
     "ExitSelection",
     "FrozenSpec",
-    "SignoffMissingError",
     "UnsetP0FieldsError",
     "draft_skeleton",
     "validate_partition_layout",

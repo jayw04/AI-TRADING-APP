@@ -5,13 +5,16 @@ ADR), parsed and hashed with the same rules as the frozen spec: duplicate keys a
 refused, and ``sha256`` is the digest of the *canonical* JSON, so re-indenting the file does not
 change it. This module is only the *mechanism*. The real ``exposure_ledger.json`` contents
 (RNG-001 window, the entry study, AI-session contact audit) are authored by the
-owner audit and signed under D01; nothing here fabricates or defaults them.
+owner audit and recorded in the meeting minutes under D01; nothing here fabricates or
+defaults them.
 
 File schema (every key required, unknown keys rejected, nothing defaulted; dates are
 ISO strings)::
 
     {"schema_version": 1,
-     "signoff": null | {"signed_by": <str>, "signed_on": "YYYY-MM-DD"},
+     "decision": null | {"meeting_date": "YYYY-MM-DD",
+                         "minutes_path": <repo-relative str>,   # the committed minutes file
+                         "minutes_sha256": <64 lowercase hex>}, # SHA-256 of that file's bytes
      "entries": [{"id": <unique str>,
                   "start": "YYYY-MM-DD",       # inclusive
                   "end": "YYYY-MM-DD",         # inclusive
@@ -19,12 +22,14 @@ ISO strings)::
                   "source": <str>,             # what exposed the data
                   "observed_by": <str>}]}      # who / which agent session saw it
 
-A ledger with ``signoff: null`` loads (so a draft can be inspected) but
-``require_signed()`` -- which the results guard calls -- refuses it.
+A ledger with ``decision: null`` loads (so a draft can be inspected) but
+``require_decision()`` -- which the results guard calls, and which the guard follows with a
+re-hash of the cited minutes file -- refuses it.
 """
 
 from __future__ import annotations
 
+import re
 from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import date
@@ -32,16 +37,17 @@ from pathlib import Path
 from typing import Any, final
 
 from app.research.range002.governance.errors import (
+    ExposureLedgerDecisionMissingError,
     ExposureLedgerError,
-    ExposureLedgerNotSignedError,
 )
 from app.research.range002.governance.model import DateRange
 from app.research.range002.spec.hashing import CanonicalisationError, content_sha256, loads_strict
 
 SCHEMA_VERSION = 1
-_TOP_KEYS = frozenset({"schema_version", "signoff", "entries"})
+_TOP_KEYS = frozenset({"schema_version", "decision", "entries"})
 _ENTRY_KEYS = frozenset({"id", "start", "end", "description", "source", "observed_by"})
-_SIGNOFF_KEYS = frozenset({"signed_by", "signed_on"})
+_DECISION_KEYS = frozenset({"meeting_date", "minutes_path", "minutes_sha256"})
+_HEX64 = re.compile(r"^[0-9a-f]{64}$")
 
 
 @dataclass(frozen=True)
@@ -87,9 +93,9 @@ class ExposureLedger:
 
     Constructible only through :meth:`from_bytes` / :meth:`from_text` / :meth:`from_file`
     (the constructor demands a module-private token), so a ledger object always carries a
-    ``sha256`` computed from the content it was parsed from; a hand-made "signed" ledger
-    with a copied sha cannot be built through the public API. "Signed" means only that the
-    ``signoff`` block is present and well-formed -- nothing here verifies who signed it.
+    ``sha256`` computed from the content it was parsed from; a hand-made ledger with a copied
+    sha cannot be built through the public API. "Has a decision" means only that the
+    ``decision`` block is present and well-formed; the guard re-hashes the minutes file it cites.
     Reaching the token (a module-private name) is code execution, outside the threat model.
 
     Directory links: governance directories that are symlinks/junctions are followed; no path
@@ -98,17 +104,17 @@ class ExposureLedger:
     content that was read.
     """
 
-    __slots__ = ("_entries", "_sha256", "_signoff")
+    __slots__ = ("_decision", "_entries", "_sha256")
 
     _entries: tuple[ExposureEntry, ...]
-    _signoff: dict[str, str] | None
+    _decision: dict[str, str] | None
     _sha256: str
 
     def __init__(
         self,
         token: object,
         entries: tuple[ExposureEntry, ...],
-        signoff: Mapping[str, str] | None,
+        decision: Mapping[str, str] | None,
         sha256: str,
     ) -> None:
         if token is not _CONSTRUCT:
@@ -117,7 +123,7 @@ class ExposureLedger:
                 "from_file"
             )
         object.__setattr__(self, "_entries", entries)
-        object.__setattr__(self, "_signoff", dict(signoff) if signoff is not None else None)
+        object.__setattr__(self, "_decision", dict(decision) if decision is not None else None)
         object.__setattr__(self, "_sha256", sha256)
 
     def __setattr__(self, name: str, value: object) -> None:
@@ -152,15 +158,30 @@ class ExposureLedger:
                 f"schema_version {doc['schema_version']!r} unsupported; expected {SCHEMA_VERSION}"
             )
 
-        signoff: dict[str, str] | None = None
-        raw_signoff = doc["signoff"]
-        if raw_signoff is not None:
-            if not isinstance(raw_signoff, dict):
-                raise ExposureLedgerError("signoff must be null or a mapping")
-            _check_keys(raw_signoff, _SIGNOFF_KEYS, "signoff")
-            signoff = {
-                "signed_by": _req_str(raw_signoff, "signed_by", "signoff"),
-                "signed_on": _as_date(raw_signoff["signed_on"], "signoff.signed_on").isoformat(),
+        decision: dict[str, str] | None = None
+        raw_decision = doc["decision"]
+        if raw_decision is not None:
+            if not isinstance(raw_decision, dict):
+                raise ExposureLedgerError("decision must be null or a mapping")
+            _check_keys(raw_decision, _DECISION_KEYS, "decision")
+            path = _req_str(raw_decision, "minutes_path", "decision")
+            if (
+                path != path.strip()
+                or "\\" in path
+                or path.startswith("/")
+                or (len(path) > 1 and path[1] == ":")
+                or any(seg in ("", ".", "..") for seg in path.split("/"))
+            ):
+                raise ExposureLedgerError("decision.minutes_path must be a repo-relative path")
+            sha = _req_str(raw_decision, "minutes_sha256", "decision")
+            if not _HEX64.fullmatch(sha):
+                raise ExposureLedgerError("decision.minutes_sha256 must be 64 lowercase hex")
+            decision = {
+                "meeting_date": _as_date(
+                    raw_decision["meeting_date"], "decision.meeting_date"
+                ).isoformat(),
+                "minutes_path": path,
+                "minutes_sha256": sha,
             }
 
         raw_entries = doc["entries"]
@@ -192,7 +213,7 @@ class ExposureLedger:
                     observed_by=_req_str(item, "observed_by", where),
                 )
             )
-        return cls(_CONSTRUCT, tuple(entries), signoff, content_sha256(doc))
+        return cls(_CONSTRUCT, tuple(entries), decision, content_sha256(doc))
 
     # --- queries ------------------------------------------------------------
 
@@ -205,15 +226,19 @@ class ExposureLedger:
         return self._sha256
 
     @property
-    def is_signed(self) -> bool:
-        return self._signoff is not None
+    def has_decision(self) -> bool:
+        return self._decision is not None
 
-    def require_signed(self) -> None:
-        if not self.is_signed:
-            raise ExposureLedgerNotSignedError(
-                "exposure ledger has no sign-off (WP0.6 audit / D01); the results guard "
-                "will not consume an unsigned ledger"
+    def require_decision(self) -> Mapping[str, str]:
+        """The cited decision record ``{meeting_date, minutes_path, minutes_sha256}``, or raise.
+
+        Presence only: the results guard re-hashes the cited minutes file."""
+        if self._decision is None:
+            raise ExposureLedgerDecisionMissingError(
+                "exposure ledger cites no meeting decision (WP0.6 audit / D01); the results "
+                "guard will not consume a ledger the minutes do not cover"
             )
+        return dict(self._decision)
 
     def overlaps(self, window: DateRange) -> tuple[ExposureEntry, ...]:
         """Entries whose window intersects ``window`` (inclusive on both ends)."""

@@ -42,7 +42,7 @@ from app.research.range002.screen.types import SessionBars
 from app.research.range002.spec.loader import load_frozen, parse_draft
 from app.research.range002.spec.schema import SCREEN_V1_EXEMPT, SCREEN_V1_REQUIRED_SHA256
 from tests.research.range002.governance.conftest import (  # noqa: F401  (autouse manifest seam)
-    SIGNED_LEDGER,
+    DECIDED_LEDGER,
     new_registry,
     open_run,
     synthetic_manifest,
@@ -109,7 +109,7 @@ def test_screen_profile_p3a_flow_end_to_end(tmp_path: Path) -> None:
         partition=Partition.DEVELOPMENT_SELECTION,
         run_id=run_id,
         registry=registry,
-        exposure_ledger=ExposureLedger.from_text(SIGNED_LEDGER),
+        exposure_ledger=ExposureLedger.from_text(DECIDED_LEDGER),
     )
     assert cap.profile == "screen" and cap.citable is True  # type: ignore[attr-defined]
     params = extract_params(cap, parse_draft(payload))

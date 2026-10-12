@@ -16,7 +16,7 @@ from app.research.range002.spec.loader import (
     load_frozen,
 )
 
-from ._fixtures import SYNTH_MANIFEST_PATH, complete_payload, set_path
+from ._fixtures import SYNTH_MANIFEST_PATH, complete_payload, decision_block, set_path
 
 BACKEND_DIR = Path(__file__).resolve().parents[4]
 CLI_SCRIPT = BACKEND_DIR / "scripts" / "research" / "range002" / "freeze_spec.py"
@@ -71,12 +71,12 @@ def _freeze(tmp_path, payload=None) -> Path:
     return out
 
 
-def test_freeze_complete_signed_draft_round_trips(tmp_path, capsys):
+def test_freeze_complete_decided_draft_round_trips(tmp_path, capsys):
     out = _freeze(tmp_path)
     view = load_frozen(out)
-    assert view.is_signed and view.unusable_reasons == ()
+    assert view.has_run_decision and view.unusable_reasons == ()
     written = json.loads(out.read_text(encoding="utf-8"))
-    assert written["signoff"]["spec_sha256"] == view.spec_sha256
+    assert written["decision"]["spec_sha256"] == view.spec_sha256
     assert f"spec_sha256={view.spec_sha256}" in capsys.readouterr().out
 
 
@@ -91,29 +91,70 @@ def test_freeze_refuses_when_p0_fields_unset_and_names_them(tmp_path, capsys):
     assert "gates.win_rate" in err and "exits.selection.score" in err
 
 
-@pytest.mark.parametrize("field", ["owner", "trading_expert", "independent_validator", "date"])
-def test_freeze_refuses_without_signoff_and_never_fabricates_one(tmp_path, capsys, field):
-    payload = complete_payload()
-    payload["signoff"][field] = None
+def test_freeze_refuses_without_a_decision_and_never_fabricates_one(tmp_path, capsys):
+    payload = complete_payload(decided=False)
     out = tmp_path / "frozen.json"
     rc = cli.main([str(_write(tmp_path / "d.json", payload)), "--out", str(out)])
     assert rc == 2 and not out.exists()
-    assert f"signoff.{field}" in capsys.readouterr().err
+    assert "decision" in capsys.readouterr().err
 
 
-def test_freeze_refuses_blank_signoff_names(tmp_path):
+@pytest.mark.parametrize("outcome", ["revise", "defer", "stop"])
+def test_freeze_refuses_a_decision_that_is_not_approved(tmp_path, capsys, outcome):
     payload = complete_payload()
-    payload["signoff"]["owner"] = "   "
+    payload["decision"]["decision"] = outcome
     out = tmp_path / "frozen.json"
-    assert cli.main([str(_write(tmp_path / "d.json", payload)), "--out", str(out)]) == 2
+    rc = cli.main([str(_write(tmp_path / "d.json", payload)), "--out", str(out)])
+    assert rc == 2 and not out.exists()
+    assert "approved" in capsys.readouterr().err
+
+
+def test_freeze_refuses_a_decision_without_run_scope(tmp_path, capsys):
+    payload = complete_payload()
+    payload["decision"] = decision_block(scope=["build"], partitions=[])
+    out = tmp_path / "frozen.json"
+    rc = cli.main([str(_write(tmp_path / "d.json", payload)), "--out", str(out)])
+    assert rc == 2 and not out.exists()
+    assert "run" in capsys.readouterr().err
+
+
+def test_freeze_refuses_minutes_file_that_does_not_exist(tmp_path, capsys):
+    payload = complete_payload()
+    payload["decision"]["minutes_path"] = "minutes/absent.md"
+    out = tmp_path / "frozen.json"
+    rc = cli.main([str(_write(tmp_path / "d.json", payload)), "--out", str(out)])
+    assert rc == 2 and not out.exists()
+    assert "does not exist" in capsys.readouterr().err
+
+
+def test_freeze_refuses_minutes_hash_mismatch(tmp_path, capsys):
+    payload = complete_payload()
+    payload["decision"]["minutes_sha256"] = "0" * 64
+    out = tmp_path / "frozen.json"
+    rc = cli.main([str(_write(tmp_path / "d.json", payload)), "--out", str(out)])
+    assert rc == 2 and not out.exists()
+    assert "changed after the decision" in capsys.readouterr().err
 
 
 def test_freeze_refuses_stale_preset_hash(tmp_path, capsys):
     payload = complete_payload()
-    payload["signoff"]["spec_sha256"] = "0" * 64
+    payload["decision"]["spec_sha256"] = "0" * 64
     out = tmp_path / "frozen.json"
     assert cli.main([str(_write(tmp_path / "d.json", payload)), "--out", str(out)]) == 2
-    assert "signoff.spec_sha256" in capsys.readouterr().err
+    assert "decision.spec_sha256" in capsys.readouterr().err
+
+
+def test_freeze_accepts_a_correct_preset_hash_and_fills_nothing_else(tmp_path):
+    from app.research.range002.spec.loader import load_draft, spec_sha256
+
+    draft = _write(tmp_path / "d.json", complete_payload())
+    digest = spec_sha256(load_draft(draft))
+    payload = complete_payload()
+    payload["decision"]["spec_sha256"] = digest
+    out = tmp_path / "frozen.json"
+    assert cli.main([str(_write(tmp_path / "d2.json", payload)), "--out", str(out)]) == 0
+    written = json.loads(out.read_text(encoding="utf-8"))["decision"]
+    assert written == {**complete_payload()["decision"], "spec_sha256": digest}
 
 
 def test_freeze_never_overwrites_an_existing_frozen_file(tmp_path):
@@ -140,23 +181,32 @@ def test_duplicate_json_keys_refused(tmp_path):
     assert cli.main([str(p), "--out", str(tmp_path / "f.json")]) == 2
 
 
-def test_frozen_spec_with_empty_signoff_is_flagged_unusable(tmp_path):
+def test_frozen_spec_with_no_decision_is_flagged_unusable(tmp_path):
     # Cannot be produced by the tool; hand-built to prove the loader still refuses to trust it.
-    hand = _write(tmp_path / "hand.json", complete_payload(signed=False))
+    hand = _write(tmp_path / "hand.json", complete_payload(decided=False))
     view = load_frozen(hand)
-    assert view.is_signed is False
-    assert "signoff.owner missing" in view.unusable_reasons
-    assert "signoff.spec_sha256 missing" in view.unusable_reasons
+    assert view.has_run_decision is False
+    assert view.unusable_reasons == ("decision missing",)
+    assert view.decision is None and view.minutes_path is None
     assert cli.main(["--verify", str(hand)]) == 2
 
 
-def test_frozen_spec_with_hash_but_no_names_is_unusable(tmp_path):
+def test_frozen_spec_with_decision_but_no_bound_hash_is_unusable(tmp_path):
+    hand = _write(tmp_path / "hand.json", complete_payload())  # spec_sha256 not filled in
+    view = load_frozen(hand)
+    assert view.has_run_decision is False
+    assert view.unusable_reasons == ("decision.spec_sha256 missing",)
+
+
+def test_decision_edited_after_freeze_to_not_approved_is_unusable(tmp_path):
     out = _freeze(tmp_path)
     data = json.loads(out.read_text(encoding="utf-8"))
-    data["signoff"]["owner"] = None
+    data["decision"]["decision"] = "stop"
     out.write_text(json.dumps(data), encoding="utf-8")
-    view = load_frozen(out)  # signoff is outside the hash, so it loads, but unsigned
-    assert view.is_signed is False and "signoff.owner missing" in view.unusable_reasons
+    view = load_frozen(out)  # the decision block is outside the hash, so it loads, but unusable
+    assert view.has_run_decision is False and view.decision == "stop"
+    assert any("not 'approved'" in r for r in view.unusable_reasons)
+    assert cli.main(["--verify", str(out)]) == 2
 
 
 def test_editing_a_frozen_file_changes_the_hash_and_loader_refuses(tmp_path):
@@ -228,6 +278,6 @@ def test_spec_view_shape(tmp_path):
     assert view.exits_selection is not None and view.exits_selection["score"] == "synthetic_score"
     assert len(view.spec_sha256) == 64
     with pytest.raises(AttributeError):
-        view.is_signed = False  # type: ignore[misc]
+        view.has_run_decision = False  # type: ignore[misc]
     with pytest.raises(TypeError):
         view.partitions["holdout"] = (date(2000, 1, 1), date(2000, 1, 2))  # type: ignore[index]

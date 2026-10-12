@@ -46,9 +46,9 @@ from tests.research.range002.spec._fixtures import (
 
 from .conftest import (
     CODE_SHA,
+    DECIDED_LEDGER,
     LEDGER_SHA,
     MANIFEST_SHA,
-    SIGNED_LEDGER,
     SPEC_SHA,
     _default_guard_fields,
     complete_prereqs,
@@ -58,7 +58,7 @@ from .conftest import (
     use_manifest,
 )
 
-LEDGER = ExposureLedger.from_text(SIGNED_LEDGER)
+LEDGER = ExposureLedger.from_text(DECIDED_LEDGER)
 P3A, SEL = Phase.P3A, Partition.DEVELOPMENT_SELECTION
 OTHER_SPEC = "8" * 64
 

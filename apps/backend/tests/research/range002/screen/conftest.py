@@ -24,8 +24,8 @@ from app.research.range002.screen.params import extract_params
 from app.research.range002.screen.types import Bar, ScreenParams, SessionBars
 from app.research.range002.spec.loader import load_frozen, parse_draft
 from tests.research.range002.governance.conftest import (  # noqa: F401  (autouse manifest seam)
+    DECIDED_LEDGER,
     LEDGER_SHA,
-    SIGNED_LEDGER,
     new_registry,
     open_run,
     synthetic_manifest,
@@ -51,7 +51,7 @@ CANDIDATES = [
 
 
 def synth_payload(**overrides: Any) -> dict[str, Any]:
-    payload = complete_payload(signed=True)
+    payload = complete_payload(decided=True)
     set_path(payload, "exits.candidates", copy.deepcopy(CANDIDATES))
     set_path(payload, "signal.or_completeness_rule", 0)
     set_path(payload, "fill.halt_policy", "UNEXECUTABLE_DURING_UNAVAILABLE")
@@ -75,7 +75,7 @@ def make_capability(tmp: Path, payload: dict[str, Any]) -> tuple[object, ScreenP
         partition=Partition.REPLAY_RNG001,
         run_id=run_id,
         registry=registry,
-        exposure_ledger=ExposureLedger.from_text(SIGNED_LEDGER),
+        exposure_ledger=ExposureLedger.from_text(DECIDED_LEDGER),
         requested_range=REPLAY_RANGE,
     )
     return cap, None

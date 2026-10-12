@@ -74,6 +74,7 @@ REVIEWED_PURE: tuple[str, ...] = (
     f"{PKG}.spec.hashing:content_sha256",
     f"{PKG}.spec.hashing:file_sha256",
     f"{PKG}.spec.hashing:loads_strict",
+    f"{PKG}.spec.decision:check_minutes_file",  # re-hashes the cited minutes file; grants nothing
     f"{PKG}.spec.loader:parse_draft",
     f"{PKG}.spec.loader:load_draft",
     f"{PKG}.spec.loader:spec_sha256",
@@ -87,7 +88,6 @@ REVIEWED_PURE: tuple[str, ...] = (
     f"{PKG}.spec.schema:draft_skeleton",
     f"{PKG}.spec.schema:DraftSpec.hashable_payload",
     f"{PKG}.spec.schema:DraftSpec.unset_p0_fields",
-    f"{PKG}.spec.schema:DraftSpec.missing_signoff_fields",
     f"{PKG}.spec.schema:FrozenSpec.from_draft",
     f"{PKG}.screen.coverage:presence_from_minutes",  # return-blind presence facts only
     f"{PKG}.screen.coverage:coverage_report",  # return-blind counts only
@@ -126,6 +126,10 @@ REVIEWED_PURE_IO: tuple[str, ...] = (
     # I/O performed: opens the ONE file whose path it is given, read-only and streamed, to hash
     # its bytes. No writes; nothing else is touched.
     f"{PKG}.spec.hashing:file_sha256",
+    # I/O performed: resolves ONE repo-relative minutes path (refusing absolute, '..' and links
+    # that leave the root), checks it is a regular file and hashes it via file_sha256. Read-only;
+    # nothing else is opened, written, listed or deleted; no data, no network.
+    f"{PKG}.spec.decision:check_minutes_file",
 )
 
 #: Attribute calls treated as file I/O by the lint (direct calls in the function body only; I/O

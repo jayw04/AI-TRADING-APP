@@ -121,3 +121,91 @@ Every v2-profile spec hash changes, because the v2 declaration pins the required
 
 ### H.6 Authorization timeline (no backdating)
 The `schema.py` edits on this branch were made **before** the owner's exception was stated. The exception, once adopted, authorizes **continued work on this isolated branch only**; it does not authorize push, merge or market-data execution. The adoption record is **PENDING**; the date of any adoption is the date of that record, not an earlier date.
+
+
+## I. Meeting-decision migration (round 6)
+
+**Authority.** Owner direction, Jay Wang, 2026-10-12 (weekly-meeting workflow revision; see the A-SCREEN amendment v0.2, section "Implementation migration"): the meeting minutes are the decision and approval record. Role appointments, rosters, signature strings, countersignatures, ceremonies, witnesses, eligibility verifiers and signing infrastructure are not prerequisites, and no placeholder signer may be used to satisfy old code. **No decision is created by this migration, no performance result is created, and no formal P0 approval is inferred.** Branch `feat/range002-meeting-decision-migration`, stacked on the hazard branch; it does not alter PR #755.
+
+### I.1 The `DecisionRef` block (`spec/schema.py`, held OUTSIDE the hashed payload exactly as `signoff` was)
+
+`DraftSpec.decision: DecisionRef | None` is a **required key**; an explicit `null` means "no decision recorded yet" (no default anywhere). `DecisionRef` is pure data (`extra=forbid`, strict, frozen, no defaults).
+
+| Field | Type | Rule |
+|---|---|---|
+| `meeting_date` | ISO date | the meeting at which the decision was recorded; a future date is refused by the freeze tool |
+| `minutes_path` | str | repo-relative, forward slashes, non-blank, trimmed; no absolute form, drive letter, backslash, `..`, `.` or empty segment |
+| `minutes_sha256` | 64 lowercase hex | SHA-256 of the committed bytes of the minutes file |
+| `decision` | `approved` / `revise` / `defer` / `stop` | only `approved` authorizes anything |
+| `scope` | non-empty, unique tuple of `build` / `run` | results require `run` |
+| `partitions` | tuple of upper-case partition names | must be non-empty when `scope` contains `run`; must be empty when it does not |
+| `strategy_version` | non-blank trimmed str | carried to the guard view; no value is defaulted |
+| `baseline_id` | non-blank trimmed str | carried to the guard view; no value is defaulted |
+| `spec_sha256` | 64 lowercase hex or `null` | the recorded hash of this spec; written only by the freeze tool; `null` only in a draft, and a spec whose decision has no recorded hash is unusable |
+
+Binding: the loader recomputes the spec hash and raises `SpecHashMismatchError` if `decision.spec_sha256` differs, so a spec edited after the decision, or a decision recorded for another spec version, never loads.
+
+### I.2 What was removed
+
+* `Signoff` model, `DraftSpec.signoff`, `DraftSpec.missing_signoff_fields`, `SignoffMissingError` (replaced by `DecisionRefError`).
+* `Governance.roles` and `Governance.economic_thesis_sha`, their validator, skeleton entries, and their entries in `SCREEN_V1_EXEMPT` and `SCREEN_V2_EXEMPT`. (Both were exempt in v1 and v2, so neither required-list digest is affected.) `governance.exposure_signed` is **kept**: it is the spec-side binding to the exposure ledger's SHA-256, not a role or signature field.
+* `SpecView.is_signed` / `GuardSpecView.is_signed` / `FrozenSpecView.is_signed` (now `has_run_decision`, with the decision fields carried).
+* Errors `SpecNotSignedError` and `ExposureLedgerNotSignedError` (not raised any more).
+* Exposure ledger: the `signoff {signed_by, signed_on}` block, `is_signed`, `require_signed`.
+* freeze tool: the owner / trading_expert / independent_validator / date checks.
+
+New typed refusals (`governance/errors.py`): `DecisionError` (base), `DecisionMissingError`, `DecisionNotApprovedError`, `DecisionScopeError`, `DecisionPartitionError`, `DecisionMinutesMismatchError`, `DecisionMinutesMissingError`, `ExposureLedgerDecisionMissingError`.
+
+### I.3 Guard behaviour (everything else unchanged)
+
+| Step | Check | Refusal |
+|---|---|---|
+| (a) | decision present | `DecisionMissingError` |
+| (a) | `decision == "approved"` exactly | `DecisionNotApprovedError` |
+| (a) | `"run"` in scope | `DecisionScopeError` |
+| (a) | `has_run_decision` is `True` (recorded hash bound by the loader); `minutes_path`, `minutes_sha256`, `strategy_version`, `baseline_id` present | `DecisionMissingError` |
+| (b3), after the closed-partition, profile and P5 refusals | requested partition among `decision.partitions` | `DecisionPartitionError` |
+| (b3) | minutes file exists under the root and its SHA-256 equals `minutes_sha256` | `DecisionMinutesMissingError` / `DecisionMinutesMismatchError` |
+| (c), where `require_signed` stood | exposure ledger carries a `decision`; its minutes file is checked the same way | `ExposureLedgerDecisionMissingError` / `DecisionMinutesMissingError` / `DecisionMinutesMismatchError` |
+
+Unchanged and covered by their existing tests: capability issuance and revocation, partitions and ranges, manifest attempt limits, exposure overlap and binding, genesis checks, holdout token, phase order, replay range checks, screen-profile pairs. Test seam: `spec/decision.py::_MINUTES_ROOT` (`None` = the repository root; production never sets it).
+
+### I.4 Changed digests (full values)
+
+| Item | Before | After |
+|---|---|---|
+| `SCREEN_V1_REQUIRED_SHA256` | `fa3ed823e6764886d905d5d648bd346abf7bffcae87362b8e477397e876f2355` | unchanged |
+| `SCREEN_V2_REQUIRED_SHA256` | `16f904a3094b375f32792201efb6fc6a40eb22ea46c9e26caeb978318ff96899` | unchanged |
+| `SCREEN_V2_UNMODELLED_SHA256` | `0298fe82ad0374a5139a0d739f49188081bf358a283edcb142c2b180725efb2c` | unchanged |
+| Synthetic full-profile spec hash (`complete_payload()`) | `cfc35ebf74a123619b5209fdbd301d990fa9fabe5e7585cdc10a6ff556d907a9` | `cc432a0ba5cbdd202ae7bd5ba17298f02e39b7d0b9cf52cbdbe9b6c909801ab5` |
+| Synthetic screen-v1 spec hash | `f80805b073579efc2f4504014c5a55cd17cf2779e108a96dab31027b76e552da` | `1937c96611f8138fc70bb8427620a7ecfa9340a1aa316d91933b2c3dd682aadb` |
+| Synthetic screen-v2 spec hash | `7333607e000241cc990855ac417794dcfc5387a686be2fbfceadfcdae6eda35d` | `4f0b9d290a8b0e3f9c401ccedaef81722e1708cd295063a038393cd6bfbeceed` |
+
+The three synthetic hashes are of the test fixture payload (illustrative; they change only because the two removed governance keys left the hashed payload). **Every real spec hash changes for the same reason**; no frozen real spec exists, and none recorded before this migration may be treated as approval of the migrated baseline. The `decision` block is outside the hash, so recording or changing a decision never moves a spec hash.
+
+### I.5 Minutes-file convention
+
+The minutes may be **any committed file** (Markdown is natural). The decision cites it by repo-relative path and by the SHA-256 of its bytes as committed; the guard and the freeze tool re-read the file and compare, so editing the minutes after the decision is recorded (including to add or change a decision line) makes every later run refuse until a new decision is recorded. Keep the minutes file byte-stable (LF endings; do not let a tool re-wrap it). The reference does not authenticate who wrote the minutes; it binds the run to the exact record that was made.
+
+Compact template (one short record per meeting item, owner's format):
+
+```
+# Weekly meeting minutes - YYYY-MM-DD
+Attendees: <names>
+Issue: <what is being decided; strategy / spec / baseline reference>
+Decision: approved | revise | defer | stop
+Scope or version: build | run (partitions: ...) ; strategy_version ; baseline_id
+References: <test / code / data references, spec hash if known>
+Objections and unresolved questions: <recorded verbatim, or "none stated">
+Next action: <task, contact for coordination only>
+```
+
+Do not infer a decision from attendance or silence. Build, data fetching, research runs and broker activation are separate scopes and are recorded plainly.
+
+### I.6 Tests
+
+Removed (role/signature semantics only, no analogue): `test_freeze_refuses_without_signoff_and_never_fabricates_one[owner|trading_expert|independent_validator|date]` (4 parametrized cases, replaced by `test_freeze_refuses_without_a_decision_and_never_fabricates_one`), `test_freeze_refuses_blank_signoff_names`, `test_frozen_spec_with_hash_but_no_names_is_unusable` (replaced by `test_decision_edited_after_freeze_to_not_approved_is_unusable`), and the parametrized `test_unsigned_spec_refused` (converted to `test_spec_without_run_decision_flag_refused`).
+
+Converted (renamed or rewritten to the decision block): `test_loads_decided_ledger`, `test_undecided_loads_but_require_decision_refuses`, `test_spec_without_run_decision_flag_refused`, `test_exposure_ledger_without_decision_refused`, `test_replay_still_requires_registry_row_and_run_decision`, `test_h3_a_different_decided_ledger_is_refused_even_if_well_formed`, `test_missing_decision_still_refused`, `test_exposure_ledger_without_decision_still_refused_for_screen_p3a`, `test_decided_spec_authorizes_p3a_and_registry_binds_same_hash`, `test_spec_without_decision_loads_but_is_refused_by_guard`, `test_freeze_complete_decided_draft_round_trips`, `test_frozen_spec_with_no_decision_is_flagged_unusable`, `test_future_meeting_date_refused`, `test_today_meeting_date_accepted`, `test_decision_is_not_part_of_the_hash`, `test_freeze_removes_the_file_when_the_round_trip_has_no_run_decision`. Fixture-only conversions: `tests/research/range002/spec/_fixtures.py` (`complete_payload`, `decision_block`, synthetic minutes file under a temp directory), `governance/conftest.py`, `screen/conftest.py`, and the ledger literals in the governance tests. The reviewed import-lint list drops `DraftSpec.missing_signoff_fields` and adds `spec.decision:check_minutes_file` (reviewed pure, file-reading entry; `test_nf6_io_allowlist_is_minimal_and_explicit` is updated to pin it).
+
+New: approved + run + partition accepted (existing happy paths); each of `revise` / `defer` / `stop` refused (guard, loader, freeze); build-only scope refused for results; partition not covered refused; minutes file missing, hash mismatch and edited-after-decision refused; path-escape forms refused; spec edited after the decision refused at load; decision recorded for another spec hash refused at load; ledger decision missing, minutes missing and minutes hash mismatch refused; `DecisionRef` field validation; a source test that no `signoff`, `economic_thesis`, `trading_expert` or `independent_validator` identifier remains in `app/research/range002` or the freeze tool.

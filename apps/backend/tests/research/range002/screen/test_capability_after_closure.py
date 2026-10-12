@@ -25,7 +25,7 @@ from app.research.range002.governance.model import Partition, Phase
 from app.research.range002.governance.results_guard import authorize, require_capability
 from app.research.range002.governance.run_registry import RunStatus
 from tests.research.range002.governance.conftest import (  # noqa: F401  (autouse manifest seam)
-    SIGNED_LEDGER,
+    DECIDED_LEDGER,
     new_registry,
     open_run,
     synthetic_manifest,
@@ -91,7 +91,7 @@ def closed_and_open(tmp_path: Path):  # type: ignore[no-untyped-def]
     run_id = open_run(registry, Phase.P2, Partition.REPLAY_RNG001, view.spec_sha256)
     cap = authorize(
         spec=view, phase=Phase.P2, partition=Partition.REPLAY_RNG001, run_id=run_id,
-        registry=registry, exposure_ledger=ExposureLedger.from_text(SIGNED_LEDGER),
+        registry=registry, exposure_ledger=ExposureLedger.from_text(DECIDED_LEDGER),
         requested_range=REPLAY_RANGE,
     )  # fmt: skip
     require_capability(cap)  # live before closure

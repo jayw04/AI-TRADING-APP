@@ -4,7 +4,7 @@ Specs reach the guard through the SAME path as production: a synthetic frozen fi
 by ``freeze_spec.freeze`` and loaded by ``load_frozen`` (the only minter of a trusted
 ``SpecView``), then ``to_guard_view``. ``forge_guard_view`` is a test-only escape hatch that
 uses the adapter's private token; it exists solely to exercise the guard's defensive branches
-(a malformed sha, an unset D17/D19 field, odd ``is_signed`` values, a different spec hash) that
+(a malformed sha, an unset D17/D19 field, odd ``has_run_decision`` values, a different spec hash) that
 the real load path cannot produce here. Production code has no equivalent.
 """
 
@@ -34,12 +34,15 @@ from app.research.range002.governance.spec_adapter import GuardSpecView, to_guar
 from app.research.range002.spec.loader import SpecSchemaError, SpecView, load_frozen
 from app.research.range002.spec.schema import UnsetP0FieldsError
 from tests.research.range002.spec._fixtures import (
+    MINUTES_RELPATH,
+    MINUTES_SHA256,
     SYNTH_GENESIS_ID,
     SYNTH_MANIFEST_PATH,
     SYNTH_P3A_LIMIT,
     SYNTH_P3B_LIMIT,
     complete_payload,
     set_path,
+    synthetic_minutes_root,
 )
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[4] / "scripts" / "research" / "range002"))
@@ -53,7 +56,11 @@ DEFAULT_CONFIRMATION = DateRange(*[date.fromisoformat(d) for d in ("2020-01-01",
 
 _LEDGER_DOC = {
     "schema_version": 1,
-    "signoff": {"signed_by": "synthetic-owner", "signed_on": "2026-10-01"},
+    "decision": {
+        "meeting_date": "2000-01-01",
+        "minutes_path": MINUTES_RELPATH,
+        "minutes_sha256": MINUTES_SHA256,
+    },
     "entries": [
         {
             "id": "syn-rng001-window",
@@ -65,10 +72,12 @@ _LEDGER_DOC = {
         }
     ],
 }
-SIGNED_LEDGER = json.dumps(_LEDGER_DOC, indent=2)
-UNSIGNED_LEDGER = json.dumps({**_LEDGER_DOC, "signoff": None}, indent=2)
+DECIDED_LEDGER = json.dumps(_LEDGER_DOC, indent=2)
+#: the ledger's decision block as JSON text, for tests that build small ledger documents inline
+LEDGER_DECISION_JSON = json.dumps(_LEDGER_DOC["decision"])
+UNDECIDED_LEDGER = json.dumps({**_LEDGER_DOC, "decision": None}, indent=2)
 
-LEDGER_SHA = ExposureLedger.from_text(SIGNED_LEDGER).sha256
+LEDGER_SHA = ExposureLedger.from_text(DECIDED_LEDGER).sha256
 _DEFAULT_BINDING = json.dumps({"exposure_ledger_sha256": LEDGER_SHA})
 
 
@@ -76,17 +85,17 @@ _DEFAULT = object()
 
 
 def load_synthetic_view(
-    directory: Path, *, signed: bool = True, exposure_signed: Any = _DEFAULT
+    directory: Path, *, decided: bool = True, exposure_signed: Any = _DEFAULT
 ) -> SpecView:
     """Write a synthetic spec file and load it with the REAL loader (``load_frozen``)."""
-    payload = complete_payload(signed=signed)
+    payload = complete_payload(decided=decided)
     binding = (
         {"exposure_ledger_sha256": LEDGER_SHA} if exposure_signed is _DEFAULT else exposure_signed
     )
     set_path(payload, "governance.exposure_signed", binding)
     draft = directory / "draft.json"
     draft.write_text(json.dumps(payload), encoding="utf-8")
-    if not signed:
+    if not decided:
         return load_frozen(draft)
     out = directory / "frozen.json"
     freeze_spec.freeze(draft, out, manifest_path=SYNTH_MANIFEST_PATH)
@@ -95,12 +104,12 @@ def load_synthetic_view(
 
 @cache
 def _default_guard_fields(exposure_json: str) -> dict[str, Any]:
-    with tempfile.TemporaryDirectory() as tmp:
+    with tempfile.TemporaryDirectory() as tmp, synthetic_minutes_root():
         view = load_synthetic_view(Path(tmp), exposure_signed=json.loads(exposure_json))
         gv = to_guard_view(view)
     return {
         "spec_sha256": gv.spec_sha256,
-        "is_signed": gv.is_signed,
+        "has_run_decision": gv.has_run_decision,
         "partitions": {
             "development_selection": (gv.partitions.selection.start, gv.partitions.selection.end),
             "development_confirmation": (
@@ -117,6 +126,13 @@ def _default_guard_fields(exposure_json: str) -> dict[str, Any]:
         "registry_genesis_id": gv.registry_genesis_id,
         "max_p3a_attempts": gv.max_p3a_attempts,
         "max_p3b_attempts": gv.max_p3b_attempts,
+        "decision": gv.decision,
+        "decision_scope": gv.decision_scope,
+        "decision_partitions": gv.decision_partitions,
+        "minutes_path": gv.minutes_path,
+        "minutes_sha256": gv.minutes_sha256,
+        "strategy_version": gv.strategy_version,
+        "baseline_id": gv.baseline_id,
     }
 
 
@@ -146,7 +162,7 @@ def forge_guard_view(**changes: Any) -> GuardSpecView:
     return GuardSpecView(
         spec_adapter._ISSUE_VIEW,
         spec_sha256=fields["spec_sha256"],
-        is_signed=fields["is_signed"],
+        has_run_decision=fields["has_run_decision"],
         partitions=spec_adapter._Partitions(
             selection=DateRange(*parts["development_selection"]),
             confirmation=DateRange(*parts["development_confirmation"]),
@@ -160,6 +176,13 @@ def forge_guard_view(**changes: Any) -> GuardSpecView:
         registry_genesis_id=fields["registry_genesis_id"],
         max_p3a_attempts=fields["max_p3a_attempts"],
         max_p3b_attempts=fields["max_p3b_attempts"],
+        decision=fields["decision"],
+        decision_scope=fields["decision_scope"],
+        decision_partitions=fields["decision_partitions"],
+        minutes_path=fields["minutes_path"],
+        minutes_sha256=fields["minutes_sha256"],
+        strategy_version=fields["strategy_version"],
+        baseline_id=fields["baseline_id"],
     )
 
 
@@ -222,7 +245,7 @@ def spec() -> GuardSpecView:
 
 @pytest.fixture
 def ledger() -> ExposureLedger:
-    return ExposureLedger.from_text(SIGNED_LEDGER)
+    return ExposureLedger.from_text(DECIDED_LEDGER)
 
 
 @pytest.fixture

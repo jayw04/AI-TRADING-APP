@@ -75,7 +75,7 @@ PROFILE_V2 = {
 
 
 def v2_payload() -> dict:  # type: ignore[type-arg]
-    payload = complete_payload(signed=True)
+    payload = complete_payload(decided=True)
     for path in (*SCREEN_V2_EXEMPT, *SCREEN_V2_DEFERRED, *SCREEN_V2_UNMODELLED):
         set_path(payload, path, None)
     set_path(payload, "governance.exposure_signed", {"exposure_ledger_sha256": LEDGER_SHA})
