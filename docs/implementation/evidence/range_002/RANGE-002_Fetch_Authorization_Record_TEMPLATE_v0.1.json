@@ -1,0 +1,45 @@
+{
+  "record_type": "range002.fetch_authorization.v1",
+  "_instructions": "TEMPLATE. Every blank is a DENY. Fill from vendor answers (ALP-*, SHA-*) and owner answers (AWS-*). The checker returns DENY unless every field is present and every permission below is an explicit true. A complete record is not an authorization until the owner commits it as a dated record in Git.",
+  "decision": "DENY",
+  "issued_by": "",
+  "issued_on": "",
+  "owner_record_ref": "",
+  "vendor": {
+    "name": "",
+    "product": "",
+    "entitlement_ref": "",
+    "answers": {
+      "storage_permitted": null,
+      "retention_term": "",
+      "aws_hosting_permitted": null,
+      "derived_outputs_shareable_with_validator": null,
+      "raw_identity_rows_retention_permitted": null,
+      "delisted_coverage_confirmed": null,
+      "rate_limit_scope": "",
+      "timestamp_convention_confirmed": null,
+      "source_document_ref": "",
+      "answer_received_on": ""
+    }
+  },
+  "aws": {
+    "account_id": "",
+    "region": "",
+    "service": "",
+    "resource_ref": "",
+    "data_class": "",
+    "retention": "",
+    "access_roles": [],
+    "version_pinned": null,
+    "checksum_required": null,
+    "encrypted_at_rest": null,
+    "resource_authorization_ref": ""
+  },
+  "scope": {
+    "symbols_ref": "",
+    "date_start": "",
+    "date_end": "",
+    "partition": "",
+    "max_requests": null
+  }
+}
