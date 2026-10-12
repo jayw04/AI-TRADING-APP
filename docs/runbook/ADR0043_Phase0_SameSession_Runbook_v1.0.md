@@ -36,7 +36,7 @@
 
 > Companion to `docs/implementation/ADR0043_Phase0_FrozenExecutionPlan_v1.0.md`. **No broker orders /
 > no breach are performed by any command in this runbook** — it ends at the frozen readiness package
-> and STOPS for explicit broker‑submission authorization.
+> and STOPS for an explicit broker‑submission instruction (Jay's recorded instruction or a weekly meeting decision).
 >
 > ### ⚠ Which box
 >
@@ -137,12 +137,12 @@ This performs the owner's same‑session sequence:
    around by widening caps / adding symbols / lowering the target.
 9. STOP. The printed `SESSION_PACKAGE` is the readiness package.
 
-## Step C — Return the package; await explicit authorization
+## Step C — Return the package; await the explicit submission instruction
 
 - If `READY_FOR_BASELINE_AND_PREFLIGHT: true`, baseline `CAPTURED`, and reachability is **BINDING
-  REACHABLE**, return the package for **explicit broker‑submission authorization**.
+  REACHABLE**, return the package for an **explicit broker‑submission instruction** (Jay's recorded instruction or a weekly meeting decision).
 - If reachability is **BINDING BREACH_UNREACHABLE**, return that verdict as‑is (do not tune controls).
-- **Submit no orders until explicit authorization is issued.** The loss‑generating breach (runbook §0D)
+- **Submit no orders until that recorded instruction is issued.** The loss‑generating breach (runbook §0D)
   and the formal canary (`python -m scripts.adr0043_canary_run`) remain HELD.
 
 ## Hard stops (any → STOP, preserve evidence, do not engineer around)
@@ -154,7 +154,7 @@ baseline `MISSING_AFTER_ACTIVITY` / previous‑session / indeterminate; `BREACH_
 ## Continuity invariant
 
 Same instance / image / config / database / credentials / captured baseline must hold continuously from
-baseline capture through the formal canary and countersignature (no reprovision / DB copy / image swap /
+baseline capture through the formal canary and the recorded acceptance decision (no reprovision / DB copy / image swap /
 config change).
 
 ## Step‑A execution log

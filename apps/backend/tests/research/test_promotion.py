@@ -80,9 +80,9 @@ def test_confidence_is_monotone():
 # ---- integration with the registry (gate_experiment) ----
 
 
-def _record(store, metrics, kind="book_backtest"):
+def _record(store, metrics, kind="book_backtest", name="t"):
     return run_experiment(
-        ExperimentConfig(kind=kind, name="t", params={}),
+        ExperimentConfig(kind=kind, name=name, params={"case": name}),
         lambda c: RunnerResult(metrics_summary=metrics),
         store=store, dataset=DatasetRecord(dataset_id="d", provider="p", version="v"),
     )
@@ -115,3 +115,73 @@ def test_gate_experiment_inconclusive_does_not_transition(store):
     assert exp.research_state == "RESEARCH"          # no transition
     assert exp.confidence_score is not None          # but confidence still recorded
     assert store.transitions_for(eid) == []
+
+
+# ---- thin sample requires a recorded decision (reference, not a signature) ----
+
+
+def test_thin_sample_reason_names_recorded_decision_not_signoff():
+    r = evaluate(_book(trade_count=40), BOOK_BACKTEST_PROFILE)
+    assert r.verdict == "GO_WARNING"
+    assert any("recorded decision required" in x for x in r.reasons)
+    assert not any("signoff" in x.lower() for x in r.reasons)
+
+
+def test_thin_sample_without_recorded_decision_is_refused(store):
+    eid = _record(store, _book(trade_count=40))
+    res = gate_experiment(store, eid, profile="book_backtest")
+    assert res.verdict == "GO_WARNING" and res.research_state == "RESEARCH"
+    assert any("no recorded decision" in x for x in res.reasons)
+    exp = store.get_experiment(eid)
+    assert exp.research_state == "RESEARCH"
+    assert exp.confidence_score is not None
+    assert store.transitions_for(eid) == []
+
+
+@pytest.mark.parametrize("blank", ["", "   ", "\n\t"])
+def test_blank_recorded_decision_counts_as_absent(store, blank):
+    eid = _record(store, _book(trade_count=40))
+    res = gate_experiment(store, eid, profile="book_backtest", recorded_decision=blank)
+    assert res.research_state == "RESEARCH"
+    assert store.transitions_for(eid) == []
+
+
+def test_thin_sample_with_recorded_decision_is_validated_and_logged(store):
+    eid = _record(store, _book(trade_count=40))
+    ref = "2026-10-12 weekly meeting item 3"
+    res = gate_experiment(store, eid, profile="book_backtest", recorded_decision=ref)
+    assert res.verdict == "GO_WARNING" and res.research_state == "VALIDATED"
+    assert store.get_experiment(eid).research_state == "VALIDATED"
+    log = store.transitions_for(eid)
+    assert len(log) == 1 and ref in log[0].reason and "GO_WARNING" in log[0].reason
+
+
+def test_non_string_recorded_decision_rejected(store):
+    eid = _record(store, _book(trade_count=40))
+    with pytest.raises(TypeError):
+        gate_experiment(store, eid, profile="book_backtest",
+                        recorded_decision=123)  # type: ignore[arg-type]
+
+
+def test_old_signature_style_input_is_gone(store):
+    eid = _record(store, _book(trade_count=40))
+    for name in ("owner_signoff", "signed_by", "signoff"):
+        with pytest.raises(TypeError):
+            gate_experiment(store, eid, profile="book_backtest", **{name: "x"})  # type: ignore[arg-type]
+
+
+def test_recorded_decision_does_not_relax_thresholds(store):
+    # NO-GO and INCONCLUSIVE are unchanged by supplying a decision.
+    nogo = _record(store, _book(profit_factor=1.0), name="nogo")
+    assert gate_experiment(store, nogo, profile="book_backtest",
+                           recorded_decision="d-1").verdict == "NO-GO"
+    assert store.get_experiment(nogo).research_state == "REJECTED"
+    inc = _record(store, _book(trade_count=10), name="inc")
+    assert gate_experiment(store, inc, profile="book_backtest",
+                           recorded_decision="d-1").verdict == "INCONCLUSIVE"
+    assert store.get_experiment(inc).research_state == "RESEARCH"
+
+
+def test_strong_sample_needs_no_recorded_decision(store):
+    eid = _record(store, _book(trade_count=80))
+    assert gate_experiment(store, eid, profile="book_backtest").research_state == "VALIDATED"

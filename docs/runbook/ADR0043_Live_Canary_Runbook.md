@@ -6,7 +6,8 @@
 > - **Account 3: NOT RECLAIMABLE.**
 >
 > The reclaim boundary is reached **only** after a fresh-box live ENFORCE canary produces **GREEN**
-> evidence with its recorded SHA-256, independently countersigned. Do not collapse the two milestones.
+> evidence with its recorded SHA-256, with its acceptance recorded by Jay's recorded instruction or a weekly meeting decision. Do not collapse the
+> two milestones.
 
 **Frozen contract:** `docs/implementation/ADR0043_Canary_Manifest_v1.0.md`.
 **ADR-0043 implementation baseline (fixed):** `c8b3ac24b839d7b19c40979a9e4be859151dbab7`.
@@ -42,7 +43,7 @@ created somewhere else.
 
 > **The same fresh EC2 instance, backend image, configuration, database, broker credentials, and
 > session baseline must be used continuously from baseline capture through Phase 0, the formal canary,
-> evidence extraction, and countersignature. No reprovision, database copy, container-image replacement,
+> evidence extraction, hash verification, and the recorded acceptance decision. No reprovision, database copy, container-image replacement,
 > or configuration change is permitted inside that boundary.**
 
 This is a consequence of the deployment architecture: the application database is host-local SQLite
@@ -64,8 +65,8 @@ configuration recorded afterward.
 |---|---|
 | **A0–A4** | **Fresh-box provision and immutable runtime provenance** (this comes FIRST) |
 | 0A–0G | Establish the eligible **daily-loss** lock **on that same runtime** |
-| **B–K** | Formal canary, evidence, verification, and countersignature (same runtime) |
-| — | Countersigned GREEN → **then** account-3 governance / reclaim decision |
+| **B–K** | Formal canary, evidence, verification, and recorded acceptance decision (same runtime) |
+| — | GREEN with acceptance recorded (Jay's recorded instruction or a weekly meeting decision) → **then** account-3 governance / reclaim decision |
 
 A **Phase 0 failure is a setup-readiness failure, not an ADR-0043 canary failure** (the formal canary has
 not begun). Preserve and explain it; never work around it by changing limits, authority, cause, baseline,
@@ -95,7 +96,7 @@ contain **no unresolved placeholder**.
 
 > **Operator run id vs harness run id — do NOT assert they match.** `ADR0043_RUN_ID` labels the external
 > evidence package. The harness checkpoint generates and persists its **own** internal `run_id`, and the
-> deterministic A2/A3 `client_order_id` values derive from that harness run id. The countersignature
+> deterministic A2/A3 `client_order_id` values derive from that harness run id. The verdict record (§J)
 > preserves **both** (`operator_evidence_run_id`, `harness_checkpoint_run_id`, `a2_client_order_id`,
 > `a3_client_order_id`). Do not reuse a run identity for a different EC2 instance or a reset account.
 
@@ -406,7 +407,7 @@ So:
   `canary_owner_risk_operator=false`. Do **not** add the canary owner identified by `ADR0043_USER` to
   `WORKBENCH_RISK_OPERATOR_USER_IDS` — the governing property is **owner authority**, not a numeric id.
 
-From here through countersignature, `limits_before_sha256 == limits_after_sha256`. The Phase-0D breach plan
+From here through the verdict record (§J), `limits_before_sha256 == limits_after_sha256`. The Phase-0D breach plan
 must use the **effective resolved `max_daily_loss`**, never a guessed row. An unreachable breach is
 unreachable — **never** solved by lowering controls.
 
@@ -587,14 +588,14 @@ event bound to the preflight; any events showing `RECOVERY_COOLDOWN`; **proof of
 `COOLDOWN_COMPLETE` during the run**. Copy all box-side artifacts + both continuity records + the terminal
 log to `$EVIDENCE_DIR/`. Build `SHA256SUMS.txt` (+ its own hash) and an optional reproducible `tar.gz`.
 
-## J. Countersignature
+## J. Verdict record (formerly "Countersignature")
 
 Record: run id (operator + harness), UTC start/end, AWS instance id, AMI id, git commit, backend image
 digest, Compose/config checksums, **both continuity records**, Alembic repo head + DB current revision,
 account/user, canary exit code, evidence + checkpoint SHA-256, A1 result, A2 result + `client_order_id`, A3
 result + `client_order_id`, A4 preflight id + 12/12 result, A5 evaluator verdict, final durable state,
-whether `NORMAL` appeared, whether `COOLDOWN_COMPLETE` appeared, operator name, independent reviewer name,
-verdict.
+whether `NORMAL` appeared, whether `COOLDOWN_COMPLETE` appeared, operator name, the recorded-decision
+reference (identifier/date of Jay's recorded instruction or a weekly meeting decision), verdict.
 
 **Verdicts.** **GREEN** only when: A1–A5 all pass; exit code `0`; evidence digest matches everywhere; final
 durable state `= RECOVERY_COOLDOWN`; no `NORMAL` during the run; no `COOLDOWN_COMPLETE` during the run;
@@ -609,8 +610,9 @@ what changed. A Phase 0 failure is a **setup-readiness** failure — same discip
 
 ## K. After GREEN
 
-Keep the canary account frozen until countersignature is complete: finish evidence copying; independently
-verify all hashes; inspect A1–A5; confirm final state; countersign; preserve the package in durable storage.
+Keep the canary account frozen until the verdict record (§J) is complete: finish evidence copying; verify all
+hashes by independent re-computation; inspect A1–A5; confirm final state; record the acceptance decision
+(Jay's recorded instruction or a weekly meeting decision); preserve the package in durable storage.
 Then, and only then, reclaim the canary account **only through sanctioned flows**: sanctioned risk-reducing
 orders to flatten the legs; verify fills + no residual/open orders; run the audited recovery/reset path;
 verify the durable event trail; confirm the final clean state; restore the intended clean paper-account
@@ -667,9 +669,9 @@ a separate governance decision.
 - [ ] A4 full 12/12 PASS and `RECOVERY_COOLDOWN` · A5 exact `HOLD`, no transition
 - [ ] No `NORMAL` at any point · no `COOLDOWN_COMPLETE` at any point · exit code `0`
 - [ ] Evidence SHA-256 matches all copies · continuity invariant held · no state/limit/time/position manipulation
-- [ ] Evidence package preserved · independent countersignature completed
+- [ ] Evidence package preserved · acceptance decision recorded (Jay's recorded instruction or a weekly meeting decision)
 
-Until all GREEN conditions are satisfied and countersigned:
+Until all GREEN conditions are satisfied and the acceptance decision is recorded:
 
 - **ADR-0043 live operational validation: PENDING**
 - **Account 3: NOT RECLAIMABLE**

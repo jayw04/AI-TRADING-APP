@@ -21,7 +21,7 @@ the gate. Offline use / unit tests exercise ``evaluate_gate`` directly.
         --robustness --json evidence/KO_5c.json
 
 Verdict is one of GO / GO-WARNING / NO-GO / INCONCLUSIVE. Exits 0 on GO and
-GO-WARNING (eligible; GO-WARNING needs Owner signoff), 1 on NO-GO, 2 on
+GO-WARNING (eligible; GO-WARNING needs a recorded decision), 1 on NO-GO, 2 on
 INCONCLUSIVE (insufficient trades) so it can gate an activation pipeline.
 
 v0.2 (review response): cost model, expectancy >= 0.15R, OOS PF >= max(1.0,
@@ -113,7 +113,7 @@ class GateVerdict:
 
     @property
     def eligible(self) -> bool:
-        """Activatable — GO outright, or GO-WARNING pending operator signoff."""
+        """Activatable — GO outright, or GO-WARNING pending a recorded decision."""
         return self.verdict in ("GO", "GO-WARNING")
 
 
@@ -149,7 +149,7 @@ def evaluate_gate(
 
     Verdict: INCONCLUSIVE if IS trade_count < floor (not enough evidence to pass
     OR fail); else, when every criterion passes, GO if >= min_trades_strong else
-    GO-WARNING (operator signoff required); otherwise NO-GO."""
+    GO-WARNING (recorded decision required); otherwise NO-GO."""
     t = thresholds or GateThresholds()
     ratio = _avg_win_loss_ratio(is_m)
     exp_r = _expectancy_r(is_m)
@@ -223,11 +223,11 @@ def evaluate_gate(
     if not all(passed for _, passed, _ in checks):
         return GateVerdict(verdict="NO-GO", checks=checks, warnings=warnings)
 
-    # All criteria pass. 50+ → GO; 30-49 → GO-WARNING (operator signoff required).
+    # All criteria pass. 50+ → GO; 30-49 → GO-WARNING (recorded decision required).
     if is_m.trade_count < t.min_trades_strong:
         warnings.append(
             f"thin sample: {is_m.trade_count} IS trades "
-            f"(>= {t.min_trades_strong} preferred) — Owner signoff required."
+            f"(>= {t.min_trades_strong} preferred) — recorded decision required."
         )
         return GateVerdict(verdict="GO-WARNING", checks=checks, warnings=warnings)
     return GateVerdict(verdict="GO", checks=checks, warnings=warnings)
@@ -240,7 +240,7 @@ def print_verdict(v: GateVerdict, *, symbol: str) -> None:
     for w in v.warnings:
         print(f"  [WARN] {w}")
     label = {"GO": "GO — eligible to activate",
-             "GO-WARNING": "GO-WARNING — eligible, but Owner signoff required (thin sample)",
+             "GO-WARNING": "GO-WARNING — eligible, but a recorded decision is required (thin sample)",
              "NO-GO": "NO-GO — do not activate",
              "INCONCLUSIVE": "INCONCLUSIVE — insufficient evidence"}[v.verdict]
     print(f"\n  VERDICT: {label}\n")
@@ -416,7 +416,7 @@ def main() -> int:
 
     print("Record the verdict + metrics/params/windows as activation evidence "
           "(Finding 4). NO-GO/INCONCLUSIVE -> re-select levels/symbol or widen window. "
-          "GO-WARNING -> eligible but requires Owner signoff.")
+          "GO-WARNING -> eligible but requires a recorded decision.")
     return {"GO": 0, "GO-WARNING": 0, "NO-GO": 1, "INCONCLUSIVE": 2}[verdict.verdict]
 
 
