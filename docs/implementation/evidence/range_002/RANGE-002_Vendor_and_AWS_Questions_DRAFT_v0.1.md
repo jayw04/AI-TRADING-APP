@@ -47,3 +47,47 @@ Reminder: AWS resource creation or use is withheld until a dated owner record ex
 
 ## D. How the answers are used
 Answers are copied, with the document reference and date received, into `RANGE-002_Fetch_Authorization_Record_TEMPLATE_v0.1.json`. `fetch_authorization_check.py` returns **DENY** unless every field is present and every required permission is an explicit `true`. Even `ALLOW` from the checker is only "the record is complete": it is not an authorization until the owner commits it as a dated record.
+
+---
+
+## E. Resolution status (round 4): what is and is not established
+
+Successful API access is **not** evidence of permitted storage or of complete historical coverage. The earlier return-blind probe (counts only, nothing stored) showed bars were *returned* for sampled dates; it established nothing about the four items below.
+
+| Item | Status | Evidence | Closes with |
+|---|---|---|---|
+| Permitted historical-data storage and AWS research use | **NOT ESTABLISHED. DENY.** | Alpaca pages are silent on storage, caching, derived data, research use and hosting; the Customer Agreement section "Use of Market Data" forbids reproducing/distributing without written consent. | ALP-1, ALP-2, ALP-3, ALP-7 answered in writing |
+| Delisted / renamed-symbol retrieval and identity behaviour | **NOT ESTABLISHED.** | Alpaca documents `asof` (default = current day) for symbol mapping and is silent on delisted symbols. Sharadar documents `TICKERS` PK `(table, permaticker, ticker)` and calls it a snapshot; reuse, symbol-change re-keying and `ACTIONS` action strings are not stated. | ALP-4, SHA-1..SHA-3 answered, then the Stage 0/1 probes below |
+| Actual subscription / request limits | **PARTIAL.** | Published: 200/min (Basic), 10,000/min (Algo Trader Plus). **Not established:** which plan the key holds, and whether the limit is per key, account or endpoint. | ALP-5, ALP-7; the plan name from the owner's account page |
+| Historical issuer intervals for PIT construction | **NOT ESTABLISHED.** | The live store's `tickers` is `PRIMARY KEY(ticker)` loaded with `INSERT OR REPLACE` (code-derived), so overwritten history is not recoverable from it; a current `TICKERS` pull has not been shown to contain intervals. | SHA-1..SHA-4 and the Stage 0 probe |
+
+**Authorization stays DENY** (see the template record and `fetch_authorization_check.py`) until the answers support permission. The checker returning ALLOW would still not be an authorization.
+
+## F. Approved snapshot handoff (Sharadar store) — for the approved operator route
+
+Creating an export from the production store **is production access**, even when an approved operator performs it. This is a separate request from, and does not retry, the earlier denied read.
+
+1. **Route:** the approved operator only. The agent does not touch production. No stopping or quiescing of trading services unless separately authorized.
+2. **Consistency:** every table exported from one read transaction (DuckDB `EXPORT DATABASE (FORMAT PARQUET)` or equivalent) so cross-table consistency is preserved. DuckDB will not open a file a writer holds, so the operator chooses: export from the owning service's own connection, or at a verified moment with no writer. Do not copy an active `.duckdb` or its WAL file.
+3. **Tables and columns the PIT logic reads:** `tickers` (all columns including `permaticker`, `ticker`, `category`, `isdelisted`, `firstpricedate`, `lastpricedate`, `lastupdated`); `sep` (`ticker`, `date`, `close`, `closeunadj`, `volume`; `closeadj` optional); `actions` (all columns); `ingest_runs` and `dataset_coverage` for provenance.
+4. **Raw identity rows:** if the raw vendor `TICKERS` rows (all `table` values, per-row intervals) were retained at ingest, export them as well. Code review found no retained raw payload. **A current `TICKERS` pull must not be assumed to reconstruct overwritten history**; that is what the Stage 0 probe tests.
+5. **Provenance to return (manifest `range002.snapshot_manifest.v1`):** source and path, extraction time (UTC), per-table rows, min/max dates, columns, SHA-256 per file **of the bytes delivered**, S3 object Version ID if S3 is used, and the consistency basis.
+6. **Destination and use:** controlled storage, Version-ID pinned (GITHUB-OPS-001); read-only RANGE-002 feasibility analysis. Licence-permitted retention is unresolved (section E).
+7. **After receipt:** run `pit_coverage_ro.py` read-only; treat ticker-level aggregates as diagnostics only. PIT construction must resolve issuer identity over effective intervals. A repeated permanent id is a rename *candidate* only after a temporal (non-overlap) check.
+
+## G. Smallest real-data fetch scope — FOR REVIEW. NOT EXECUTED. NOT AUTHORIZED.
+
+Each stage is conditional on the previous stage's evidence and on a dated owner record. Output is **counts, labels and timestamps only; nothing is stored**, matching the earlier return-blind probe. Symbols and months are chosen by the owner/operator, not by the agent.
+
+| Stage | Question it answers | Request | Count | Stored? | Precondition |
+|---|---|---|---|---|---|
+| 0 Identity metadata probe (Sharadar) | Do `TICKERS` rows for known renamed/reused/delisted tickers carry historical intervals? (feeds `RETAIN_RAW_INTERVALS` vs `SCOPE_AMENDMENT`, pre-registered in #760) | `TICKERS` (`table=SEP`) and `ACTIONS` filtered to ≤ 25 owner-chosen tickers | 2 to 4 calls | No | SHA-1..SHA-3 answered; owner record |
+| 1a Intraday pilot (Alpaca) | Timestamp convention, `adjustment=raw`, pagination, field set | 1 owner-chosen symbol, 1 month inside `development_selection` (2016-01-01..2019-12-31), `feed=sip`, `adjustment=raw`, explicit `asof` | ≤ 3 | No (in-memory counts) | ALP-6; entitlement confirmed |
+| 1b Delisted behaviour | Is a delisted symbol retrievable, under which symbol? | 1 owner-chosen delisted symbol, 1 month, with and without `asof` | ≤ 6 | No | ALP-4 asked |
+| 1c Rename behaviour | Does `asof` link pre/post-rename data? | 1 owner-chosen renamed symbol, 1 month on each side of the rename date | ≤ 6 | No | ALP-4 asked |
+
+Totals: at most about 20 calls, far below any published limit. **Not in scope:** bulk history, the N=100 universe, any storage of bars, holdout dates (2022-2025), the exposed 2026-01..07 window, or any price/return value in the output.
+
+**Exposure note:** Stage 1 touches development-partition dates. It is return-blind, but the D01 exposure ledger / contact audit must record it before it runs.
+
+**Dependencies still preventing real-data use:** vendor storage answer (ALP-1/2), the owner's authorization record in Git, the validator seeing the worksheet before any probe output exists, and the exposure-ledger entry.
