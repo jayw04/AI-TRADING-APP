@@ -30,8 +30,12 @@ default, no warn-and-continue):
      ``load_frozen`` view (no duck typing); the registry, exposure ledger and holdout store are
      exactly ``RunRegistry`` / ``ExposureLedger`` / ``HoldoutTokenStore`` (no subclass, no
      duck type); the ledger can only come from its ``from_*`` loaders
- (a) spec frozen (hash recomputed by the loader) and its sign-off fields present and matching
-     the hash -- NOT an authenticated signature (Level 2, design pending)
+ (a) spec frozen (hash recomputed by the loader) and carrying a meeting-decision reference
+     whose decision is exactly ``approved`` with ``run`` in its scope, bound to this spec hash
+     by the loader (a spec edited after the decision refuses at load time). Typed refusals:
+     ``DecisionMissingError`` / ``DecisionNotApprovedError`` / ``DecisionScopeError``. The
+     weekly meeting minutes are the decision record; nothing here authenticates them (Level 2,
+     design pending)
  (N1, round 5 N-A) for EVERY partition, three genesis ids must agree: the registry in use,
      the spec's ``governance.registry_genesis_id`` and the OWNER-APPROVED genesis in the
      committed governance manifest (``spec.manifest``; ``authorize`` itself has no path parameter
@@ -50,6 +54,11 @@ default, no warn-and-continue):
  (b) partition is in the closed set and authorized for the phase; P5 (PAPER) is then REFUSED
      outright (``PaperApprovalNotImplementedError``): owner approval before paper is Level 2
      design-only and no approval reference is accepted or recorded
+ (b3) the requested partition is among the partitions the decision covers
+     (``DecisionPartitionError``) and the minutes file the decision cites exists at its
+     repo-relative path and hashes to ``minutes_sha256``
+     (``DecisionMinutesMissingError`` / ``DecisionMinutesMismatchError``). The root the path is
+     resolved against is the repository; ``_MINUTES_ROOT`` in ``spec/decision.py`` is a TEST SEAM only
  (f) DEVELOPMENT_* and HOLDOUT refuse while p3_criteria / exits_candidates /
      exits_selection is unset
  (g) phase order, from registry rows AND predecessor artefacts: P3B needs a COMPLETED P3A,
@@ -65,7 +74,8 @@ default, no warn-and-continue):
      phase PASSED, or that the pack was not rewritten by someone who can also rewrite the
      registry (Level 2: signed run results, design-only)
  (c) partition does not overlap R2's window, the spec's ``exposed`` list or the
-     signed exposure ledger, and the ledger is the one the spec's
+     exposure ledger, which must cite a meeting decision whose minutes file exists and matches its
+     recorded hash, and the ledger is the one the spec's
      ``governance.exposure_signed`` records (REPLAY_RNG001 is exempt: engine
      validation only, flagged never citable). PAPER / REPLAY ranges are bounded
      (PAPER strictly after R2; REPLAY inside R2; neither touches a spec partition)
@@ -147,6 +157,12 @@ from app.research.range002.governance.errors import (
     AttemptLimitOutOfRangeError,
     BudgetResetNotAcceptedError,
     CapabilityAlreadyIssuedError,
+    DecisionMinutesMismatchError,
+    DecisionMinutesMissingError,
+    DecisionMissingError,
+    DecisionNotApprovedError,
+    DecisionPartitionError,
+    DecisionScopeError,
     ExposureBindingError,
     ExposureLedgerNotTrustedError,
     ExposureOverlapError,
@@ -162,6 +178,8 @@ from app.research.range002.governance.errors import (
     PredecessorEvidenceMismatchError,
     PredecessorEvidenceMissingError,
     PredecessorHoldoutNotAuthorizedError,
+    ProfileNotAuthorizedError,
+    ProfileNotRecognizedError,
     RangeOverlapsPartitionError,
     RegistryGenesisMismatchError,
     RegistryNotTrustedError,
@@ -169,7 +187,6 @@ from app.research.range002.governance.errors import (
     RunNotRegisteredError,
     SpecIncompleteError,
     SpecNotFrozenError,
-    SpecNotSignedError,
     SpecViewNotTrustedError,
 )
 from app.research.range002.governance.evidence import parse_audit_pack_header
@@ -191,10 +208,27 @@ from app.research.range002.governance.run_registry import (
     holdout_conflict_error,
 )
 from app.research.range002.governance.spec_adapter import GuardSpecView
+from app.research.range002.spec.decision import (
+    MinutesMismatchError,
+    MinutesMissingError,
+    check_minutes_file,
+)
 from app.research.range002.spec.hashing import CanonicalisationError, content_sha256, loads_strict
 from app.research.range002.spec.manifest import GovernanceManifest, load_manifest
 
 _HEX64 = re.compile(r"^[0-9a-f]{64}$")
+_RECORD_KINDS = frozenset({"meeting_minutes", "owner_instruction"})
+
+#: Profiles the guard understands. Anything else (None, a newer build's name, a forged view) is
+#: refused before any state is touched.
+_KNOWN_PROFILES = frozenset({"full", "screen"})
+#: The only (phase, partition) pairs a "screen" profile spec may authorise (A-SCREEN O-8 B).
+_SCREEN_PROFILE_ALLOWED = frozenset(
+    {
+        (Phase.P2, Partition.REPLAY_RNG001),
+        (Phase.P3A, Partition.DEVELOPMENT_SELECTION),
+    }
+)
 _ISSUE = object()  # module-private: only authorize() holds it
 #: TEST SEAM, module-private and deliberately NOT an ``authorize`` parameter: ``None`` means the
 #: committed manifest at its fixed repo-relative path. Tests monkeypatch it to a synthetic file;
@@ -238,6 +272,7 @@ class ResultsCapability:
         "exposure_ledger_sha256",
         "partition",
         "phase",
+        "profile",
         "run_id",
         "spec_sha256",
     )
@@ -248,6 +283,7 @@ class ResultsCapability:
     run_id: str
     date_range: DateRange
     citable: bool
+    profile: str
     exposure_ledger_sha256: str | None
     #: ``((predecessor run_id, audit_pack_sha256, selection_record_sha256 | None), ...)`` -- the
     #: predecessor evidence digests ``authorize`` verified when it issued this capability.
@@ -266,6 +302,7 @@ class ResultsCapability:
         citable: bool,
         exposure_ledger_sha256: str | None,
         evidence_digests: tuple[tuple[str, str, str | None], ...],
+        profile: str = "full",
     ) -> None:
         if issue_token is not _ISSUE:
             raise InvalidCapabilityError(
@@ -280,6 +317,7 @@ class ResultsCapability:
             ("run_id", run_id),
             ("date_range", date_range),
             ("citable", citable),
+            ("profile", profile),
             ("exposure_ledger_sha256", exposure_ledger_sha256),
             ("evidence_digests", evidence_digests),
         ):
@@ -367,9 +405,69 @@ def _spec_checks(spec: object) -> tuple[GuardSpecView, str]:
     sha = spec.spec_sha256
     if not isinstance(sha, str) or not _HEX64.fullmatch(sha):
         raise SpecNotFrozenError("spec has no valid 64-hex spec_sha256: it is not frozen")
-    if spec.is_signed is not True:
-        raise SpecNotSignedError("spec is not signed; results_guard refuses an unsigned spec")
+    _check_decision_status(spec)
+    if spec.profile not in _KNOWN_PROFILES:
+        raise ProfileNotRecognizedError(
+            f"spec profile {spec.profile!r} is not one of {sorted(_KNOWN_PROFILES)}; refused"
+        )
     return spec, sha
+
+
+def _check_decision_status(spec: GuardSpecView) -> None:
+    """The decision must be present, exactly ``approved``, with ``run`` in its scope, and the
+    loader must have bound it to this spec's hash (``has_run_decision``). Re-derived here from
+    the carried fields so a view built with an inconsistent flag is refused, not trusted."""
+    decision = spec.decision
+    if decision is None:
+        raise DecisionMissingError(
+            "the spec carries no meeting-decision reference; results_guard refuses it"
+        )
+    if decision != "approved":  # revise / defer / stop / anything else authorize nothing
+        raise DecisionNotApprovedError(
+            f"the recorded decision is {decision!r}; only 'approved' authorizes a run"
+        )
+    scope = spec.decision_scope
+    if not isinstance(scope, tuple) or "run" not in scope:
+        raise DecisionScopeError(
+            f"the decision's scope {scope!r} does not include 'run'; a build-only decision "
+            "authorizes no results"
+        )
+    if spec.has_run_decision is not True:
+        raise DecisionMissingError(
+            "the spec's decision reference is not bound to this spec hash (has_run_decision is "
+            "not True); results_guard refuses it"
+        )
+    if spec.record_kind not in _RECORD_KINDS:
+        raise DecisionMissingError(
+            f"the decision reference's record_kind {spec.record_kind!r} is not one of "
+            f"{sorted(_RECORD_KINDS)}"
+        )
+    for name in ("minutes_path", "minutes_sha256", "strategy_version", "baseline_id"):
+        value = getattr(spec, name)
+        if not isinstance(value, str) or not value.strip():
+            raise DecisionMissingError(f"the decision reference's {name} is missing or blank")
+    if not _HEX64.fullmatch(str(spec.minutes_sha256)):
+        raise DecisionMissingError("the decision reference's minutes_sha256 is not a 64-hex digest")
+
+
+def _check_decision_coverage(spec: GuardSpecView, partition: Partition) -> None:
+    """The decision names the requested partition, and the minutes file it cites is unchanged."""
+    if partition.value not in spec.decision_partitions:
+        raise DecisionPartitionError(
+            f"the decision covers partitions {sorted(spec.decision_partitions)}; "
+            f"{partition.value} is not among them"
+        )
+    _check_minutes_file(spec.minutes_path, spec.minutes_sha256, "decision")
+
+
+def _check_minutes_file(path: str | None, sha: str | None, what: str) -> None:
+    """Re-read the cited minutes file now and compare its SHA-256 (typed refusals)."""
+    try:
+        check_minutes_file(str(path), str(sha))
+    except MinutesMissingError as exc:
+        raise DecisionMinutesMissingError(f"{what}: {exc}") from exc
+    except MinutesMismatchError as exc:
+        raise DecisionMinutesMismatchError(f"{what}: {exc}") from exc
 
 
 def _partition_range(spec: GuardSpecView, partition: Partition) -> DateRange | None:
@@ -635,7 +733,7 @@ def authorize(
             "an independence_authorization reference was supplied, but no lineage/independence "
             "policy exists in code to validate it; it is never accepted (fail closed)"
         )
-    # (0) + (a) trusted view, frozen and signed
+    # (0) + (a) trusted view, frozen and carrying an approved run decision
     spec, spec_sha = _spec_checks(spec)
     if type(registry) is not RunRegistry:
         raise RegistryNotTrustedError(f"registry must be exactly RunRegistry, got {type(registry)}")
@@ -669,6 +767,14 @@ def authorize(
         raise PartitionNotAuthorizedError(
             f"partition {partition.value} is not authorized for phase {phase.value}"
         )
+    # (b2) A-SCREEN O-8(B): a screen-profile spec authorises ONLY the two pairs below. Every
+    # other phase/partition (P3B, P4 HOLDOUT, P5 PAPER, anything new) is refused by name, so a
+    # spec frozen under the restricted required-field list can never reach qualification.
+    if spec.profile == "screen" and (phase, partition) not in _SCREEN_PROFILE_ALLOWED:
+        raise ProfileNotAuthorizedError(
+            f"a screen-profile spec is authorised only for {sorted((p.value, q.value) for p, q in _SCREEN_PROFILE_ALLOWED)}; "
+            f"got ({phase.value}, {partition.value})"
+        )
     if phase is Phase.P5:
         raise PaperApprovalNotImplementedError(
             "P5 (PAPER) is refused: owner approval before paper is Level 2 design-only, no "
@@ -676,6 +782,8 @@ def authorize(
         )
     if requested_range is not None and type(requested_range) is not DateRange:
         raise PartitionNotAuthorizedError("requested_range must be a DateRange")
+    # (b3) the decision covers this partition and its minutes file is the one it cites
+    _check_decision_coverage(spec, partition)
 
     # (f) development and holdout runs need D17 / D19 set
     if partition in DEVELOPMENT_PARTITIONS or partition is Partition.HOLDOUT:
@@ -723,7 +831,10 @@ def authorize(
                 raise ExposureOverlapError(
                     f"{date_range.as_dict()} overlaps the spec's exposed range {exposed.as_dict()}"
                 )
-        exposure_ledger.require_signed()
+        record = exposure_ledger.require_decision()
+        _check_minutes_file(
+            record.get("minutes_path"), record.get("minutes_sha256"), "exposure ledger decision"
+        )
         _check_exposure_binding(spec, exposure_ledger)
         hits = exposure_ledger.overlaps(date_range)
         if hits:
@@ -782,6 +893,7 @@ def authorize(
         run_id=run_id,
         date_range=date_range,
         citable=citable,
+        profile=spec.profile,
         exposure_ledger_sha256=ledger_sha,
         evidence_digests=evidence_digests,
     )

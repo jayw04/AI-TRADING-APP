@@ -14,17 +14,19 @@ from app.research.range002.spec.loader import (
     load_frozen,
 )
 from app.research.range002.spec.schema import (
+    DecisionRef,
+    DecisionRefError,
     DraftSpec,
     FrozenSpec,
-    SignoffMissingError,
     UnsetP0FieldsError,
     draft_skeleton,
 )
 
 __all__ = [
+    "DecisionRef",
+    "DecisionRefError",
     "DraftSpec",
     "FrozenSpec",
-    "SignoffMissingError",
     "SpecHashMismatchError",
     "SpecSchemaError",
     "SpecView",

@@ -46,6 +46,7 @@ from tests.research.range002.spec._fixtures import SYNTH_MANIFEST_PATH  # noqa: 
 
 from .conftest import (
     CODE_SHA,
+    LEDGER_DECISION_JSON,
     MANIFEST_SHA,
     SPEC_SHA,
     SYNTH_GENESIS_ID,
@@ -64,7 +65,7 @@ LEDGER = ExposureLedger.from_text(
     json.dumps(
         {
             "schema_version": 1,
-            "signoff": {"signed_by": "synthetic-owner", "signed_on": "2026-10-01"},
+            "decision": json.loads(LEDGER_DECISION_JSON),
             "entries": [
                 {
                     "id": "syn-rng001-window",
