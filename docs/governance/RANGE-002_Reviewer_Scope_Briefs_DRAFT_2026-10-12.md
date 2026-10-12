@@ -4,7 +4,7 @@
 |---|---|
 | 状态 / Status | **草稿，尚未发送。** 由所有者发送；代理不联系任何人。 **DRAFT. NOT SENT.** The owner sends these; the agent contacts no one. |
 | 基线 / Baseline | commit `1ecf811b` (CI #1851 通过 / green) |
-| 重要 / Important | 在存在已签署的接受记录（提交到 Git）之前，各角色均为“待定 (PENDING)”，在任何关口中视为空缺。 Until a signed acceptance record is committed to Git, each role is PENDING and counts as VACANT for any gate. |
+| 重要 / Important | 2026-10-12 所有者记录：方炳雄、陈友潼、Jay Wang（非作者评审，第 31 行）已接受。该记录不是 GENUINE。肖学焦仍为待定。 Owner statement 2026-10-12: 方炳雄, 陈友潼, and Jay Wang (non-author reviewer, row 31) have accepted. That record is not GENUINE. 肖学焦 remains PENDING. |
 
 ---
 
