@@ -240,7 +240,7 @@ def report(path: str) -> str:
         and {"close", "closeunadj", "volume"} <= set(sep_c)
     ):
         q(
-            "VOLUME SEMANTICS around split events (diagnostic; 5-session medians either side)",
+            "VOLUME SEMANTICS around split events (EVIDENCE WITH UNCERTAINTY, not a classification of the dataset: 5-session medians either side; AMBIGUOUS when the two hypotheses fit within 0.5 in log-ratio)",
             """
             WITH ev AS (
               SELECT ticker, CAST(date AS DATE) AS d, value AS r FROM actions
@@ -270,8 +270,9 @@ def report(path: str) -> str:
                    CASE
                      WHEN unadj_ratio IS NULL OR adj_close_ratio IS NULL OR volume_ratio IS NULL THEN 'INSUFFICIENT_DATA'
                      WHEN abs(ln(unadj_ratio * r)) > 0.35 OR abs(ln(adj_close_ratio)) > 0.35 THEN 'PRICE_PATTERN_NOT_AS_EXPECTED'
-                     WHEN abs(ln(volume_ratio)) <= abs(ln(volume_ratio / r)) THEN 'VOLUME_SPLIT_ADJUSTED'
-                     ELSE 'VOLUME_AS_TRADED'
+                     WHEN abs(abs(ln(volume_ratio)) - abs(ln(volume_ratio / r))) < 0.5 THEN 'AMBIGUOUS_VOLUME_EVIDENCE'
+                     WHEN abs(ln(volume_ratio)) < abs(ln(volume_ratio / r)) THEN 'CONSISTENT_WITH_SPLIT_ADJUSTED_VOLUME'
+                     ELSE 'CONSISTENT_WITH_AS_TRADED_VOLUME'
                    END AS verdict
             FROM m ORDER BY ticker, d LIMIT 200
             """,
@@ -305,8 +306,9 @@ def report(path: str) -> str:
             SELECT CASE
                      WHEN unadj_ratio IS NULL OR adj_close_ratio IS NULL OR volume_ratio IS NULL THEN 'INSUFFICIENT_DATA'
                      WHEN abs(ln(unadj_ratio * r)) > 0.35 OR abs(ln(adj_close_ratio)) > 0.35 THEN 'PRICE_PATTERN_NOT_AS_EXPECTED'
-                     WHEN abs(ln(volume_ratio)) <= abs(ln(volume_ratio / r)) THEN 'VOLUME_SPLIT_ADJUSTED'
-                     ELSE 'VOLUME_AS_TRADED'
+                     WHEN abs(abs(ln(volume_ratio)) - abs(ln(volume_ratio / r))) < 0.5 THEN 'AMBIGUOUS_VOLUME_EVIDENCE'
+                     WHEN abs(ln(volume_ratio)) < abs(ln(volume_ratio / r)) THEN 'CONSISTENT_WITH_SPLIT_ADJUSTED_VOLUME'
+                     ELSE 'CONSISTENT_WITH_AS_TRADED_VOLUME'
                    END AS verdict, COUNT(*) AS events
             FROM m GROUP BY 1 ORDER BY 2 DESC
             """,

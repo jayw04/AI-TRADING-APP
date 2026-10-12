@@ -10,6 +10,7 @@
         --lookback-calendar-days 40 --coverage-threshold 0.98 --equity 100000 --tick 0.01 \\
         --code-sha <40 hex> --out-dir OUT \\
         [--exploratory-scope-amendment-id ID | --raw-vendor-rows-attested] \\
+        (--delisting-action-value ACTION [...] | --no-delisting-evidence) \\
         [--provenance KEY=VALUE ...] [--statistics-config STATS.json] [--dry-plan]
 
 Authorization is the weekly-meeting decision record: the frozen spec must carry a DecisionRef
@@ -458,6 +459,25 @@ def _render_md(rep: dict[str, Any]) -> str:
     return "\n".join(L)
 
 
+def _delisting_events(con: Any, action_values: tuple[str, ...]) -> dict[str, list[date]]:
+    """ACTIONS rows whose action is one of the EXPLICITLY supplied values, by ticker.
+
+    The vendor's exact action strings are not documented, so none is assumed: with no values no
+    event is returned and nothing is ever excluded."""
+    if not action_values:
+        return {}
+    marks = ", ".join("?" for _ in action_values)
+    rows = con.execute(
+        f'SELECT ticker, CAST(date AS DATE) FROM "actions" WHERE lower(action) IN ({marks})',
+        [a.lower() for a in action_values],
+    ).fetchall()
+    out: dict[str, list[date]] = {}
+    for ticker, day in rows:
+        if ticker is not None and day is not None:
+            out.setdefault(str(ticker).strip(), []).append(day)
+    return out
+
+
 def run(
     *,
     spec_path: Path,
@@ -478,6 +498,7 @@ def run(
     tick: float,
     code_sha: str,
     out_dir: Path,
+    delisting_actions: tuple[str, ...],
     exploratory_scope_amendment_id: str | None = None,
     raw_vendor_rows_attested: bool = False,
     provenance: dict[str, str] | None = None,
@@ -567,6 +588,9 @@ def run(
         perma: dict[tuple[str, date], str] = {}
         exclusions: dict[tuple[str, date], str] = {}
         month_rows: list[dict[str, Any]] = []
+        events = _delisting_events(daily_con, delisting_actions)
+        evidence_rows: list[tuple[str, str]] = []
+        delist_after: dict[tuple[str, date], date] = {}
         for ms in _month_starts(authorized.start, authorized.end):
             mb = build_month_from_store(
                 cap,
@@ -579,6 +603,12 @@ def run(
                 exploratory_scope_amendment_id=exploratory_scope_amendment_id,
             )
             builds.append(mb)
+            for m in mb.universe.members:
+                later = sorted(
+                    e for e in events.get(m.vendor_ticker, ()) if e > mb.universe.decision_day
+                )
+                if later:  # earlier events belong to an earlier issuer of the ticker
+                    delist_after[(m.vendor_ticker, ms)] = later[0]
             days = [d for d in sorted(sessions_cal) if ms <= d <= _month_last(ms, authorized.end)]
             for m in mb.universe.members:
                 for d in days:
@@ -587,8 +617,13 @@ def run(
                         raise DataDefectError(f"duplicate expected symbol-day {key}")
                     expected.append(key)
                     perma[key] = m.permaticker
-                    if m.last_price_date is not None and d > m.last_price_date:
+                    ev_day = delist_after.get((m.vendor_ticker, ms))
+                    if ev_day is not None and d > ev_day:
+                        # Historical LISTING evidence (an ACTIONS delisting event dated after
+                        # this month's decision day) establishes the day is outside the
+                        # eligible population. A vendor lastpricedate alone never does.
                         exclusions[key] = "DELISTED_BEFORE_DAY"
+                        evidence_rows.append((m.vendor_ticker, ev_day.isoformat()))
             u = mb.universe
             month_rows.append(
                 {
@@ -753,7 +788,11 @@ def run(
                 "against vendor session data",
                 "regular-session minutes with no bar are DATA_GAP (no independent no-trade "
                 "evidence supplied)",
-                "DELISTED_BEFORE_DAY exclusions rest on the vendor lastpricedate listing record",
+                "a symbol-day is excluded as DELISTED_BEFORE_DAY ONLY on an ACTIONS delisting "
+                "event dated after the month's decision day; a final price date alone never "
+                "shrinks the denominator (missing days stay expected and are reported as missing)",
+                f"delisting evidence actions requested: {list(delisting_actions)} "
+                f"(none means no exclusion of any kind); evidence rows applied: {len(evidence_rows)}",
             ],
             "optional_bootstrap": None,
         }
@@ -811,6 +850,18 @@ def _build_parser() -> argparse.ArgumentParser:
     req("--out-dir", required=True, type=Path)
     req("--exploratory-scope-amendment-id", default=None)
     req("--raw-vendor-rows-attested", action="store_true")
+    ev = p.add_mutually_exclusive_group(required=True)
+    ev.add_argument(
+        "--delisting-action-value",
+        action="append",
+        default=None,
+        help="an exact ACTIONS action string that records a delisting (repeatable)",
+    )
+    ev.add_argument(
+        "--no-delisting-evidence",
+        action="store_true",
+        help="no listing evidence is used: no symbol-day is excluded",
+    )
     req("--provenance", action="append", default=[], metavar="KEY=VALUE")
     req("--statistics-config", type=Path, default=None)
     req("--dry-plan", action="store_true")
@@ -863,6 +914,7 @@ def main(argv: list[str] | None = None) -> int:
             out_dir=a.out_dir,
             exploratory_scope_amendment_id=a.exploratory_scope_amendment_id,
             raw_vendor_rows_attested=a.raw_vendor_rows_attested,
+            delisting_actions=tuple(a.delisting_action_value or ()),
             provenance=prov,
             statistics_config=stats,
         )

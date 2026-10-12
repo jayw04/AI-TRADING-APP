@@ -73,7 +73,13 @@ def _weekdays(start: date, end: date) -> list[date]:
     return out
 
 
-def _write_daily(path: Path, *, with_table_column: bool = True) -> None:
+def _write_daily(
+    path: Path,
+    *,
+    with_table_column: bool = True,
+    dead_last: str = "2016-04-15",
+    action_rows: tuple[tuple[str, str, str], ...] = (),
+) -> None:
     con = duckdb.connect(str(path))
     tcol = '"table" VARCHAR, ' if with_table_column else ""
     con.execute(
@@ -84,7 +90,7 @@ def _write_daily(path: Path, *, with_table_column: bool = True) -> None:
         ("P1", "AAA", "N", "2010-01-04", "2026-02-27"),
         ("P2", "BBB", "N", "2010-01-04", "2026-02-27"),
         ("P3", "CCC", "N", "2010-01-04", "2026-02-27"),
-        ("P4", "DEAD", "Y", "2010-01-04", "2016-04-15"),  # delisted LATER
+        ("P4", "DEAD", "Y", "2010-01-04", dead_last),  # delisted LATER
         ("P5", "OLD", "Y", "2010-01-04", "2015-12-31"),  # old issuer of a reused ticker
         ("P6", "OLD", "N", "2016-01-04", "2026-02-27"),  # new issuer
     ]
@@ -108,6 +114,8 @@ def _write_daily(path: Path, *, with_table_column: bool = True) -> None:
     con.execute(
         "CREATE TABLE actions(date DATE, action VARCHAR, ticker VARCHAR, contraticker VARCHAR)"
     )
+    for day, action, ticker in action_rows:
+        con.execute("INSERT INTO actions VALUES (?, ?, ?, NULL)", [day, action, ticker])
     con.close()
 
 
@@ -159,7 +167,7 @@ def _bars(breakout: bool) -> list[Any]:
     )
 
 
-def _write_minutes(path: Path) -> None:
+def _write_minutes(path: Path, *, dead_until: date | None = None) -> None:
     con = duckdb.connect(str(path))
     con.execute(
         "CREATE TABLE minute_bars(symbol VARCHAR, ts TIMESTAMP, open DOUBLE, high DOUBLE, "
@@ -170,6 +178,8 @@ def _write_minutes(path: Path) -> None:
         for j, sym in enumerate(("AAA", "DEAD", "OLD")):
             if (sym, d) == MISSING:
                 continue
+            if sym == "DEAD" and dead_until is not None and d > dead_until:
+                continue  # the name stops printing; WHY is not asserted by the data
             for b in _bars(breakout=(i + j) % 2 == 0):
                 local = datetime.combine(d, b.start, tzinfo=_ET)
                 ts = local.astimezone(_UTC).replace(tzinfo=None)
@@ -244,6 +254,7 @@ def world(tmp_path: Path, minutes_root: Path) -> dict[str, Any]:
             "tick": 0.01,
             "code_sha": CODE_SHA,
             "out_dir": tmp_path / "out",
+            "delisting_actions": (),
             "provenance": {"vendor_export": "synthetic-v0"},
         },
     }
@@ -384,7 +395,7 @@ def test_dry_plan_reads_no_bars_and_opens_no_run(
         "--partition", "DEVELOPMENT_SELECTION", "--table-filter", "SEP",
         "--lookback-calendar-days", "40", "--coverage-threshold", "0.9",
         "--equity", "100000", "--tick", "0.01", "--code-sha", CODE_SHA,
-        "--out-dir", str(world["tmp"] / "cli_out"), "--dry-plan",
+        "--out-dir", str(world["tmp"] / "cli_out"), "--no-delisting-evidence", "--dry-plan",
     ]  # fmt: skip
     assert rds.main(argv) == rds.EXIT_OK
     assert json.loads(capsys.readouterr().out)["spec_sha256"] == p["spec_sha256"]
@@ -516,3 +527,72 @@ def test_existing_report_is_never_overwritten(world: dict[str, Any]) -> None:
     with pytest.raises(rds.DescriptiveRunRefusal, match="never overwritten"):
         rds.run(**world["kwargs"])
     assert _runs(world) == ()
+
+
+# --- the coverage denominator: a final price date alone never shrinks it -----------------------
+
+
+def _delist_world(
+    tmp: Path, minutes_root: Path, *, actions: tuple[tuple[str, str, str], ...]
+) -> dict[str, Any]:
+    snap = tmp / "daily_delist.duckdb"
+    _write_daily(snap, dead_last="2016-03-03", action_rows=actions)
+    manifest = tmp / "manifest_delist.json"
+    manifest.write_text(_manifest_for(snap), encoding="utf-8")
+    minutes = tmp / "minutes_delist.duckdb"
+    _write_minutes(minutes, dead_until=date(2016, 3, 3))
+    ledger = tmp / "ledger.json"
+    ledger.write_text(DECIDED_LEDGER, encoding="utf-8")
+    frozen = _freeze(tmp, synth_payload(exits__candidates=copy.deepcopy(SEVEN)))
+    registry_path = tmp / "runs.jsonl"
+    new_registry(registry_path)
+    return {
+        "spec_path": frozen, "registry_path": registry_path, "exposure_ledger_path": ledger,
+        "daily_snapshot": snap, "snapshot_manifest": manifest, "minute_bars": minutes,
+        "minute_feed": "sip", "minute_ts_convention": "start",
+        "date_start": "2016-03-01", "date_end": "2016-03-07", "partition": "DEVELOPMENT_SELECTION",
+        "table_filter": "SEP", "lookback_calendar_days": 40, "coverage_threshold": 0.50,
+        "equity": 100_000.0, "tick": 0.01, "code_sha": CODE_SHA, "out_dir": tmp / "out",
+        "delisting_actions": (), "provenance": {"vendor_export": "synthetic-v0"},
+    }  # fmt: skip
+
+
+def test_a_final_price_date_alone_does_not_shrink_the_denominator(
+    tmp_path: Path, minutes_root: Path
+) -> None:
+    kw = _delist_world(tmp_path, minutes_root, actions=())
+    cov = rds.run(**kw).report["coverage"]
+    # DEAD's metadata says its last price date is 2016-03-03, but no listing EVIDENCE is supplied:
+    # its two later symbol-days stay expected, and show up as missing (with the OLD gap: 3 missing)
+    assert cov["expected"] == 15 and cov["denominator"] == 15
+    assert cov["legitimate_exclusions"] == {}
+    assert cov["observed"] == 12
+
+
+def test_a_delisting_event_dated_after_the_decision_day_excludes_later_days_only(
+    tmp_path: Path, minutes_root: Path
+) -> None:
+    kw = _delist_world(tmp_path, minutes_root, actions=(("2016-03-03", "delisted", "DEAD"),))
+    kw["delisting_actions"] = ("delisted",)
+    cov = rds.run(**kw).report["coverage"]
+    assert cov["expected"] == 15
+    assert cov["legitimate_exclusions"] == {"DELISTED_BEFORE_DAY": 2}  # 03-04 and 03-07 only
+    assert cov["denominator"] == 13 and cov["observed"] == 12
+
+
+def test_an_event_that_predates_the_decision_day_belongs_to_an_earlier_issuer(
+    tmp_path: Path, minutes_root: Path
+) -> None:
+    # 'OLD' is a REUSED ticker: its earlier issuer was delisted 2015-12-31, long before the
+    # 2016-02-29 decision day. That event must not remove the new issuer's symbol-days.
+    kw = _delist_world(tmp_path, minutes_root, actions=(("2015-12-31", "delisted", "OLD"),))
+    kw["delisting_actions"] = ("delisted",)
+    cov = rds.run(**kw).report["coverage"]
+    assert cov["legitimate_exclusions"] == {} and cov["denominator"] == 15
+
+
+def test_an_unlisted_action_string_is_never_assumed(tmp_path: Path, minutes_root: Path) -> None:
+    kw = _delist_world(tmp_path, minutes_root, actions=(("2016-03-03", "delisted", "DEAD"),))
+    kw["delisting_actions"] = ("some_other_string",)  # the exact vendor string is the owner's input
+    cov = rds.run(**kw).report["coverage"]
+    assert cov["legitimate_exclusions"] == {} and cov["denominator"] == 15
