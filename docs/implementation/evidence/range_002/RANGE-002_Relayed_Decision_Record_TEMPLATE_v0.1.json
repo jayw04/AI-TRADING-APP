@@ -1,0 +1,25 @@
+{
+  "record_type": "range002.relayed_decision.v1",
+  "_instructions": "TEMPLATE. The owner commits this; the person decides, the owner relays but does not author. verbatim_text must appear in the original message at evidence_path (hashed). Owner-authored text alone is never GENUINE; for the validator role that is a HARD FAIL. Nothing counts GENUINE until PR #740 is merged on main.",
+  "person": "",
+  "role": "",
+  "decision": "",
+  "conditions": [],
+  "artifact_path": "",
+  "artifact_sha256": "",
+  "evidence_path": "",
+  "evidence_sha256": "",
+  "evidence_kind": "original_message_export",
+  "verbatim_text": "",
+  "translation": null,
+  "date_received": "",
+  "channel": "",
+  "relayed_by": "owner",
+  "_allowed": {
+    "role": ["validator", "trading_expert", "risk_reviewer", "exit_reviewer", "owner_delegate"],
+    "decision": ["APPROVE", "REJECT", "CONDITIONAL"],
+    "evidence_kind": ["original_message_export", "screenshot", "owner_authored_summary"],
+    "translation": "null, or {\"label\": \"owner translation\", \"text\": \"...\"}",
+    "reviewer_must_state_in_their_own_words": "the artifact path, its SHA-256, and an explicit conclusion: 同意 / 不同意 / 有条件同意"
+  }
+}
