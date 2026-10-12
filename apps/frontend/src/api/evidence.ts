@@ -45,6 +45,11 @@ export interface StrategyBook {
 
 export interface EvidenceSummary {
   as_of: string;
+  /** PU-1: most restrictive licence scope among the data behind this summary. A missing value
+   *  is treated as UNKNOWN (blocked) by the page. */
+  license_scope?: "COMMERCIAL_OK" | "UNKNOWN" | "PERSONAL";
+  license_sources?: string[];
+  license_footer?: string | null;
   confidence: Confidence;
   kpis: { rows: KpiRow[]; summary: Record<string, number> };
   research_programs: ResearchProgram[];

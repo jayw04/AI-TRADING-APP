@@ -25,11 +25,19 @@ from app.db.models.reconciliation_run import ReconciliationRun
 from app.db.models.replay_run import ReplayRun
 from app.db.models.strategy import Strategy
 from app.db.session import get_session
+from app.licensing import PERSONAL_FOOTER, footer_for
+from app.licensing.gate import safe_effective_scope
 from app.ops.confidence import ConfidenceSignals, compute_confidence
 from app.ops.kpis import KpiInputs, build_scorecard, scorecard_summary
 from app.research.programs import list_programs, status_counts
 
 router = APIRouter(prefix="/evidence", tags=["evidence"])
+
+# PU-1: licensed data behind the research-program headlines (Sharpe / PF / drawdown figures) and
+# the live books shown on this page. The summary is a presentable surface (it has a Print button),
+# so its scope must be declared: any PERSONAL or UNKNOWN source makes the whole summary
+# non-presentable (taint propagates). Edit ONLY with the registry.
+_EVIDENCE_SOURCES: tuple[str, ...] = ("alpaca_sip", "sharadar", "fmp", "quiver")
 
 
 async def _scalar(session: AsyncSession, stmt: Any) -> Any:
@@ -137,8 +145,12 @@ async def evidence_summary(
     scope = ({"kind": "account", "strategy_id": strategy_id,
               "account_id": account_id, "user_id": user_id}
              if strategy_id is not None else {"kind": "platform"})
+    license_scope = safe_effective_scope(sources=_EVIDENCE_SOURCES)
     return {
         "as_of": datetime.now(UTC).isoformat(),
+        "license_scope": license_scope.name,
+        "license_sources": list(_EVIDENCE_SOURCES),
+        "license_footer": PERSONAL_FOOTER if footer_for(license_scope) else None,
         "scope": scope,
         "confidence": confidence,
         "kpis": {"rows": kpis, "summary": scorecard_summary(kpis)},

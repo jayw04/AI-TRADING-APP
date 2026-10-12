@@ -4,6 +4,9 @@ import type { ResearchProgram, KpiRow } from "@/api/evidence";
 
 const REFETCH_MS = 15_000;
 
+// PU-1: fixed marking. There is deliberately no prop, setting or query parameter that hides it.
+const PU1_FOOTER = "PERSONAL USE ONLY — not for presentation (PU-1)";
+
 const DOT: Record<ResearchProgram["color"], string> = {
   green: "bg-emerald-500",
   red: "bg-red-500",
@@ -50,6 +53,9 @@ export default function Evidence() {
     retry: false,
   });
   const d = q.data;
+  // PU-1: anything other than an explicit COMMERCIAL_OK (including a missing/failed response) is
+  // personal-use: printing is refused (PU1_PERSONAL_SCOPE_BLOCKED) and the footer is always shown.
+  const personalScope = d?.license_scope !== "COMMERCIAL_OK";
 
   return (
     <div className="grid gap-4">
@@ -63,6 +69,8 @@ export default function Evidence() {
         </div>
         <button
           onClick={() => window.print()}
+          disabled={personalScope}
+          title={personalScope ? "PU1_PERSONAL_SCOPE_BLOCKED: personal-use data cannot be printed" : undefined}
           className="print:hidden shrink-0 rounded-md border border-neutral-700 px-3 py-1.5 text-sm text-neutral-200 hover:bg-neutral-800"
         >
           Print report
@@ -152,6 +160,16 @@ export default function Evidence() {
               </tbody>
             </table>
           </Card>
+        </div>
+      )}
+
+      {personalScope && (
+        <div
+          role="note"
+          data-pu1="personal-use-only"
+          className="rounded-md border border-red-800 bg-red-950 px-3 py-2 text-center text-sm font-semibold text-red-300"
+        >
+          {PU1_FOOTER}
         </div>
       )}
     </div>

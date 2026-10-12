@@ -1,0 +1,36 @@
+{
+  "schema_version": 1,
+  "entries": [
+    {
+      "source_id": "alpaca_sip",
+      "license_scope": "PERSONAL",
+      "covers": ["bars", "trades", "quotes", "any pull with feed=sip"],
+      "basis": {
+        "document": "Alpaca market-data subscription terms: use limited to the subscriber's personal, non-commercial purposes (as stated in the owner's PU-1 rule)",
+        "date": "2026-10-12"
+      },
+      "owner_ruling_ref": "PU-1 Personal-Use Data Presentation Rule (owner, Jay Wang); weekly-minute reference to be added when recorded"
+    },
+    {
+      "source_id": "sharadar",
+      "license_scope": "UNKNOWN",
+      "covers": ["SEP prices", "SF1 fundamentals", "ACTIONS", "TICKERS"],
+      "basis": {"document": "contract not yet read", "date": null},
+      "owner_ruling_ref": "none: UNKNOWN is treated as PERSONAL until the contract is read"
+    },
+    {
+      "source_id": "fmp",
+      "license_scope": "UNKNOWN",
+      "covers": ["FMP /stable fundamentals and prices"],
+      "basis": {"document": "contract not yet read", "date": null},
+      "owner_ruling_ref": "none: UNKNOWN is treated as PERSONAL until the contract is read"
+    },
+    {
+      "source_id": "quiver",
+      "license_scope": "UNKNOWN",
+      "covers": ["government contracts", "congress trades", "lobbying"],
+      "basis": {"document": "contract not yet read (Hobbyist plan: no commercial-use rights per app/altdata/source_registry.py)", "date": null},
+      "owner_ruling_ref": "none: UNKNOWN is treated as PERSONAL until the contract is read"
+    }
+  ]
+}
