@@ -80,6 +80,14 @@ def test_screen_profile_p3a_flow_end_to_end(tmp_path: Path) -> None:
     payload = synth_payload()
     for path in SCREEN_V1_EXEMPT:
         set_path(payload, path, None)
+    # v1-exempt, but the kernel itself needs them (hazard A/B/D): set the synthetic values back
+    for path, value in (
+        ("risk.per_trade_unit", "percent"),
+        ("data.intraday_price_basis", "raw"),
+        ("data.daily_price_basis", "SEP_SPLIT_ADJUSTED"),
+        ("universe.category_map", ["Domestic Common Stock"]),
+    ):
+        set_path(payload, path, value)
     payload["profile"] = {
         "name": "screen",
         "version": 1,
@@ -157,7 +165,7 @@ def test_screen_profile_p3a_flow_end_to_end(tmp_path: Path) -> None:
     assert mean_interval(cap, matrix, "R2", 0.9, cfg).config == cfg
     assert max_statistic_test(cap, matrix, 0.10, cfg).config == cfg
     limits = PortfolioLimits(EQUITY, 1, 0.5, 0.5, 3.0)
-    port = schedule_portfolio(cap, run.trades["R2"], limits)
+    port = schedule_portfolio(cap, run.trades["R2"], limits, tie_break="PERMATICKER_ASC")
     ps = summarize_portfolio(cap, port)
     assert ps["basis"] == "portfolio" and ps["signal_trades"] == entered
     assert ps["accepted_trades"] + sum(ps["rejected_by_reason"].values()) == entered

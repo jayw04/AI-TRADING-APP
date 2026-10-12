@@ -14,6 +14,7 @@ from app.research.range002.screen.errors import ParamsUnsetError, SpecBindingErr
 from app.research.range002.screen.types import (
     HALT_POLICY_UNEXECUTABLE,
     SUPPORTED_FAMILIES,
+    SUPPORTED_INTRADAY_BASIS,
     ExitSpec,
     ScreenParams,
 )
@@ -32,6 +33,12 @@ def _positive(raw: object) -> float | None:
     if isinstance(raw, bool) or not isinstance(raw, int | float) or raw <= 0:
         return None
     return float(raw)
+
+
+def _per_trade_fraction(value: float, unit: str) -> float | None:
+    """The fraction of equity risked per trade, or None when it is outside the open (0, 1)."""
+    frac = value / 100.0 if unit == "percent" else value
+    return frac if 0.0 < frac < 1.0 else None
 
 
 def _hhmmss(text: str) -> time:
@@ -71,6 +78,21 @@ def extract_params(capability: object, draft: DraftSpec) -> ScreenParams:
         )
     if r.per_trade_pct is None:
         problems.append("risk.per_trade_pct is null")
+    if r.per_trade_unit is None:
+        problems.append("risk.per_trade_unit is null (must be 'percent' or 'fraction')")
+    fraction: float | None = None
+    if r.per_trade_pct is not None and r.per_trade_unit is not None:
+        fraction = _per_trade_fraction(float(r.per_trade_pct), r.per_trade_unit)
+        if fraction is None:
+            problems.append(
+                f"risk.per_trade_pct={r.per_trade_pct} with unit {r.per_trade_unit!r} derives a "
+                "per-trade fraction outside the open interval (0, 1)"
+            )
+    ibasis = draft.data.intraday_price_basis
+    if ibasis != SUPPORTED_INTRADAY_BASIS:
+        problems.append(
+            f"data.intraday_price_basis must be {SUPPORTED_INTRADAY_BASIS!r}, got {ibasis!r}"
+        )
     if x.bar_timestamp_convention != "start":
         problems.append(
             "execution.bar_timestamp_convention must be 'start': end-stamped bars are not "
@@ -122,6 +144,7 @@ def extract_params(capability: object, draft: DraftSpec) -> ScreenParams:
     assert type(gap) is int
     assert s.min_or_width_ticks is not None and e.halfday_offset_min is not None
     assert r.per_trade_pct is not None and x.bar_timestamp_convention is not None
+    assert r.per_trade_unit is not None and fraction is not None and ibasis is not None
     assert x.crossed_before_arm_policy is not None and c.accounting_mode is not None
     draft_values = draft.model_dump(mode="python")
 
@@ -152,6 +175,9 @@ def extract_params(capability: object, draft: DraftSpec) -> ScreenParams:
         stress_bps_per_side=float(c.stress_bps_per_side),
         accounting_mode=c.accounting_mode,
         per_trade_pct=float(r.per_trade_pct),
+        per_trade_pct_unit=r.per_trade_unit,
+        per_trade_fraction=fraction,
+        intraday_price_basis=ibasis,
         bar_timestamp_convention=x.bar_timestamp_convention,
         crossed_before_arm_policy=x.crossed_before_arm_policy,
         halt_policy=HALT_POLICY_UNEXECUTABLE,

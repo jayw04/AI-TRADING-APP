@@ -73,6 +73,10 @@ def _eod_time(params: ScreenParams, session: SessionBars) -> time:
 
 
 def _validate(params: ScreenParams, session: SessionBars) -> None:
+    if not session.permaticker.strip():
+        raise DataDefectError(
+            f"{session.symbol} {session.day}: empty permaticker (issuer identity)"
+        )
     if session.feed != params.feed:
         raise DataDefectError(f"{session.symbol} {session.day}: feed {session.feed!r} != sip")
     if session.ts_convention != params.bar_timestamp_convention:
@@ -229,7 +233,7 @@ def _simulate(params: ScreenParams, session: SessionBars, tick: float, equity: f
                 session.symbol, session.day, STATE_INVALID_RISK, or_high, or_low, None, ()
             )
         r_pre = trigger - or_low
-        qty = int(equity * params.per_trade_pct / 100.0 // r_fill)
+        qty = int(equity * params.per_trade_fraction // r_fill)
         trades: list[Trade] = []
         for spec in params.candidates:
             xt, reason, ambiguous, legs, unexec, after_unavail = _exit_path(
@@ -241,6 +245,7 @@ def _simulate(params: ScreenParams, session: SessionBars, tick: float, equity: f
                 Trade(
                     candidate_id=spec.id,
                     symbol=session.symbol,
+                    permaticker=session.permaticker,
                     day=session.day,
                     or_high=or_high,
                     or_low=or_low,

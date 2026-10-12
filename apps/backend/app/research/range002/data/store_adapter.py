@@ -18,7 +18,7 @@ in an overlap, are counted and left out of selection; they are reported, never s
 from __future__ import annotations
 
 import re
-from collections.abc import Collection, Iterable
+from collections.abc import Collection
 from dataclasses import dataclass
 from datetime import date, timedelta
 from pathlib import Path
@@ -48,6 +48,7 @@ from app.research.range002.screen.errors import (
     ParamsUnsetError,
     SpecBindingError,
 )
+from app.research.range002.screen.types import SUPPORTED_INTRADAY_BASIS
 from app.research.range002.spec.loader import spec_sha256
 from app.research.range002.spec.schema import DraftSpec
 
@@ -269,7 +270,6 @@ def build_month_from_store(
     params: UniverseParams,
     *,
     table_filter: str | None,
-    common_stock_categories: Iterable[str],
     lookback_calendar_days: int,
     raw_vendor_rows_attested: bool,
     exploratory_scope_amendment_id: str | None,
@@ -277,6 +277,9 @@ def build_month_from_store(
     rng = getattr(capability, "date_range", None)
     if rng is None or not (rng.start <= month_start <= rng.end):
         raise DataDefectError(f"month {month_start} is outside the authorised date range")
+    if not params.category_map:
+        raise ParamsUnsetError("universe.category_map is unset (hazard A): no common-stock set")
+    _check_price_basis_pair(params.basis, params.intraday_basis)
     if lookback_calendar_days < params.adv_window:
         raise SnapshotError("lookback_calendar_days is shorter than adv_window")
     ident = load_identity_records(con, table_filter=table_filter)
@@ -309,7 +312,7 @@ def build_month_from_store(
         basis=params.basis,
     )
     listings = load_listings(
-        con, table_filter=table_filter, common_stock_categories=frozenset(common_stock_categories)
+        con, table_filter=table_filter, common_stock_categories=frozenset(params.category_map)
     )
     universe = build_universe_month(
         month_start, decision_day, listings, obs.observations, idmap, params
@@ -317,18 +320,45 @@ def build_month_from_store(
     return MonthBuild(universe, ident, obs, scope)
 
 
+#: The only compatible (daily_price_basis, intraday_price_basis) pair. The price floor reads
+#: ``closeunadj``; ADV is split-adjusted close x split-adjusted volume (a split-invariant
+#: product); intraday bars are raw. Any other pair is an incompatible join and is refused.
+COMPATIBLE_PRICE_BASIS_PAIRS: tuple[tuple[str, str], ...] = (
+    (BASIS_SPLIT_ADJUSTED, SUPPORTED_INTRADAY_BASIS),
+)
+
+
+def _check_price_basis_pair(daily: str | None, intraday: str | None) -> None:
+    if daily is None or intraday is None:
+        raise ParamsUnsetError("data.daily_price_basis and data.intraday_price_basis must be set")
+    if (daily, intraday) not in COMPATIBLE_PRICE_BASIS_PAIRS:
+        raise DataDefectError(
+            f"incompatible join: (daily {daily!r}, intraday {intraday!r}) is not in the "
+            f"allowlist {COMPATIBLE_PRICE_BASIS_PAIRS!r}"
+        )
+
+
 @requires_capability
-def universe_params_from_draft(
-    capability: object, draft: DraftSpec, *, basis: str
-) -> UniverseParams:
+def universe_params_from_draft(capability: object, draft: DraftSpec) -> UniverseParams:
     """Universe parameters from the frozen spec (Plan v0.5 section 2.1): ``universe.n`` (P0, may
     be null), ``universe.min_price`` and ``universe.adv_window_days`` (schema-pinned to 10.0 and
-    20). Nothing is a literal here, and a null ``n`` fails closed."""
+    20), plus the hash-bound ``universe.category_map`` and the daily/intraday price bases (hazard
+    A). Nothing is a literal here, and a null ``n``, category map or basis fails closed."""
     if spec_sha256(draft) != getattr(capability, "spec_sha256", None):
         raise SpecBindingError("draft spec hash differs from the capability's spec hash")
     u = draft.universe
     if u.n is None:
         raise ParamsUnsetError("universe.n is null (P0 decision D03)")
+    if not u.category_map:
+        raise ParamsUnsetError("universe.category_map is null or empty (hazard A)")
+    daily, intraday = draft.data.daily_price_basis, draft.data.intraday_price_basis
+    _check_price_basis_pair(daily, intraday)
+    assert daily is not None and intraday is not None
     return UniverseParams(
-        n=int(u.n), adv_window=int(u.adv_window_days), min_price=float(u.min_price), basis=basis
+        n=int(u.n),
+        adv_window=int(u.adv_window_days),
+        min_price=float(u.min_price),
+        basis=daily,
+        category_map=tuple(u.category_map),
+        intraday_basis=intraday,
     )

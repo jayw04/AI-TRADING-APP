@@ -75,6 +75,7 @@ class FetchResult:
     symbol: str
     bars: tuple[RawBar, ...]
     pages: int
+    adjustment: str  # the adjustment actually requested; written to minute_bars.basis
 
 
 def _authorized(auth: FetchAuthorization | None) -> FetchAuthorization:
@@ -137,7 +138,7 @@ def fetch_symbol_window(
             bars.append(b)
         token = resp.next_page_token
         if token is None:
-            return FetchResult(symbol, tuple(bars), pages)
+            return FetchResult(symbol, tuple(bars), pages, adjustment)
         if token in seen_tokens:
             raise DataDefectError(f"{symbol}: page token repeated (pagination loop)")
         seen_tokens.add(token)
@@ -162,12 +163,17 @@ def store_fetched_bars(
         return 0
     con.execute(
         "CREATE TABLE IF NOT EXISTS minute_bars(symbol VARCHAR, ts TIMESTAMP, open DOUBLE,"
-        " high DOUBLE, low DOUBLE, close DOUBLE, volume BIGINT)"
+        " high DOUBLE, low DOUBLE, close DOUBLE, volume BIGINT, basis VARCHAR)"
     )
+    if result.adjustment != REQUIRED_ADJUSTMENT:
+        raise DataDefectError(
+            f"{result.symbol}: refusing to store bars fetched with adjustment "
+            f"{result.adjustment!r}; only {REQUIRED_ADJUSTMENT!r} is stored"
+        )
     for b in result.bars:
         con.execute(
-            "INSERT INTO minute_bars VALUES (?, ?, ?, ?, ?, ?, ?)",
-            [result.symbol, b.t, b.o, b.h, b.low, b.c, b.v],
+            "INSERT INTO minute_bars VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+            [result.symbol, b.t, b.o, b.h, b.low, b.c, b.v, result.adjustment],
         )
     journal.add(key)
     return len(result.bars)

@@ -114,6 +114,8 @@ def test_changing_any_p0_field_changes_the_hash(path):
         edited["stats"]["alpha_one_sided"] = 0.08
     elif path == "stats.bootstrap.confidence_level":
         edited["stats"]["bootstrap"]["confidence_level"] = 0.8
+    elif path == "risk.per_trade_unit":
+        edited["risk"]["per_trade_unit"] = "fraction"
     elif path == "gates.basis":
         edited["gates"]["basis"] = "portfolio_constrained"
     elif isinstance(old, list):

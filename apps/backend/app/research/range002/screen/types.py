@@ -16,6 +16,9 @@ FAMILY_TRAILING = "trailing"
 FAMILY_SCALE_OUT = "scale_out"
 SUPPORTED_FAMILIES = ("time", "fixed_r", "trailing", "scale_out")
 
+#: the only intraday bar basis the loader accepts today (fetched with adjustment "raw")
+SUPPORTED_INTRADAY_BASIS = "raw"
+
 HALT_POLICY_UNEXECUTABLE = "UNEXECUTABLE_DURING_UNAVAILABLE"
 
 STATE_OR_INCOMPLETE = "OR_INCOMPLETE"
@@ -61,6 +64,8 @@ class SessionBars:
     bars: tuple[Bar, ...]
     gap_minutes: frozenset[time]
     halt_minutes: frozenset[time]
+    #: stable issuer identity (never the vendor ticker string): the scheduler's tie-break key
+    permaticker: str
 
 
 @dataclass(frozen=True)
@@ -94,6 +99,12 @@ class ScreenParams:
     stress_bps_per_side: float
     accounting_mode: str
     per_trade_pct: float
+    #: explicit unit of ``per_trade_pct``: "percent" or "fraction" (hazard D)
+    per_trade_pct_unit: str
+    #: the derived fraction of equity risked per trade, in the open interval (0, 1)
+    per_trade_fraction: float
+    #: the spec's data.intraday_price_basis; every stored bar must carry exactly this tag (hazard B)
+    intraday_price_basis: str
     bar_timestamp_convention: str
     crossed_before_arm_policy: str
     halt_policy: str
@@ -107,6 +118,7 @@ class ScreenParams:
 class Trade:
     candidate_id: str
     symbol: str
+    permaticker: str
     day: date
     or_high: float
     or_low: float

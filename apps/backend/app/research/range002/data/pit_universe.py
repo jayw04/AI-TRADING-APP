@@ -82,7 +82,12 @@ class UniverseParams:
     n: int
     adv_window: int
     min_price: float
-    basis: str
+    basis: str  # the daily price pairing (the spec's data.daily_price_basis)
+    #: vendor category strings treated as common stock (the spec's universe.category_map)
+    category_map: tuple[str, ...]
+    #: the intraday bar basis the spec binds (data.intraday_price_basis); join-checked, not used
+    #: for selection
+    intraday_basis: str
 
 
 @dataclass(frozen=True)

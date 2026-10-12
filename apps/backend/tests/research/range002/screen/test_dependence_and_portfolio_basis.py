@@ -75,7 +75,7 @@ def test_portfolio_summary_carries_the_rejection_ledger(cap: object) -> None:
     signal = summarize(cap, trades)
     assert signal["basis"] == "signal" and signal["trades"] == 3
 
-    run = schedule_portfolio(cap, trades, LIM)
+    run = schedule_portfolio(cap, trades, LIM, tie_break="PERMATICKER_ASC")
     port = summarize_portfolio(cap, run)
     assert port["basis"] == "portfolio"
     assert port["signal_trades"] == 3 and port["accepted_trades"] == 2

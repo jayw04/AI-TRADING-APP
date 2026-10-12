@@ -42,7 +42,10 @@ from app.research.range002.data.pit_universe import (
 D = date
 MONTH = D(2018, 3, 1)
 DECISION = D(2018, 2, 28)
-PARAMS = UniverseParams(n=3, adv_window=3, min_price=10.0, basis=BASIS_SPLIT_ADJUSTED)
+PARAMS = UniverseParams(
+    n=3, adv_window=3, min_price=10.0, basis=BASIS_SPLIT_ADJUSTED,
+    category_map=("Domestic Common Stock",), intraday_basis="raw",
+)  # fmt: skip
 
 
 def rec(p: str, t: str, a: date, b: date | None) -> IdentityRecord:
@@ -222,4 +225,9 @@ def test_defective_inputs_refuse_rather_than_guess() -> None:
             listings, obs + [DailyObs("BIG", D(2018, 1, 2), 1.0, 1.0, 1.0, "adj")], ids
         )  # mixed basis
     with pytest.raises(PitUniverseError):
-        build(listings, obs, ids, UniverseParams(0, 3, 10.0, BASIS_SPLIT_ADJUSTED))
+        build(
+            listings,
+            obs,
+            ids,
+            UniverseParams(0, 3, 10.0, BASIS_SPLIT_ADJUSTED, ("Domestic Common Stock",), "raw"),
+        )

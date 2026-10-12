@@ -21,6 +21,7 @@ from app.research.range002.spec.schema import (
     SCREEN_V1_REQUIRED,
     SCREEN_V1_REQUIRED_SHA256,
     SCREEN_V2_DEFERRED,
+    SCREEN_V2_EXEMPT,
     SCREEN_V2_REQUIRED,
     SCREEN_V2_REQUIRED_SHA256,
     SCREEN_V2_UNMODELLED,
@@ -60,6 +61,10 @@ KERNEL_READ = {
     "costs.accounting_mode",
     "costs.components",
     "risk.per_trade_pct",
+    "risk.per_trade_unit",
+    "universe.category_map",
+    "data.daily_price_basis",
+    "data.intraday_price_basis",
 }
 PROFILE_V2 = {
     "name": "screen",
@@ -71,7 +76,7 @@ PROFILE_V2 = {
 
 def v2_payload() -> dict:  # type: ignore[type-arg]
     payload = complete_payload(signed=True)
-    for path in (*SCREEN_V1_EXEMPT, *SCREEN_V2_DEFERRED, *SCREEN_V2_UNMODELLED):
+    for path in (*SCREEN_V2_EXEMPT, *SCREEN_V2_DEFERRED, *SCREEN_V2_UNMODELLED):
         set_path(payload, path, None)
     set_path(payload, "governance.exposure_signed", {"exposure_ledger_sha256": LEDGER_SHA})
     payload["profile"] = dict(PROFILE_V2)
@@ -84,17 +89,27 @@ def test_v2_partitions_the_p0_fields_exactly_and_derives_from_v1() -> None:
         set(SCREEN_V2_REQUIRED),
         set(SCREEN_V2_DEFERRED),
         set(SCREEN_V2_UNMODELLED),
-        set(SCREEN_V1_EXEMPT),
+        set(SCREEN_V2_EXEMPT),
     ]
     assert sum(len(s) for s in sets) == len(all_p0) and set().union(*sets) == all_p0
-    assert (
-        tuple(
-            p
-            for p in SCREEN_V1_REQUIRED
-            if p not in set(SCREEN_V2_DEFERRED) | set(SCREEN_V2_UNMODELLED)
-        )
-        == SCREEN_V2_REQUIRED
+    hazard_fields = (  # hazard A/B/D: v1-exempt, v2-required (the only v2 additions over v1)
+        "data.daily_price_basis",
+        "data.intraday_price_basis",
+        "risk.per_trade_unit",
+        "universe.category_map",
     )
+    assert set(hazard_fields) <= set(SCREEN_V1_EXEMPT) and not set(hazard_fields) & set(
+        SCREEN_V1_REQUIRED
+    )
+    derived = {
+        p
+        for p in SCREEN_V1_REQUIRED
+        if p not in set(SCREEN_V2_DEFERRED) | set(SCREEN_V2_UNMODELLED)
+    } | set(hazard_fields)
+    assert derived == set(SCREEN_V2_REQUIRED)
+    assert len(set(SCREEN_V2_REQUIRED)) == len(SCREEN_V2_REQUIRED)
+    assert list(SCREEN_V2_REQUIRED) == sorted(SCREEN_V2_REQUIRED)
+    assert tuple(p for p in SCREEN_V1_EXEMPT if p not in hazard_fields) == SCREEN_V2_EXEMPT
     assert (
         hashlib.sha256("\n".join(SCREEN_V2_REQUIRED).encode()).hexdigest()
         == SCREEN_V2_REQUIRED_SHA256

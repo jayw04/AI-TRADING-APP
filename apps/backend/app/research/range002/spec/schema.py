@@ -110,6 +110,23 @@ def _check_json_finite(value: Any, path: str = "") -> None:
             _check_json_finite(v, f"{path}[{i}]")
 
 
+def _category_map(value: tuple[str, ...] | None) -> tuple[str, ...] | None:
+    if value is not None:
+        if any(not isinstance(v, str) or not v.strip() or v != v.strip() for v in value):
+            raise ValueError("category_map entries must be non-blank, trimmed strings")
+        if len(set(value)) != len(value):
+            raise ValueError("category_map entries must be unique")
+    return value
+
+
+def _basis(value: str | None) -> str | None:
+    if value is not None and (not value.strip() or value != value.strip()):
+        raise ValueError("a price-basis tag must be a non-blank, trimmed string")
+    return value
+
+
+_OptCategoryMap = Annotated[tuple[str, ...] | None, AfterValidator(_category_map)]
+_OptBasis = Annotated[str | None, AfterValidator(_basis)]
 OptPos = Annotated[float | None, AfterValidator(_positive)]
 OptPosInt = Annotated[int | None, AfterValidator(_positive)]
 OptNonNeg = Annotated[float | None, AfterValidator(_non_negative)]
@@ -269,6 +286,8 @@ class Registration(_OpenFieldsModel):
 class Universe(_Model):
     instrument_types: Annotated[tuple[str, ...], _eq(("common_stock",))]
     n: OptPosInt  # P0: D03
+    #: P0: the exact vendor category strings treated as common stock (hash-bound, hazard A)
+    category_map: _OptCategoryMap
     min_price: Annotated[float, _eq(10.0)]
     adv_window_days: Annotated[int, _eq(20)]
     rebuild: Annotated[str, _eq("monthly")]
@@ -282,6 +301,10 @@ class Data(_Model):
     session: Annotated[str, _eq("rth")]
     tz: Annotated[str, _eq("America/New_York")]
     fetch_mode: str | None  # P0: D11
+    #: P0 (hazard A/B): the daily price pairing and the intraday bar basis, inside the spec hash.
+    #: Only one compatible pair is implemented; the join check lives in the data adapters.
+    daily_price_basis: _OptBasis
+    intraday_price_basis: _OptBasis
 
 
 class Signal(_OpenFieldsModel):
@@ -316,6 +339,9 @@ class Costs(_OpenFieldsModel):
 
 class Risk(_Model):
     per_trade_pct: OptPos  # P0 (the 0.25 proposal lives in the plan, not here)
+    #: P0 (hazard D): the unit of ``per_trade_pct``; "percent" (0.25 = 0.25 %) or "fraction"
+    #: (0.0025). Inside the spec hash, so the same number under another unit is another spec.
+    per_trade_unit: Literal["percent", "fraction"] | None
     per_name_cap: OptPos
     gross_cap: OptPos
     max_concurrent: OptPosInt
@@ -553,6 +579,12 @@ SCREEN_V1_REQUIRED = (
     "universe.n",
 )
 SCREEN_V1_EXEMPT = (
+    # Hazard A/B/D fields: exempt in v1 (its required digest and behaviour are unchanged), REQUIRED
+    # in v2 (SCREEN_V2_REQUIRED below).
+    "data.daily_price_basis",
+    "data.intraday_price_basis",
+    "risk.per_trade_unit",
+    "universe.category_map",
     "governance.economic_thesis_sha",
     "governance.roles",
     "p5.account_id",
@@ -618,11 +650,14 @@ SCREEN_V2_UNMODELLED = (
     "execution.vendor_delay_ms",
     "fill.slippage_model",
 )
-# v1 required minus DEFERRED minus UNMODELLED, as a literal (a test asserts the derivation).
+# v1 required minus DEFERRED minus UNMODELLED, PLUS the hazard A/B/D fields (v1-exempt), as a
+# literal (a test asserts the derivation).
 SCREEN_V2_REQUIRED = (
     "costs.accounting_mode",
     "costs.components",
+    "data.daily_price_basis",
     "data.fetch_mode",
+    "data.intraday_price_basis",
     "data.vendor",
     "execution.bar_timestamp_convention",
     "execution.crossed_before_arm_policy",
@@ -642,12 +677,36 @@ SCREEN_V2_REQUIRED = (
     "p3.max_p3a_attempts",
     "p3.max_p3b_attempts",
     "risk.per_trade_pct",
+    "risk.per_trade_unit",
     "signal.min_or_width_ticks",
     "signal.or_completeness_rule",
+    "universe.category_map",
     "universe.n",
 )
+#: v2 exempt = v1 exempt minus the hazard A/B/D fields that v2 requires, as a literal (an exact
+#: partition of the P0 set with SCREEN_V2_REQUIRED / _DEFERRED / _UNMODELLED; a test asserts both).
+SCREEN_V2_EXEMPT = (
+    "governance.economic_thesis_sha",
+    "governance.roles",
+    "p5.account_id",
+    "p5.cost_ratio_contract",
+    "p5.degradation_tolerance",
+    "p5.shadow_acceptance",
+    "diagnostics.taxonomy",
+    "gates.max_dd",
+    "gates.win_rate",
+    "gates.yearly",
+    "risk.daily_loss_limit",
+    "risk.fill_risk_tolerance",
+    "risk.gross_cap",
+    "risk.max_concurrent",
+    "risk.max_participation",
+    "risk.per_name_cap",
+    "stats.regime.criterion",
+    "stats.regime.definition",
+)
 #: sha256 of the newline-joined SCREEN_V2_REQUIRED (UTF-8); asserted by a test.
-SCREEN_V2_REQUIRED_SHA256 = "872193e14f93044d2a22acdcad7ea8f9c7c3fc1b37ff63a178b6324367ce897b"
+SCREEN_V2_REQUIRED_SHA256 = "16f904a3094b375f32792201efb6fc6a40eb22ea46c9e26caeb978318ff96899"
 #: sha256 of the newline-joined SCREEN_V2_UNMODELLED; part of the declaration, so the unmodelled
 #: set is inside the spec hash and cannot be changed without changing the spec.
 SCREEN_V2_UNMODELLED_SHA256 = "0298fe82ad0374a5139a0d739f49188081bf358a283edcb142c2b180725efb2c"
@@ -801,6 +860,7 @@ def draft_skeleton() -> dict[str, Any]:
         "universe": {
             "instrument_types": ["common_stock"],
             "n": None,
+            "category_map": None,
             "min_price": 10.0,
             "adv_window_days": 20,
             "rebuild": "monthly",
@@ -813,6 +873,8 @@ def draft_skeleton() -> dict[str, Any]:
             "session": "rth",
             "tz": "America/New_York",
             "fetch_mode": None,
+            "daily_price_basis": None,
+            "intraday_price_basis": None,
         },
         "signal": {
             "missing_minute_classes": ["NO_TRADE_MINUTE", "DATA_GAP"],
@@ -844,6 +906,7 @@ def draft_skeleton() -> dict[str, Any]:
         },
         "risk": {
             "per_trade_pct": None,
+            "per_trade_unit": None,
             "per_name_cap": None,
             "gross_cap": None,
             "max_concurrent": None,

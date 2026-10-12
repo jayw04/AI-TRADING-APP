@@ -45,7 +45,10 @@ from tests.research.range002.governance.conftest import (
 from tests.research.range002.screen.conftest import make_capability, synth_payload
 
 COMMON = "Domestic Common Stock"
-PARAMS = UniverseParams(n=3, adv_window=5, min_price=10.0, basis=BASIS_SPLIT_ADJUSTED)
+PARAMS = UniverseParams(
+    n=3, adv_window=5, min_price=10.0, basis=BASIS_SPLIT_ADJUSTED,
+    category_map=(COMMON,), intraday_basis="raw",
+)  # fmt: skip
 SESSIONS = [date(2026, 2, 23) + timedelta(days=i) for i in range(5)]  # Mon..Fri
 MONTH = date(2026, 3, 2)
 
@@ -169,7 +172,6 @@ def test_month_from_parquet_attributes_reused_ticker_by_interval(snap: Path, cap
         MONTH,
         PARAMS,
         table_filter="SEP",
-        common_stock_categories=[COMMON],
         lookback_calendar_days=14,
         raw_vendor_rows_attested=False,
         exploratory_scope_amendment_id=None,
@@ -237,7 +239,6 @@ def test_value_reading_entry_points_need_a_capability_and_stay_in_range(
             MONTH,
             PARAMS,
             table_filter="SEP",
-            common_stock_categories=[COMMON],
             lookback_calendar_days=14,
             raw_vendor_rows_attested=False,
             exploratory_scope_amendment_id=None,
@@ -249,7 +250,6 @@ def test_value_reading_entry_points_need_a_capability_and_stay_in_range(
             date(2025, 12, 1),
             PARAMS,
             table_filter="SEP",
-            common_stock_categories=[COMMON],
             lookback_calendar_days=14,
             raw_vendor_rows_attested=False,
             exploratory_scope_amendment_id=None,
@@ -265,17 +265,19 @@ def _minute_store(tmp_path: Path, *, skip: time | None = time(10, 15), dup: bool
     con = duckdb.connect(":memory:")
     con.execute(
         "CREATE TABLE minute_bars(symbol VARCHAR, ts TIMESTAMP, open DOUBLE, high DOUBLE,"
-        " low DOUBLE, close DOUBLE, volume BIGINT)"
+        " low DOUBLE, close DOUBLE, volume BIGINT, basis VARCHAR)"
     )
     t = datetime(2026, 3, 2, 14, 30)
     while t < datetime(2026, 3, 2, 21, 0):  # 16:00 ET exclusive
         et = (t - timedelta(hours=5)).time()
         if et != skip:
-            con.execute("INSERT INTO minute_bars VALUES ('AAA', ?, 10, 10.1, 9.9, 10, 100)", [t])
+            con.execute(
+                "INSERT INTO minute_bars VALUES ('AAA', ?, 10, 10.1, 9.9, 10, 100, 'raw')", [t]
+            )
         t += timedelta(minutes=1)
     if dup:
         con.execute(
-            "INSERT INTO minute_bars VALUES ('AAA', ?, 10, 10, 10, 10, 1)",
+            "INSERT INTO minute_bars VALUES ('AAA', ?, 10, 10, 10, 10, 1, 'raw')",
             [datetime(2026, 3, 2, 14, 30)],
         )
     return con
@@ -288,6 +290,7 @@ def params(tmp_path: Path, cap: object):  # type: ignore[no-untyped-def]
 
 def _kw(params, **over):  # type: ignore[no-untyped-def]
     base = {
+        "permaticker": "P-AAA",
         "source_feed": params.feed,
         "source_ts_convention": params.bar_timestamp_convention,
         "no_trade_evidence": frozenset(),
@@ -355,6 +358,7 @@ def test_load_sessions_lists_every_missing_symbol_day(tmp_path: Path, cap: objec
         source_feed=params.feed,
         source_ts_convention=params.bar_timestamp_convention,
         no_trade_evidence={},
+        permaticker_of={("AAA", DAY): "P-AAA", ("BBB", DAY): "P-BBB"},
     )
     assert [s.symbol for s in sessions] == ["AAA"] and missing == (("BBB", DAY),)
     with pytest.raises(DataDefectError):  # a day absent from the calendar is not silently skipped
@@ -367,6 +371,7 @@ def test_load_sessions_lists_every_missing_symbol_day(tmp_path: Path, cap: objec
             source_feed=params.feed,
             source_ts_convention=params.bar_timestamp_convention,
             no_trade_evidence={},
+            permaticker_of={("AAA", date(2026, 3, 3)): "P-AAA"},
         )
 
 
@@ -397,7 +402,7 @@ def _collapsed_store(tmp_path: Path) -> Path:
 
 def _build(con, cap, **kw):  # type: ignore[no-untyped-def]
     return build_month_from_store(
-        cap, con, MONTH, PARAMS, table_filter=None, common_stock_categories=[COMMON],
+        cap, con, MONTH, PARAMS, table_filter=None,
         lookback_calendar_days=14, **kw,
     )  # fmt: skip
 

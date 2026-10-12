@@ -42,7 +42,10 @@ from tests.research.range002.screen.conftest import make_capability, synth_paylo
 
 D = date
 DECISION = D(2018, 2, 28)
-PARAMS = UniverseParams(n=5, adv_window=3, min_price=10.0, basis=BASIS_SPLIT_ADJUSTED)
+PARAMS = UniverseParams(
+    n=5, adv_window=3, min_price=10.0, basis=BASIS_SPLIT_ADJUSTED,
+    category_map=("Domestic Common Stock",), intraday_basis="raw",
+)  # fmt: skip
 
 
 def _days(k: int = 3) -> list[date]:
@@ -83,13 +86,15 @@ def test_the_floor_uses_the_price_seen_that_day_not_a_future_adjusted_price() ->
 def test_universe_params_come_from_the_frozen_spec_and_fail_closed(tmp_path: Path) -> None:
     payload = synth_payload(**{"universe__n": 100})
     cap, _ = make_capability(tmp_path, payload)
-    p = universe_params_from_draft(cap, parse_draft(payload), basis=BASIS_SPLIT_ADJUSTED)
+    p = universe_params_from_draft(cap, parse_draft(payload))
     assert (p.n, p.adv_window, p.min_price) == (100, 20, 10.0)  # Plan v0.5 2.1, schema-pinned
+    assert p.basis == BASIS_SPLIT_ADJUSTED and p.intraday_basis == "raw"  # read from the spec
+    assert p.category_map == ("Domestic Common Stock",)
     other = synth_payload(**{"universe__n": 50})  # a different spec than the capability's
     with pytest.raises(SpecBindingError):
-        universe_params_from_draft(cap, parse_draft(other), basis=BASIS_SPLIT_ADJUSTED)
+        universe_params_from_draft(cap, parse_draft(other))
     with pytest.raises(InvalidCapabilityError):
-        universe_params_from_draft(None, parse_draft(payload), basis=BASIS_SPLIT_ADJUSTED)
+        universe_params_from_draft(None, parse_draft(payload))
 
 
 # --- mock-backed fetch adapter --------------------------------------------------------------
@@ -209,9 +214,12 @@ def test_mock_fetch_to_store_to_loader_round_trip(tmp_path: Path, cap: object) -
     )
     params = extract_params(cap, parse_draft(synth_payload()))
     s = load_session(
-        cap, con, params, "AAA", D(2026, 3, 2), time(16, 0),
+        cap, con, params, "AAA", D(2026, 3, 2), time(16, 0), permaticker="P-AAA",
         source_feed=params.feed, source_ts_convention=params.bar_timestamp_convention,
         no_trade_evidence=frozenset(), halt_minutes=frozenset(),
     )  # fmt: skip
     assert s is not None and s.bars[0].start == time(9, 30) and len(s.bars) == 10
     assert time(9, 40) in s.gap_minutes  # unfetched minutes are unresolved gaps, never invented
+    assert s.permaticker == "P-AAA"
+    # the fetch path tags every stored bar with the adjustment actually requested
+    assert con.execute("SELECT DISTINCT basis FROM minute_bars").fetchall() == [("raw",)]

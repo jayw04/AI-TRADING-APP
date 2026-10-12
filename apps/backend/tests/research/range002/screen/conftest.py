@@ -128,7 +128,16 @@ def session(
     halts: frozenset[time] = frozenset(),
     feed: str = "sip",
     conv: str = "start",
+    permaticker: str | None = None,
 ) -> SessionBars:
     return SessionBars(
-        symbol, day, feed, conv, close, tuple(sorted(bars, key=lambda b: b.start)), gaps, halts
+        symbol,
+        day,
+        feed,
+        conv,
+        close,
+        tuple(sorted(bars, key=lambda b: b.start)),
+        gaps,
+        halts,
+        permaticker if permaticker is not None else f"PERM-{symbol}",
     )

@@ -118,11 +118,19 @@ def test_entry_points_need_a_capability_and_valid_config(cap: object) -> None:
 
 
 def _trade(
-    sym: str, day: date, entry: time, exit_: time, net: float, qty: int = 100, px: float = 10.0
+    sym: str,
+    day: date,
+    entry: time,
+    exit_: time,
+    net: float,
+    qty: int = 100,
+    px: float = 10.0,
+    permaticker: str | None = None,
 ) -> Trade:
     return Trade(
         candidate_id="X",
         symbol=sym,
+        permaticker=permaticker if permaticker is not None else f"PERM-{sym}",
         day=day,
         or_high=px,
         or_low=px - 0.1,
@@ -165,7 +173,9 @@ def test_concurrency_cap_in_time_order_not_by_outcome(cap: object) -> None:
     early_loser = _trade("AAA", DAY, time(10, 0), time(15, 0), -1.0)
     second = _trade("BBB", DAY, time(10, 1), time(15, 0), -1.0)
     late_winner = _trade("CCC", DAY, time(10, 2), time(15, 0), 5.0)
-    run = schedule_portfolio(cap, [late_winner, second, early_loser], LIM)
+    run = schedule_portfolio(
+        cap, [late_winner, second, early_loser], LIM, tie_break="PERMATICKER_ASC"
+    )
     assert [t.symbol for t in run.accepted] == ["AAA", "BBB"]  # no hindsight pick of the winner
     assert run.rejected == {"MAX_CONCURRENT": 1} and run.signal_trades == 3
 
@@ -175,15 +185,15 @@ def test_exit_releases_capacity_only_strictly_after_the_exit_minute(cap: object)
     b = _trade("BBB", DAY, time(10, 0), time(10, 30), 1.0)
     same_minute = _trade("CCC", DAY, time(10, 30), time(11, 0), 1.0)
     later = _trade("DDD", DAY, time(10, 31), time(11, 0), 1.0)
-    run = schedule_portfolio(cap, [a, b, same_minute, later], LIM)
+    run = schedule_portfolio(cap, [a, b, same_minute, later], LIM, tie_break="PERMATICKER_ASC")
     assert [t.symbol for t in run.accepted] == ["AAA", "BBB", "DDD"]
     assert run.rejected == {"MAX_CONCURRENT": 1}
 
 
 def test_ties_break_by_symbol_and_input_order_is_irrelevant(cap: object) -> None:
     ts = [_trade(s, DAY, time(10, 0), time(15, 0), 0.0) for s in ("ZZZ", "AAA", "MMM")]
-    one = schedule_portfolio(cap, ts, LIM)
-    two = schedule_portfolio(cap, list(reversed(ts)), LIM)
+    one = schedule_portfolio(cap, ts, LIM, tie_break="PERMATICKER_ASC")
+    two = schedule_portfolio(cap, list(reversed(ts)), LIM, tie_break="PERMATICKER_ASC")
     assert [t.symbol for t in one.accepted] == ["AAA", "MMM"]
     assert [t.symbol for t in two.accepted] == ["AAA", "MMM"]
 
@@ -194,13 +204,13 @@ def test_gross_name_qty_and_daily_loss_limits(cap: object) -> None:
     ok1 = _trade("BBB", DAY, time(10, 0), time(15, 0), 0.0, qty=900)  # 9,000
     ok2 = _trade("CCC", DAY, time(10, 1), time(15, 0), 0.0, qty=900)  # gross 18,000 > 15,000
     zero = _trade("DDD", DAY, time(10, 2), time(15, 0), 0.0, qty=0)
-    run = schedule_portfolio(cap, [big, ok1, ok2, zero], lim)
+    run = schedule_portfolio(cap, [big, ok1, ok2, zero], lim, tie_break="PERMATICKER_ASC")
     assert [t.symbol for t in run.accepted] == ["BBB"]
     assert run.rejected == {"PER_NAME_CAP": 1, "GROSS_CAP": 1, "QTY_ZERO": 1}
     l1 = _trade("AAA", DAY, time(10, 0), time(10, 10), -1.5)
     l2 = _trade("BBB", DAY, time(10, 1), time(10, 20), -1.0)
     after = _trade("CCC", DAY, time(11, 0), time(15, 0), 2.0)
-    r2 = schedule_portfolio(cap, [l1, l2, after], lim)
+    r2 = schedule_portfolio(cap, [l1, l2, after], lim, tie_break="PERMATICKER_ASC")
     assert [t.symbol for t in r2.accepted] == ["AAA", "BBB"]
     assert r2.rejected == {"DAILY_LOSS_LIMIT": 1}
 
@@ -209,7 +219,7 @@ def test_same_name_cannot_be_open_twice_and_days_are_independent(cap: object) ->
     a = _trade("AAA", DAY, time(10, 0), time(15, 0), 0.0)
     b = _trade("AAA", DAY, time(10, 5), time(15, 0), 0.0)
     nxt = _trade("AAA", DAY + timedelta(days=1), time(10, 0), time(15, 0), 0.0)
-    run = schedule_portfolio(cap, [a, b, nxt], LIM)
+    run = schedule_portfolio(cap, [a, b, nxt], LIM, tie_break="PERMATICKER_ASC")
     assert len(run.accepted) == 2 and run.rejected == {"NAME_ALREADY_OPEN": 1}
 
 

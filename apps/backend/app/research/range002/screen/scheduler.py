@@ -3,8 +3,22 @@
 Takes the signal-level trades of ONE exit candidate and applies concurrency, capital, per-name,
 gross-exposure and daily-loss constraints in time order, so the portfolio result never benefits
 from hindsight (R12): a trade is accepted or rejected using only what was open and realised at
-its entry minute. Ties at the same minute are broken by symbol ascending, a return-independent
-rule. Capital from an exit is released only strictly AFTER the exit minute.
+its entry minute.
+
+Frozen event order (hazard C; tie-break policy ``PERMATICKER_ASC``). Per trading day, entries are
+processed in ascending ``(entry_time, permaticker)``. At each entry, in this order:
+
+1. positions whose ``exit_time`` is STRICTLY BEFORE the entry minute are closed: their capital is
+   released and their net R is realised (a position exiting in the same minute as a new entry
+   is still open, so capital from an exit is released only strictly AFTER the exit minute);
+2. the entry is then evaluated against what is open and realised at that point: zero quantity,
+   the daily-loss limit (realised R only; unrealised R is never used), the same issuer already
+   open (identity is the permaticker, never the ticker string), max concurrent, per-name cap,
+   gross cap.
+
+The tie-break key is the issuer's stable permaticker, so renaming or reusing a ticker cannot
+change which issuer is accepted. It depends on no return, price or outcome. A trade with an
+empty permaticker is refused (fail closed); any other tie-break policy name is refused.
 
 Every limit is an explicit argument; ``limits_from_draft`` reads them from the spec and fails
 closed naming each null risk field, because the screen profile leaves those fields exempt and
@@ -18,7 +32,7 @@ from dataclasses import dataclass
 from datetime import date
 
 from app.research.range002.governance.results_guard import requires_capability
-from app.research.range002.screen.errors import ParamsUnsetError, SpecBindingError
+from app.research.range002.screen.errors import DataDefectError, ParamsUnsetError, SpecBindingError
 from app.research.range002.screen.types import Trade
 from app.research.range002.spec.loader import spec_sha256
 from app.research.range002.spec.schema import DraftSpec
@@ -29,6 +43,9 @@ REJECT_NAME = "PER_NAME_CAP"
 REJECT_DAILY_LOSS = "DAILY_LOSS_LIMIT"
 REJECT_QTY = "QTY_ZERO"
 REJECT_SAME_NAME = "NAME_ALREADY_OPEN"
+
+#: the frozen same-minute tie-break policy: ascending permaticker (return-independent)
+TIE_BREAK_PERMATICKER_ASC = "PERMATICKER_ASC"
 
 
 @dataclass(frozen=True)
@@ -73,7 +90,7 @@ def limits_from_draft(capability: object, draft: DraftSpec, equity: float) -> Po
 def _schedule_day(
     trades: list[Trade], limits: PortfolioLimits, rejected: dict[str, int]
 ) -> list[Trade]:
-    ordered = sorted(trades, key=lambda t: (t.entry_time, t.symbol))
+    ordered = sorted(trades, key=lambda t: (t.entry_time, t.permaticker))
     open_pos: list[tuple[Trade, float]] = []  # (trade, notional)
     realised_r = 0.0
     out: list[Trade] = []
@@ -91,7 +108,7 @@ def _schedule_day(
             reason = REJECT_QTY
         elif realised_r <= -limits.daily_loss_limit_r:
             reason = REJECT_DAILY_LOSS
-        elif any(p.symbol == t.symbol for p, _ in open_pos):
+        elif any(p.permaticker == t.permaticker for p, _ in open_pos):
             reason = REJECT_SAME_NAME
         elif len(open_pos) >= limits.max_concurrent:
             reason = REJECT_CONCURRENCY
@@ -109,8 +126,20 @@ def _schedule_day(
 
 @requires_capability
 def schedule_portfolio(
-    capability: object, trades: Sequence[Trade], limits: PortfolioLimits
+    capability: object, trades: Sequence[Trade], limits: PortfolioLimits, *, tie_break: str
 ) -> PortfolioRun:
+    """Schedule one candidate's signal-level trades; ``tie_break`` must be ``PERMATICKER_ASC``."""
+    if tie_break != TIE_BREAK_PERMATICKER_ASC:
+        raise ParamsUnsetError(
+            f"tie_break must be {TIE_BREAK_PERMATICKER_ASC!r} (the frozen policy), "
+            f"got {tie_break!r}"
+        )
+    for t in trades:
+        if not isinstance(t.permaticker, str) or not t.permaticker.strip():
+            raise DataDefectError(
+                f"{t.symbol} {t.day}: trade has an empty permaticker; the tie-break needs a "
+                "stable issuer identity"
+            )
     by_day: dict[date, list[Trade]] = {}
     for t in trades:
         by_day.setdefault(t.day, []).append(t)
