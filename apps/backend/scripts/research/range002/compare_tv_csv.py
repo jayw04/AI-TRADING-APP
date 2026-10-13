@@ -17,6 +17,7 @@ from __future__ import annotations
 import argparse
 import csv
 import json
+from collections.abc import Mapping
 from datetime import UTC, date, datetime
 from pathlib import Path
 from typing import Any
@@ -80,7 +81,10 @@ def read_store(
 
 
 def compare(
-    tv: dict[str, tuple[float, ...]], store: dict[str, tuple[float, ...]], *, rth_only: bool = True
+    tv: Mapping[str, tuple[float, ...]],
+    store: Mapping[str, tuple[float, ...]],
+    *,
+    rth_only: bool = True,
 ) -> dict[str, Any]:
     def regular(m: str) -> bool:
         return "09:30" <= m <= "15:59"
