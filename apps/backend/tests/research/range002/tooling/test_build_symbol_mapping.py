@@ -105,10 +105,12 @@ def test_cli_end_to_end_refuses_overwrite_and_reports_unverified(tmp_path: Path)
     con = duckdb.connect(":memory:")
     con.execute(
         'CREATE TABLE tickers("table" VARCHAR, ticker VARCHAR, relatedtickers VARCHAR,'
-        " firstpricedate DATE, lastpricedate DATE)"
+        " firstpricedate DATE, lastpricedate DATE, permaticker VARCHAR, name VARCHAR)"
     )
-    con.execute("INSERT INTO tickers VALUES ('SEP','AAL',NULL,'1997-12-31','2026-10-12'),"
-                " ('SEP','META','FB','2012-05-18','2026-10-12')")  # fmt: skip
+    con.execute(
+        "INSERT INTO tickers VALUES ('SEP','AAL',NULL,'1997-12-31','2026-10-12','1','AAL'),"
+        " ('SEP','META','FB','2012-05-18','2026-10-12','2','META PLATFORMS')"
+    )
     con.execute(f"COPY tickers TO '{(d / 'tickers.parquet').as_posix()}' (FORMAT PARQUET)")
     con.execute(
         "CREATE TABLE actions(date DATE, action VARCHAR, ticker VARCHAR, contraticker VARCHAR)"
@@ -127,3 +129,27 @@ def test_cli_end_to_end_refuses_overwrite_and_reports_unverified(tmp_path: Path)
     doc = json.loads(out.read_text(encoding="utf-8"))
     assert doc["unverified"] == ["META"]
     assert bsm.main(argv) == bsm.EXIT_REFUSED
+
+
+def test_boundary_override_needs_probe_evidence_on_both_sides() -> None:
+    ev = {"CB": [("2016-01-19", "ACE")]}
+    base = [
+        ("CB", "ACE", "2016-01-04", 200, 60),
+        ("CB", "CB", "2016-03-31", 200, 60),
+    ]
+    good = _probe(*base, ("CB", "ACE", "2016-01-15", 200, 0), ("CB", "CB", "2016-01-15", 200, 60))
+    ent = bsm.build_entries(["CB"], ROWS, good, ev, FROM, TO, {("CB", "2016-01-19"): "2016-01-15"})
+    assert ent[0]["schedule"] == [
+        {"from": "2016-01-01", "request_symbol": "ACE"},
+        {"from": "2016-01-15", "request_symbol": "CB"},
+    ]
+    assert ent[0]["provenance"] == bsm.PROV_CHAIN
+    assert ent[0]["evidence"]["boundary_overrides"][0]["vendor_change_date"] == "2016-01-19"
+    # the old symbol still has bars that day: the override is refused, the entry stays UNVERIFIED
+    bad = _probe(*base, ("CB", "ACE", "2016-01-15", 200, 60), ("CB", "CB", "2016-01-15", 200, 60))
+    ent2 = bsm.build_entries(["CB"], ROWS, bad, ev, FROM, TO, {("CB", "2016-01-19"): "2016-01-15"})
+    assert ent2[0]["provenance"] == bsm.PROV_UNVERIFIED
+    assert ent2[0]["schedule"][1]["from"] == "2016-01-19"
+    # an override more than 7 days early is refused
+    ent3 = bsm.build_entries(["CB"], ROWS, good, ev, FROM, TO, {("CB", "2016-01-19"): "2016-01-05"})
+    assert ent3[0]["provenance"] == bsm.PROV_UNVERIFIED

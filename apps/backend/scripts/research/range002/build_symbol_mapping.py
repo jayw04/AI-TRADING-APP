@@ -32,6 +32,7 @@ import hashlib
 import json
 import re
 import sys
+from datetime import date
 from pathlib import Path
 from typing import Any
 
@@ -134,12 +135,49 @@ def build_entries(
     events: dict[str, list[tuple[str, str]]],
     date_from: str,
     date_to: str,
+    overrides: dict[tuple[str, str], str] | None = None,
 ) -> list[dict[str, Any]]:
+    """``overrides[(vendor_ticker, vendor_change_date)] = earlier effective date``: an EXPLICIT,
+    evidence-checked correction of a vendor change date that lags the exchange symbol change. It is
+    applied only when the probe shows the OLD symbol has zero bars and the NEW symbol has bars on
+    that earlier date, and the date lies within 7 days before the vendor date; otherwise the
+    entry stays UNVERIFIED. Every use is recorded in the entry's evidence."""
+    overrides = overrides or {}
     ev = probe_evidence(probe)
     entries: list[dict[str, Any]] = []
     for s in symbols:
         row = ticker_rows.get(s, {})
         sched = symbol_schedule(s, date_from, date_to, events)
+        applied: list[dict[str, str]] = []
+        refused_override = False
+        for idx in range(1, len(sched)):
+            vdate, new_sym = sched[idx]
+            new_date = overrides.get((s, vdate))
+            if new_date is None:
+                continue
+            old_sym = sched[idx - 1][1]
+            old_rec = [r for r in ev.get((s, old_sym), []) if r["day"] == new_date]
+            new_rec = [r for r in ev.get((s, new_sym), []) if r["day"] == new_date]
+            gap = (date.fromisoformat(vdate) - date.fromisoformat(new_date)).days
+            ok = (
+                0 < gap <= 7
+                and bool(old_rec)
+                and all(r["http_status"] == 200 and r["bars"] == 0 for r in old_rec)
+                and bool(new_rec)
+                and all(r["http_status"] == 200 and (r["bars"] or 0) > 0 for r in new_rec)
+            )
+            if ok:
+                sched[idx] = (new_date, new_sym)
+                applied.append(
+                    {
+                        "vendor_change_date": vdate,
+                        "effective_date": new_date,
+                        "old_symbol_bars_that_day": "0",
+                        "new_symbol_has_bars_that_day": "true",
+                    }
+                )
+            else:
+                refused_override = True
         schedule = [{"from": d, "request_symbol": sym} for d, sym in sched]
         base: dict[str, Any] = {
             "vendor_ticker": s,
@@ -148,6 +186,8 @@ def build_entries(
             "asof_policy": "-",
             "provenance": PROV_UNVERIFIED,
             "evidence": {
+                "permaticker": str(row.get("permaticker") or ""),
+                "vendor_name": str(row.get("name") or ""),
                 "relatedtickers": str(row.get("relatedtickers") or ""),
                 "sharadar_price_interval": [
                     str(row.get("firstpricedate")),
@@ -159,14 +199,20 @@ def build_entries(
         if changed:
             # the vendor's ticker is the CURRENT symbol; the company traded under another one in
             # the window. Every scheduled symbol needs its own successful return-blind probe.
-            checks = {sym: _probe_ok(ev.get((s, sym), []), sym) for _, sym in sched}
+            checks = {}
+            for k, (seg_from, sym) in enumerate(sched):
+                seg_to = sched[k + 1][0] if k + 1 < len(sched) else "9999-12-31"
+                in_seg = [r for r in ev.get((s, sym), []) if seg_from <= r["day"] < seg_to]
+                checks[f"{sym}@{seg_from}"] = _probe_ok(in_seg, sym)
             base["evidence"]["chain_note"] = (
                 "vendor ACTIONS tickerchangefrom history; supporting evidence, not proof of "
                 "historical issuer identity"
             )
             base["evidence"]["probe_ok_by_symbol"] = checks
             base["asof_policy"] = "SEGMENT_START_DATE"
-            if all(checks.values()):
+            if applied:
+                base["evidence"]["boundary_overrides"] = applied
+            if all(checks.values()) and not refused_override:
                 base["provenance"] = PROV_CHAIN
         elif re.fullmatch(r"[A-Z]+", s):
             base["provenance"] = PROV_ALPHA
@@ -203,10 +249,11 @@ def run(
     universe_file: Path,
     daily_dir: Path,
     table_filter: str,
-    probe_json: Path,
+    probe_jsons: list[Path],
     out: Path,
     date_from: str,
     date_to: str,
+    overrides: dict[tuple[str, str], str] | None = None,
 ) -> int:
     import duckdb
 
@@ -217,24 +264,38 @@ def run(
     ]
     if len(set(symbols)) != len(symbols):
         raise ValueError("universe file lists a symbol twice")
-    probe = json.loads(probe_json.read_text(encoding="utf-8"))
+    probe: dict[str, Any] = {"records": []}
+    for pj in probe_jsons:
+        probe["records"].extend(json.loads(pj.read_text(encoding="utf-8")).get("records", []))
     con = duckdb.connect(":memory:")
     tpath = (daily_dir / "tickers.parquet").as_posix()
     rows = con.execute(
-        f"SELECT ticker, relatedtickers, firstpricedate, lastpricedate "
+        f"SELECT ticker, relatedtickers, firstpricedate, lastpricedate, permaticker, name "
         f"FROM read_parquet('{tpath}') WHERE \"table\" = ?",
         [table_filter],
     ).fetchall()
     con.close()
     ticker_rows = {
-        r[0]: {"relatedtickers": r[1], "firstpricedate": r[2], "lastpricedate": r[3]} for r in rows
+        r[0]: {
+            "relatedtickers": r[1],
+            "firstpricedate": r[2],
+            "lastpricedate": r[3],
+            "permaticker": r[4],
+            "name": r[5],
+        }
+        for r in rows
     }
-    entries = build_entries(symbols, ticker_rows, probe, load_events(daily_dir), date_from, date_to)
+    entries = build_entries(
+        symbols, ticker_rows, probe, load_events(daily_dir), date_from, date_to, overrides
+    )
     unverified = [e["vendor_ticker"] for e in entries if e["provenance"] == PROV_UNVERIFIED]
     doc = {
         "schema": SCHEMA,
         "universe_sha256": _sha(universe_file),
-        "probe_sha256": _sha(probe_json),
+        "probe_sha256": {pj.name: _sha(pj) for pj in probe_jsons},
+        "boundary_overrides_requested": sorted(
+            f"{v}:{d}->{n}" for (v, d), n in (overrides or {}).items()
+        ),
         "table_filter": table_filter,
         "date_from": date_from,
         "date_to": date_to,
@@ -260,12 +321,30 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--universe-file", required=True, type=Path)
     p.add_argument("--daily-dir", required=True, type=Path)
     p.add_argument("--table-filter", required=True)
-    p.add_argument("--probe-json", required=True, type=Path)
+    p.add_argument("--probe-json", required=True, type=Path, action="append")
+    p.add_argument(
+        "--boundary-override",
+        action="append",
+        default=[],
+        metavar="VENDOR=VENDOR_DATE:EFFECTIVE_DATE",
+        help="evidence-checked earlier effective date for a vendor change date that lags",
+    )
     p.add_argument("--out", required=True, type=Path)
     p.add_argument("--date-from", required=True)
     p.add_argument("--date-to", required=True)
     a = p.parse_args(argv)
     try:
+        overrides: dict[tuple[str, str], str] = {}
+        for item in a.boundary_override:
+            left, sep, eff = item.partition(":")
+            vendor, eq, vdate = left.partition("=")
+            if not (sep and eq and vendor and vdate and eff):
+                raise ValueError(
+                    f"--boundary-override needs VENDOR=VENDOR_DATE:EFFECTIVE_DATE: {item!r}"
+                )
+            date.fromisoformat(vdate)
+            date.fromisoformat(eff)
+            overrides[(vendor, vdate)] = eff
         return run(
             a.universe_file,
             a.daily_dir,
@@ -274,6 +353,7 @@ def main(argv: list[str] | None = None) -> int:
             a.out,
             a.date_from,
             a.date_to,
+            overrides,
         )
     except (ValueError, OSError, KeyError) as exc:
         print(f"REFUSED: {type(exc).__name__}: {exc}", file=sys.stderr)
