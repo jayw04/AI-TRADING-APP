@@ -55,11 +55,39 @@ from zoneinfo import ZoneInfo
 BASE_URL = "https://data.alpaca.markets/v2/stocks"
 _ET = ZoneInfo("America/New_York")
 EXIT_OK, EXIT_REFUSED = 0, 2
-TOOL_VERSION = "1.2.1"
+TOOL_VERSION = "1.3.0"
 PAGE_LIMIT = 10_000
 MAX_REQUESTS_PER_SAMPLE = 4
 #: ASSUMPTION, labelled as such: SIP condition codes treated as "regular" (regular sale, ISO sweep)
 REGULAR_CONDITIONS = frozenset({"@", "F", " "})  # blank code = regular sale in historical SIP data
+#: Trade-condition codes whose trades UPDATE the minute bar's open/close and high/low, from the
+#: provider's documented bar construction ("Market Data FAQ", condition table; "a trade can have
+#: more than one condition; the strictest rule is applied"). Code "B" updates only on tape C
+#: (bunched trade); on tapes A/B it is an average-price trade and does not. Every other code
+#: (C, G, H, I, M, N, P, Q, R, U, V, W, Z, 4, 7, 9) does NOT update prices on a minute bar.
+BAR_UPDATING_CODES = frozenset(
+    {" ", "@", "A", "D", "E", "F", "K", "L", "O", "T", "X", "Y", "5", "6"}
+)
+BAR_RULE_SOURCE = (
+    "https://docs.alpaca.markets/us/docs/market-data-faq (condition table, minute bars)"
+)
+
+
+def bar_eligible(codes: tuple[str, ...], tape: str | None) -> bool:
+    """True when the trade can update a minute bar under the documented rule. A trade with no
+    condition list is treated as eligible (it is not documented as excluded): the conservative
+    direction for any claim that a bar should not exist."""
+    if not codes:
+        return True
+    for c in codes:
+        if c == "B":
+            if tape != "C":
+                return False
+        elif c not in BAR_UPDATING_CODES:
+            return False
+    return True
+
+
 MANIFEST_SCHEMA = "range002.trades_probe_manifest.v1"
 
 CLASS_NO_TRADES = "NO_TRADES_RETURNED"
@@ -95,6 +123,9 @@ RECORD_FIELDS = (
     "condition_histogram_interval",
     "interval_trades_with_only_regular_codes",
     "classification",
+    "minutes",
+    "timestamps_within_window",
+    "tapes",
 )
 
 
@@ -244,6 +275,7 @@ def _probe_one(
     iv_hi = datetime.combine(smp.day, smp.interval_end, tzinfo=_ET)
     stamps: list[datetime] = []
     codes: list[tuple[str, ...]] = []
+    tapes: list[str | None] = []
     status, used = 0, 0
     token_present = False
     complete = False
@@ -280,6 +312,8 @@ def _probe_one(
             stamps.append(_parse_ts(tr["t"]))
             c = tr.get("c")
             codes.append(tuple(x for x in c if isinstance(x, str)) if isinstance(c, list) else ())
+            z = tr.get("z")
+            tapes.append(z if isinstance(z, str) else None)
         if error:
             break
         token = body.get("next_page_token")
@@ -295,6 +329,16 @@ def _probe_one(
     in_codes = [codes[i] for i in inside]
     hist = Counter(code for i in inside for code in (codes[i] or ("<none>",)))
     ok = complete and not error
+    w_lo = datetime.combine(smp.day, smp.window_start, tzinfo=_ET)
+    w_hi = datetime.combine(smp.day, smp.window_end, tzinfo=_ET)
+    within = all(w_lo <= ts < w_hi for ts in stamps) and stamps == sorted(stamps)
+    minutes: dict[str, dict[str, Any]] = {}
+    for ts, cd, tp in zip(stamps, codes, tapes, strict=True):
+        slot = minutes.setdefault(ts.strftime("%H:%M"), {"trades": 0, "eligible": 0, "codes": {}})
+        slot["trades"] += 1
+        slot["eligible"] += 1 if bar_eligible(cd, tp) else 0
+        for code in cd or ("<none>",):
+            slot["codes"][code] = slot["codes"].get(code, 0) + 1
     if is_bars:
         cls = (
             CLASS_INCOMPLETE
@@ -331,6 +375,9 @@ def _probe_one(
             1 for c in in_codes if c and set(c) <= REGULAR_CONDITIONS
         ),
         "classification": cls,
+        "minutes": minutes,
+        "timestamps_within_window": bool(within),
+        "tapes": sorted({t for t in tapes if t}),
     }
     assert tuple(rec) == RECORD_FIELDS
     return rec
@@ -344,19 +391,43 @@ def run_probe(
     secret: str,
     http_get: HttpGet,
     sleep: Callable[[float], None] = time.sleep,
+    requests_per_minute: float = 0.0,
+    checkpoint: Path | None = None,
+    partial_ok: bool = False,
 ) -> dict[str, Any]:
     if max_requests <= 0:
         raise ProbeRefusal("max-requests must be positive")
-    if len(samples) > max_requests:
+    if not partial_ok and len(samples) > max_requests:
         raise ProbeRefusal(
             f"{len(samples)} samples exceed the hard cap of {max_requests} requests; nothing sent"
         )
     headers = {"APCA-API-KEY-ID": key, "APCA-API-SECRET-KEY": secret}
     budget = _Budget(max_requests)
-    records = [
-        _probe_one(s, budget=budget, headers=headers, http_get=http_get, sleep=sleep)
-        for s in samples
-    ]
+    records: list[dict[str, Any]] = []
+    done: set[str] = set()
+    if checkpoint is not None and checkpoint.exists():
+        for line in checkpoint.read_text(encoding="utf-8").splitlines():
+            if line.strip():
+                rec = json.loads(line)
+                records.append(rec)
+                done.add(rec["id"])
+                budget.used += int(rec["requests_used"])
+    gap = 60.0 / requests_per_minute if requests_per_minute > 0 else 0.0
+    not_attempted: list[str] = []
+    for s in samples:
+        if s.id in done:
+            continue
+        if budget.left() <= 0:
+            not_attempted.append(s.id)
+            continue
+        before = budget.used
+        rec = _probe_one(s, budget=budget, headers=headers, http_get=http_get, sleep=sleep)
+        records.append(rec)
+        if checkpoint is not None:
+            with open(checkpoint, "a", encoding="utf-8", newline="\n") as fh:
+                fh.write(json.dumps(rec, sort_keys=True) + "\n")
+        if gap:
+            sleep(gap * max(1, budget.used - before))
     counts = Counter(r["classification"] for r in records)
     return {
         "schema": "range002.trades_probe.v1",
@@ -369,6 +440,7 @@ def run_probe(
         "max_requests": max_requests,
         "executed_at_utc": datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ"),
         "classification_counts": dict(sorted(counts.items())),
+        "samples_not_attempted": not_attempted,
         "records": records,
         "interpretation": (
             "an empty or truncated response is never read as 'no trades'; NO_TRADES_RETURNED is "
@@ -398,6 +470,9 @@ def main(argv: list[str] | None = None, *, http_get: HttpGet | None = None) -> i
     p.add_argument("--secret-env", required=True)
     p.add_argument("--out", required=True, type=Path)
     p.add_argument("--access-log", required=True, type=Path)
+    p.add_argument("--checkpoint", type=Path, default=None)
+    p.add_argument("--requests-per-minute", type=float, default=0.0)
+    p.add_argument("--allow-partial", action="store_true")
     a = p.parse_args(argv)
     try:
         if a.out.exists():
@@ -426,6 +501,9 @@ def main(argv: list[str] | None = None, *, http_get: HttpGet | None = None) -> i
             key=key,
             secret=secret,
             http_get=http_get or _httpx_get(30.0),
+            requests_per_minute=a.requests_per_minute,
+            checkpoint=a.checkpoint,
+            partial_ok=a.allow_partial,
         )
     except (ProbeRefusal, ValueError, KeyError) as exc:
         print(f"REFUSED: {type(exc).__name__}: {exc}", file=sys.stderr)
