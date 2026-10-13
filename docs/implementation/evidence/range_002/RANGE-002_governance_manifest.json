@@ -1,11 +1,11 @@
 {
   "schema_version": 1,
-  "approved_registry_genesis_id": null,
-  "approved_by": null,
-  "approved_on": null,
+  "approved_registry_genesis_id": "da2dd976-a5eb-496f-bd89-d37d860bc632",
+  "approved_by": "Jay Wang (owner instruction 2026-10-13)",
+  "approved_on": "2026-10-13",
   "p3_attempt_limits": {
-    "p3a": null,
-    "p3b": null
+    "p3a": 3,
+    "p3b": 1
   },
-  "notes": "UNSET. RANGE-002 governance manifest (Round 5 N-A). approved_registry_genesis_id, approved_by, approved_on and p3_attempt_limits are OWNER decisions and are deliberately null: nothing may freeze a spec or authorize a decisive run until the owner fills them in through a reviewed git change. Approval is all-or-nothing for the genesis triple. Level 1 only: a copied registry keeps its genesis id and filesystem edits of this file are Level 2 limitations."
+  "notes": "RANGE-002 governance manifest (Round 5 N-A), filled 2026-10-13 from the owner's recorded instruction: P3A limit 3 (includes the 2016-Q1 diagnostic, the full development run and one documented defect-recovery attempt), P3B limit 1. The genesis id was read back from RunRegistry.enroll_new on the AWS research registry /opt/workbench/data/research/range002_registry/ and was not typed. approved_by is an identifier string, not a signature. Level 1 only: a copied registry keeps its genesis id and filesystem edits of this file are Level 2 limitations."
 }

@@ -1,0 +1,23 @@
+{
+  "schema_version": 1,
+  "decision": {
+    "decision_date": "2026-10-13",
+    "record_kind": "owner_instruction",
+    "minutes_path": "docs/implementation/evidence/range_002/RANGE-002_Owner_Instruction_Record_2026-10-13.md",
+    "minutes_sha256": "dd5d883f714020bef7d4065201d5203fee691ec6d525bb3ab02adefffd014a45"
+  },
+  "entries": [
+    {
+      "id": "planned-2016q1-descriptive-diagnostic",
+      "start": "2016-01-01",
+      "end": "2016-03-31",
+      "description": "PLANNED, not yet observed: the 2016-Q1 descriptive diagnostic (one governed run: SIP minute-bar acquisition plus the seven-candidate screen, one P3A attempt). A counts-and-timestamps-only availability probe on 2026-10-12 requested bars for a few 2016 dates (2016-01-05 among them) and read no price or volume value; it is disclosed here and is not result exposure. Actual exposure is recorded in the successor ledger after the run.",
+      "source": "RANGE-002 owner instruction 2026-10-13",
+      "observed_by": "not yet observed (planned)",
+      "kind": "planned_run",
+      "phase": "P3A",
+      "partition": "DEVELOPMENT_SELECTION",
+      "planned_label": "range002-2016q1-diagnostic-v1"
+    }
+  ]
+}

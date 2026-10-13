@@ -721,6 +721,12 @@ def _acquire(
                     "session: entitlement, availability or symbol mapping must be investigated; "
                     "the bulk acquisition was not started"
                 )
+            if not probe["first_bar_is_0930_et"]:
+                raise DataDefectError(
+                    "timestamp convention evidence contradicts 'start': the first bar for the "
+                    f"first symbol is {probe['first_bar_utc']}, not the 09:30 ET interval start "
+                    f"{probe['window_start_utc']}; the bulk acquisition was not started"
+                )
         cfg = fm.RunConfig(
             mode="store",
             symbols=tuple(symbols),
