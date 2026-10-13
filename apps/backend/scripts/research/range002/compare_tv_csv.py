@@ -107,7 +107,7 @@ def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__)
     for name in ("csv", "store", "out"):
         ap.add_argument(f"--{name}", required=True, type=Path)
-    for a in (
+    for name in (
         "symbol",
         "day",
         "tv-symbol",
@@ -117,7 +117,7 @@ def main() -> int:
         "tv-session",
         "tv-adjustment",
     ):
-        ap.add_argument(f"--{a}", required=True)
+        ap.add_argument(f"--{name}", required=True)
     a = ap.parse_args()
     if a.out.exists():
         raise SystemExit(f"{a.out} exists; never overwritten")
