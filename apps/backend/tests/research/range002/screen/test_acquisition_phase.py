@@ -188,3 +188,55 @@ def test_validated_acquisition_unlocks_exactly_its_own_bindings(
         if r.phase in (Phase.P3A, Phase.P3B) and r.capability_issued_seq is not None
     ]
     assert [r.run_id for r in consumed] == [out.run_id]  # ONLY the performance run is an attempt
+
+
+def test_planned_later_phase_run_does_not_block_acquisition_but_prior_exposure_does(
+    world: dict[str, Any],
+) -> None:
+    doc = json.loads(DECIDED_LEDGER)
+    base_entry = {
+        "start": "2016-03-01",
+        "end": "2016-03-07",
+        "description": "test",
+        "source": "test",
+        "observed_by": "test",
+    }
+    planned = dict(
+        base_entry,
+        id="planned-p3a",
+        kind="planned_run",
+        phase="P3A",
+        partition="DEVELOPMENT_SELECTION",
+        planned_label="x",
+    )
+    doc["entries"] = [*doc["entries"], planned]
+    ledger_path = world["tmp"] / "ledger_planned.json"
+    ledger_path.write_text(json.dumps(doc), encoding="utf-8")
+    # the synthetic spec binds the DECIDED ledger's sha, so re-bind through a fresh spec
+    payload = synth_payload(exits__candidates=copy.deepcopy(SEVEN))
+    payload["governance"]["exposure_signed"] = {
+        "exposure_ledger_sha256": ExposureLedger.from_text(ledger_path.read_text()).sha256
+    }
+    frozen = _freeze(world["tmp"], payload, "frozen_planned.json")
+    kw = dict(
+        world["kwargs"],
+        **ACQ_KW,
+        spec_path=frozen,
+        exposure_ledger_path=ledger_path,
+        out_dir=world["tmp"] / "acq_planned",
+    )
+    assert rds.run(**kw).status in (rds.STATUS_ACQ_DEFECT, rds.STATUS_ACQ_VALIDATED)
+    # a seen (prior_exposure) entry over the same window still blocks acquisition
+    seen = dict(base_entry, id="seen-1")
+    doc["entries"] = [*json.loads(DECIDED_LEDGER)["entries"], seen]
+    ledger2 = world["tmp"] / "ledger_seen.json"
+    ledger2.write_text(json.dumps(doc), encoding="utf-8")
+    payload["governance"]["exposure_signed"] = {
+        "exposure_ledger_sha256": ExposureLedger.from_text(ledger2.read_text()).sha256
+    }
+    frozen2 = _freeze(world["tmp"], payload, "frozen_seen.json")
+    kw2 = dict(
+        kw, spec_path=frozen2, exposure_ledger_path=ledger2, out_dir=world["tmp"] / "acq_seen"
+    )
+    with pytest.raises(gov_errors.ExposureOverlapError):
+        rds.run(**kw2)

@@ -864,6 +864,11 @@ def authorize(
         # a planned_run entry authorises exactly its own phase/partition/range; every
         # prior_exposure entry (and any planned entry not matching the request) blocks
         hits = exposure_ledger.blocking_overlaps(date_range, phase=phase, partition=partition)
+        if phase is Phase.ACQ:
+            # acquisition observes no result: a PLANNED run of a later phase (e.g. the P3A
+            # evaluation this data is for) is not seen data and does not block it; every
+            # prior_exposure entry still does
+            hits = tuple(h for h in hits if h.kind != "planned_run")
         if hits:
             raise ExposureOverlapError(
                 f"{partition.value} overlaps exposure-ledger entries {[h.id for h in hits]}"
