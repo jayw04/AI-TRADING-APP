@@ -15,8 +15,8 @@ from app.research.range002.governance.run_registry import RunRegistry
 
 from .conftest import (
     CODE_SHA,
+    DECIDED_LEDGER,
     MANIFEST_SHA,
-    SIGNED_LEDGER,
     SPEC_SHA,
     complete_prereqs,
     make_spec,
@@ -26,7 +26,7 @@ from .conftest import (
 
 
 def test_ledger_attributes_cannot_be_deleted() -> None:
-    led = ExposureLedger.from_text(SIGNED_LEDGER)
+    led = ExposureLedger.from_text(DECIDED_LEDGER)
     with pytest.raises(AttributeError):
         del led._sha256
 
@@ -56,7 +56,7 @@ def test_non_evidence_object_in_predecessor_evidence_is_refused(tmp_path: Path) 
             partition=Partition.DEVELOPMENT_CONFIRMATION,
             run_id=rid,
             registry=reg,
-            exposure_ledger=ExposureLedger.from_text(SIGNED_LEDGER),
+            exposure_ledger=ExposureLedger.from_text(DECIDED_LEDGER),
             predecessor_evidence=["not evidence"],  # type: ignore[list-item]
         )
 

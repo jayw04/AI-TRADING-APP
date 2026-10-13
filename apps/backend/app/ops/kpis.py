@@ -1,7 +1,8 @@
-"""Operational KPI scorecard (P13.5) — the customer-facing operational metrics.
+"""Operational KPI scorecard (P13.5) — the durable operational metrics rollup.
 
 The P11 §2 Prometheus/Grafana substrate is **operator**-facing (runtime, scraped, SLO alerts). This
-is the **customer**-facing complement: a durable, point-in-time rollup an allocator/buyer reads —
+is the durable complement: a point-in-time rollup of the same signals (an internal report; whether it
+may be shared is a separate PU-1 question, answered by each row's licence lineage, not by this label) —
 reconciliation success, replay consistency, risk-gate efficacy, breaker recovery, fill success, and
 operational continuity — each with a target and a pass/watch status.
 
@@ -47,7 +48,7 @@ def _status(value: float | None, target: float, *, higher_is_better: bool) -> st
 
 
 def build_scorecard(i: KpiInputs) -> list[dict[str, Any]]:
-    """The customer-facing KPI rows: each {key,label,value,unit,target,status,note}."""
+    """The KPI rows: each {key,label,value,unit,target,status,note}."""
     recon_success = _pct(i.reconciliation_passes, i.reconciliation_runs)
     replay_consistency = _pct(i.replay_matched, i.replay_checked)
     total_risk = i.orders_risk_passed + i.orders_rejected_by_risk

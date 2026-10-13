@@ -1,4 +1,4 @@
-"""L1 hardening of the freeze tool: future sign-off date, exclusive create, symlink targets."""
+"""L1 hardening of the freeze tool: future meeting date, exclusive create, symlink targets."""
 
 from __future__ import annotations
 
@@ -20,18 +20,18 @@ def _draft(tmp_path: Path, payload: dict) -> Path:
     return p
 
 
-def test_future_signoff_date_refused(tmp_path, capsys):
+def test_future_decision_date_refused(tmp_path, capsys):
     payload = complete_payload()
-    payload["signoff"]["date"] = (date.today() + timedelta(days=1)).isoformat()
+    payload["decision"]["decision_date"] = (date.today() + timedelta(days=1)).isoformat()
     out = tmp_path / "frozen.json"
     assert cli.main([str(_draft(tmp_path, payload)), "--out", str(out)]) == 2
     assert not out.exists()
     assert "future" in capsys.readouterr().err
 
 
-def test_today_signoff_date_accepted(tmp_path):
+def test_today_decision_date_accepted(tmp_path):
     payload = complete_payload()
-    payload["signoff"]["date"] = date.today().isoformat()
+    payload["decision"]["decision_date"] = date.today().isoformat()
     out = tmp_path / "frozen.json"
     assert cli.main([str(_draft(tmp_path, payload)), "--out", str(out)]) == 0
 

@@ -41,25 +41,25 @@ def test_strict_mode_rejects_lax_coercion(path, bad):
 
 def test_iso_date_strings_still_accepted_for_date_fields():
     spec = parse_draft(complete_payload())
-    assert spec.signoff.date == date(2000, 1, 1)
+    assert spec.decision is not None and spec.decision.decision_date == date(2000, 1, 1)
     assert spec.partitions.holdout == (date(2022, 1, 1), date(2025, 12, 31))
 
 
 @pytest.mark.parametrize("bad", [20000101, 946684800.0, True, "2000-1-1x"])
 def test_non_iso_dates_rejected(bad):
     payload = complete_payload()
-    set_path(payload, "signoff.date", bad)
+    set_path(payload, "decision.decision_date", bad)
     _problems(payload)
 
 
 def test_unset_walk_treats_lists_of_blanks_as_unset():
     payload = complete_payload()
     set_path(payload, "costs.components", [None])
-    set_path(payload, "governance.roles", {"owners": ["  ", None]})
+    set_path(payload, "governance.exposure_signed", {"owners": ["  ", None]})
     set_path(payload, "gates.yearly", ["", ""])
     unset = parse_draft(payload).unset_p0_fields()
     assert "costs.components" in unset
-    assert "governance.roles.owners" in unset
+    assert "governance.exposure_signed.owners" in unset
     assert "gates.yearly" in unset
     set_path(payload, "costs.components", [None, "x"])
     assert "costs.components" not in parse_draft(payload).unset_p0_fields()

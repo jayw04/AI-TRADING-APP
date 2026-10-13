@@ -13,6 +13,11 @@ to be run weekly/monthly as the book accumulates history.
 
 The live equity curve comes from the `equity_snapshots` time series (the `equity_snapshot` daily
 job persists one point per account near market close); realized vol/drawdown/return accrue daily.
+
+INTERNAL report (PU-1). It reads marked-to-market broker fields (position market_value /
+unrealized_pl, account equity) alongside the owner's own order, fill and audit records, so its
+declared sources include ``alpaca_market_data`` and it is PERSONAL. The output carries the PU-1
+footer and a scope sidecar. A label or sidecar does not establish permission to share it.
 """
 
 from __future__ import annotations
@@ -31,6 +36,32 @@ if str(BACKEND_ROOT) not in sys.path:
     sys.path.insert(0, str(BACKEND_ROOT))
 
 from app.factor_data import evidence as ev  # noqa: E402  (reuse the §1 curve metrics)
+from app.licensing import (  # noqa: E402
+    OWNER_GENERATED_RECORDS,
+    PERMISSION_NOTE,
+    taint_from_fields,
+    write_internal_json,
+    write_internal_report,
+)
+
+# PU-1 declared lineage: the broker/mirror fields this report actually reads (kind, fields). The
+# owner's own audit rows, strategy config and order/fill records are the owner-record part. The
+# marked-to-market fields (market_value, unrealized_pl*, account equity/portfolio_value) are what
+# makes the report PERSONAL; REPLAY_MISMATCH counts are market-dependent through the breaker-trip
+# replay (unrealized_pl), so position.unrealized_pl is already in the set.
+_BROKER_FIELDS_USED: tuple[tuple[str, tuple[str, ...]], ...] = (
+    ("account", ("cash", "equity", "portfolio_value", "buying_power", "day_change_pct", "status")),
+    ("position", ("symbol", "qty", "market_value", "unrealized_pl", "unrealized_plpc")),
+    ("order", ("id", "side", "qty", "status", "created_at")),
+    ("fill", ("qty", "price", "commission")),
+)
+LICENSE_SOURCES: tuple[str, ...] = tuple(
+    sorted(
+        taint_from_fields(
+            None, *_BROKER_FIELDS_USED, extra_sources=(OWNER_GENERATED_RECORDS,)
+        ).sources
+    )
+)
 
 
 def _equity_curve(con: sqlite3.Connection, account_id: int | None = None) -> list[tuple[date, float]]:
@@ -277,6 +308,8 @@ def _render(r: dict[str, Any]) -> str:
         "- Run this weekly/monthly; the equity curve + trade log + operational trail accumulate into the "
         "live track record. Turnover + commission cost are now reported (Activity & cost); live-vs-backtest "
         "attribution is a later increment.",
+        "",
+        f"_{PERMISSION_NOTE}_",
     ]
     return "\n".join(lines) + "\n"
 
@@ -332,11 +365,12 @@ def main() -> int:
         r = build(args.db, sid)
         _emit(r)
         if d:
-            (d / f"live_evidence_{sid}.json").write_text(json.dumps(r, indent=2, default=str), encoding="utf-8")
-            (d / f"live_evidence_{sid}.md").write_text(_render(r), encoding="utf-8")
+            payload = {**r, "license_note": PERMISSION_NOTE}
+            write_internal_json(d / f"live_evidence_{sid}.json", payload, sources=LICENSE_SOURCES)
+            write_internal_report(d / f"live_evidence_{sid}.md", _render(r), sources=LICENSE_SOURCES)
             if sid == primary:  # canonical filenames (Evidence Book + weekly archive refer to these)
-                (d / "live_evidence.json").write_text(json.dumps(r, indent=2, default=str), encoding="utf-8")
-                (d / "live_evidence.md").write_text(_render(r), encoding="utf-8")
+                write_internal_json(d / "live_evidence.json", payload, sources=LICENSE_SOURCES)
+                write_internal_report(d / "live_evidence.md", _render(r), sources=LICENSE_SOURCES)
     if d:
         print(f"  wrote {len(ids)} report(s) to {d} (canonical = id={primary})")
     return 0

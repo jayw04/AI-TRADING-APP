@@ -28,8 +28,8 @@ from app.research.range002.governance.run_registry import (
 from tests.research.range002.spec._fixtures import SYNTH_GENESIS_ID
 
 from .conftest import (
+    DECIDED_LEDGER,
     LEDGER_SHA,
-    SIGNED_LEDGER,
     _default_guard_fields,
     complete_prereqs,
     forge_guard_view,
@@ -39,7 +39,7 @@ from .conftest import (
 )
 from .test_import_lint import RANGE002, REVIEWED_PURE, REVIEWED_PURE_IO, flagged, lint_tree
 
-LEDGER = ExposureLedger.from_text(SIGNED_LEDGER)
+LEDGER = ExposureLedger.from_text(DECIDED_LEDGER)
 P3A, SEL = Phase.P3A, Partition.DEVELOPMENT_SELECTION
 OTHER_SPEC = "8" * 64
 
@@ -214,6 +214,8 @@ def test_nf6_io_allowlist_is_minimal_and_explicit() -> None:
     assert set(REVIEWED_PURE_IO) == {
         "app.research.range002.spec.manifest:load_manifest",
         "app.research.range002.spec.hashing:file_sha256",
+        # meeting-decision migration: re-hashes the ONE cited minutes file (read-only)
+        "app.research.range002.spec.decision:check_minutes_file",
     }
 
 

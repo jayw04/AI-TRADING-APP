@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from datetime import datetime
 from decimal import Decimal
+from typing import Any
 
 from pydantic import BaseModel, ConfigDict
 
@@ -37,3 +38,10 @@ class AccountResponse(BaseModel):
     trading_blocked: bool
     account_blocked: bool
     updated_at: datetime
+    # PU-1: per-field licence lineage of this response (additive; see app.licensing.broker_fields).
+    # The response is as restricted as its most restrictive field; owner records (cash, status) and
+    # marked-to-market fields (equity, buying_power, ...) are distinguishable in license_field_sources.
+    license_scope: str | None = None
+    license_sources: list[str] | None = None
+    license_footer: str | None = None
+    license_field_sources: dict[str, Any] | None = None

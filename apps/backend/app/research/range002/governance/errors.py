@@ -19,8 +19,38 @@ class SpecNotFrozenError(GovernanceError):
     """The spec view is missing, malformed or has no valid ``spec_sha256``."""
 
 
-class SpecNotSignedError(GovernanceError):
-    """The spec is not signed (``is_signed`` is not exactly ``True``)."""
+class DecisionError(GovernanceError):
+    """Base class for meeting-decision refusals: the spec's decision reference does not
+    authorize the requested run. The weekly meeting minutes are the decision record; the spec
+    only points at them."""
+
+
+class DecisionMissingError(DecisionError):
+    """The spec carries no usable meeting-decision reference (absent, malformed, not bound to
+    this spec hash, or ``has_run_decision`` is not exactly ``True``)."""
+
+
+class DecisionNotApprovedError(DecisionError):
+    """The recorded decision is not exactly ``approved`` (``revise``, ``defer`` and ``stop``
+    authorize nothing)."""
+
+
+class DecisionScopeError(DecisionError):
+    """The decision's scope does not include ``run`` (a build-only decision authorizes no
+    results)."""
+
+
+class DecisionPartitionError(DecisionScopeError):
+    """The requested partition is not among the partitions the decision covers."""
+
+
+class DecisionMinutesMismatchError(DecisionError):
+    """The minutes file the decision cites hashes to a different SHA-256: the minutes were
+    changed after the decision was recorded."""
+
+
+class DecisionMinutesMissingError(DecisionMinutesMismatchError):
+    """The minutes file the decision cites does not exist at its repo-relative path."""
 
 
 class SpecIncompleteError(GovernanceError):
@@ -213,8 +243,9 @@ class ExposureLedgerError(GovernanceError):
     """The exposure ledger file is malformed (schema violation)."""
 
 
-class ExposureLedgerNotSignedError(GovernanceError):
-    """The exposure ledger carries no sign-off (WP0.6 audit unsigned, D01)."""
+class ExposureLedgerDecisionMissingError(GovernanceError):
+    """The exposure ledger carries no meeting-decision reference (WP0.6 audit not yet recorded
+    in the meeting minutes, D01)."""
 
 
 # --- holdout token (WP4.2) ---------------------------------------------------
@@ -247,3 +278,11 @@ class IndependenceAuthorizationNotAcceptedError(HoldoutAlreadyOpenedError):
 
 class VerdictError(GovernanceError):
     """A verdict string outside the closed set, or an invalid transition."""
+
+
+class ProfileNotRecognizedError(GovernanceError):
+    """The spec's profile is neither "full" nor "screen" (missing, forged or from a newer build)."""
+
+
+class ProfileNotAuthorizedError(GovernanceError):
+    """A screen-profile spec was offered for a phase/partition outside P2 replay and P3A."""

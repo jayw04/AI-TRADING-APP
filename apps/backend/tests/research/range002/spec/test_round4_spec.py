@@ -271,12 +271,14 @@ def test_freeze_removes_the_file_when_the_round_trip_load_raises(tmp_path, monke
     assert not out.exists()
 
 
-def test_freeze_removes_the_file_when_the_round_trip_is_unsigned(tmp_path, monkeypatch):
+def test_freeze_removes_the_file_when_the_round_trip_has_no_run_decision(tmp_path, monkeypatch):
     draft = tmp_path / "d.json"
     draft.write_text(json.dumps(complete_payload()), encoding="utf-8")
     out = tmp_path / "f.json"
     real = cli.load_frozen
-    monkeypatch.setattr(cli, "load_frozen", lambda p: dataclasses.replace(real(p), is_signed=False))
+    monkeypatch.setattr(
+        cli, "load_frozen", lambda p: dataclasses.replace(real(p), has_run_decision=False)
+    )
     with pytest.raises(RuntimeError):
         cli.freeze(draft, out)
     assert not out.exists()

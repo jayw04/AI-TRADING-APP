@@ -1,7 +1,8 @@
 """PR 2 x PR 3 end-to-end: a real frozen spec file through the real guard.
 
-Synthetic fixtures only. Negative paths: unsigned, mutated-after-freeze, unset
-decision, duplicate holdout access, aborted run, and bypass of the guard.
+Synthetic fixtures only. Negative paths: no meeting decision, decision not approved or without
+run scope, mutated-after-freeze, decision bound to another spec hash, unset P0 field, duplicate
+holdout access, aborted run, and bypass of the guard.
 """
 
 from __future__ import annotations
@@ -14,10 +15,12 @@ from pathlib import Path
 import pytest
 
 from app.research.range002.governance.errors import (
+    DecisionMissingError,
+    DecisionNotApprovedError,
+    DecisionScopeError,
     HoldoutAlreadyOpenedError,
     InvalidCapabilityError,
     RunNotRegisteredError,
-    SpecNotSignedError,
 )
 from app.research.range002.governance.exposure_ledger import ExposureLedger
 from app.research.range002.governance.holdout_token import HoldoutTokenStore
@@ -30,15 +33,15 @@ from app.research.range002.governance.run_registry import RunRegistry, RunStatus
 from app.research.range002.governance.spec_adapter import to_guard_view
 from app.research.range002.governance.spec_view import FrozenSpecView
 from app.research.range002.spec.loader import SpecHashMismatchError, load_frozen
-from app.research.range002.spec.schema import UnsetP0FieldsError
+from app.research.range002.spec.schema import DecisionRefError, UnsetP0FieldsError
 from tests.research.range002.governance.conftest import (
     CODE_SHA,
+    DECIDED_LEDGER,
     DEFAULT_CONFIRMATION,
     DEFAULT_HOLDOUT,
     DEFAULT_SELECTION,
     LEDGER_SHA,
     MANIFEST_SHA,
-    SIGNED_LEDGER,
     SYNTH_GENESIS_ID,
     complete_prereqs,
     evidence_for,
@@ -47,6 +50,7 @@ from tests.research.range002.governance.conftest import (
 from tests.research.range002.spec._fixtures import (
     SYNTH_MANIFEST_PATH,
     complete_payload,
+    decision_block,
     get_path,
     set_path,
 )
@@ -56,7 +60,7 @@ import freeze_spec  # noqa: E402
 
 
 def _freeze(tmp_path: Path, **edits: object) -> Path:
-    payload = complete_payload(signed=True)
+    payload = complete_payload(decided=True)
     set_path(payload, "governance.exposure_signed", {"exposure_ledger_sha256": LEDGER_SHA})
     for path, value in edits.items():
         set_path(payload, path.replace("__", "."), value)
@@ -69,7 +73,7 @@ def _freeze(tmp_path: Path, **edits: object) -> Path:
 
 @pytest.fixture
 def ledger() -> ExposureLedger:
-    return ExposureLedger.from_text(SIGNED_LEDGER)
+    return ExposureLedger.from_text(DECIDED_LEDGER)
 
 
 def _open(registry: RunRegistry, sha: str, phase: Phase, partition: Partition) -> str:
@@ -90,12 +94,15 @@ def test_adapter_satisfies_protocol_and_preserves_semantics(tmp_path: Path) -> N
     view = load_frozen(_freeze(tmp_path))
     gv = to_guard_view(view)
     assert isinstance(gv, FrozenSpecView)
-    assert gv.spec_sha256 == view.spec_sha256 and gv.is_signed is True
+    assert gv.spec_sha256 == view.spec_sha256 and gv.has_run_decision is True
+    assert gv.decision == "approved" and "run" in gv.decision_scope
+    assert gv.minutes_path and gv.minutes_sha256 and gv.strategy_version and gv.baseline_id
+    assert "HOLDOUT" in gv.decision_partitions
     assert gv.partitions.holdout == DateRange(date(2022, 1, 1), date(2025, 12, 31))
     assert gv.partitions.selection == DateRange(date(2016, 1, 1), date(2019, 12, 31))
 
 
-def test_signed_spec_authorizes_p3a_and_registry_binds_same_hash(tmp_path, ledger) -> None:
+def test_decided_spec_authorizes_p3a_and_registry_binds_same_hash(tmp_path, ledger) -> None:
     gv = to_guard_view(load_frozen(_freeze(tmp_path)))
     reg = new_registry(tmp_path / "runs.jsonl")
     rid = _open(reg, gv.spec_sha256, Phase.P3A, Partition.DEVELOPMENT_SELECTION)
@@ -110,24 +117,85 @@ def test_signed_spec_authorizes_p3a_and_registry_binds_same_hash(tmp_path, ledge
     assert cap is not None
 
 
-def test_unsigned_spec_refused_by_guard(tmp_path, ledger) -> None:
-    payload = complete_payload(signed=False)
-    p = tmp_path / "f.json"
-    p.write_text(json.dumps(payload), encoding="utf-8")
-    view = load_frozen(p)
-    assert view.is_signed is False
-    gv = to_guard_view(view)
+def _authorize_p3a(gv, tmp_path, ledger):
     reg = new_registry(tmp_path / "runs.jsonl")
     rid = _open(reg, gv.spec_sha256, Phase.P3A, Partition.DEVELOPMENT_SELECTION)
-    with pytest.raises(SpecNotSignedError):
-        authorize(
-            spec=gv,
-            phase=Phase.P3A,
-            partition=Partition.DEVELOPMENT_SELECTION,
-            run_id=rid,
-            registry=reg,
-            exposure_ledger=ledger,
-        )
+    return authorize(
+        spec=gv,
+        phase=Phase.P3A,
+        partition=Partition.DEVELOPMENT_SELECTION,
+        run_id=rid,
+        registry=reg,
+        exposure_ledger=ledger,
+    )
+
+
+def _hand_written(tmp_path: Path, decision: dict | None) -> Path:
+    """A spec file as a person could write it by hand: a complete draft plus a decision block
+    (and, deliberately, a recorded spec hash only when the caller supplies one)."""
+    payload = complete_payload(decided=False)
+    set_path(payload, "governance.exposure_signed", {"exposure_ledger_sha256": LEDGER_SHA})
+    payload["decision"] = decision
+    p = tmp_path / "hand.json"
+    p.write_text(json.dumps(payload), encoding="utf-8")
+    return p
+
+
+def test_spec_without_decision_loads_but_is_refused_by_guard(tmp_path, ledger) -> None:
+    view = load_frozen(_hand_written(tmp_path, None))
+    assert view.has_run_decision is False
+    assert "decision missing" in view.unusable_reasons
+    assert view.decision is None and view.decision_scope == ()
+    with pytest.raises(DecisionMissingError):
+        _authorize_p3a(to_guard_view(view), tmp_path, ledger)
+
+
+def test_decision_without_bound_spec_hash_is_refused_by_guard(tmp_path, ledger) -> None:
+    view = load_frozen(_hand_written(tmp_path, decision_block()))  # spec_sha256 not filled in
+    assert view.has_run_decision is False
+    assert view.unusable_reasons == ("decision.spec_sha256 missing",)
+    with pytest.raises(DecisionMissingError):
+        _authorize_p3a(to_guard_view(view), tmp_path, ledger)
+
+
+@pytest.mark.parametrize("outcome", ["revise", "defer", "stop"])
+def test_non_approved_decision_loads_unusable_and_is_refused_by_guard(
+    tmp_path, ledger, outcome
+) -> None:
+    view = load_frozen(_hand_written(tmp_path, decision_block(decision=outcome)))
+    assert view.has_run_decision is False
+    assert any(outcome in r for r in view.unusable_reasons)
+    with pytest.raises(DecisionNotApprovedError):
+        _authorize_p3a(to_guard_view(view), tmp_path, ledger)
+
+
+def test_build_only_decision_loads_unusable_and_is_refused_by_guard(tmp_path, ledger) -> None:
+    block = decision_block(scope=["build"], partitions=[])
+    view = load_frozen(_hand_written(tmp_path, block))
+    assert view.has_run_decision is False
+    assert "decision scope lacks 'run'" in view.unusable_reasons
+    with pytest.raises(DecisionScopeError):
+        _authorize_p3a(to_guard_view(view), tmp_path, ledger)
+
+
+def test_decision_recorded_for_another_spec_hash_is_refused_at_load(tmp_path) -> None:
+    """A decision that names a different spec hash (another version of the spec) never loads."""
+    p = _hand_written(tmp_path, decision_block(spec_sha256="0" * 64))
+    with pytest.raises(SpecHashMismatchError):
+        load_frozen(p)
+
+
+def test_freeze_refuses_non_approved_or_non_run_decisions(tmp_path) -> None:
+    for name, block in (
+        ("revise", decision_block(decision="revise")),
+        ("defer", decision_block(decision="defer")),
+        ("stop", decision_block(decision="stop")),
+        ("build", decision_block(scope=["build"], partitions=[])),
+    ):
+        draft = _hand_written(tmp_path, block)
+        with pytest.raises(DecisionRefError):
+            freeze_spec.freeze(draft, tmp_path / f"{name}.json", manifest_path=SYNTH_MANIFEST_PATH)
+        assert not (tmp_path / f"{name}.json").exists()
 
 
 def test_mutated_frozen_spec_is_refused_at_load(tmp_path) -> None:
@@ -141,7 +209,7 @@ def test_mutated_frozen_spec_is_refused_at_load(tmp_path) -> None:
 
 
 def test_unset_decision_blocks_freeze(tmp_path) -> None:
-    payload = complete_payload(signed=True)
+    payload = complete_payload(decided=True)
     set_path(payload, "stats.bootstrap.method", None)
     draft = tmp_path / "d.json"
     draft.write_text(json.dumps(payload), encoding="utf-8")

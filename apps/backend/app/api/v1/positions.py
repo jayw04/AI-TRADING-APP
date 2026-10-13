@@ -23,9 +23,18 @@ from app.db.models.order import Order
 from app.db.models.position import Position
 from app.db.models.symbol import Symbol
 from app.db.session import get_session
+from app.licensing.broker_fields import field_license_block
 from app.risk import OrderRequest
 
 router = APIRouter(prefix="/positions", tags=["positions"])
+
+# PU-1: the fields of the broker position object this response exposes (per-field classification in
+# app/licensing/broker_field_classification.json; qty/side/avg_entry_price/cost_basis are owner
+# records, market_value and unrealized P&L are marked to market).
+_POSITION_FIELDS_USED = (
+    "symbol", "qty", "side", "avg_entry_price", "cost_basis",
+    "market_value", "unrealized_pl", "unrealized_plpc",
+)
 
 
 def _get_router(request: Request):
@@ -85,6 +94,7 @@ async def list_positions(
         gross_exposure=gross,
         net_exposure=net,
         total_unrealized_pl=total_pl,
+        **field_license_block("position", _POSITION_FIELDS_USED),
     )
 
 
