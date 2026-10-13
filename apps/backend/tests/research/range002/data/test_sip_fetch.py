@@ -501,3 +501,48 @@ def test_vendor_end_is_inclusive_so_the_transport_asks_for_the_last_instant_befo
     )
     assert res.bars and all(START <= b.t < END for b in res.bars)
     assert res.bars[-1].t == END - timedelta(minutes=1)
+
+
+def test_adjacent_windows_neither_drop_nor_duplicate_a_boundary_bar(cap: object) -> None:
+    """Two adjacent [start, end) windows against a vendor whose `end` is inclusive: the bar labelled
+    exactly at the shared boundary belongs to the second window only, and the union of the two
+    results equals one continuous series, each bar once."""
+
+    class Continuous(FakeVendor):
+        def __call__(
+            self, url: str, params: Mapping[str, str], headers: Mapping[str, str]
+        ) -> HttpReply:
+            self.calls.append({"url": url, "params": dict(params), "headers": dict(headers)})
+            s = datetime.strptime(params["start"], "%Y-%m-%dT%H:%M:%SZ")
+            e = datetime.strptime(params["end"], "%Y-%m-%dT%H:%M:%SZ")
+            bars: list[dict[str, Any]] = []
+            t = s
+            while t <= e:  # inclusive end
+                if t.second == 0:
+                    bars.append(
+                        {
+                            "t": t.strftime("%Y-%m-%dT%H:%M:%SZ"),
+                            "o": 10.0, "h": 10.1, "l": 9.9, "c": 10.0, "v": 100,
+                            "n": 1, "vw": 10.0,
+                        }
+                    )  # fmt: skip
+                t += timedelta(minutes=1)
+            sym = url.rsplit("/", 2)[-2]
+            return HttpReply(200, {}, {"bars": bars, "symbol": sym, "next_page_token": None})
+
+    boundary = START + timedelta(minutes=20)
+    stop = START + timedelta(minutes=40)
+    t = _T(_cfg(Continuous()))
+    first = fetch_symbol_window(
+        cap, t, symbol="AAA", start_utc=START, end_utc=boundary, feed="sip", adjustment="raw",
+        asof="-", limit=10_000, max_pages=2,
+    )  # fmt: skip
+    second = fetch_symbol_window(
+        cap, t, symbol="AAA", start_utc=boundary, end_utc=stop, feed="sip", adjustment="raw",
+        asof="-", limit=10_000, max_pages=2,
+    )  # fmt: skip
+    stamps = [b.t for b in first.bars] + [b.t for b in second.bars]
+    assert len(stamps) == len(set(stamps)) == 40
+    assert stamps == [START + timedelta(minutes=i) for i in range(40)]
+    assert first.bars[-1].t == boundary - timedelta(minutes=1)
+    assert second.bars[0].t == boundary
