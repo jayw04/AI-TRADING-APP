@@ -32,6 +32,7 @@ from fastapi import Cookie, Depends, Header, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.auth.market_access import parse_market_access
 from app.auth.tokens import hash_session_token
 from app.db.models.session import Session as SessionRow
 from app.db.models.user import User
@@ -56,6 +57,9 @@ class CurrentUser:
     email: str
     display_name: str | None = None
     session_id: int | None = None
+    # Fail closed. Session and bearer resolution set this from users.market_access.
+    # The test override passes both grants explicitly.
+    markets: frozenset[str] = frozenset()
 
 
 async def get_current_user(
@@ -109,6 +113,7 @@ async def get_current_user(
         email=user_row.email,
         display_name=user_row.display_name,
         session_id=sess_row.id,
+        markets=parse_market_access(user_row.market_access),
     )
 
 
@@ -151,7 +156,11 @@ async def _match_bearer_token(
         if stored and hmac.compare_digest(stored, token):
             user = await session.get(User, row.user_id)
             if user is not None:
-                return CurrentUser(id=user.id, email=user.email)
+                return CurrentUser(
+                    id=user.id,
+                    email=user.email,
+                    markets=parse_market_access(user.market_access),
+                )
     return None
 
 

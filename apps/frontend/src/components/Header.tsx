@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { authApi } from "@/api/auth";
 import { useOptionalMarket } from "@/markets/MarketContext";
 import { marketClock } from "@/markets/format";
+import { clearSessionCaches } from "@/markets/queryClient";
 import MarketSelector from "./MarketSelector";
 
 export default function Header() {
@@ -18,7 +19,8 @@ export default function Header() {
     } catch {
       // Ignore: we redirect to /login regardless so a dead session still clears.
     }
-    window.location.href = "/login";
+    clearSessionCaches();
+    window.location.assign("/login");
   }
 
   return (

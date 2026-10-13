@@ -1,12 +1,17 @@
 import { useQuery } from "@tanstack/react-query";
 import { marketQueryKey, marketsApi } from "@/api/markets";
 import { useMarket } from "@/markets/MarketContext";
+import { useOptionalSession } from "@/markets/session";
 import { formatInstant } from "@/markets/format";
 import { Card, LabelPill, PageHeader, Pill, QueryState } from "./shared";
 
 export default function DataStatusPage() {
   const market = useMarket();
-  const q = useQuery({ queryKey: marketQueryKey(market, "data-status"), queryFn: () => marketsApi.dataStatus(market) });
+  const session = useOptionalSession();
+  const q = useQuery({
+    queryKey: marketQueryKey(market, "data-status", session?.user_id),
+    queryFn: () => marketsApi.dataStatus(market),
+  });
   const d = q.data;
 
   return (

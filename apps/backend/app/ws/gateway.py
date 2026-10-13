@@ -244,6 +244,11 @@ async def _authenticate_ws(websocket: WebSocket) -> int | None:
         ):
             await websocket.close(code=4401, reason="Session expired")
             return None
+        from app.auth.market_access import US, parse_market_access
+
+        if US not in parse_market_access(user_row.market_access):
+            await websocket.close(code=4403, reason="Market forbidden")
+            return None
         # Extend the session on WS connect, mirroring the HTTP dependency.
         sess_row.last_used_at = now
         await session.commit()

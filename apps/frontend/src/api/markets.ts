@@ -147,8 +147,9 @@ export interface Results extends MarketHeader {
   runs: ResearchRun[];
 }
 
-export function marketQueryKey(market: MarketConfig, view: ScopedView) {
-  return ["market", market.apiId, view] as const;
+export function marketQueryKey(market: MarketConfig, view: ScopedView, userId?: number) {
+  const key = ["market", market.apiId, view] as const;
+  return userId === undefined ? key : (["user", userId, ...key] as const);
 }
 
 async function getScoped<T extends MarketHeader>(market: MarketConfig, view: ScopedView): Promise<T> {

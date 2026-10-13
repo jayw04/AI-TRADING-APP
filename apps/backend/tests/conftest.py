@@ -45,7 +45,11 @@ def _auth_override(request: pytest.FixtureRequest, monkeypatch: pytest.MonkeyPat
     def _patched_create_app():  # type: ignore[no-untyped-def]
         app = real_create_app()
         app.dependency_overrides[get_current_user] = lambda: CurrentUser(
-            id=1, email="dev@workbench.local", display_name="Dev", session_id=1
+            id=1,
+            email="dev@workbench.local",
+            display_name="Dev",
+            session_id=1,
+            markets=frozenset({"us", "cn"}),
         )
         return app
 

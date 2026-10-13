@@ -1,4 +1,4 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 
 from app.api.v1 import (
     account,
@@ -43,75 +43,82 @@ from app.api.v1 import (
     users,
     variants,
 )
+from app.auth.market_access import require_market
 
 api_router = APIRouter(prefix="/api/v1")
 api_router.include_router(auth.router)
-api_router.include_router(credentials.router)
+# A-share views check the market named in the path. US views are not served here.
+api_router.include_router(markets.router)
+# Pine alerts authenticate by webhook secret, then check that user's US grant.
+api_router.include_router(alerts.router)
+# Service identity (X-Workbench-Auth), not a human session.
+api_router.include_router(internal.router)
+
+# Every other /api/v1 route is the US subsystem. A China-only session gets 403.
+us_router = APIRouter(dependencies=[Depends(require_market("us"))])
+us_router.include_router(credentials.router)
 # P5.5 §3: read-only audit feed (scoped to the current user). Powers the
 # workbench-mcp audit tool + the CLAUDE.md cost/overnight decision-tree rows.
-api_router.include_router(audit.router)
-api_router.include_router(account.router)
-api_router.include_router(accounts.router)
-api_router.include_router(benchmarks.router)
-# Market-scoped research views (/markets/{market}/...); read-only, no broker or order path.
-api_router.include_router(markets.router)
-api_router.include_router(internal.router)
-api_router.include_router(orders.router)
-api_router.include_router(positions.router)
+us_router.include_router(audit.router)
+us_router.include_router(account.router)
+us_router.include_router(accounts.router)
+us_router.include_router(benchmarks.router)
+us_router.include_router(orders.router)
+us_router.include_router(positions.router)
 # Trade Journal: the user's filled trades + a free-text note per trade.
-api_router.include_router(journal.router)
-api_router.include_router(market_data.router)
-api_router.include_router(indicators.router)
-api_router.include_router(users.router)
+us_router.include_router(journal.router)
+us_router.include_router(market_data.router)
+us_router.include_router(indicators.router)
+us_router.include_router(users.router)
 # P5.5 §1: trading-profile router prefixes /users/me; the /api/v1 prefix is
 # already on api_router, so include with no extra prefix.
-api_router.include_router(trading_profile.router)
+us_router.include_router(trading_profile.router)
 # P5.5 §2: morning brief (prefix=/morning-brief). No extra prefix here.
-api_router.include_router(morning_brief.router)
-api_router.include_router(alerts.router)
-api_router.include_router(strategies.router)
-api_router.include_router(signals.router)
-api_router.include_router(backtest_jobs.router)
-api_router.include_router(opportunities.router)
-api_router.include_router(insider_reference.router)
+us_router.include_router(morning_brief.router)
+us_router.include_router(strategies.router)
+us_router.include_router(signals.router)
+us_router.include_router(backtest_jobs.router)
+us_router.include_router(opportunities.router)
+us_router.include_router(insider_reference.router)
 # P11 §1: read-only operational state (/ops/state) — what's enabled/running today.
-api_router.include_router(ops.router)
-api_router.include_router(evidence.router)
-api_router.include_router(discovery.router)
-api_router.include_router(scanner.router)
-api_router.include_router(range_insight.router)
+us_router.include_router(ops.router)
+us_router.include_router(evidence.router)
+us_router.include_router(discovery.router)
+us_router.include_router(scanner.router)
+us_router.include_router(range_insight.router)
 # Live buy/sell/stop levels per range symbol (monitoring the Range Trader triggers).
-api_router.include_router(range_levels.router)
-api_router.include_router(range_template.router)
+us_router.include_router(range_levels.router)
+us_router.include_router(range_template.router)
 # Range Trader daily buy/sell vs. daily high/low history (date-range window).
-api_router.include_router(range_execution.router)
-api_router.include_router(agent.router)
+us_router.include_router(range_execution.router)
+us_router.include_router(agent.router)
 # P6 §1a: agent cost-envelope check (prefix=/agent, route /budget). Distinct
 # sub-path from the P3 agent chat router above; coexists under the same prefix.
-api_router.include_router(agent_budget.router)
+us_router.include_router(agent_budget.router)
 # P5 §5: risk router routes are already absolute (/risk-limits, /accounts/{id}/
 # risk-state, ...); api_router already carries the /api/v1 prefix, so include
 # with no extra prefix (the v0.2 doc's prefix="/api/v1" would double it).
-api_router.include_router(risk.router)
+us_router.include_router(risk.router)
 # P5 §7: activation lifecycle (prefix=/strategies, same as strategies router;
 # distinct sub-paths /{id}/activation, /activate, /activate/cancel, /deactivate).
-api_router.include_router(activation.router)
+us_router.include_router(activation.router)
 # P6 §1b: strategy proposals. Two routers — /strategies/{id}/propose hangs
 # under /strategies (alongside strategies + activation); the rest under
 # /proposals. No extra prefix (api_router carries /api/v1).
-api_router.include_router(proposals.strategies_router)
-api_router.include_router(proposals.proposals_router)
+us_router.include_router(proposals.strategies_router)
+us_router.include_router(proposals.proposals_router)
 # P6b §1b-drift: user-level drift findings list (/drift-findings). Per-strategy
 # drift-check/drift-status live on proposals.strategies_router above.
-api_router.include_router(drift.router)
+us_router.include_router(drift.router)
 # P6b §2c-variant: user-level in-flight paper-variant list (/variants) for the
 # Dashboard widget. Per-strategy variant-comparison lives on strategies_router.
-api_router.include_router(variants.router)
+us_router.include_router(variants.router)
 # P6b §4 (ADR 0006 v2): eval-harness start/stop/read. Off the P2 gate.
-api_router.include_router(eval_harness.router)
+us_router.include_router(eval_harness.router)
 # P6b §4.5 (ADR 0015): global live-auto-dispatch master switch (/system/...).
-api_router.include_router(live_autodispatch.router)
+us_router.include_router(live_autodispatch.router)
 # P6b §5 (ADR 0006 v2 §5): LLM-driven live trading opt-in (/strategies/{id}/llm-*).
-api_router.include_router(llm_opt_in.router)
+us_router.include_router(llm_opt_in.router)
 # P7 §2: NL → Python strategy generation (POST /strategies/author).
-api_router.include_router(strategy_authoring.router)
+us_router.include_router(strategy_authoring.router)
+api_router.include_router(us_router)

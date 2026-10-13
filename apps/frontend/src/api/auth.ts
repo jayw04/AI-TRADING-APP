@@ -11,6 +11,7 @@ export interface MeResponse {
   email: string;
   display_name: string | null;
   session_id: number | null;
+  markets?: string[];
 }
 
 export interface LoginConfig {

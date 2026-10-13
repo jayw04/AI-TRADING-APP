@@ -1,10 +1,12 @@
 import { useNavigate } from "react-router-dom";
 import { useOptionalMarket } from "@/markets/MarketContext";
-import { MARKET_IDS, MARKETS, parseMarketId } from "@/markets/registry";
+import { MARKETS, parseMarketId } from "@/markets/registry";
+import { useGrantedMarkets } from "@/markets/session";
 
 /** US Equities / 中国 A股. Switching goes to the other market's home; nothing carries over. */
 export default function MarketSelector() {
   const market = useOptionalMarket();
+  const grants = useGrantedMarkets();
   const navigate = useNavigate();
   return (
     <label className="flex items-center gap-2 text-xs text-neutral-400">
@@ -23,7 +25,7 @@ export default function MarketSelector() {
             Choose a market
           </option>
         )}
-        {MARKET_IDS.map((id) => (
+        {grants.map((id) => (
           <option key={id} value={id}>
             {MARKETS[id].label}
           </option>

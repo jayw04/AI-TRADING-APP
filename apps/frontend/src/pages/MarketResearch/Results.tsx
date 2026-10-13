@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import type { ResearchRun } from "@/api/markets";
 import { marketQueryKey, marketsApi } from "@/api/markets";
 import { useMarket } from "@/markets/MarketContext";
+import { useOptionalSession } from "@/markets/session";
 import { formatInstant, formatMoney, formatPct } from "@/markets/format";
 import { Card, LabelPill, PageHeader, QueryState } from "./shared";
 
@@ -120,7 +121,11 @@ function RunCard({ run }: { run: ResearchRun }) {
 
 export default function ResultsPage() {
   const market = useMarket();
-  const q = useQuery({ queryKey: marketQueryKey(market, "results"), queryFn: () => marketsApi.results(market) });
+  const session = useOptionalSession();
+  const q = useQuery({
+    queryKey: marketQueryKey(market, "results", session?.user_id),
+    queryFn: () => marketsApi.results(market),
+  });
 
   return (
     <div className="grid gap-4">

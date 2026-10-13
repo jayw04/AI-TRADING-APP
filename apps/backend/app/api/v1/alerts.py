@@ -98,6 +98,14 @@ async def receive_tv_alert(
             logger.warning("tv_alert_bad_secret", ip=client_ip)
             raise HTTPException(status_code=401, detail="Invalid webhook secret")
 
+        from app.auth.market_access import US, parse_market_access
+
+        if US not in parse_market_access(user.market_access):
+            logger.warning("tv_alert_market_forbidden", user_id=user.id, ip=client_ip)
+            raise HTTPException(
+                status_code=403, detail={"code": "MARKET_FORBIDDEN", "market": "us"}
+            )
+
         if is_rate_limited(secret=body.secret):
             logger.warning(
                 "tv_alert_user_rate_limited", user_id=user.id, ip=client_ip
