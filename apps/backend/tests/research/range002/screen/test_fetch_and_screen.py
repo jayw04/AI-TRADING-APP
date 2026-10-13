@@ -108,6 +108,8 @@ def _plan(world: dict[str, Any], **over: Any) -> tuple[Any, dict[str, int]]:
         "entitlement_ref": "entitled key (claimed)",
         "permission_basis_claimed": "personal-use reading (claimed)",
         "storage_permitted": True,
+        "price_tolerance": 0.05,
+        "price_max_mismatch_fraction": 0.10,
         "limit": 500,
         "transport_factory": _fake_transport_factory(world["kwargs"]["minute_bars"], counter),
     }

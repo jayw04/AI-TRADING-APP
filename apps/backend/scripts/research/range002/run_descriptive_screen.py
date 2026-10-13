@@ -490,6 +490,10 @@ class FetchPlan:
     entitlement_ref: str
     permission_basis_claimed: str
     storage_permitted: bool
+    #: PROPOSED data-quality settings of the price-consistency check: required, no defaults,
+    #: not part of the frozen baseline, not to be tuned after candidate performance is seen
+    price_tolerance: float
+    price_max_mismatch_fraction: float
     #: a store/journal left by an earlier run may be reused only with this explicit statement:
     #: the re-run is a NEW governed attempt (it draws on the attempt budget again)
     acknowledge_new_attempt_ref: str | None = None
@@ -568,6 +572,10 @@ def _fetch_preflight(plan: FetchPlan, minute_bars: Path) -> None:
     if len(plan.universe_sha256) != 64:
         raise DescriptiveRunRefusal("fetch plan: universe sha256 must be 64 hex")
     _load_symbol_mapping(plan)  # refuses missing / altered / UNVERIFIED before an attempt exists
+    if not (0.0 < plan.price_tolerance < 1.0 and 0.0 <= plan.price_max_mismatch_fraction < 1.0):
+        raise DescriptiveRunRefusal(
+            "fetch: price tolerance must be in (0, 1) and max mismatch fraction in [0, 1)"
+        )
     have_store, have_journal = Path(minute_bars).exists(), plan.journal_path.exists()
     if have_store != have_journal:
         raise DescriptiveRunRefusal(
@@ -626,23 +634,48 @@ def _verify_cache(store: Path, journal: Path) -> dict[str, Any]:
         con.close()
 
 
-#: Cross-source identity gate: a symbol-day's Sharadar UNADJUSTED close must agree with the last
-#: regular-session SIP bar close within this relative tolerance; a symbol whose share of
-#: disagreeing days exceeds the fraction below is refused (the bars are probably another company's).
-IDENTITY_PRICE_TOLERANCE = 0.05
-IDENTITY_MAX_BAD_FRACTION = 0.10
+#: Action types after which an UNADJUSTED close can legitimately jump (splits, spin-offs, mergers,
+#: acquisitions, exchanges, liquidations). Mismatches on such days are REPORTED separately; they are
+#: not removed from the mismatch fraction.
+CORPORATE_ACTION_TYPES = (
+    "split",
+    "spinoff",
+    "spinoffdividend",
+    "spunofffrom",
+    "mergerfrom",
+    "mergerto",
+    "acquisitionby",
+    "acquisitionof",
+    "acquisitioncash",
+    "acquisitionstock",
+    "exchangefrom",
+    "exchangeto",
+    "bankruptcyliquidation",
+)
 
 
-def identity_price_check(
+def price_consistency_check(
     daily_con: Any,
     store: Path,
     symbols: list[str],
     *,
-    tolerance: float = IDENTITY_PRICE_TOLERANCE,
-    max_bad_fraction: float = IDENTITY_MAX_BAD_FRACTION,
+    tolerance: float,
+    max_mismatch_fraction: float,
+    date_from: date,
+    date_to: date,
 ) -> dict[str, Any]:
-    """Compare per-day Sharadar ``closeunadj`` with the SIP last regular-session close for every
-    stored symbol-day. Only COUNTS leave this function; no price is returned or printed."""
+    """Cross-source PRICE CONSISTENCY: the vendor's UNADJUSTED daily close against the last bar
+    close of the regular session (09:30-16:00 ET) in the SIP store, per stored symbol-day.
+
+    It can expose many wrong mappings (another company's price level); it can NOT prove issuer
+    identity: matching prices do not show the same issuer, and the official closing auction print
+    need not equal the last one-minute bar. ``tolerance`` and ``max_mismatch_fraction`` are
+    REQUIRED, explicit proposed data-quality settings (no defaults) that are not part of the
+    frozen baseline and must not be tuned after candidate performance is seen. Only counts and
+    dates leave this function; no price is returned or printed.
+
+    Reported explicitly: comparisons that were not possible (SIP day without a vendor row, and
+    the reverse), and mismatches that coincide with a corporate action in the vendor's ACTIONS."""
     mc = duckdb.connect(str(store), read_only=True)
     try:
         sip = {
@@ -665,33 +698,70 @@ def identity_price_check(
         }
     finally:
         mc.close()
+    symset = set(symbols)
     daily = {
         (r[0], r[1]): float(r[2])
         for r in daily_con.execute(
-            'SELECT ticker, date, closeunadj FROM "sep" WHERE closeunadj IS NOT NULL'
+            'SELECT ticker, date, closeunadj FROM "sep" WHERE closeunadj IS NOT NULL '
+            "AND date >= ? AND date <= ?",
+            [date_from, date_to],
         ).fetchall()
+        if r[0] in symset
     }
+    marks = ", ".join("?" for _ in CORPORATE_ACTION_TYPES)
+    action_days: dict[tuple[str, date], str] = {}
+    for tkr, day, act in daily_con.execute(
+        f'SELECT ticker, date, action FROM "actions" WHERE date >= ? AND date <= ? '
+        f"AND action IN ({marks})",
+        [date_from, date_to, *CORPORATE_ACTION_TYPES],
+    ).fetchall():
+        if tkr in symset:
+            action_days[(tkr, day)] = str(act)
     per: dict[str, list[int]] = {}
+    sip_without_vendor: dict[str, int] = {}
+    mismatch_on_action_day = 0
     for (sym, day), last in sip.items():
         ref = daily.get((sym, day))
-        if ref is None or ref <= 0 or last <= 0:
+        if ref is None:
+            sip_without_vendor[sym] = sip_without_vendor.get(sym, 0) + 1
+            continue
+        if ref <= 0 or last <= 0:
             continue
         rec = per.setdefault(sym, [0, 0])
         rec[0] += 1
         if abs(ref / last - 1.0) > tolerance:
             rec[1] += 1
+            if (sym, day) in action_days:
+                mismatch_on_action_day += 1
+    vendor_without_sip: dict[str, int] = {}
+    sip_keys = set(sip)
+    for sym, day in daily:
+        if (sym, day) not in sip_keys:
+            vendor_without_sip[sym] = vendor_without_sip.get(sym, 0) + 1
     compared = sum(v[0] for v in per.values())
-    bad_symbols = sorted(s for s, (n, bad) in per.items() if n and bad / n > max_bad_fraction)
-    no_overlap = sorted(s for s in symbols if s not in per)
+    exceeding = sorted(s for s, (n, bad) in per.items() if n and bad / n > max_mismatch_fraction)
     return {
+        "check": "cross_source_price_consistency",
+        "what_it_is_not": "not proof of issuer identity; a screening aid against wrong mappings",
+        "comparison": "vendor unadjusted close vs last regular-session SIP 1-minute bar close",
+        "proposed_settings_status": (
+            "tolerance and max_mismatch_fraction are PROPOSED data-quality settings, not part of "
+            "the frozen baseline; set before the run and not tuned afterwards"
+        ),
         "tolerance": tolerance,
-        "max_bad_fraction": max_bad_fraction,
+        "max_mismatch_fraction": max_mismatch_fraction,
         "symbols_compared": len(per),
         "symbol_days_compared": compared,
-        "symbol_days_disagreeing": sum(v[1] for v in per.values()),
-        "symbols_exceeding_fraction": bad_symbols,
-        "symbols_with_any_disagreement": {s: v for s, v in sorted(per.items()) if v[1] > 0},
-        "symbols_without_any_comparable_day": no_overlap,
+        "symbol_days_mismatching": sum(v[1] for v in per.values()),
+        "symbols_exceeding_fraction": exceeding,
+        "symbols_with_any_mismatch": {s: v for s, v in sorted(per.items()) if v[1] > 0},
+        "mismatching_days_on_a_corporate_action_day": mismatch_on_action_day,
+        "corporate_action_symbol_days_in_window": len(action_days),
+        "missing_comparisons": {
+            "sip_days_without_vendor_row_by_symbol": dict(sorted(sip_without_vendor.items())),
+            "vendor_days_without_sip_bars_by_symbol": dict(sorted(vendor_without_sip.items())),
+            "symbols_without_any_comparable_day": sorted(s for s in symbols if s not in per),
+        },
     }
 
 
@@ -885,15 +955,24 @@ def _acquire(
         }
         evidence["convention_check"] = fm.convention_summary(days)
         evidence["cache_integrity"] = cache
-        idc = identity_price_check(daily_con, Path(minute_bars), symbols)
-        evidence["identity_price_check"] = idc
+        idc = price_consistency_check(
+            daily_con,
+            Path(minute_bars),
+            symbols,
+            tolerance=plan.price_tolerance,
+            max_mismatch_fraction=plan.price_max_mismatch_fraction,
+            date_from=d0,
+            date_to=d1,
+        )
+        evidence["price_consistency_check"] = idc
         write_evidence(evidence)
         if idc["symbols_exceeding_fraction"]:
             raise DataDefectError(
-                "cross-source identity check failed: the SIP bars of "
-                f"{idc['symbols_exceeding_fraction']} disagree with the vendor's unadjusted daily "
-                "close on more than the allowed share of days (likely another company's bars); "
-                "screening refused, evidence kept"
+                "cross-source price consistency failed for "
+                f"{idc['symbols_exceeding_fraction']}: the vendor's unadjusted daily close and the "
+                "SIP last regular-session close disagree on more than the allowed share of days "
+                "(the bars may belong to another company; this check cannot settle identity "
+                "either way); screening refused, evidence kept"
             )
         evidence["store_sha256"] = file_sha256(Path(minute_bars))
         evidence["status"] = "ACQUIRED_VALIDATED"
@@ -1429,6 +1508,8 @@ def _build_parser() -> argparse.ArgumentParser:
     req("--fetch-acknowledge-new-attempt-ref", default=None)
     req("--fetch-symbol-map", type=Path, default=None)
     req("--fetch-symbol-map-sha256", default=None)
+    req("--fetch-price-tolerance", type=float, default=None)
+    req("--fetch-price-max-mismatch-fraction", type=float, default=None)
     req("--fetch-limit", type=int, default=10000)
     req("--fetch-max-pages", type=int, default=100)
     req("--statistics-config", type=Path, default=None)
@@ -1475,6 +1556,8 @@ def main(argv: list[str] | None = None) -> int:
                 "--fetch-permitted-use-ref": a.fetch_permitted_use_ref,
                 "--fetch-entitlement-ref": a.fetch_entitlement_ref,
                 "--fetch-permission-basis-claimed": a.fetch_permission_basis_claimed,
+                "--fetch-price-tolerance": a.fetch_price_tolerance,
+                "--fetch-price-max-mismatch-fraction": a.fetch_price_max_mismatch_fraction,
             }
             missing_args = [k for k, v in need.items() if v is None]
             if missing_args:
@@ -1492,6 +1575,8 @@ def main(argv: list[str] | None = None) -> int:
                 entitlement_ref=a.fetch_entitlement_ref,
                 permission_basis_claimed=a.fetch_permission_basis_claimed,
                 storage_permitted=bool(a.fetch_storage_permitted),
+                price_tolerance=a.fetch_price_tolerance,
+                price_max_mismatch_fraction=a.fetch_price_max_mismatch_fraction,
                 acknowledge_new_attempt_ref=a.fetch_acknowledge_new_attempt_ref,
                 symbol_map_path=a.fetch_symbol_map,
                 symbol_map_sha256=a.fetch_symbol_map_sha256,

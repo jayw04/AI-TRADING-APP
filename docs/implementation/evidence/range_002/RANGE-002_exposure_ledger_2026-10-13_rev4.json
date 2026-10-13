@@ -1,0 +1,123 @@
+{
+  "schema_version": 1,
+  "decision": {
+    "decision_date": "2026-10-13",
+    "record_kind": "owner_instruction",
+    "minutes_path": "docs/implementation/evidence/range_002/RANGE-002_Owner_Instruction_Record_2026-10-13_rev4.md",
+    "minutes_sha256": "864fbeb97199d379701c10d8126d97c2f13fb0621b439159f4a17324a667132d"
+  },
+  "entries": [
+    {
+      "id": "probe-2026-10-12-availability",
+      "start": "2016-01-05",
+      "end": "2016-01-05",
+      "description": "2026-10-12 counts-and-timestamps-only SIP availability probe (32 requests, 10 large-cap symbols; also dates in 2014, 2015 and 4 dates per year 2016-2019 and 2021 outside this entry's single in-window date). No price or volume value was read.",
+      "source": "RANGE-002 A-SCREEN amendment v0.2 section 4",
+      "observed_by": "Claude Code session (owner-authorized)",
+      "kind": "return_blind_probe",
+      "probe_scope": "HTTP status codes, bar counts and bar timestamps only; no open/high/low/close/volume value was read into any printed or stored output"
+    },
+    {
+      "id": "probe-2026-10-13-mapping-day1",
+      "start": "2016-01-04",
+      "end": "2016-01-04",
+      "description": "return-blind mapping probe, 2016-01-04 09:30-10:30 ET, symbols APC, DD, EMC, MON, BRK.B (20 requests in total across both days, cap 40); result file sha256 bebf3d00a261b9fc51966f8fc16569b33da46f368262addb149906df6e8284de",
+      "source": "mapping_probe.py v1.0.0",
+      "observed_by": "Claude Code session (owner-authorized)",
+      "kind": "return_blind_probe",
+      "probe_scope": "HTTP status codes, bar counts and bar timestamps only; no open/high/low/close/volume value was read into any printed or stored output"
+    },
+    {
+      "id": "probe-2026-10-13-mapping-day2",
+      "start": "2016-03-31",
+      "end": "2016-03-31",
+      "description": "return-blind mapping probe, 2016-03-31 09:30-10:30 ET, same symbols and result file sha256 bebf3d00a261b9fc51966f8fc16569b33da46f368262addb149906df6e8284de",
+      "source": "mapping_probe.py v1.0.0",
+      "observed_by": "Claude Code session (owner-authorized)",
+      "kind": "return_blind_probe",
+      "probe_scope": "HTTP status codes, bar counts and bar timestamps only; no open/high/low/close/volume value was read into any printed or stored output"
+    },
+    {
+      "id": "acquisition-attempt-2-stored-not-viewed",
+      "start": "2016-01-04",
+      "end": "2016-03-31",
+      "description": "attempt 2 (run-000005) acquisition stored 240,059 SIP minute bars for 9 symbols (AAL, AAPL, ABBV, ADBE, AET, AGN, AIG, AMGN, AMZN) before aborting on a symbol mapping defect. The bars were stored by the governed fetch and never read by a strategy computation or printed; only counts, timestamps and journal metadata were observed. Listed for completeness and non-blocking on that basis; the store is kept as evidence and is not reused.",
+      "source": "governed run range002-run-000005 (aborted)",
+      "observed_by": "not viewed (stored only)",
+      "kind": "return_blind_probe",
+      "probe_scope": "acquisition stored the bars without any strategy computation; observed values were limited to counts, timestamps and journal metadata"
+    },
+    {
+      "id": "probe-2026-10-13-mapping-b-2016-01-04",
+      "start": "2016-01-04",
+      "end": "2016-01-04",
+      "description": "second return-blind mapping probe (28 requests in total, cap 60) for the 12 symbols whose 2016 request symbol differs from the vendor ticker; 2016-01-04; result file sha256 376d9423eb6601d9e7a10359caa9a800fce307bcf17e14dbb49d7cdd8b6ce9e7",
+      "source": "mapping_probe.py v1.0.0",
+      "observed_by": "Claude Code session (owner-authorized)",
+      "kind": "return_blind_probe",
+      "probe_scope": "HTTP status codes, bar counts and bar timestamps only; no open/high/low/close/volume value was read into any printed or stored output"
+    },
+    {
+      "id": "probe-2026-10-13-mapping-b-2016-01-14",
+      "start": "2016-01-14",
+      "end": "2016-01-14",
+      "description": "second return-blind mapping probe (28 requests in total, cap 60) for the 12 symbols whose 2016 request symbol differs from the vendor ticker; 2016-01-14 (ACE side of the CB boundary); result file sha256 376d9423eb6601d9e7a10359caa9a800fce307bcf17e14dbb49d7cdd8b6ce9e7",
+      "source": "mapping_probe.py v1.0.0",
+      "observed_by": "Claude Code session (owner-authorized)",
+      "kind": "return_blind_probe",
+      "probe_scope": "HTTP status codes, bar counts and bar timestamps only; no open/high/low/close/volume value was read into any printed or stored output"
+    },
+    {
+      "id": "probe-2026-10-13-mapping-b-2016-01-15",
+      "start": "2016-01-15",
+      "end": "2016-01-15",
+      "description": "second return-blind mapping probe (28 requests in total, cap 60) for the 12 symbols whose 2016 request symbol differs from the vendor ticker; 2016-01-15 (both sides of the CB boundary); result file sha256 376d9423eb6601d9e7a10359caa9a800fce307bcf17e14dbb49d7cdd8b6ce9e7",
+      "source": "mapping_probe.py v1.0.0",
+      "observed_by": "Claude Code session (owner-authorized)",
+      "kind": "return_blind_probe",
+      "probe_scope": "HTTP status codes, bar counts and bar timestamps only; no open/high/low/close/volume value was read into any printed or stored output"
+    },
+    {
+      "id": "probe-2026-10-13-mapping-b-2016-01-19",
+      "start": "2016-01-19",
+      "end": "2016-01-19",
+      "description": "second return-blind mapping probe (28 requests in total, cap 60) for the 12 symbols whose 2016 request symbol differs from the vendor ticker; 2016-01-19 (vendor change date); result file sha256 376d9423eb6601d9e7a10359caa9a800fce307bcf17e14dbb49d7cdd8b6ce9e7",
+      "source": "mapping_probe.py v1.0.0",
+      "observed_by": "Claude Code session (owner-authorized)",
+      "kind": "return_blind_probe",
+      "probe_scope": "HTTP status codes, bar counts and bar timestamps only; no open/high/low/close/volume value was read into any printed or stored output"
+    },
+    {
+      "id": "probe-2026-10-13-mapping-b-2016-03-31",
+      "start": "2016-03-31",
+      "end": "2016-03-31",
+      "description": "second return-blind mapping probe (28 requests in total, cap 60) for the 12 symbols whose 2016 request symbol differs from the vendor ticker; 2016-03-31; result file sha256 376d9423eb6601d9e7a10359caa9a800fce307bcf17e14dbb49d7cdd8b6ce9e7",
+      "source": "mapping_probe.py v1.0.0",
+      "observed_by": "Claude Code session (owner-authorized)",
+      "kind": "return_blind_probe",
+      "probe_scope": "HTTP status codes, bar counts and bar timestamps only; no open/high/low/close/volume value was read into any printed or stored output"
+    },
+    {
+      "id": "acquisition-attempt-3-stored-not-screened",
+      "start": "2016-01-04",
+      "end": "2016-03-31",
+      "description": "attempt 3 (run-000008) stored 3,050,783 SIP minute bars for 127 symbols and refused to screen on coverage 0.9503 < 0.98. No strategy computation ran. Observed: request, window and bar counts, timestamp-convention histograms, coverage counts and per-symbol day counts. The bars of renamed companies were requested under the wrong symbol; the store is kept unchanged as evidence (sha256 d559e3f0675f893a804d1808dc44e18d505e808e35fa8e229b366545db954334) and is not reused.",
+      "source": "governed run range002-run-000008 (aborted by the coverage gate)",
+      "observed_by": "not viewed (stored only)",
+      "kind": "return_blind_probe",
+      "probe_scope": "acquisition stored the bars without any strategy computation; observed values were limited to counts, timestamps and journal metadata"
+    },
+    {
+      "id": "planned-2016q1-descriptive-diagnostic-attempt4",
+      "start": "2016-01-01",
+      "end": "2016-03-31",
+      "description": "PLANNED, not yet observed: the corrected 2016-Q1 descriptive diagnostic (attempt 4 of 5; one governed run: fresh SIP acquisition with the dated, probe-verified symbol mapping and the cross-source price-consistency check (proposed settings, not a proof of identity), then the seven-candidate screen). Actual exposure is recorded in the successor ledger after the run.",
+      "source": "RANGE-002 owner instruction 2026-10-13 (rev4)",
+      "observed_by": "not yet observed (planned)",
+      "kind": "planned_run",
+      "phase": "P3A",
+      "partition": "DEVELOPMENT_SELECTION",
+      "planned_label": "range002-2016q1-diagnostic-v3"
+    }
+  ]
+}

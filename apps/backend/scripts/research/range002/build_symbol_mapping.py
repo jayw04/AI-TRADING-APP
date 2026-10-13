@@ -114,6 +114,31 @@ def symbol_schedule(
     return [(date_from, sym), *sorted(transitions)]
 
 
+def symbol_chain_links(
+    ticker: str,
+    date_from: str,
+    events: dict[str, list[tuple[str, str]]],
+) -> list[dict[str, str]]:
+    """The vendor ``tickerchangefrom`` links walked from ``ticker`` back to the symbol as of
+    ``date_from``: each is {change_date, to_symbol (symbol FROM that date), from_symbol}. Supporting
+    evidence for a mapped symbol, recorded verbatim; it is not proof of issuer identity."""
+    sym = ticker
+    bound = "9999-12-31"
+    links: list[dict[str, str]] = []
+    for _ in range(8):
+        cand = sorted(
+            (d, old)
+            for d, old in events.get(sym, [])
+            if date_from < d < bound and old and old not in ("N/A", sym)
+        )
+        if not cand:
+            break
+        d, old = cand[0]
+        links.append({"change_date": d, "symbol_from_that_date": sym, "symbol_before": old})
+        bound, sym = d, old
+    return links
+
+
 def probe_evidence(probe: dict[str, Any]) -> dict[tuple[str, str], list[dict[str, Any]]]:
     out: dict[tuple[str, str], list[dict[str, Any]]] = {}
     for r in probe.get("records", []):
@@ -209,6 +234,12 @@ def build_entries(
                 "historical issuer identity"
             )
             base["evidence"]["probe_ok_by_symbol"] = checks
+            base["evidence"]["vendor_chain_links"] = symbol_chain_links(s, date_from, events)
+            base["evidence"]["identity_note"] = (
+                "availability is established by the probe; issuer identity rests on the vendor's "
+                "permaticker, name, price interval and ACTIONS ticker-change history (listed "
+                "here), not on the probe or on any price comparison"
+            )
             base["asof_policy"] = "SEGMENT_START_DATE"
             if applied:
                 base["evidence"]["boundary_overrides"] = applied

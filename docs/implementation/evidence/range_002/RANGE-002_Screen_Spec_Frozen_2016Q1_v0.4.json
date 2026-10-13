@@ -1,0 +1,282 @@
+{
+  "controls": {
+    "naive_orb": {
+      "definition": null
+    },
+    "random_entry": {
+      "invalid_draw_policy": null,
+      "repetitions": null,
+      "seed": null
+    }
+  },
+  "costs": {
+    "accounting_mode": "all_in",
+    "base_bps_per_side": 5.0,
+    "components": {
+      "additional_components": [],
+      "all_in_per_side_debit": true,
+      "itemised": false,
+      "represents": [
+        "fee",
+        "spread",
+        "slippage"
+      ]
+    },
+    "stress_bps_per_side": 15.0
+  },
+  "data": {
+    "bar": "1min",
+    "daily_price_basis": "SEP_SPLIT_ADJUSTED",
+    "feed": "sip",
+    "fetch_mode": "bounded_monthly_chunked_resumable_sip_acquisition",
+    "intraday_price_basis": "raw",
+    "session": "rth",
+    "tz": "America/New_York",
+    "vendor": "daily: Sharadar SEP/TICKERS/ACTIONS (sequential vendor pulls); intraday: Alpaca SIP raw 1-minute bars"
+  },
+  "decision": {
+    "baseline_id": "baseline-2026-10-12",
+    "decision": "approved",
+    "decision_date": "2026-10-13",
+    "minutes_path": "docs/implementation/evidence/range_002/RANGE-002_Owner_Instruction_Record_2026-10-13_rev4.md",
+    "minutes_sha256": "864fbeb97199d379701c10d8126d97c2f13fb0621b439159f4a17324a667132d",
+    "partitions": [
+      "DEVELOPMENT_SELECTION"
+    ],
+    "record_kind": "owner_instruction",
+    "scope": [
+      "run"
+    ],
+    "spec_sha256": "d209c14263aabcd7806f60e8aa809dd1e3f17777f30a5bd0ab7d5838ff21071e",
+    "strategy_version": "RANGE-002/screen-v2"
+  },
+  "diagnostics": {
+    "taxonomy": null
+  },
+  "execution": {
+    "ack_latency_ms": null,
+    "bar_timestamp_convention": "start",
+    "crossed_before_arm_policy": "SKIP",
+    "eod_lead_s": null,
+    "order_reservation_policy": null,
+    "order_type": null,
+    "stop_protection_policy": null,
+    "submit_latency_ms": null,
+    "tie_break": null,
+    "vendor_delay_ms": null
+  },
+  "exit": {
+    "eod_flat": "15:55:00",
+    "halfday_offset_min": 5.0,
+    "stop": "or_low"
+  },
+  "exits": {
+    "candidates": [
+      {
+        "family": "time",
+        "id": "E1",
+        "params": {}
+      },
+      {
+        "family": "fixed_r",
+        "id": "E2a",
+        "params": {
+          "r_multiple": 2.0
+        }
+      },
+      {
+        "family": "fixed_r",
+        "id": "E2b",
+        "params": {
+          "r_multiple": 3.0
+        }
+      },
+      {
+        "family": "trailing",
+        "id": "E3a",
+        "params": {
+          "trail_r": 1.0
+        }
+      },
+      {
+        "family": "trailing",
+        "id": "E3b",
+        "params": {
+          "trail_r": 1.5
+        }
+      },
+      {
+        "family": "scale_out",
+        "id": "E4a",
+        "params": {
+          "remainder": "eod"
+        }
+      },
+      {
+        "family": "scale_out",
+        "id": "E4b",
+        "params": {
+          "remainder": "trail",
+          "trail_r": 1.0
+        }
+      }
+    ],
+    "complexity_order": [
+      "time",
+      "fixed_r",
+      "trailing",
+      "scale_out"
+    ],
+    "selection": {
+      "eligibility": {
+        "min_pf": 1.0,
+        "min_trades": 300
+      },
+      "score": "bootstrap_lower_bound_mean_net_r",
+      "stop_test": "max_stat_bootstrap",
+      "tie_tolerance_r": 0.0
+    }
+  },
+  "fill": {
+    "halt_policy": "UNEXECUTABLE_DURING_UNAVAILABLE",
+    "same_bar_policy": "worst_case",
+    "slippage_model": null
+  },
+  "gates": {
+    "basis": "signal_level",
+    "max_dd": null,
+    "min_trades": 300,
+    "pf_base": 1.3,
+    "redundancy_corr_max": 0.85,
+    "stress_mean_positive": true,
+    "trade_unit": {
+      "partial_exit_fills": "aggregated_into_one_net_pnl_and_one_initial_risk_denominator",
+      "unit": "entry"
+    },
+    "win_rate": null,
+    "yearly": null
+  },
+  "governance": {
+    "exposure_signed": {
+      "exposure_ledger_sha256": "519e108dab181977bac46806318dbc74f2d7fac003bb7bb5f1e2948411527dbb"
+    },
+    "registry_genesis_id": "da2dd976-a5eb-496f-bd89-d37d860bc632"
+  },
+  "p3": {
+    "criteria": {
+      "confirmatory_alpha_one_sided": 0.05,
+      "gate_basis": "signal_level",
+      "insufficient_evidence_if_traded_days_below": 100,
+      "insufficient_evidence_if_trades_below": 300,
+      "lower_bound_confidence_one_sided": 0.95,
+      "max_statistic_alpha_exploratory": 0.1,
+      "or_coverage_threshold": 0.98,
+      "revise_if_base_pf_below": 1.15,
+      "selection_eligibility_pf_strictly_above": 1.0,
+      "tie_break": "frozen_complexity_order",
+      "tie_delta_r": 0.0,
+      "unavailable_exit_valuation": "WORSE_OF_LAST_CLOSE_AND_INITIAL_STOP"
+    },
+    "max_p3a_attempts": 5,
+    "max_p3b_attempts": 1
+  },
+  "p5": {
+    "account_id": null,
+    "cost_ratio_contract": null,
+    "degradation_tolerance": null,
+    "max_cost_ratio": 1.5,
+    "min_days": 60,
+    "min_trades": 100,
+    "shadow_acceptance": null
+  },
+  "partitions": {
+    "development_confirmation": [
+      "2020-01-01",
+      "2021-12-31"
+    ],
+    "development_selection": [
+      "2016-01-01",
+      "2019-12-31"
+    ],
+    "exposed": [
+      [
+        "2026-01-01",
+        "2026-07-31"
+      ]
+    ],
+    "holdout": [
+      "2022-01-01",
+      "2025-12-31"
+    ]
+  },
+  "profile": {
+    "name": "screen",
+    "required_fields_sha256": "16f904a3094b375f32792201efb6fc6a40eb22ea46c9e26caeb978318ff96899",
+    "unmodelled_fields_sha256": "0298fe82ad0374a5139a0d739f49188081bf358a283edcb142c2b180725efb2c",
+    "version": 2
+  },
+  "program": "RANGE-002",
+  "registration": {
+    "related_programs": null,
+    "trial_ledger_id": null
+  },
+  "risk": {
+    "daily_loss_limit": null,
+    "fill_risk_tolerance": null,
+    "gross_cap": null,
+    "max_concurrent": null,
+    "max_participation": null,
+    "per_name_cap": null,
+    "per_trade_pct": 0.25,
+    "per_trade_unit": "percent"
+  },
+  "signal": {
+    "entry_window": [
+      "10:00:00",
+      "14:59:59"
+    ],
+    "max_entries_per_symbol_day": 1,
+    "min_or_width_ticks": 5.0,
+    "missing_minute_classes": [
+      "NO_TRADE_MINUTE",
+      "DATA_GAP"
+    ],
+    "or_completeness_rule": 0,
+    "or_end": "09:59:59",
+    "or_start": "09:30:00",
+    "tick_offset": 1
+  },
+  "spec_version": 1,
+  "stats": {
+    "adjustment": "holm",
+    "alpha_one_sided": 0.05,
+    "bootstrap": {
+      "block_len": 10.0,
+      "ci_type": "percentile",
+      "cluster": "trading_day",
+      "confidence_level": 0.95,
+      "method": "stationary",
+      "reps": null,
+      "seed": null
+    },
+    "hypothesis_family": null,
+    "regime": {
+      "criterion": null,
+      "definition": null
+    }
+  },
+  "universe": {
+    "adv_window_days": 20,
+    "category_map": [
+      "Domestic Common Stock",
+      "Domestic Common Stock Primary Class"
+    ],
+    "include_delisted": true,
+    "instrument_types": [
+      "common_stock"
+    ],
+    "min_price": 10.0,
+    "n": 100,
+    "rebuild": "monthly"
+  }
+}
