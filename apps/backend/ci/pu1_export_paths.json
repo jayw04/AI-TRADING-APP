@@ -616,6 +616,20 @@
       "reason": "RANGE-002 descriptive-run report writer; report.md is footer-stamped and both reports carry PERSONAL/UNKNOWN scope sidecars (alpaca_market_data + sharadar), so the export seam refuses them"
     },
     {
+      "file": "apps/backend/app/research/range002/governance/results_guard.py",
+      "functions": [
+        "_audit_log_append"
+      ],
+      "classification": "INTERNAL_ONLY",
+      "reason": "append-only hash-chained log of audit-replay invocations (ids, digests, ranges; no results or market data), written beside the run registry, never an outbound path"
+    },
+    {
+      "file": "apps/backend/scripts/research/range002/audit_replay_run.py",
+      "functions": "*",
+      "classification": "INTERNAL_ONLY",
+      "reason": "RANGE-002 bounded audit replay of a completed run; writes audit_report.json and per-trade files into a separate private directory, each with a PERSONAL/UNKNOWN scope sidecar (alpaca_market_data + sharadar) so the export seam refuses them"
+    },
+    {
       "file": "apps/backend/scripts/research/range002/build_snapshot_manifest.py",
       "functions": "*",
       "classification": "INTERNAL_ONLY",

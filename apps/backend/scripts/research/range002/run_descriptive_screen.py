@@ -121,6 +121,16 @@ LABEL_SENTENCE = (
 )
 STATUS_COMPLETE = "DESCRIPTIVE_COMPLETE"
 STATUS_DEFECT = "DEFECT_DATA_QUALITY_COVERAGE_BELOW_THRESHOLD"
+#: Returned coverage passed but the opening-range completeness gate did not (prospective rule;
+#: the report is produced, nothing is advanced, and an earlier run is never re-graded by it).
+STATUS_OR_DEFECT = "DESCRIPTIVE_COMPLETE_WITH_DATA_QUALITY_DEFECT"
+OR_DEFECT_NOTE = (
+    "Opening-range completeness (complete opening ranges / expected symbol-days) is below the "
+    "documented requirement. The returned-coverage gate passed, but the screen evaluated "
+    "incomplete opening ranges: this is a data-quality DEFECT, not a strategy result, and no "
+    "candidate may be advanced or selected from it. Missing minutes are NOT classified as "
+    "no-trade without independent evidence."
+)
 NO_VERDICT_NOTE = (
     "Coverage is below the frozen threshold. This is a data-quality DEFECT, not a strategy "
     "result: the figures below describe incomplete data and support no strategy conclusion."
@@ -375,7 +385,7 @@ def _render_md(rep: dict[str, Any]) -> str:
     L.append(f"**{rep['label_sentence']}**\n")
     L.append(f"- Status: `{rep['status']}`")
     if rep["status"] != STATUS_COMPLETE:
-        L.append(f"- **{NO_VERDICT_NOTE}**")
+        L.append(f"- **{rep.get('defect_note') or NO_VERDICT_NOTE}**")
     r, s, d = rep["run"], rep["spec"], rep["decision_reference"]
     L.append(
         f"- Run id: `{r['run_id']}` (phase {r['phase']}, partition {r['partition']}, "
@@ -429,6 +439,15 @@ def _render_md(rep: dict[str, Any]) -> str:
         f"{o['complete_count']} complete; of observed {f(o['of_observed'])}, "
         f"of expected {f(o['of_expected'])}"
     )
+    g = rep.get("or_completeness_gate") or {"evaluated": False}
+    if g["evaluated"]:
+        L.append(
+            f"- OR-completeness gate: {g['numerator']}/{g['denominator']} = {f(g['rate'])} "
+            f"vs threshold {g['threshold']} -> "
+            f"{'MET' if g['meets_threshold'] else 'NOT MET (data-quality defect)'}"
+        )
+    else:
+        L.append("- OR-completeness gate: not evaluated in this run")
     fu = rep["funnel"]
     L.append("\n## Funnel\n")
     L.append(f"- eligible (loaded) symbol-days {fu['eligible']}; states {fu['states']}")
@@ -826,6 +845,26 @@ def _pc_summary(pc: dict[str, Any] | None) -> dict[str, Any] | None:
     }
 
 
+def or_completeness_gate(cov: Any, threshold: float | None) -> dict[str, Any]:
+    """The opening-range completeness gate, with numerator and denominator explicit. Evaluated
+    only when a threshold is supplied; independent of (and in addition to) returned coverage."""
+    if threshold is None:
+        return {"evaluated": False, "meets_threshold": None, "threshold": None}
+    if not 0.0 < threshold <= 1.0:
+        raise DescriptiveRunRefusal("or-completeness-threshold must be in (0, 1]")
+    rate = cov.or_complete_of_expected
+    return {
+        "evaluated": True,
+        "measure": "or_complete_of_expected",
+        "numerator": cov.or_complete_count,
+        "denominator": cov.denominator,
+        "rate": rate,
+        "threshold": threshold,
+        "meets_threshold": rate is not None and rate >= threshold,
+        "scope": "prospective only; never used to re-grade a run completed before this gate",
+    }
+
+
 def _acquire(
     cap: Any,
     plan: FetchPlan,
@@ -1099,6 +1138,7 @@ def run(
     code_sha: str,
     out_dir: Path,
     delisting_actions: tuple[str, ...],
+    or_completeness_threshold: float | None = None,
     exploratory_scope_amendment_id: str | None = None,
     raw_vendor_rows_attested: bool = False,
     provenance: dict[str, str] | None = None,
@@ -1335,14 +1375,18 @@ def run(
         candidates = {cid: summarize(cap, screen.trades[cid]) for cid in cand_ids}
 
         defect = not cov.meets_threshold
+        or_gate = or_completeness_gate(cov, or_completeness_threshold)
+        or_defect = bool(or_gate["evaluated"]) and not or_gate["meets_threshold"]
         cov_dict = dataclasses.asdict(cov)
         cov_dict["by_year"] = {str(y): v for y, v in sorted(cov.by_year.items())}
         scopes = sorted({b.scope for b in builds})
         report: dict[str, Any] = {
             "label": LABEL,
             "label_sentence": LABEL_SENTENCE,
-            "status": STATUS_DEFECT if defect else STATUS_COMPLETE,
-            "defect_note": NO_VERDICT_NOTE if defect else None,
+            "status": (
+                STATUS_DEFECT if defect else (STATUS_OR_DEFECT if or_defect else STATUS_COMPLETE)
+            ),
+            "defect_note": (NO_VERDICT_NOTE if defect else (OR_DEFECT_NOTE if or_defect else None)),
             "run": {
                 "run_id": run_id,
                 "phase": phase.value,
@@ -1413,6 +1457,7 @@ def run(
                 "of_observed": cov.or_complete_of_observed,
                 "of_expected": cov.or_complete_of_expected,
             },
+            "or_completeness_gate": or_gate,
             "funnel": {
                 "eligible": screen.funnel.eligible,
                 "states": screen.funnel.states,
@@ -1472,7 +1517,7 @@ def run(
             ],
             "optional_bootstrap": None,
         }
-        if statistics_config is not None and not defect:
+        if statistics_config is not None and not defect and not or_defect:
             eligible_days = sorted({s.day for s in sessions})
             report["optional_bootstrap"] = _bootstrap_section(
                 cap, screen.trades, eligible_days, statistics_config
@@ -1531,6 +1576,17 @@ def _build_parser() -> argparse.ArgumentParser:
     req("--table-filter", required=True)
     req("--lookback-calendar-days", required=True, type=int)
     req("--coverage-threshold", required=True, type=float)
+    p.add_argument(
+        "--or-completeness-threshold",
+        type=float,
+        default=0.98,
+        help=(
+            "opening-range completeness gate: complete opening ranges / expected symbol-days "
+            "(default 0.98, the documented requirement). Both measures are always reported; a "
+            "failing gate labels the run DESCRIPTIVE_COMPLETE_WITH_DATA_QUALITY_DEFECT and "
+            "advances nothing. Prospective: it never re-grades an earlier run."
+        ),
+    )
     req("--equity", required=True, type=float)
     req("--tick", required=True, type=float)
     req("--code-sha", required=True)
@@ -1667,6 +1723,7 @@ def main(argv: list[str] | None = None) -> int:
             table_filter=a.table_filter,
             lookback_calendar_days=a.lookback_calendar_days,
             coverage_threshold=a.coverage_threshold,
+            or_completeness_threshold=a.or_completeness_threshold,
             equity=a.equity,
             tick=a.tick,
             code_sha=a.code_sha,
@@ -1686,7 +1743,7 @@ def main(argv: list[str] | None = None) -> int:
         f"{outcome.status} run={outcome.run_id} report={outcome.report_json} "
         f"sha256={outcome.report_sha256}"
     )
-    return EXIT_DEFECT if outcome.status == STATUS_DEFECT else EXIT_OK
+    return EXIT_OK if outcome.status == STATUS_COMPLETE else EXIT_DEFECT
 
 
 if __name__ == "__main__":

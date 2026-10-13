@@ -143,6 +143,7 @@ from __future__ import annotations
 import functools
 import hashlib
 import inspect
+import json
 import re
 import secrets
 import weakref
@@ -733,6 +734,11 @@ def authorize(
             "an independence_authorization reference was supplied, but no lineage/independence "
             "policy exists in code to validate it; it is never accepted (fail closed)"
         )
+    # an audit replay has its own guarded entry point; it is never reachable from here
+    if phase is Phase.AUDIT or phase == Phase.AUDIT.value:
+        raise PartitionNotAuthorizedError(
+            "phase AUDIT is reachable only through authorize_audit_replay()"
+        )
     # (0) + (a) trusted view, frozen and carrying an approved run decision
     spec, spec_sha = _spec_checks(spec)
     if type(registry) is not RunRegistry:
@@ -903,10 +909,150 @@ def authorize(
     return capability
 
 
+@dataclass(frozen=True)
+class AuditParentBinding:
+    """The completed parent run's recorded identity, supplied by the caller from the parent's own
+    report and registry row. ``authorize_audit_replay`` re-reads the registry and refuses any
+    difference: nothing here is trusted on its own."""
+
+    parent_report_sha256: str  # the parent's audit-pack digest (sha256 of its report.json)
+    code_sha: str  # the code commit the parent ran
+    data_manifest_sha256: str  # the data manifest digest the parent bound
+    authorized_range: DateRange  # the parent's authorized range; the audit may not exceed it
+
+
+_AUDIT_ID = re.compile(r"[A-Za-z0-9][A-Za-z0-9_.-]{7,63}")
+
+
+def _audit_log_append(path: Path, record: dict[str, Any]) -> str:
+    """Append one hash-chained JSON line (previous line's sha256 inside this one); returns the sha."""
+    prev = "0" * 64
+    if path.exists():
+        lines = [ln for ln in path.read_text(encoding="utf-8").splitlines() if ln.strip()]
+        if lines:
+            prev = hashlib.sha256(lines[-1].encode("utf-8")).hexdigest()
+    body = dict(record, prev_line_sha256=prev)
+    line = json.dumps(body, sort_keys=True, allow_nan=False)
+    with open(path, "a", encoding="utf-8", newline="\n") as fh:
+        fh.write(line + "\n")
+        fh.flush()
+    return hashlib.sha256(line.encode("utf-8")).hexdigest()
+
+
+def authorize_audit_replay(
+    *,
+    spec: GuardSpecView,
+    registry: RunRegistry,
+    parent_run_id: str,
+    audit_id: str,
+    binding: AuditParentBinding,
+    audit_log_path: Path,
+) -> ResultsCapability:
+    """Issue a DISTINCT audit capability for reproducing an already COMPLETED parent run.
+
+    * It never revives the parent's capability (a closed run stays revoked): a new registry row of
+      phase AUDIT is opened and its own ``capability_issued`` row is written.
+    * AUDIT is not an attempt phase, so it consumes no P3A / P3B strategy attempt.
+    * It is bound to the parent's spec, code, data manifest and report digest, and to the parent's
+      authorized range; any difference is refused. There is no fetch, parameter change, candidate
+      selection, other date range or holdout access in it: the capability is non-citable, the
+      range is the parent's, and the partition is the parent's.
+    * Every invocation is appended to a hash-chained audit log, including refusals' absence: an
+      audit that is not logged is not authorized (the row is written before the capability).
+    """
+    if type(registry) is not RunRegistry:
+        raise RegistryNotTrustedError(f"registry must be exactly RunRegistry, got {type(registry)}")
+    spec, spec_sha = _spec_checks(spec)
+    if not isinstance(audit_id, str) or not _AUDIT_ID.fullmatch(audit_id):
+        raise PartitionNotAuthorizedError("audit_id must be 8-64 chars of [A-Za-z0-9_.-]")
+    if type(binding) is not AuditParentBinding or type(binding.authorized_range) is not DateRange:
+        raise PartitionNotAuthorizedError("binding must be an AuditParentBinding")
+    manifest = load_manifest(_MANIFEST_PATH)
+    manifest.require_genesis()
+    if spec.registry_genesis_id is None or spec.registry_genesis_id != registry.genesis_id:
+        raise RegistryGenesisMismatchError(
+            "the spec's governance.registry_genesis_id does not match the registry in use"
+        )
+    manifest.check_genesis(registry.genesis_id, what="registry")
+
+    parent = registry.get_run(parent_run_id)
+    if parent is None:
+        raise RunNotRegisteredError(f"no parent run {parent_run_id!r} in the registry")
+    problems: list[str] = []
+    if parent.status is not RunStatus.COMPLETED:
+        problems.append(f"parent status is {parent.status.value}, not COMPLETED")
+    if parent.phase is not Phase.P3A or parent.partition is not Partition.DEVELOPMENT_SELECTION:
+        problems.append(
+            f"parent is {parent.phase.value}/{parent.partition.value}, not P3A/DEVELOPMENT_SELECTION"
+        )
+    if parent.capability_issued_seq is None:
+        problems.append("parent was never authorized")
+    if parent.spec_sha256 != spec_sha:
+        problems.append("the supplied spec is not the parent's spec")
+    if parent.code_sha != binding.code_sha:
+        problems.append("the supplied code sha is not the parent's code sha")
+    if parent.data_manifest_sha256 != binding.data_manifest_sha256:
+        problems.append("the supplied data manifest digest is not the parent's")
+    if parent.audit_pack_sha256 != binding.parent_report_sha256:
+        problems.append("the supplied report digest is not the parent's audit-pack digest")
+    spec_range = _partition_range(spec, Partition.DEVELOPMENT_SELECTION)
+    if spec_range is None or not spec_range.contains(binding.authorized_range):
+        problems.append("the parent's authorized range is outside the spec's selection partition")
+    if problems:
+        raise RunNotRegisteredError("audit replay refused: " + "; ".join(problems))
+    if audit_log_path.exists() and f'"audit_id": "{audit_id}"' in audit_log_path.read_text(
+        encoding="utf-8"
+    ):
+        raise CapabilityAlreadyIssuedError(f"audit id {audit_id!r} was already used")
+
+    audit_run_id = registry.open_run(
+        phase=Phase.AUDIT,
+        spec_sha256=spec_sha,
+        code_sha=parent.code_sha,
+        data_manifest_sha256=parent.data_manifest_sha256,
+        partition=Partition.DEVELOPMENT_SELECTION,
+        seeds={"audit_replay_no_rng": 0},
+        exit_candidates=list(parent.exit_candidates),
+    )
+    registry.mark_capability_issued(
+        audit_run_id, evidence=[], manifest_sha256=manifest.sha256, attempt_limit=None
+    )
+    _audit_log_append(
+        audit_log_path,
+        {
+            "event": "audit_capability_issued",
+            "audit_id": audit_id,
+            "audit_run_id": audit_run_id,
+            "parent_run_id": parent_run_id,
+            "spec_sha256": spec_sha,
+            "code_sha": parent.code_sha,
+            "data_manifest_sha256": parent.data_manifest_sha256,
+            "parent_report_sha256": binding.parent_report_sha256,
+            "range": binding.authorized_range.as_dict(),
+        },
+    )
+    capability = ResultsCapability(
+        _ISSUE,
+        spec_sha256=spec_sha,
+        phase=Phase.AUDIT,
+        partition=Partition.DEVELOPMENT_SELECTION,
+        run_id=audit_run_id,
+        date_range=binding.authorized_range,
+        citable=False,
+        profile=spec.profile,
+        exposure_ledger_sha256=None,
+        evidence_digests=(),
+    )
+    _BOUND_REGISTRIES[capability] = registry
+    return capability
+
+
 __all__ = [
+    "AuditParentBinding",
     "PredecessorEvidence",
     "ResultsCapability",
     "authorize",
+    "authorize_audit_replay",
     "require_capability",
     "requires_capability",
 ]

@@ -32,6 +32,9 @@ class Phase(StrEnum):
     P3B = "P3B"
     P4 = "P4"
     P5 = "P5"
+    #: Audit replay of an already COMPLETED run: reachable only through
+    #: ``results_guard.authorize_audit_replay``; never counts as a strategy attempt.
+    AUDIT = "AUDIT"
 
 
 #: Which partitions each phase may run on. One partition per phase by design.
@@ -41,6 +44,7 @@ PHASE_PARTITIONS: dict[Phase, frozenset[Partition]] = {
     Phase.P3B: frozenset({Partition.DEVELOPMENT_CONFIRMATION}),
     Phase.P4: frozenset({Partition.HOLDOUT}),
     Phase.P5: frozenset({Partition.PAPER}),
+    Phase.AUDIT: frozenset({Partition.DEVELOPMENT_SELECTION}),
 }
 
 DEVELOPMENT_PARTITIONS = frozenset(
