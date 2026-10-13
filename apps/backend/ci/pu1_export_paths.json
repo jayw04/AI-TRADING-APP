@@ -622,6 +622,12 @@
       "reason": "RANGE-002 frozen-spec writer; sealed/frozen governed output, not edited"
     },
     {
+      "file": "apps/backend/scripts/research/range002/sharadar_window_pull.py",
+      "functions": "*",
+      "classification": "INTERNAL_ONLY",
+      "reason": "RANGE-002 S1b bounded Sharadar retrieval (read-only GETs to data.nasdaq.com, mapped to source sharadar) writing Parquet + manifest into an operator-chosen private staging dir; every file and the manifest carry UNKNOWN-scope PU-1 sidecars (sources sharadar) so the export seam refuses them; no outbound path"
+    },
+    {
       "file": "apps/backend/scripts/research_compare.py",
       "functions": "*",
       "classification": "INTERNAL_ONLY",
