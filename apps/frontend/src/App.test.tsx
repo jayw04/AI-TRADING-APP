@@ -1,9 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
-import { MemoryRouter } from "react-router-dom";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { MemoryRouter, useLocation } from "react-router-dom";
+import { QueryClient } from "@tanstack/react-query";
 import App from "./App";
-import { NAV_ITEMS } from "./routes";
+import { US_NAV_ITEMS } from "./routes";
 
 const PAPER_ACCOUNT = {
   account_id: 1,
@@ -26,17 +26,14 @@ const PAPER_ACCOUNT = {
 
 beforeEach(() => {
   // Resolve account fetches with a paper account so ModeBanner renders its
-  // amber state; resolve every other GET with a minimal payload so the
-  // dashboard / pages don't blow up.
+  // amber state; hang every other request so the pages don't blow up.
   vi.stubGlobal(
     "fetch",
     vi.fn((url: string) => {
       if (typeof url === "string" && url.includes("/api/v1/account")) {
-        return Promise.resolve(
-          new Response(JSON.stringify(PAPER_ACCOUNT), { status: 200 }),
-        );
+        return Promise.resolve(new Response(JSON.stringify(PAPER_ACCOUNT), { status: 200 }));
       }
-      return new Promise(() => {}); // hang every other request
+      return new Promise(() => {});
     }),
   );
   class FakeWebSocket {
@@ -49,32 +46,31 @@ beforeEach(() => {
   vi.stubGlobal("WebSocket", FakeWebSocket);
 });
 
-function renderApp() {
-  const queryClient = new QueryClient({
-    defaultOptions: { queries: { retry: false } },
-  });
+function Where() {
+  const l = useLocation();
+  return <div data-testid="where">{`${l.pathname}${l.search}`}</div>;
+}
+
+function renderApp(path = "/") {
   return render(
-    <QueryClientProvider client={queryClient}>
-      <MemoryRouter initialEntries={["/"]}>
-        <App />
-      </MemoryRouter>
-    </QueryClientProvider>,
+    <MemoryRouter initialEntries={[path]}>
+      <App makeQueryClient={() => new QueryClient({ defaultOptions: { queries: { retry: false } } })} />
+      <Where />
+    </MemoryRouter>,
   );
 }
 
 describe("App shell", () => {
-  it("renders every sidebar nav item", () => {
-    renderApp();
-    for (const item of NAV_ITEMS) {
-      expect(
-        screen.getByRole("link", { name: item.label }),
-        `expected nav link "${item.label}"`,
-      ).toBeInTheDocument();
+  it("sends / to the US subsystem and renders every US nav item", async () => {
+    renderApp("/");
+    await waitFor(() => expect(screen.getByTestId("where")).toHaveTextContent(/^\/us$/));
+    for (const item of US_NAV_ITEMS) {
+      expect(screen.getByRole("link", { name: item.label }), `expected nav link "${item.label}"`).toBeInTheDocument();
     }
   });
 
   it("renders the mode banner with the paper-mode copy once account loads", async () => {
-    renderApp();
+    renderApp("/us");
     await waitFor(() => {
       expect(screen.getByLabelText("Trading mode")).toHaveTextContent(/paper/i);
     });
