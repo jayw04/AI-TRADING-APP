@@ -158,9 +158,9 @@
   },
   "profile": {
     "name": "screen",
-    "required_fields_sha256": "16f904a3094b375f32792201efb6fc6a40eb22ea46c9e26caeb978318ff96899",
-    "unmodelled_fields_sha256": "0298fe82ad0374a5139a0d739f49188081bf358a283edcb142c2b180725efb2c",
-    "version": 2
+    "version": 3,
+    "required_fields_sha256": "16fd7d9e60767391dc1757dde22985086dc6776bf05348424003b67353e0f185",
+    "unmodelled_fields_sha256": "0298fe82ad0374a5139a0d739f49188081bf358a283edcb142c2b180725efb2c"
   },
   "program": "RANGE-002",
   "registration": {
@@ -171,12 +171,15 @@
         "parent_strategy_version": "RANGE-002/screen-v2",
         "parent_run": "range002-run-000011",
         "audit": "AUDIT-RANGE002-2016Q1-20261013-A4R",
-        "exposed_findings_window": "2016-01-01..2016-03-31 (development diagnostic only; private; recorded as prior_exposure in the successor ledger)",
-        "changes": [
-          "signal.max_cost_to_risk added (0.10)",
-          "exits.candidates reduced from seven to E1 and E2a"
+        "exposed_findings_window": "2016-01-01..2016-03-31 (development diagnostic; private; prior_exposure in the successor ledger)",
+        "rule_provenance": "Q1-informed development, not an independently conceived or data-calibrated threshold; one value declared, no alternatives evaluated or compared",
+        "frozen_definitions": [
+          "eligibility: 2 * base_bps_per_side / 1e4 * trigger / (trigger - or_low) <= ceiling (inclusive boundary), base 5 bps per side",
+          "non-positive or non-finite risk -> INVALID_RISK, never eligible",
+          "entry trigger = or_high + 1 tick; stop = or_low; exits E1 (time) and E2a (fixed 2R)",
+          "disclosure: gap fills make actual entry risk and cost differ from the trigger-based estimate"
         ],
-        "confirmation_window": "to be declared by the owner before freeze; must be unviewed and outside the exposed Q1-2016 window and the protected holdout"
+        "reserved_evaluation_window": "2017-01-01..2017-06-30 (development_selection partition; not P3B confirmation; 2020-2021 and the holdout preserved); reservation only, acquisition and run are separate decisions"
       }
     ],
     "trial_ledger_id": null

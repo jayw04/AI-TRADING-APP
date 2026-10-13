@@ -92,3 +92,30 @@ def test_non_positive_ceiling_refused() -> None:
     payload["signal"]["max_cost_to_risk"] = -0.1
     with pytest.raises(ValueError):
         parse_draft(payload)
+
+
+def test_boundary_is_inclusive(tmp_path: Path) -> None:
+    from dataclasses import replace
+
+    _, base = _params(tmp_path, None)
+    trigger, risk = 10.11, 10.11 - 10.00
+    est = 2.0 * base.base_bps_per_side / 10_000.0 * trigger / risk  # the kernel's expression
+    sub = tmp_path / "exact"
+    sub.mkdir()
+    c, p = _params(sub, est)
+    at = simulate_session(c, p, session(_bars(10.10, 10.00, 10.20)), TICK, EQUITY)
+    assert at.state == STATE_ENTERED
+    below = replace(p, max_cost_to_risk=est * (1 - 1e-12))
+    out = simulate_session(c, below, session(_bars(10.10, 10.00, 10.20)), TICK, EQUITY)
+    assert out.state == STATE_COST_INELIGIBLE
+
+
+def test_non_positive_risk_is_invalid_not_eligible(tmp_path: Path) -> None:
+    from dataclasses import replace
+
+    from app.research.range002.screen.types import STATE_INVALID_RISK
+
+    c, p = _params(tmp_path, 0.10)
+    bad = replace(p, tick_offset=-10_000)  # trigger below the OR low: risk <= 0
+    out = simulate_session(c, bad, session(_bars(10.10, 10.00, 10.20)), TICK, EQUITY)
+    assert out.state == STATE_INVALID_RISK and out.trades == ()

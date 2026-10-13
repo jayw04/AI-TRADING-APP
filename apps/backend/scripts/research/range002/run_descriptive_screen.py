@@ -1517,6 +1517,19 @@ def run(
             ],
             "optional_bootstrap": None,
         }
+        if params.max_cost_to_risk is not None:
+            report["cost_to_risk_eligibility"] = {
+                "formula": "2 * base_bps_per_side / 1e4 * trigger / (trigger - or_low) <= ceiling",
+                "ceiling": params.max_cost_to_risk,
+                "base_bps_per_side": params.base_bps_per_side,
+                "boundary": "inclusive (<=)",
+                "ineligible_symbol_days": screen.funnel.states.get("COST_TO_RISK_INELIGIBLE", 0),
+            }
+            report["limitations"].append(
+                "cost-to-risk eligibility is estimated from the trigger when the opening range "
+                "closes; a gap fill (entry above the trigger) makes the actual entry risk and "
+                "cost differ from that estimate"
+            )
         if statistics_config is not None and not defect and not or_defect:
             eligible_days = sorted({s.day for s in sessions})
             report["optional_bootstrap"] = _bootstrap_section(

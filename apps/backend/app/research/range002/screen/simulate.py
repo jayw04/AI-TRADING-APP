@@ -202,10 +202,18 @@ def _simulate(params: ScreenParams, session: SessionBars, tick: float, equity: f
     if (or_high - or_low) < params.min_or_width_ticks * tick:
         return Outcome(session.symbol, session.day, STATE_OR_TOO_NARROW, or_high, or_low, None, ())
     trigger = or_high + params.tick_offset * tick
-    if params.max_cost_to_risk is not None and trigger > or_low:
+    if params.max_cost_to_risk is not None:
         # Known when the opening range closes (no later bar is read): estimated round-trip
-        # cost in units of the initial risk, from the spec's own base cost.
-        est = 2.0 * params.base_bps_per_side / 10_000.0 * trigger / (trigger - or_low)
+        # cost in units of the initial risk, from the spec's own base cost. The estimate is
+        # trigger-based: a gap fill (entry above the trigger) changes the actual risk and cost.
+        # Non-positive or non-finite risk is INVALID_RISK, never silently eligible. The boundary
+        # is inclusive: est <= ceiling is eligible.
+        risk = trigger - or_low
+        if not (math.isfinite(risk) and risk > 0.0):
+            return Outcome(
+                session.symbol, session.day, STATE_INVALID_RISK, or_high, or_low, None, ()
+            )
+        est = 2.0 * params.base_bps_per_side / 10_000.0 * trigger / risk
         if est > params.max_cost_to_risk:
             return Outcome(
                 session.symbol, session.day, STATE_COST_INELIGIBLE, or_high, or_low, None, ()

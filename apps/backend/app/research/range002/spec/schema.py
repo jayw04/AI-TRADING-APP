@@ -779,6 +779,16 @@ SCREEN_V2_REQUIRED_SHA256 = "16f904a3094b375f32792201efb6fc6a40eb22ea46c9e26caeb
 SCREEN_V2_UNMODELLED_SHA256 = "0298fe82ad0374a5139a0d739f49188081bf358a283edcb142c2b180725efb2c"
 
 
+# --------------------------------------------------------------------------- screen profile v3
+#
+# v3 = v2 PLUS an explicit cost-to-initial-risk ceiling. In v1/v2 specs an absent
+# ``signal.max_cost_to_risk`` means "the legacy rule is disabled" (no value is ever defaulted). A v3
+# spec is the cost-aware revision: it must NAME the ceiling, so a v3 spec with the field absent or
+# null is an incomplete specification and cannot be frozen.
+SCREEN_V3_REQUIRED = tuple(sorted((*SCREEN_V2_REQUIRED, "signal.max_cost_to_risk")))
+SCREEN_V3_REQUIRED_SHA256 = "16fd7d9e60767391dc1757dde22985086dc6776bf05348424003b67353e0f185"
+
+
 class ScreenProfileDecl(_Model):
     """The ``profile`` block of a v1 screen-profile spec. It is inside the spec hash."""
 
@@ -794,6 +804,15 @@ class ScreenProfileDeclV2(_Model):
     name: Literal["screen"]
     version: Literal[2]
     required_fields_sha256: Annotated[str, _eq(SCREEN_V2_REQUIRED_SHA256)]
+    unmodelled_fields_sha256: Annotated[str, _eq(SCREEN_V2_UNMODELLED_SHA256)]
+
+
+class ScreenProfileDeclV3(_Model):
+    """v3: v2 plus a REQUIRED explicit ``signal.max_cost_to_risk`` (no hidden default)."""
+
+    name: Literal["screen"]
+    version: Literal[3]
+    required_fields_sha256: Annotated[str, _eq(SCREEN_V3_REQUIRED_SHA256)]
     unmodelled_fields_sha256: Annotated[str, _eq(SCREEN_V2_UNMODELLED_SHA256)]
 
 
@@ -823,7 +842,7 @@ class DraftSpec(_Model):
     governance: Governance
     #: the meeting-decision reference; null = no decision recorded yet. Outside the hash.
     decision: DecisionRef | None
-    profile: ScreenProfileDecl | ScreenProfileDeclV2 | None = None
+    profile: ScreenProfileDecl | ScreenProfileDeclV2 | ScreenProfileDeclV3 | None = None
 
     @field_validator("spec_version", mode="before")
     @classmethod
@@ -849,9 +868,17 @@ class DraftSpec(_Model):
         """Dotted paths of every P0 field that is still null/blank, sorted."""
         out: list[str] = []
         _walk_unset(self.model_dump(mode="python"), "", out)
+        if (
+            self.profile is not None
+            and self.profile.version == 3
+            and self.signal.max_cost_to_risk is None  # v3 requires the ceiling to be named
+        ):
+            out.append("signal.max_cost_to_risk")
         if self.profile is not None:  # screen profile: only its exact required list is enforced
             required = frozenset(
-                SCREEN_V1_REQUIRED if self.profile.version == 1 else SCREEN_V2_REQUIRED
+                {1: SCREEN_V1_REQUIRED, 2: SCREEN_V2_REQUIRED}.get(
+                    self.profile.version, SCREEN_V3_REQUIRED
+                )
             )
             out = [path for path in out if path in required]
         return sorted(out)
