@@ -105,7 +105,7 @@
   },
   "governance": {
     "exposure_signed": {
-      "exposure_ledger_sha256": "0c7ba7f1a1da4d5c2d4af5e3ecb4734125e4546376ac2594b7a833ba6d1eab65"
+      "exposure_ledger_sha256": "e484d494fb5e133410cb4953964a46d3583c283030210355a80fca337928eff6"
     },
     "registry_genesis_id": "da2dd976-a5eb-496f-bd89-d37d860bc632"
   },

@@ -453,4 +453,5 @@ def test_screen_p3a_completion_does_not_satisfy_a_full_specs_phase_order(tmp_pat
     assert {
         (Phase.P2, Partition.REPLAY_RNG001),
         (Phase.P3A, Partition.DEVELOPMENT_SELECTION),
+        (Phase.ACQ, Partition.DEVELOPMENT_SELECTION),  # acquisition/validation only, no attempt
     } == results_guard._SCREEN_PROFILE_ALLOWED
