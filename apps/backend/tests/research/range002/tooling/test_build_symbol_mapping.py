@@ -153,3 +153,45 @@ def test_boundary_override_needs_probe_evidence_on_both_sides() -> None:
     # an override more than 7 days early is refused
     ent3 = bsm.build_entries(["CB"], ROWS, good, ev, FROM, TO, {("CB", "2016-01-19"): "2016-01-05"})
     assert ent3[0]["provenance"] == bsm.PROV_UNVERIFIED
+
+
+def test_relabel_at_delisting_is_dropped_only_with_probe_evidence_on_that_day() -> None:
+    events = {"ARIA1": [("2017-02-15", "ARIA")]}
+    rows = {
+        "ARIA1": {
+            "relatedtickers": "ARIA",
+            "firstpricedate": "1997-12-31",
+            "lastpricedate": "2017-02-15",
+        }
+    }
+    frm, to = "2017-01-01", "2017-06-30"
+
+    def entry(probe: dict[str, Any]) -> dict[str, Any]:
+        return bsm.build_entries(["ARIA1"], rows, probe, events, frm, to)[0]
+
+    good = _probe(
+        ("ARIA1", "ARIA", "2017-01-04", 200, 60),
+        ("ARIA1", "ARIA", "2017-02-15", 200, 55),
+        ("ARIA1", "ARIA1", "2017-02-15", 400, 0),
+    )
+    e = entry(good)
+    assert e["provenance"] == bsm.PROV_CHAIN
+    assert [x["request_symbol"] for x in e["schedule"]] == ["ARIA"]
+    assert e["evidence"]["relabel_at_delisting"][0]["dropped_symbol"] == "ARIA1"
+    # no probe of the old symbol on the delisting day: nothing is dropped, entry is UNVERIFIED
+    partial = _probe(
+        ("ARIA1", "ARIA", "2017-01-04", 200, 60), ("ARIA1", "ARIA1", "2017-02-15", 400, 0)
+    )
+    e2 = entry(partial)
+    assert e2["provenance"] == bsm.PROV_UNVERIFIED and len(e2["schedule"]) == 2
+    # the new symbol DOES have bars that day: this is a real rename, not a relabel
+    real = _probe(
+        ("ARIA1", "ARIA", "2017-01-04", 200, 60),
+        ("ARIA1", "ARIA", "2017-02-15", 200, 55),
+        ("ARIA1", "ARIA1", "2017-02-15", 200, 40),
+    )
+    assert len(entry(real)["schedule"]) == 2
+    # a change dated BEFORE the final price date is never dropped
+    rows2 = {"ARIA1": dict(rows["ARIA1"], lastpricedate="2017-03-01")}
+    e4 = bsm.build_entries(["ARIA1"], rows2, good, events, frm, to)[0]
+    assert len(e4["schedule"]) == 2

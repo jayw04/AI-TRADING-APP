@@ -203,6 +203,36 @@ def build_entries(
                 )
             else:
                 refused_override = True
+        relabel: list[dict[str, str]] = []
+        # RELABEL AT DELISTING: the vendor records a ticker change on the issuer's FINAL price date
+        # (e.g. ARIA -> ARIA1 on the delisting day). The new symbol never traded; the old one did.
+        # A trailing segment is dropped only when the probe shows, ON THAT DATE, bars for the old
+        # symbol and either an HTTP error or zero bars for the new one. Otherwise it stays as is
+        # (and fails its own probe requirement -> UNVERIFIED).
+        last_price = str(row.get("lastpricedate") or "")
+        while len(sched) > 1 and sched[-1][0] == last_price:
+            vdate, new_sym = sched[-1]
+            old_sym = sched[-2][1]
+            old_rec = [r for r in ev.get((s, old_sym), []) if r["day"] == vdate]
+            new_rec = [r for r in ev.get((s, new_sym), []) if r["day"] == vdate]
+            old_ok = bool(old_rec) and all(
+                r["http_status"] == 200 and (r["bars"] or 0) > 0 for r in old_rec
+            )
+            new_none = bool(new_rec) and all(
+                r["http_status"] != 200 or (r["bars"] or 0) == 0 for r in new_rec
+            )
+            if not (old_ok and new_none):
+                break
+            relabel.append(
+                {
+                    "vendor_change_date": vdate,
+                    "dropped_symbol": new_sym,
+                    "kept_symbol": old_sym,
+                    "basis": "change dated on the final price date; old symbol has bars that "
+                    "day, new symbol returns none",
+                }
+            )
+            sched.pop()
         schedule = [{"from": d, "request_symbol": sym} for d, sym in sched]
         base: dict[str, Any] = {
             "vendor_ticker": s,
@@ -243,6 +273,8 @@ def build_entries(
             base["asof_policy"] = "SEGMENT_START_DATE"
             if applied:
                 base["evidence"]["boundary_overrides"] = applied
+            if relabel:
+                base["evidence"]["relabel_at_delisting"] = relabel
             if all(checks.values()) and not refused_override:
                 base["provenance"] = PROV_CHAIN
         elif re.fullmatch(r"[A-Z]+", s):
