@@ -616,6 +616,12 @@
       "reason": "RANGE-002 descriptive-run report writer; report.md is footer-stamped and both reports carry PERSONAL/UNKNOWN scope sidecars (alpaca_market_data + sharadar), so the export seam refuses them"
     },
     {
+      "file": "apps/backend/scripts/research/range002/export_identity_snapshot.py",
+      "functions": "*",
+      "classification": "INTERNAL_ONLY",
+      "reason": "RANGE-002 S1 identity diagnostic export: writes Parquet identity/corporate-action/coverage tables (no prices or volume) into a caller-named private staging/export directory, each file and the manifest with a PU-1 license sidecar (sources: sharadar, scope UNKNOWN) plus README_PU1.txt, so export_file_for_external_use refuses them; license status and permission text are recorded, never verified or granted; deletion only via --cleanup --apply, confined to one export id"
+    },
+    {
       "file": "apps/backend/scripts/research/range002/freeze_spec.py",
       "functions": "*",
       "classification": "INTERNAL_ONLY",
