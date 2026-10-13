@@ -7,12 +7,12 @@ set -euo pipefail
 umask 022
 set +x
 MODE="${1:-}"
-CODE_SHA=7d35ba14dcea7f8bb5d625a3f78479e444909878
+CODE_SHA=79d928fd0f593d6beb30ccfac0d3397d3cd5f42a
 IMAGE=trading-workbench-backend
 NAME=range002-acq-2017h1
-BUNDLE_TGZ=/tmp/s1/bundle16.tgz
-BUNDLE_TGZ_SHA=53a17b7a4e4d084127e9935b18c4759c64fe5e855cd3b345c753fcba75080ebb
-BUNDLE_DIR=/tmp/s1/bundle16
+BUNDLE_TGZ=/tmp/s1/bundle17.tgz
+BUNDLE_TGZ_SHA=f6275d82afd72d06eb2e170bd7c032c78d06bf728a318b6bf5d987f4651e577d
+BUNDLE_DIR=/tmp/s1/bundle17
 REL=docs/implementation/evidence/range_002
 SPEC_REL=$REL/RANGE-002_Screen_Spec_Frozen_CostAware_v0.6.json
 SPEC_FILE_SHA=b06846ece79d976860db4d1e0f5e9a4774caccbb1a900107c4943b88a0a48c07

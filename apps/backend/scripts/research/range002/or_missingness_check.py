@@ -8,6 +8,7 @@ missing delivery (market-wide clustering by date / minute, DST, page boundaries)
 
 import json
 import sys
+from datetime import date
 from typing import Any
 
 import duckdb
@@ -16,8 +17,14 @@ import pandas as pd
 sys.path.insert(0, "/work/apps/backend")
 from app.research.range002.data.store_adapter import open_snapshot  # noqa: E402
 
-STORE = "/app/data/research/range002_run/minute_bars_2016q1_a4.duckdb"
-SNAP = "/app/data/research/range002_s1/sharadar-2016q1-20261013"
+STORE = (
+    sys.argv[1]
+    if len(sys.argv) > 1
+    else "/app/data/research/range002_run/minute_bars_2016q1_a4.duckdb"
+)
+SNAP = (
+    sys.argv[2] if len(sys.argv) > 2 else "/app/data/research/range002_s1/sharadar-2016q1-20261013"
+)
 
 con = duckdb.connect(STORE, read_only=True)
 df = con.execute("select symbol, ts, open, high, low, close, volume from minute_bars").df()
@@ -59,18 +66,20 @@ out["by_date_top"] = [
     }
     for d, s in share.head(8).items()
 ]
-dst = pd.Timestamp("2016-03-13").date()
+_yr = min(per_day_loaded.index).year
+_sundays = [d for d in range(8, 15) if date(_yr, 3, d).weekday() == 6]
+dst = date(_yr, 3, _sundays[0])  # US DST starts the second Sunday of March
 before = [(s, d) for (s, d) in inc.index if d < dst]
 after = [(s, d) for (s, d) in inc.index if d >= dst]
 lb = int(per_day_loaded[[d for d in per_day_loaded.index if d < dst]].sum())
 la = int(per_day_loaded[[d for d in per_day_loaded.index if d >= dst]].sum())
 out["dst_split"] = {
-    "before_2016-03-13": {
+    "before_dst_change": {
         "incomplete": len(before),
         "loaded": lb,
         "rate": round(len(before) / lb, 4),
     },
-    "from_2016-03-13": {"incomplete": len(after), "loaded": la, "rate": round(len(after) / la, 4)},
+    "from_dst_change": {"incomplete": len(after), "loaded": la, "rate": round(len(after) / la, 4)},
 }
 out["dates_with_incomplete_share_ge_10pct"] = int((share >= 0.10).sum())
 out["distinct_dates_loaded"] = int(len(per_day_loaded))
