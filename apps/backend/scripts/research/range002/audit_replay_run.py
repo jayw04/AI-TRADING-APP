@@ -120,6 +120,7 @@ def replay(
     tick: float,
     delisting_actions: tuple[str, ...],
     raw_vendor_rows_attested: bool,
+    no_trade_evidence: dict[Any, Any] | None = None,
 ) -> dict[str, Any]:
     """Mirror of the parent runner's evaluation (no fetching), returning trades and aggregates."""
     duckdb = rds.duckdb
@@ -172,7 +173,7 @@ def replay(
             sessions_cal,
             source_feed=minute_feed,
             source_ts_convention=minute_ts_convention,
-            no_trade_evidence={},
+            no_trade_evidence=no_trade_evidence or {},
             permaticker_of=perma,
         )
     finally:
@@ -569,6 +570,34 @@ def run_audit(a: argparse.Namespace) -> int:
     if problems:
         raise AuditRefusal("altered or mismatched input(s): " + "; ".join(problems))
 
+    ntm_map: dict[Any, Any] = {}
+    parent_ev = (parent.get("or_completeness_gate") or {}).get("accounted_minutes")
+    if a.no_trade_evidence is not None:
+        if not (
+            a.no_trade_evidence_sha256
+            and a.census_manifest
+            and a.census_manifest_sha256
+            and a.accounted_tiers
+        ):
+            raise AuditRefusal(
+                "evidence needs its sha256, the census manifest, its sha256 and tiers"
+            )
+        ntm_map, info = rds._load_no_trade_evidence(
+            Path(a.no_trade_evidence),
+            a.no_trade_evidence_sha256,
+            Path(a.census_manifest),
+            a.census_manifest_sha256,
+            Path(a.minute_bars),
+            a.accounted_tiers,
+        )
+        if not parent_ev or (
+            parent_ev.get("classification_sha256") != info["classification_sha256"]
+            or parent_ev.get("census_manifest_sha256") != info["census_manifest_sha256"]
+            or parent_ev.get("tiers") != info["tiers"]
+        ):
+            raise AuditRefusal("missing-minute evidence differs from what the parent recorded")
+    elif parent_ev:
+        raise AuditRefusal("the parent used missing-minute evidence; supply the same artefacts")
     registry = RunRegistry(Path(a.registry))
     audit_cap = authorize_audit_replay(
         spec=view,
@@ -603,6 +632,7 @@ def run_audit(a: argparse.Namespace) -> int:
             tick=a.tick,
             delisting_actions=tuple(a.delisting_action_value or ()),
             raw_vendor_rows_attested=a.raw_vendor_rows_attested,
+            no_trade_evidence=ntm_map,
         )
         # reproduction against the parent's recorded aggregates
         defects: list[str] = []
@@ -693,6 +723,11 @@ def _parser() -> argparse.ArgumentParser:
     add("--audit-log", required=True, type=Path)
     add("--raw-vendor-rows-attested", action="store_true")
     add("--delisting-action-value", action="append", default=None)
+    add("--no-trade-evidence", type=Path, default=None)
+    add("--no-trade-evidence-sha256", default=None)
+    add("--census-manifest", type=Path, default=None)
+    add("--census-manifest-sha256", default=None)
+    add("--accounted-tiers", choices=("positive", "both"), default=None)
     add("--parent-evidence", type=Path, default=None)
     add("--mapping", type=Path, default=None)
     add("--universe", type=Path, default=None)

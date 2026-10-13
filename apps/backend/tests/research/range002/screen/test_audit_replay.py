@@ -240,3 +240,65 @@ def test_scale_out_partial_is_part_of_the_recomputation() -> None:
         net_r_stress=gross - 3 * cost,
     )
     assert ar._arith(t, 10.0, 30.0)["problems"] == []
+
+
+def test_audit_reproduces_a_run_that_used_missing_minute_evidence(
+    world: dict[str, Any],
+) -> None:
+    from datetime import UTC
+    from datetime import datetime as dt
+
+    import duckdb
+
+    store: Path = world["kwargs"]["minute_bars"]
+    con = duckdb.connect(str(store))
+    con.execute(
+        "DELETE FROM minute_bars WHERE symbol = 'AAA' AND ts = ?",
+        [dt(2016, 3, 2, 14, 35, tzinfo=UTC).replace(tzinfo=None)],
+    )
+    con.close()
+    tmp: Path = world["tmp"]
+    manifest = {
+        "samples": [
+            {
+                "id": "C1",
+                "symbol": "AAA",
+                "day": "2016-03-02",
+                "missing_minutes": ["09:35:00"],
+                "control_minutes": ["09:34:00", "09:36:00"],
+            }
+        ]
+    }
+    mpath = tmp / "cm.json"
+    mpath.write_text(json.dumps(manifest), encoding="utf-8")
+    msha = hashlib.sha256(mpath.read_bytes()).hexdigest()
+    cls = {
+        "schema": "range002.census_classification.v1",
+        "manifest_sha256": msha,
+        "per_sample": [{"id": "C1", "classes": {"09:35": "ACCOUNTED_FOR_POSITIVE"}}],
+    }
+    cpath = tmp / "cc.json"
+    cpath.write_text(json.dumps(cls), encoding="utf-8")
+    csha = hashlib.sha256(cpath.read_bytes()).hexdigest()
+    parent = rds.run(
+        **world["kwargs"],
+        no_trade_evidence=cpath,
+        no_trade_evidence_sha256=csha,
+        census_manifest=mpath,
+        census_manifest_sha256=msha,
+        accounted_tiers="positive",
+    )
+    ev = [
+        "--no-trade-evidence", str(cpath), "--no-trade-evidence-sha256", csha,
+        "--census-manifest", str(mpath), "--census-manifest-sha256", msha,
+        "--accounted-tiers", "positive",
+    ]  # fmt: skip
+    # without the evidence the audit refuses (it would not reproduce the parent)
+    assert ar.main(_args(world, parent, "AUDIT-EVID-0001")) == ar.EXIT_REFUSED
+    rc = ar.main(_args(world, parent, "AUDIT-EVID-0002") + ev)
+    assert rc == ar.EXIT_OK
+    rep = json.loads((world["tmp"] / "audit_AUDIT-EVID-0002" / "audit_report.json").read_text())
+    assert rep["reproduction"]["matches_parent"] is True
+    # the wrong tier is refused: the parent recorded 'positive'
+    bad = _args(world, parent, "AUDIT-EVID-0003") + ev[:-1] + ["both"]
+    assert ar.main(bad) == ar.EXIT_REFUSED
