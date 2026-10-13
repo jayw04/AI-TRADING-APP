@@ -1,0 +1,11 @@
+{
+  "schema_version": 1,
+  "approved_registry_genesis_id": null,
+  "approved_by": null,
+  "approved_on": null,
+  "p3_attempt_limits": {
+    "p3a": 3,
+    "p3b": 1
+  },
+  "notes": "PROPOSED PATCH, NOT THE COMMITTED MANIFEST. Only owner-confirmed values are set: p3a = 3 (owner confirmation 2026-10-13: covers the 2016-Q1 diagnostic subset, one full development run and one recorded defect-recovery attempt; the subset consumes one P3A attempt) and p3b = 1 (standing recommendation). approved_registry_genesis_id is READ BACK from RunRegistry.enroll_new at registry creation, never typed by hand; approved_by is an identifier string for the owner's instruction (an identifier, not a signature) and approved_on is the date the owner confirms the owner-instruction record; both stay null until then. The genesis triple is all-or-nothing, so this file means 'limits pre-registered, genesis not yet approved': freeze and authorize still refuse. Replace RANGE-002_governance_manifest.json with the completed file by a reviewed git change."
+}
