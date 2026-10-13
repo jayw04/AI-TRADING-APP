@@ -626,6 +626,75 @@ def _verify_cache(store: Path, journal: Path) -> dict[str, Any]:
         con.close()
 
 
+#: Cross-source identity gate: a symbol-day's Sharadar UNADJUSTED close must agree with the last
+#: regular-session SIP bar close within this relative tolerance; a symbol whose share of
+#: disagreeing days exceeds the fraction below is refused (the bars are probably another company's).
+IDENTITY_PRICE_TOLERANCE = 0.05
+IDENTITY_MAX_BAD_FRACTION = 0.10
+
+
+def identity_price_check(
+    daily_con: Any,
+    store: Path,
+    symbols: list[str],
+    *,
+    tolerance: float = IDENTITY_PRICE_TOLERANCE,
+    max_bad_fraction: float = IDENTITY_MAX_BAD_FRACTION,
+) -> dict[str, Any]:
+    """Compare per-day Sharadar ``closeunadj`` with the SIP last regular-session close for every
+    stored symbol-day. Only COUNTS leave this function; no price is returned or printed."""
+    mc = duckdb.connect(str(store), read_only=True)
+    try:
+        sip = {
+            (r[0], r[1]): float(r[2])
+            for r in mc.execute(
+                """
+                WITH et AS (
+                  SELECT symbol,
+                         CAST((ts AT TIME ZONE 'UTC') AT TIME ZONE 'America/New_York' AS TIMESTAMP) AS lt,
+                         close
+                  FROM minute_bars
+                )
+                SELECT symbol, CAST(lt AS DATE) AS d, arg_max(close, lt) AS last_close
+                FROM et
+                WHERE CAST(lt AS TIME) >= TIME '09:30:00' AND CAST(lt AS TIME) < TIME '16:00:00'
+                GROUP BY 1, 2
+                """
+            ).fetchall()
+            if r[2] is not None
+        }
+    finally:
+        mc.close()
+    daily = {
+        (r[0], r[1]): float(r[2])
+        for r in daily_con.execute(
+            'SELECT ticker, date, closeunadj FROM "sep" WHERE closeunadj IS NOT NULL'
+        ).fetchall()
+    }
+    per: dict[str, list[int]] = {}
+    for (sym, day), last in sip.items():
+        ref = daily.get((sym, day))
+        if ref is None or ref <= 0 or last <= 0:
+            continue
+        rec = per.setdefault(sym, [0, 0])
+        rec[0] += 1
+        if abs(ref / last - 1.0) > tolerance:
+            rec[1] += 1
+    compared = sum(v[0] for v in per.values())
+    bad_symbols = sorted(s for s, (n, bad) in per.items() if n and bad / n > max_bad_fraction)
+    no_overlap = sorted(s for s in symbols if s not in per)
+    return {
+        "tolerance": tolerance,
+        "max_bad_fraction": max_bad_fraction,
+        "symbols_compared": len(per),
+        "symbol_days_compared": compared,
+        "symbol_days_disagreeing": sum(v[1] for v in per.values()),
+        "symbols_exceeding_fraction": bad_symbols,
+        "symbols_with_any_disagreement": {s: v for s, v in sorted(per.items()) if v[1] > 0},
+        "symbols_without_any_comparable_day": no_overlap,
+    }
+
+
 def _acquire(
     cap: Any,
     plan: FetchPlan,
@@ -816,6 +885,16 @@ def _acquire(
         }
         evidence["convention_check"] = fm.convention_summary(days)
         evidence["cache_integrity"] = cache
+        idc = identity_price_check(daily_con, Path(minute_bars), symbols)
+        evidence["identity_price_check"] = idc
+        write_evidence(evidence)
+        if idc["symbols_exceeding_fraction"]:
+            raise DataDefectError(
+                "cross-source identity check failed: the SIP bars of "
+                f"{idc['symbols_exceeding_fraction']} disagree with the vendor's unadjusted daily "
+                "close on more than the allowed share of days (likely another company's bars); "
+                "screening refused, evidence kept"
+            )
         evidence["store_sha256"] = file_sha256(Path(minute_bars))
         evidence["status"] = "ACQUIRED_VALIDATED"
         write_evidence(evidence)
