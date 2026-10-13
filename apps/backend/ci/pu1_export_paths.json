@@ -636,6 +636,18 @@
       "reason": "RANGE-002 return-blind SIP trades probe (timestamps, counts, condition codes only); output carries an alpaca_market_data PERSONAL scope sidecar and an append-only hash-chained access log in the private research directory"
     },
     {
+      "file": "apps/backend/scripts/research/range002/build_census_manifest.py",
+      "functions": "*",
+      "classification": "INTERNAL_ONLY",
+      "reason": "RANGE-002 frozen missing-minute census sample list from bar presence only (no prices), written to the private research run directory"
+    },
+    {
+      "file": "apps/backend/scripts/research/range002/classify_census.py",
+      "functions": "*",
+      "classification": "INTERNAL_ONLY",
+      "reason": "RANGE-002 offline classification of the missing-minute census (counts and classes only), written to the private research run directory"
+    },
+    {
       "file": "apps/backend/scripts/research/range002/audit_replay_run.py",
       "functions": "*",
       "classification": "INTERNAL_ONLY",
