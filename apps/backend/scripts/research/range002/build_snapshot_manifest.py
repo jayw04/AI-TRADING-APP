@@ -170,18 +170,55 @@ def integrity_checks(
     coverage_start: date,
     coverage_end: date,
     decision_days: list[date],
+    accepted_exceptions: dict[str, set[str]] | None = None,
 ) -> dict[str, Any]:
-    """Counts only. ``gating`` checks decide ``all_passed``; ``informational`` ones never do."""
+    """Counts only. ``gating`` checks decide ``all_passed``; ``informational`` ones never do.
+
+    ``accepted_exceptions`` (check name -> identities) is an EXPLICIT, named acceptance for the
+    two per-ticker vendor-data checks only. A failing check passes only when every failing
+    identity is named; an unnamed failing identity still fails, and every acceptance is recorded
+    with its row count in the manifest."""
+    accepted_exceptions = accepted_exceptions or {}
+    unknown = sorted(set(accepted_exceptions) - _ACCEPTABLE_CHECKS)
+    if unknown:
+        raise ManifestBuildError(f"checks {unknown} cannot be accepted by name")
     con = open_snapshot(export_dir)
     try:
         tf = [table_filter]
         sel = 'FROM "tickers" WHERE "table" = ?'
         gating: dict[str, int] = {}
-        gating["sep_tickers_without_tickers_row"] = _scalar(
-            con,
-            'SELECT COUNT(*) FROM (SELECT DISTINCT ticker FROM "sep" WHERE ticker IS NOT NULL) s '
-            f"WHERE NOT EXISTS (SELECT 1 {sel} AND ticker = s.ticker)",
+        accepted_record: dict[str, Any] = {}
+
+        def per_ticker(check: str, ids_sql: str, args: list[Any], rows_sql: str) -> None:
+            ids = sorted(str(r[0]) for r in con.execute(ids_sql, args).fetchall())
+            named = accepted_exceptions.get(check, set())
+            unnamed = [i for i in ids if i not in named]
+            gating[check] = len(unnamed)
+            covered = [i for i in ids if i in named]
+            if covered:
+                accepted_record[check] = {
+                    "identities": covered,
+                    "rows": _scalar(
+                        con,
+                        rows_sql + " AND s.ticker IN (" + ",".join("?" for _ in covered) + ")",
+                        [*args, *covered],
+                    ),
+                    "effect": "the identity map cannot attribute these rows to a permaticker "
+                    "on their dates; the runner excludes them visibly as unattributed SEP rows",
+                }
+            stale = sorted(named - set(ids))
+            if stale:
+                raise ManifestBuildError(
+                    f"accepted exception(s) {stale} for {check} do not match any failing identity"
+                )
+
+        per_ticker(
+            "sep_tickers_without_tickers_row",
+            'SELECT DISTINCT s.ticker FROM "sep" s WHERE s.ticker IS NOT NULL AND NOT EXISTS '
+            f"(SELECT 1 {sel} AND ticker = s.ticker)",
             tf,
+            'SELECT COUNT(*) FROM "sep" s WHERE s.ticker IS NOT NULL AND NOT EXISTS '
+            f"(SELECT 1 {sel} AND ticker = s.ticker)",
         )
         gating["tickers_rows_with_null_permaticker"] = _scalar(
             con, f"SELECT COUNT(*) {sel} AND permaticker IS NULL", tf
@@ -202,17 +239,29 @@ def integrity_checks(
             'FROM "tickers" t WHERE t."table" = ? AND t.ticker = s.ticker '
             "AND t.firstpricedate IS NOT NULL AND t.lastpricedate IS NOT NULL"
         )
-        gating["sep_rows_outside_every_ticker_interval"] = _scalar(
-            con,
-            f'SELECT COUNT(*) FROM "sep" s WHERE EXISTS (SELECT 1 {interval}) '
+        per_ticker(
+            "sep_rows_outside_every_ticker_interval",
+            f'SELECT DISTINCT s.ticker FROM "sep" s WHERE EXISTS (SELECT 1 {interval}) '
             f"AND NOT EXISTS (SELECT 1 {interval} "
             "AND s.date BETWEEN t.firstpricedate AND t.lastpricedate)",
             [table_filter, table_filter],
+            f'SELECT COUNT(*) FROM "sep" s WHERE EXISTS (SELECT 1 {interval}) '
+            f"AND NOT EXISTS (SELECT 1 {interval} "
+            "AND s.date BETWEEN t.firstpricedate AND t.lastpricedate)",
         )
-        gating["actions_tickers_absent_from_tickers"] = _scalar(
+        # ACTIONS names many historical tickers that were never in TICKERS (acquisition targets,
+        # spin-off parents...). The gating question for this dataset is narrower: does ACTIONS
+        # name a ticker that HAS prices in the window but no TICKERS row?
+        actions_absent_total = _scalar(
             con,
             'SELECT COUNT(*) FROM (SELECT DISTINCT ticker FROM "actions" WHERE ticker IS NOT NULL)'
             ' a WHERE NOT EXISTS (SELECT 1 FROM "tickers" t WHERE t.ticker = a.ticker)',
+        )
+        gating["actions_tickers_with_sep_rows_absent_from_tickers"] = _scalar(
+            con,
+            'SELECT COUNT(*) FROM (SELECT DISTINCT ticker FROM "actions" WHERE ticker IS NOT NULL)'
+            ' a WHERE NOT EXISTS (SELECT 1 FROM "tickers" t WHERE t.ticker = a.ticker)'
+            ' AND EXISTS (SELECT 1 FROM "sep" s WHERE s.ticker = a.ticker)',
         )
         expected = sorted(expected_sessions(coverage_start, coverage_end))
         present = {
@@ -233,6 +282,9 @@ def integrity_checks(
             "sep_dates_not_expected_sessions": len(present - set(expected)),
             "missing_session_dates": [d.isoformat() for d in missing[:20]],
             "decision_days": [d.isoformat() for d in decision_days],
+            "actions_tickers_absent_from_tickers_total": actions_absent_total,
+            "actions_absent_note": "historical tickers named by ACTIONS that were never in "
+            "TICKERS; none has prices in the window (see the gating check)",
             "identity_rows": ident.source_rows,
             "identity_refused_rows": len(ident.refused),
             "sequential_rename_candidates": len(audit.rename_candidates),
@@ -251,8 +303,14 @@ def integrity_checks(
         "gating": gating,
         "failed_checks": failed,
         "informational": info,
+        "accepted_exceptions": accepted_record,
         "all_passed": not failed,
     }
+
+
+_ACCEPTABLE_CHECKS = frozenset(
+    {"sep_tickers_without_tickers_row", "sep_rows_outside_every_ticker_interval"}
+)
 
 
 def build(
@@ -262,6 +320,7 @@ def build(
     coverage_start: date,
     coverage_end: date,
     decision_days: list[date],
+    accepted_exceptions: dict[str, set[str]] | None = None,
 ) -> tuple[dict[str, Any], bool]:
     """Return (manifest document, integrity all_passed)."""
     pull_path = export_dir / "manifest.json"
@@ -316,6 +375,7 @@ def build(
         coverage_start=coverage_start,
         coverage_end=coverage_end,
         decision_days=decision_days,
+        accepted_exceptions=accepted_exceptions,
     )
     integrity["pull_window_utc"] = {
         "extraction_started_utc": started.strftime("%Y-%m-%dT%H:%M:%SZ"),
@@ -390,7 +450,14 @@ def run(
     coverage_start: str,
     coverage_end: str,
     decision_days: list[str],
+    accept_exceptions: list[str] | None = None,
 ) -> int:
+    accepted: dict[str, set[str]] = {}
+    for item in accept_exceptions or []:
+        check, sep, ident = item.partition("=")
+        if not sep or not check or not ident:
+            raise ManifestBuildError(f"--accept-exception needs CHECK=IDENTITY, got {item!r}")
+        accepted.setdefault(check, set()).add(ident)
     if not export_dir.is_dir():
         raise ManifestBuildError(f"{export_dir} is not a directory")
     if not table_filter.strip():
@@ -412,6 +479,7 @@ def run(
         coverage_start=c0,
         coverage_end=c1,
         decision_days=days,
+        accepted_exceptions=accepted,
     )
     text = json.dumps(doc, indent=2, sort_keys=True) + "\n"
     # Round-trip through the runner's own parser and verifier (WITH the opt-in, so that only
@@ -442,6 +510,14 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--coverage-start", required=True)
     p.add_argument("--coverage-end", required=True)
     p.add_argument("--decision-day", required=True, action="append")
+    p.add_argument(
+        "--accept-exception",
+        action="append",
+        default=[],
+        metavar="CHECK=IDENTITY",
+        help="explicitly accept ONE named failing identity of sep_tickers_without_tickers_row or "
+        "sep_rows_outside_every_ticker_interval (repeatable); recorded with its row count",
+    )
     a = p.parse_args(argv)
     try:
         return run(
@@ -451,6 +527,7 @@ def main(argv: list[str] | None = None) -> int:
             coverage_start=a.coverage_start,
             coverage_end=a.coverage_end,
             decision_days=a.decision_day,
+            accept_exceptions=a.accept_exception,
         )
     except (ManifestBuildError, duckdb.Error) as exc:
         print(f"REFUSED: {type(exc).__name__}: {exc}", file=sys.stderr)
