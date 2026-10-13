@@ -123,7 +123,7 @@ def manifest_of(root: Path) -> dict[str, Any]:
 
 
 # ------------------------------------------------------------------ content / columns
-def test_only_selected_columns_no_price_or_volume(store: Path, dest: Path) -> None:
+def test_default_mode_selected_columns_no_price_or_volume(store: Path, dest: Path) -> None:
     out = do_export(store, dest)
     assert (out / "EXPORT_COMPLETE.json").is_file()
     tables = {p.stem for p in out.glob("*.parquet")}
@@ -140,7 +140,7 @@ def test_only_selected_columns_no_price_or_volume(store: Path, dest: Path) -> No
         all_cols |= {c.lower() for c in cols}
         if p.stem == "sep_coverage":
             assert cols == ["ticker", "min_date", "max_date", "n_rows"]
-    assert not (all_cols & ex.FORBIDDEN_COLUMNS)
+    assert not (all_cols & ex.PRICE_VOLUME_COLUMNS)
     assert "sector" not in all_cols and "industry" not in all_cols
     cov = con.execute(
         f"SELECT ticker, n_rows FROM read_parquet('{(out / 'sep_coverage.parquet').as_posix()}') ORDER BY 1"
@@ -269,7 +269,7 @@ def test_validation_rejects_forbidden_column_and_bad_sep_coverage(store: Path, d
     m = manifest_of(do_export(store, dest))
     bad = json.loads(json.dumps(m))
     bad["files"][0]["columns"].append("close")
-    assert any("forbidden" in d for d in ex.validate_manifest(bad))
+    assert any("allowed only in sep_daily" in d for d in ex.validate_manifest(bad))
 
 
 # ------------------------------------------------------------------ atomicity / overwrite / args
@@ -604,3 +604,391 @@ def test_cleanup_refuses_junction(store: Path, dest: Path, tmp_path: Path) -> No
     with pytest.raises(ex.ExportRefused, match="symlink/junction"):
         ex.cleanup_export(dest, "exp-junc", apply=True)
     assert (target / "keep.txt").exists()
+
+
+# =============================================================== screening handoff (sep_daily)
+WINDOW = {
+    "include_sep_daily": True,
+    "sep_date_from": "2015-11-02",
+    "sep_date_to": "2016-03-31",
+    "screen_start": "2016-01-01",
+    "required_lookback_trading_days": 20,
+    "lookback_calendar_days": 45,
+}
+
+
+def add_history(path: Path) -> Path:
+    """Weekday SEP rows 2015-10-01..2016-04-08 for AAA and BBB (synthetic price/volume)."""
+    con = duckdb.connect(str(path))
+    con.execute(
+        "INSERT INTO sep SELECT t, d, 10.0, 11.0, 9.0, 10.5, 1000, 10.4, 10.6, DATE '2016-04-09' "
+        "FROM range(DATE '2015-10-01', DATE '2016-04-09', INTERVAL 1 DAY) r(d), "
+        "(VALUES ('AAA'), ('BBB')) v(t) WHERE dayofweek(d) BETWEEN 1 AND 5"
+    )
+    con.close()
+    return path
+
+
+@pytest.fixture
+def hist(store: Path) -> Path:
+    return add_history(store)
+
+
+def _daily_cols(out: Path) -> list[str]:
+    con = duckdb.connect(":memory:")
+    p = (out / "sep_daily.parquet").as_posix()
+    return [r[0] for r in con.execute(f"DESCRIBE SELECT * FROM read_parquet('{p}')").fetchall()]
+
+
+def test_default_mode_has_no_sep_daily_and_no_price_volume(hist: Path, dest: Path) -> None:
+    out = do_export(hist, dest)
+    m = manifest_of(out)
+    assert not (out / "sep_daily.parquet").exists()
+    assert "sep_daily" not in m and "sep_daily" in m["tables_not_exported"]
+    con = duckdb.connect(":memory:")
+    for p in out.glob("*.parquet"):
+        q = f"DESCRIBE SELECT * FROM read_parquet('{p.as_posix()}')"
+        cols = [r[0].lower() for r in con.execute(q).fetchall()]
+        assert not [c for c in cols if c in ex.PRICE_VOLUME_COLUMNS]
+
+
+def test_sep_daily_explicit_columns_window_and_full_history_coverage(
+    hist: Path, dest: Path
+) -> None:
+    out = do_export(hist, dest, **WINDOW)
+    assert _daily_cols(out) == list(ex.SEP_DAILY_COLUMNS)
+    con = duckdb.connect(":memory:")
+    p = (out / "sep_daily.parquet").as_posix()
+    got = con.execute(f"SELECT MIN(date), MAX(date), COUNT(*) FROM read_parquet('{p}')").fetchone()
+    assert got is not None
+    lo, hi, n = got
+    assert str(lo) == "2015-11-02" and str(hi) == "2016-03-31"  # inclusive; 04-01 excluded
+    src = duckdb.connect(str(hist), read_only=True)
+    expect = src.execute(
+        "SELECT COUNT(*) FROM sep WHERE date BETWEEN DATE '2015-11-02' AND DATE '2016-03-31'"
+    ).fetchone()
+    src.close()
+    assert expect is not None and n == expect[0]
+    m = manifest_of(out)
+    assert ex.validate_manifest(m) == [] and ex.validate_export_dir(out, m) == []
+    sd = m["sep_daily"]
+    assert sd["requested_window"] == {"from": "2015-11-02", "to": "2016-03-31", "inclusive": True}
+    assert sd["rows"] == n and sd["distinct_tickers"] == 2
+    assert set(sd["rows_per_year"]) == {"2015", "2016"}
+    assert sd["columns_requested"] == list(ex.SEP_DAILY_COLUMNS)
+    assert sd["columns_present"] == list(ex.SEP_DAILY_COLUMNS) and sd["columns_missing"] == []
+    assert sd["price_basis_declared"] == ex.PRICE_BASIS_DECLARED
+    assert sd["lookback"]["result"] == "PASS" and sd["lookback"]["found_trading_days_min"] >= 20
+    assert any("SIP" in x for x in sd["limitations"])
+    assert any("overwritten" in x for x in sd["limitations"])
+    assert "lastupdated" in sd["provenance_fields_present"]
+    cp = (out / "sep_coverage.parquet").as_posix()
+    cov = con.execute(
+        f"SELECT ticker, min_date, max_date FROM read_parquet('{cp}') ORDER BY 1"
+    ).fetchall()
+    d = {r[0]: (str(r[1]), str(r[2])) for r in cov}
+    assert d["AAA"] == ("2015-10-01", "2024-01-10")  # FULL sep table, beyond the window
+    assert d["OLDN"] == ("2017-06-20", "2017-06-22")
+    for tbl in ("tickers", "actions", "ingest_runs", "dataset_coverage", "sep_coverage"):
+        cols = next(f for f in m["files"] if f["table"] == tbl)["columns"]
+        assert ex.column_guard_defects(tbl, cols) == []
+
+
+def _bare_sep_store(path: Path, cols: str) -> Path:
+    con = duckdb.connect(str(path))
+    con.execute(
+        "CREATE TABLE tickers (permaticker VARCHAR, ticker VARCHAR, name VARCHAR, exchange VARCHAR,"
+        " category VARCHAR, isdelisted BOOLEAN, firstpricedate DATE, lastpricedate DATE,"
+        " lastupdated DATE)"
+    )
+    con.execute(
+        "CREATE TABLE actions (date DATE, action VARCHAR, ticker VARCHAR, name VARCHAR,"
+        " value DOUBLE, contraticker VARCHAR)"
+    )
+    con.execute(f"CREATE TABLE sep ({cols})")
+    names = [c.split()[0] for c in cols.split(", ")]
+    sel = ", ".join(
+        {"ticker": "'AAA'", "date": "d"}.get(n, "1.0" if n != "volume" else "5") for n in names
+    )
+    con.execute(
+        f"INSERT INTO sep SELECT {sel} "
+        "FROM range(DATE '2015-11-02', DATE '2016-02-01', INTERVAL 1 DAY) r(d)"
+    )
+    con.close()
+    return path
+
+
+def test_missing_optional_column_recorded_not_guessed(tmp_path: Path, dest: Path) -> None:
+    src = _bare_sep_store(
+        tmp_path / "s.duckdb",
+        "ticker VARCHAR, date DATE, close DOUBLE, closeunadj DOUBLE, volume BIGINT",
+    )
+    out = do_export(src, dest, **WINDOW)
+    sd = manifest_of(out)["sep_daily"]
+    assert sd["columns_missing"] == ["open", "high", "low", "closeadj", "lastupdated"]
+    assert _daily_cols(out) == ["ticker", "date", "close", "closeunadj", "volume"]
+    assert sd["provenance_fields_present"] == []
+
+
+def test_missing_required_sep_column_fails_closed(tmp_path: Path, dest: Path) -> None:
+    src = _bare_sep_store(
+        tmp_path / "s.duckdb", "ticker VARCHAR, date DATE, close DOUBLE, volume BIGINT"
+    )
+    with pytest.raises(ex.ExportRefused, match="closeunadj"):
+        do_export(src, dest, **WINDOW)
+    assert not (dest / "exp-1").exists()
+
+
+def test_lookback_insufficient_refuses_and_publishes_nothing(hist: Path, dest: Path) -> None:
+    kw = dict(WINDOW, required_lookback_trading_days=500)
+    with pytest.raises(ex.ExportRefused, match="lookback inadequate"):
+        do_export(hist, dest, **kw)
+    assert not (dest / "exp-1").exists()
+    staging = dest / ".staging-exp-1"
+    assert not list(staging.glob("*.parquet")) and not (staging / "EXPORT_COMPLETE.json").exists()
+
+
+def test_lookback_boundary_is_exact_slice_count(hist: Path, dest: Path) -> None:
+    first = manifest_of(do_export(hist, dest, "first", **WINDOW))
+    found = first["sep_daily"]["lookback"]["found_trading_days_min"]
+    assert found >= 20
+    out = do_export(hist, dest, "ok", **dict(WINDOW, required_lookback_trading_days=found))
+    assert manifest_of(out)["sep_daily"]["lookback"]["required_trading_days"] == found
+    with pytest.raises(ex.ExportRefused, match="lookback inadequate"):
+        do_export(hist, dest, "no", **dict(WINDOW, required_lookback_trading_days=found + 1))
+
+
+@pytest.mark.parametrize(
+    "kw,match",
+    [
+        ({"include_sep_daily": True}, "requires --sep-date-from"),
+        ({"sep_date_from": "2015-11-02"}, "only valid with --include-sep-daily"),
+        (dict(WINDOW, sep_date_from="2015/11/02"), "YYYY-MM-DD"),
+        (dict(WINDOW, sep_date_from="2016-04-01"), "must be <="),
+        (dict(WINDOW, screen_start="2015-11-02"), "screen-start"),
+        (dict(WINDOW, required_lookback_trading_days=0), ">= 1"),
+        (dict(WINDOW, lookback_calendar_days=0), "lookback-calendar-days"),
+        ({k: v for k, v in WINDOW.items() if k != "lookback_calendar_days"}, "requires"),
+    ],
+)
+def test_sep_daily_argument_validation(
+    hist: Path, dest: Path, kw: dict[str, Any], match: str
+) -> None:
+    with pytest.raises(ex.ExportRefused, match=match):
+        do_export(hist, dest, **kw)
+    assert not (dest / "exp-1").exists() and not (dest / ".staging-exp-1").exists()
+
+
+@pytest.mark.parametrize("name", ["sep_minute", "intraday_bars", "bars_1min", "sip_quotes"])
+def test_intraday_tables_refused_by_name(hist: Path, dest: Path, name: str) -> None:
+    with pytest.raises(ex.ExportRefused, match="out of scope"):
+        do_export(hist, dest, **dict(WINDOW, requested_tables=[name]))
+    with pytest.raises(ex.ExportRefused, match="not one of"):
+        do_export(hist, dest, "e2", requested_tables=["fundamentals"])
+    with pytest.raises(ex.ExportRefused, match="requires --include-sep-daily"):
+        do_export(hist, dest, "e3", requested_tables=["sep_daily"])
+    assert list(dest.iterdir()) == []
+
+
+def test_allowlist_guard_semantics() -> None:
+    assert ex.column_guard_defects("sep_daily", list(ex.SEP_DAILY_COLUMNS)) == []
+    assert ex.column_guard_defects("sep_daily", [*ex.SEP_DAILY_COLUMNS, "adj_close"])
+    assert ex.column_guard_defects("sep_daily", ["ticker", "vwap"])  # not in the explicit list
+    assert ex.column_guard_defects("tickers", ["ticker", "close"])
+    assert ex.column_guard_defects("actions", ["ticker", "closeadj_x"])  # substring rule
+    assert ex.column_guard_defects("tickers", ["firstpricedate", "lastpricedate"]) == []
+
+
+def test_manifest_validation_sep_daily(hist: Path, dest: Path) -> None:
+    m = manifest_of(do_export(hist, dest, **WINDOW))
+    assert ex.validate_manifest(m) == []
+
+    def _file(x: dict[str, Any], t: str) -> dict[str, Any]:
+        return next(f for f in x["files"] if f["table"] == t)
+
+    mutations = (
+        lambda x: x.pop("sep_daily"),
+        lambda x: x["sep_daily"].pop("limitations"),
+        lambda x: x["sep_daily"].__setitem__("price_basis_declared", {"close": "verified"}),
+        lambda x: x["sep_daily"]["lookback"].__setitem__("result", "FAIL"),
+        lambda x: _file(x, "sep_daily")["columns"].append("vwap"),
+        lambda x: _file(x, "tickers")["columns"].append("close"),
+    )
+    for mutate in mutations:
+        bad = json.loads(json.dumps(m))
+        mutate(bad)
+        assert ex.validate_manifest(bad)
+
+
+def test_sep_daily_logical_hash_reproducible_and_price_sensitive(
+    tmp_path: Path, dest: Path
+) -> None:
+    src = add_history(build_store(tmp_path / "s.duckdb"))
+    a = manifest_of(do_export(src, dest, "a", **WINDOW))
+    b = manifest_of(do_export(src, dest, "b", **WINDOW))
+    assert _logical(a, "sep_daily") == _logical(b, "sep_daily")
+    con = duckdb.connect(str(src))
+    con.execute("UPDATE sep SET close = 10.51 WHERE ticker = 'AAA' AND date = DATE '2016-02-01'")
+    con.close()
+    c = manifest_of(do_export(src, dest, "c", **WINDOW))
+    assert _logical(c, "sep_daily") != _logical(a, "sep_daily")
+    assert _logical(c, "tickers") == _logical(a, "tickers")
+
+
+def test_sep_daily_internal_read_works_and_seam_refuses(
+    hist: Path, dest: Path, tmp_path: Path
+) -> None:
+    out = do_export(hist, dest, **WINDOW)
+    con = duckdb.connect(":memory:")
+    # the consumer-side one-line mapping documented in the spec
+    con.execute(
+        f"CREATE VIEW sep AS SELECT * FROM read_parquet('{(out / 'sep_daily.parquet').as_posix()}')"
+    )
+    row = con.execute("SELECT COUNT(DISTINCT ticker), MIN(date), MAX(date) FROM sep").fetchone()
+    assert row is not None and row[0] == 2 and str(row[1]) == "2015-11-02"
+    for f in (out / "sep_daily.parquet", out / "manifest.json"):
+        with pytest.raises(PersonalScopeBlocked):
+            export_file_for_external_use(f, tmp_path / "ext" / f.name)
+    assert not (tmp_path / "ext").exists()
+
+
+def test_cleanup_with_sep_daily_touches_only_that_export(hist: Path, dest: Path) -> None:
+    a = do_export(hist, dest, "exp-a", **WINDOW)
+    b = do_export(hist, dest, "exp-b", **WINDOW)
+    victims = ex.cleanup_export(dest, "exp-a", apply=True)
+    assert any(v.name == "sep_daily.parquet" for v in victims)
+    assert not a.exists() and b.is_dir() and (b / "sep_daily.parquet").is_file()
+    assert not any(v.parent == b for v in victims)
+
+
+def test_cli_sep_daily_end_to_end(hist: Path, dest: Path) -> None:
+    script = str(SCRIPTS / "export_identity_snapshot.py")
+    cmd = [
+        sys.executable, "-I", script, "--source", str(hist), "--dest-root", str(dest),
+        "--export-id", "cli-d", "--purpose", "p", "--executing-identity", "me",
+        "--permission-ref", PERM_REF, "--permission-scope", PERM_SCOPE,
+        "--include-sep-daily", "--sep-date-from", "2015-11-02", "--sep-date-to", "2016-03-31",
+        "--screen-start", "2016-01-01", "--required-lookback-trading-days", "20",
+        "--lookback-calendar-days", "45",
+    ]  # fmt: skip
+    r = subprocess.run(cmd, capture_output=True, text=True)
+    assert r.returncode == 0, r.stderr
+    v = subprocess.run(
+        [sys.executable, "-I", script, "--verify", str(dest / "cli-d")],
+        capture_output=True,
+        text=True,
+    )
+    assert v.returncode == 0
+    bad = subprocess.run(
+        [*cmd[:8], "cli-e", *cmd[9:], "--table", "bars_1min"], capture_output=True, text=True
+    )
+    assert bad.returncode == 2
+
+
+# =============================================================== decision-day slice checks
+def _add_issuers(path: Path) -> Path:
+    """CCC: only 9 rows ending on the first decision day. DDD: zero volume through December.
+    EEE: NULL close through December. FFF: complete and clean."""
+    con = duckdb.connect(str(path))
+    wk = "dayofweek(d) BETWEEN 1 AND 5"
+    mk = (
+        "INSERT INTO sep SELECT '{t}', d, 10.0, 11.0, 9.0, 10.5, 1000, 10.4, 10.6, "
+        "DATE '2016-04-09' FROM range(DATE '{a}', DATE '{b}', INTERVAL 1 DAY) r(d) WHERE " + wk
+    )
+    con.execute(mk.format(t="CCC", a="2015-12-21", b="2016-01-01"))
+    con.execute(mk.format(t="DDD", a="2015-10-01", b="2016-04-09"))
+    con.execute(mk.format(t="EEE", a="2015-10-01", b="2016-04-09"))
+    con.execute(mk.format(t="FFF", a="2015-10-01", b="2016-04-09"))
+    con.execute(
+        "UPDATE sep SET volume = 0 WHERE ticker = 'DDD' "
+        "AND date BETWEEN DATE '2015-12-01' AND DATE '2015-12-31'"
+    )
+    con.execute(
+        "UPDATE sep SET close = NULL WHERE ticker = 'EEE' "
+        "AND date BETWEEN DATE '2015-12-01' AND DATE '2015-12-31'"
+    )
+    con.close()
+    return path
+
+
+def test_decision_days_derived_from_data_and_recorded(hist: Path, dest: Path) -> None:
+    m = manifest_of(do_export(hist, dest, **WINDOW))
+    days = m["sep_daily"]["lookback"]["decision_days"]
+    assert [d["decision_day"] for d in days] == ["2015-12-31", "2016-01-29", "2016-02-29"]
+    assert [d["month_start"] for d in days] == ["2016-01-01", "2016-02-01", "2016-03-01"]
+    for d in days:
+        assert d["d_precedes_month_start"] is True
+        assert d["slice_end"] == d["decision_day"]
+        assert d["max_date_in_slice"] == d["decision_day"]
+        assert d["rows_in_slice_with_date_after_decision_day"] == 0
+        assert d["distinct_trading_dates_in_slice"] >= 20
+        lu = d["lastupdated_vs_decision_day"]
+        # synthetic lastupdated (2016-04-09) is later than every decision day: report-only
+        assert lu["rows_in_slice_with_lastupdated_after_decision_day"] == d["rows_in_slice"] > 0
+    assert days[0]["slice_start"] == "2015-11-16"  # 2015-12-31 minus 45 calendar days
+    pi = m["planning_inputs"]
+    assert pi["universe.adv_window_days"] == 20 and pi["adv_window_matches_schema_pin"] is True
+    assert pi["universe.min_price"] == 10.0 and pi["lookback_calendar_days"] == 45
+    assert pi["export_window"] == {"from": "2015-11-02", "to": "2016-03-31"}
+    assert any("schema.py:293" in e for e in pi["evidence"])
+
+
+def test_short_slice_refuses_even_with_extra_history_before_it(hist: Path, dest: Path) -> None:
+    # 10 calendar days gives ~9 sessions; months of earlier history exist but must not count
+    with pytest.raises(ex.ExportRefused, match=r"decision day 2015-12-31.*slice"):
+        do_export(hist, dest, **dict(WINDOW, lookback_calendar_days=10))
+    assert not (dest / "exp-1").exists()
+    assert not list((dest / ".staging-exp-1").glob("*.parquet"))
+
+
+def test_decision_day_absent_refuses(hist: Path, dest: Path) -> None:
+    con = duckdb.connect(str(hist))
+    con.execute("DELETE FROM sep WHERE date < DATE '2016-01-04'")
+    con.close()
+    with pytest.raises(ex.ExportRefused, match="no session before month start 2016-01-01"):
+        do_export(hist, dest, **WINDOW)
+    assert not (dest / "exp-1").exists()
+
+
+def test_per_issuer_report_reasons_do_not_fail_or_change_rows(tmp_path: Path, dest: Path) -> None:
+    src = _add_issuers(add_history(build_store(tmp_path / "s.duckdb")))
+    out = do_export(src, dest, **WINDOW)
+    m = manifest_of(out)
+    assert ex.validate_manifest(m) == [] and ex.validate_export_dir(out, m) == []
+    rep = json.loads((out / "lookback_affected_issuers.json").read_text(encoding="utf-8"))
+    d1 = {a["ticker"]: a["reasons"] for a in rep["decision_days"]["2015-12-31"]}
+    assert d1 == {
+        "CCC": ["ROWS_IN_SLICE_LT_20"],
+        "DDD": ["ZERO_VOLUME"],
+        "EEE": ["NULL_FIELD"],
+    }
+    # EEE's NULL close persists to D1 only; CCC has no row on later decision days (not listed)
+    for later in ("2016-01-29", "2016-02-29"):
+        got = {a["ticker"] for a in rep["decision_days"][later]}
+        assert "CCC" not in got and "FFF" not in got and "AAA" not in got
+    summ = m["sep_daily"]["lookback"]["decision_days"][0]
+    assert summ["affected_issuers_count"] == 3
+    assert summ["affected_by_reason"] == {
+        "NULL_FIELD": 1,
+        "ROWS_IN_SLICE_LT_20": 1,
+        "ZERO_VOLUME": 1,
+    }
+    assert summ["affected_sample"] == ["CCC", "DDD", "EEE"]
+    # nothing removed or changed: affected issuers' rows are all delivered
+    con = duckdb.connect(":memory:")
+    p = (out / "sep_daily.parquet").as_posix()
+    got_t = {
+        r[0] for r in con.execute(f"SELECT DISTINCT ticker FROM read_parquet('{p}')").fetchall()
+    }
+    assert {"AAA", "BBB", "CCC", "DDD", "EEE", "FFF"} <= got_t
+    assert not [f.name for f in out.iterdir() if "universe" in f.name.lower()]
+    # the report file is registered, hashed, licensed and removable by cleanup
+    assert m["report_files"][0]["file"] == "lookback_affected_issuers.json"
+    assert (out / "lookback_affected_issuers.json.license.json").is_file()
+    with pytest.raises(PersonalScopeBlocked):
+        export_file_for_external_use(
+            out / "lookback_affected_issuers.json", tmp_path / "ext" / "r.json"
+        )
+    victims = ex.cleanup_export(dest, "exp-1", apply=True)
+    assert any(v.name == "lookback_affected_issuers.json" for v in victims)
+    assert not out.exists()

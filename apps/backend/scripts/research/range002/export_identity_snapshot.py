@@ -1,18 +1,26 @@
 #!/usr/bin/env python3
-"""RANGE-002 S1: bounded Sharadar IDENTITY DIAGNOSTIC export (stdlib + duckdb only).
+"""RANGE-002 S1: bounded Sharadar identity + screening-handoff export (stdlib + duckdb only).
 
     python -I export_identity_snapshot.py --source <store.duckdb> --dest-root <existing dir> \\
         --export-id <id> --purpose "<text>" --executing-identity "<name or role>" \\
         --permission-ref "<record of the permission basis claimed>" \\
         --permission-scope "<scope that record is claimed to cover; name the tables>" \\
-        [--no-sep-coverage] [--license-status UNKNOWN|PERSONAL|COMMERCIAL_OK]
+        [--no-sep-coverage] [--license-status UNKNOWN|PERSONAL|COMMERCIAL_OK] \\
+        [--include-sep-daily --sep-date-from YYYY-MM-DD --sep-date-to YYYY-MM-DD \\
+         --screen-start YYYY-MM-DD --required-lookback-trading-days N \\
+         --lookback-calendar-days L]
 
     python -I export_identity_snapshot.py --cleanup <export-id> --dest-root <dir> [--apply]
     python -I export_identity_snapshot.py --verify <export dir>
 
-What it is. A diagnostic of whether an existing factor store holds usable issuer identities, ticker
-history and corporate-action records. It is NOT a strategy-performance dataset: no price or volume
-column is ever selected (the optional ``sep_coverage`` is a per-ticker min/max date and row count).
+What it is. A bounded export of whether an existing factor store holds usable issuer identities,
+ticker history and corporate-action records (default), plus, ONLY with ``--include-sep-daily``, the
+explicit daily SEP columns for a caller-given inclusive date window (``sep_daily``) for RANGE-002
+screening. Price/volume columns are allowed only in ``sep_daily`` and only from
+``SEP_DAILY_COLUMNS``; every other table is guarded against them. ``sep_coverage`` is a per-ticker
+min/max date and row count over the FULL sep table. Intraday/minute/SIP data is out of scope and
+refused by name. ``sep_daily`` is refused unless the window holds at least N distinct trading dates
+strictly before ``--screen-start`` (N supplied by the caller; never guessed).
 
 Discipline.
 * The source is opened ``read_only=True``; every table is copied with an explicit
@@ -45,14 +53,15 @@ import os
 import platform
 import re
 import sys
-from datetime import UTC, date, datetime
+from collections.abc import Iterable, Iterator
+from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
 from pathlib import Path
 from typing import Any
 
 import duckdb
 
-SCRIPT_VERSION = "1.0.0"
+SCRIPT_VERSION = "1.2.0"
 MANIFEST_SCHEMA_VERSION = "range002.identity_export_manifest.v1"
 SIDECAR_SUFFIX = ".license.json"
 LICENSE_SOURCES = ["sharadar"]
@@ -69,12 +78,60 @@ FIXED_EXTRA_FILES = (
     README_NAME,
     COMPLETE_MARKER,
     FAILED_MARKER,
+    "lookback_affected_issuers.json",
+    "lookback_affected_issuers.json" + SIDECAR_SUFFIX,
 )
+AFFECTED_FILE = "lookback_affected_issuers.json"
+AFFECTED_SAMPLE_CAP = 20
+#: Recorded for context only (not used by the export): current schema-pinned planning values.
+PLANNING_PINS = {
+    "universe.adv_window_days": 20,
+    "universe.min_price": 10.0,
+    "evidence": [
+        "apps/backend/app/research/range002/spec/schema.py:293 adv_window_days _eq(20)",
+        "apps/backend/app/research/range002/spec/schema.py:292 min_price _eq(10.0)",
+        "apps/backend/scripts/research/range002/run_descriptive_screen.py --lookback-calendar-days "
+        "(runner slice = [D - lookback_calendar_days, D])",
+    ],
+    "status": "current schema-pinned values; re-read from the frozen spec at freeze",
+}
 
-#: Never exported, in any file. A guard on the delivered columns, not on the request.
-FORBIDDEN_COLUMNS = frozenset(
+#: Price/volume column names. Allowed ONLY in table ``sep_daily`` and ONLY from SEP_DAILY_COLUMNS;
+#: refused in every other table and in any sep_daily column outside the explicit list.
+PRICE_VOLUME_COLUMNS = frozenset(
     {"open", "high", "low", "close", "volume", "closeadj", "closeunadj", "adj_close", "price"}
 )
+PRICE_VOLUME_SUBSTRINGS = ("close", "volume", "adj")
+#: Explicit sep_daily projection (store.py _SEP_COLS L34-44 / DDL L137-147), in this order.
+SEP_DAILY_COLUMNS = (
+    "ticker", "date", "open", "high", "low", "close", "closeunadj", "closeadj", "volume",
+    "lastupdated",
+)  # fmt: skip
+SEP_DAILY_REQUIRED = ("ticker", "date", "close", "closeunadj", "volume")
+PRICE_BASIS_DECLARED = {
+    "close": "vendor-documented split-adjusted (UNVERIFIED against data)",
+    "closeadj": "vendor-documented split- and dividend-adjusted (UNVERIFIED)",
+    "closeunadj": "vendor-documented unadjusted (UNVERIFIED)",
+    "volume": "vendor-documented split-adjusted (UNVERIFIED)",
+}
+SEP_DAILY_LIMITATIONS = (
+    "does not repair overwritten issuer history: tickers is keyed by ticker in the store DDL "
+    "(store.py L150), so ticker reuse is collapsed; this file adds no identity beyond tickers",
+    "contains no SIP/intraday minute bars; SEP is daily only",
+    "tickers.category is as-of-latest in the store unless proven otherwise, not a historical "
+    "point-in-time category",
+    "price_basis_declared entries are vendor-documentation claims; this script never verifies them",
+    "lookback adequacy counts distinct dates present in sep_daily, not an exchange calendar",
+    "the per-issuer lookback report is informational: affected issuers are not removed here; the "
+    "universe builder excludes them visibly as INSUFFICIENT_HISTORY",
+    "lastupdated is a vendor revision date, not an as-of timestamp; delivered rows may include "
+    "later revisions (counts reported, nothing filtered)",
+    "bounded by date window, not by a symbol list; store survivorship is not established here",
+)
+OUT_OF_SCOPE_TABLE_RE = re.compile(
+    r"(intraday|minute|\bmin\b|bars?|\bsip\b|quote|trade|tick_?data|[0-9]+min)", re.IGNORECASE
+)
+DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 
 # (table, required columns, optional columns, table_required). The column NAMES in
 # VERIFIED_IN_SCHEMA are those defined by the repository DDL / projection lists
@@ -159,8 +216,9 @@ VERIFIED_IN_SCHEMA: dict[str, frozenset[str]] = {
         | {"lastupdated"}
     ),
 }
+VERIFIED_IN_SCHEMA["sep_daily"] = VERIFIED_IN_SCHEMA["sep"]
 SEP_COVERAGE_COLUMNS = ("ticker", "min_date", "max_date", "n_rows")
-ALL_TABLE_NAMES = tuple(t[0] for t in TABLE_SPECS) + ("sep_coverage",)
+ALL_TABLE_NAMES = tuple(t[0] for t in TABLE_SPECS) + ("sep_coverage", "sep_daily")
 DATE_TYPE_PREFIXES = ("DATE", "TIMESTAMP")
 
 REQUIRED_MANIFEST_FIELDS = (
@@ -234,7 +292,7 @@ def _canon(v: Any) -> Any:
     return f"__{type(v).__name__}__:{v}"
 
 
-def canonical_rows_digest(columns: list[str], types: list[str], rows: list[tuple[Any, ...]]) -> str:
+def _digest_rows(columns: list[str], types: list[str], rows: Iterable[tuple[Any, ...]]) -> str:
     """SHA-256 over a header line (JSON ``[[name, type], ...]`` in the fixed column order) followed
     by one compact JSON array per row, in the order given (the caller reads with an explicit
     ``ORDER BY <all columns> NULLS FIRST``), each terminated by LF.
@@ -253,6 +311,10 @@ def canonical_rows_digest(columns: list[str], types: list[str], rows: list[tuple
     return h.hexdigest()
 
 
+def canonical_rows_digest(columns: list[str], types: list[str], rows: list[tuple[Any, ...]]) -> str:
+    return _digest_rows(columns, types, rows)
+
+
 def order_by_clause(columns: list[str]) -> str:
     return "ORDER BY " + ", ".join(f"{qi(c)} ASC NULLS FIRST" for c in columns)
 
@@ -264,12 +326,22 @@ def read_parquet_summary(
     try:
         src = "read_parquet('" + path.as_posix().replace("'", "''") + "')"
         sel = ", ".join(qi(c) for c in columns)
-        order = order_by_clause(columns)
-        rows = con.execute(f"SELECT {sel} FROM {src} {order}").fetchall()
         desc = {
             str(r[0]): str(r[1])
             for r in con.execute(f"DESCRIBE SELECT {sel} FROM {src}").fetchall()
         }
+        count = [0]
+
+        def stream() -> Iterator[tuple[Any, ...]]:
+            con.execute(f"SELECT {sel} FROM {src} {order_by_clause(columns)}")
+            while True:
+                chunk = con.fetchmany(50_000)
+                if not chunk:
+                    return
+                count[0] += len(chunk)
+                yield from chunk
+
+        logical = _digest_rows(columns, [desc[c] for c in columns], stream())
         bounds: dict[str, dict[str, str | None]] = {}
         for c in date_columns:
             lo, hi = con.execute(f"SELECT MIN({qi(c)}), MAX({qi(c)}) FROM {src}").fetchone() or (
@@ -282,7 +354,7 @@ def read_parquet_summary(
             }
     finally:
         con.close()
-    return len(rows), bounds, canonical_rows_digest(columns, [desc[c] for c in columns], rows)
+    return count[0], bounds, logical
 
 
 # ---------------------------------------------------------------- copy seam (patched in tests)
@@ -343,15 +415,70 @@ def validate_manifest(manifest: dict[str, Any]) -> list[str]:
                     if key == "rows" and f.get(key) == 0:
                         continue
                     defects.append(f"file {f.get('table')!r}: missing/empty {key!r}")
-            bad = FORBIDDEN_COLUMNS & {str(c).lower() for c in f.get("columns", [])}
-            if bad:
-                defects.append(f"file {f.get('table')!r}: forbidden column(s) {sorted(bad)}")
+            defects.extend(column_guard_defects(f.get("table"), f.get("columns", [])))
             if (
                 f.get("table") == "sep_coverage"
                 and tuple(f.get("columns", ())) != SEP_COVERAGE_COLUMNS
             ):
                 defects.append("sep_coverage columns are not exactly the coverage columns")
+        has_daily = "sep_daily" in names
+        sd = manifest.get("sep_daily")
+        if has_daily != isinstance(sd, dict):
+            defects.append("sep_daily file and manifest section must appear together")
+        if has_daily and isinstance(sd, dict):
+            for key in (
+                "requested_window", "min_date_present", "max_date_present", "rows",
+                "distinct_tickers", "rows_per_year", "columns_requested", "columns_present",
+                "columns_missing", "price_basis_declared", "limitations", "lookback",
+            ):  # fmt: skip
+                if key not in sd or (sd[key] in (None, "", [], {}) and key != "columns_missing"):
+                    if key == "rows" and sd.get(key) == 0:
+                        continue
+                    defects.append(f"sep_daily section: missing/empty {key!r}")
+            if sd.get("price_basis_declared") != PRICE_BASIS_DECLARED:
+                defects.append("sep_daily section: price_basis_declared is not the declared claims")
+            lb = sd.get("lookback")
+            if not isinstance(lb, dict) or lb.get("result") != "PASS":
+                defects.append("sep_daily section: lookback check did not PASS")
+            elif not lb.get("decision_days"):
+                defects.append("sep_daily section: lookback.decision_days missing/empty")
+            if not isinstance(manifest.get("planning_inputs"), dict) or not manifest[
+                "planning_inputs"
+            ].get("lookback_calendar_days"):
+                defects.append("planning_inputs missing for sep_daily export")
+            if not manifest.get("report_files"):
+                defects.append("report_files missing for sep_daily export")
     return defects
+
+
+def column_guard_defects(table: Any, columns: Any) -> list[str]:
+    """Price/volume allowlist: such columns only in ``sep_daily`` and only the explicit list."""
+    cols = [str(c) for c in columns]
+    if table == "sep_daily":
+        extra = [c for c in cols if c not in SEP_DAILY_COLUMNS]
+        return [f"file 'sep_daily': column(s) outside the explicit list {extra}"] if extra else []
+    bad = sorted(
+        c
+        for c in cols
+        if c.lower() in PRICE_VOLUME_COLUMNS or any(t in c.lower() for t in PRICE_VOLUME_SUBSTRINGS)
+    )
+    if bad:
+        return [f"file {table!r}: price/volume column(s) {bad} are allowed only in sep_daily"]
+    return []
+
+
+def check_requested_tables(names: Iterable[str], include_sep_daily: bool) -> None:
+    """Refuse by name any requested table outside the export scope (intraday/minute/SIP first)."""
+    for n in names:
+        if n in ALL_TABLE_NAMES:
+            if n == "sep_daily" and not include_sep_daily:
+                raise ExportRefused("table 'sep_daily' requires --include-sep-daily")
+            continue
+        if OUT_OF_SCOPE_TABLE_RE.search(n):
+            raise ExportRefused(
+                f"table {n!r} refused: intraday/minute/SIP/bar data is out of scope (daily SEP only)"
+            )
+        raise ExportRefused(f"table {n!r} refused: not one of {list(ALL_TABLE_NAMES)}")
 
 
 def validate_export_dir(root: Path, manifest: dict[str, Any]) -> list[str]:
@@ -374,6 +501,14 @@ def validate_export_dir(root: Path, manifest: dict[str, Any]) -> list[str]:
         sc = sidecar_path(p)
         if not sc.is_file():
             defects.append(f"file {f['file']!r}: license sidecar missing")
+    for rf in manifest.get("report_files", []):
+        rp = root / str(rf.get("file", ""))
+        if not rp.is_file():
+            defects.append(f"report file {rf.get('file')!r} missing")
+        elif sha256_file(rp) != rf.get("byte_sha256"):
+            defects.append(f"report file {rf.get('file')!r}: byte sha256 mismatch")
+        elif not sidecar_path(rp).is_file():
+            defects.append(f"report file {rf.get('file')!r}: license sidecar missing")
     return defects
 
 
@@ -433,7 +568,9 @@ def _ingest_identifiers(
 
 
 def plan_queries(
-    schema: dict[str, dict[str, str]], include_sep_coverage: bool
+    schema: dict[str, dict[str, str]],
+    include_sep_coverage: bool,
+    sep_daily: dict[str, str] | None = None,
 ) -> tuple[list[dict[str, Any]], dict[str, str]]:
     """Resolve the explicit SELECT per table against the introspected schema. Raises
     ExportRefused when a REQUESTED column or required table is missing."""
@@ -479,12 +616,97 @@ def plan_queries(
         )
     else:
         not_exported["sep_coverage"] = "not requested (--no-sep-coverage)"
+    if sep_daily is not None:
+        sep = schema.get("sep")
+        if sep is None:
+            raise ExportRefused("sep_daily requested but table 'sep' is missing from the source")
+        missing_req = [c for c in SEP_DAILY_REQUIRED if c not in sep]
+        if missing_req:
+            raise ExportRefused(f"table 'sep' lacks requested column(s) {missing_req}")
+        present = [c for c in SEP_DAILY_COLUMNS if c in sep]
+        plans.append(
+            {
+                "table": "sep_daily",
+                "columns": present,
+                "columns_requested": list(SEP_DAILY_COLUMNS),
+                "columns_missing": [c for c in SEP_DAILY_COLUMNS if c not in sep],
+                "optional_columns_absent": [c for c in SEP_DAILY_COLUMNS if c not in sep],
+                "select": (
+                    f'SELECT {", ".join(qi(c) for c in present)} FROM "sep" WHERE "date" '
+                    f"BETWEEN DATE '{sep_daily['from']}' AND DATE '{sep_daily['to']}' "
+                    + order_by_clause(present)
+                ),
+                "source_types": {c: sep[c] for c in present},
+            }
+        )
+    else:
+        not_exported["sep_daily"] = "not requested (--include-sep-daily is off)"
+    for pl in plans:
+        bad = column_guard_defects(pl["table"], pl["columns"])
+        if bad:
+            raise ExportRefused("column guard: " + "; ".join(bad))
     return plans, not_exported
 
 
 def _check_id(export_id: str) -> None:
     if not EXPORT_ID_RE.match(export_id):
         raise ExportRefused(f"export id {export_id!r} must match {EXPORT_ID_RE.pattern}")
+
+
+def _sep_daily_config(
+    include: bool,
+    date_from: str | None,
+    date_to: str | None,
+    screen_start: str | None,
+    n_lookback: int | None,
+    lookback_calendar_days: int | None = None,
+) -> dict[str, Any] | None:
+    given = [
+        x is not None
+        for x in (date_from, date_to, screen_start, n_lookback, lookback_calendar_days)
+    ]
+    if not include:
+        if any(given):
+            raise ExportRefused(
+                "--sep-date-from/--sep-date-to/--screen-start/--required-lookback-trading-days/"
+                "--lookback-calendar-days are only valid with --include-sep-daily"
+            )
+        return None
+    if not all(given):
+        raise ExportRefused(
+            "--include-sep-daily requires --sep-date-from, --sep-date-to, --screen-start and "
+            "--required-lookback-trading-days and --lookback-calendar-days (no defaults)"
+        )
+    parsed: dict[str, date] = {}
+    for label, val in (("sep-date-from", date_from), ("sep-date-to", date_to),
+                       ("screen-start", screen_start)):  # fmt: skip
+        if val is None or not DATE_RE.match(val):
+            raise ExportRefused(f"--{label} must be YYYY-MM-DD")
+        try:
+            parsed[label] = date.fromisoformat(val)
+        except ValueError as exc:
+            raise ExportRefused(f"--{label} is not a valid date: {val}") from exc
+    if not parsed["sep-date-from"] <= parsed["sep-date-to"]:
+        raise ExportRefused("--sep-date-from must be <= --sep-date-to")
+    if not parsed["sep-date-from"] < parsed["screen-start"] <= parsed["sep-date-to"]:
+        raise ExportRefused(
+            "--screen-start must satisfy sep-date-from < screen-start <= sep-date-to"
+        )
+    if n_lookback is None or isinstance(n_lookback, bool) or n_lookback < 1:
+        raise ExportRefused("--required-lookback-trading-days must be an integer >= 1")
+    if (
+        lookback_calendar_days is None
+        or isinstance(lookback_calendar_days, bool)
+        or lookback_calendar_days < 1
+    ):
+        raise ExportRefused("--lookback-calendar-days must be an integer >= 1")
+    return {
+        "lookback_calendar_days": lookback_calendar_days,
+        "from": str(date_from),
+        "to": str(date_to),
+        "screen_start": str(screen_start),
+        "required_lookback_trading_days": n_lookback,
+    }
 
 
 def run_export(
@@ -498,6 +720,13 @@ def run_export(
     permission_scope: str,
     include_sep_coverage: bool = True,
     license_status: str = "UNKNOWN",
+    include_sep_daily: bool = False,
+    sep_date_from: str | None = None,
+    sep_date_to: str | None = None,
+    screen_start: str | None = None,
+    required_lookback_trading_days: int | None = None,
+    lookback_calendar_days: int | None = None,
+    requested_tables: Iterable[str] = (),
 ) -> Path:
     for label, val in (
         ("purpose", purpose),
@@ -510,6 +739,15 @@ def run_export(
     if license_status not in LICENSE_STATUSES:
         raise ExportRefused(f"--license-status must be one of {LICENSE_STATUSES}")
     _check_id(export_id)
+    check_requested_tables(requested_tables, include_sep_daily)
+    sep_daily_cfg = _sep_daily_config(
+        include_sep_daily,
+        sep_date_from,
+        sep_date_to,
+        screen_start,
+        required_lookback_trading_days,
+        lookback_calendar_days,
+    )
     if not dest_root.is_dir():
         raise ExportRefused(f"--dest-root {str(dest_root)!r} is not an existing directory")
     if not source.is_file():
@@ -526,7 +764,8 @@ def run_export(
         _build_into_staging(
             source=source, staging=staging, final=final, export_id=export_id, purpose=purpose,
             executing_identity=executing_identity, permission_ref=permission_ref,
-            permission_scope=permission_scope, include_sep_coverage=include_sep_coverage, license_status=license_status,
+            permission_scope=permission_scope, include_sep_coverage=include_sep_coverage,
+            license_status=license_status, sep_daily_cfg=sep_daily_cfg,
         )  # fmt: skip
         marker = staging / COMPLETE_MARKER
         try:
@@ -560,13 +799,25 @@ def _build_into_staging(
     permission_scope: str,
     include_sep_coverage: bool,
     license_status: str,
+    sep_daily_cfg: dict[str, Any] | None = None,
 ) -> None:
     con = duckdb.connect(str(source), read_only=True)
     try:
         con.execute("BEGIN TRANSACTION")
         extraction_time = utc_now()
         schema = _introspect(con)
-        plans, not_exported = plan_queries(schema, include_sep_coverage)
+        plans, not_exported = plan_queries(
+            schema,
+            include_sep_coverage,
+            None if sep_daily_cfg is None else {k: str(v) for k, v in sep_daily_cfg.items()},
+        )
+        structural: list[dict[str, Any]] | None = None
+        if sep_daily_cfg is not None:
+            win = (
+                f'(SELECT * FROM "sep" WHERE "date" BETWEEN DATE \'{sep_daily_cfg["from"]}\' '
+                f"AND DATE '{sep_daily_cfg['to']}')"
+            )
+            structural = lookback_structural(con, win, sep_daily_cfg)
         ingest = _ingest_identifiers(con, schema)
         for p in plans:
             copy_query_to_parquet(con, p["select"], staging / f"{p['table']}.parquet")
@@ -599,6 +850,7 @@ def _build_into_staging(
                 "date_bounds": bounds,
                 "columns": p["columns"],
                 "optional_columns_absent": p["optional_columns_absent"],
+                "columns_missing": p.get("columns_missing", []),
                 "byte_sha256": sha256_file(path),
                 "logical_sha256": logical,
                 "bytes": path.stat().st_size,
@@ -607,6 +859,12 @@ def _build_into_staging(
         )
         write_license_sidecar(path)
     queries = {p["table"]: p["select"] for p in plans}
+    sep_daily_section: dict[str, Any] | None = None
+    report_files: list[dict[str, Any]] = []
+    if sep_daily_cfg is not None:
+        sp = next(p for p in plans if p["table"] == "sep_daily")
+        assert structural is not None
+        sep_daily_section, report_files = _sep_daily_section(staging, sp, sep_daily_cfg, structural)
     joined = "\n".join(queries[t] for t in ALL_TABLE_NAMES if t in queries)
     manifest: dict[str, Any] = {
         "schema_version": MANIFEST_SCHEMA_VERSION,
@@ -655,6 +913,21 @@ def _build_into_staging(
         },
         "marker": COMPLETE_MARKER,
     }
+    if sep_daily_section is not None and sep_daily_cfg is not None:
+        manifest["sep_daily"] = sep_daily_section
+        manifest["report_files"] = report_files
+        manifest["planning_inputs"] = {
+            "universe.adv_window_days": sep_daily_cfg["required_lookback_trading_days"],
+            "adv_window_matches_schema_pin": sep_daily_cfg["required_lookback_trading_days"]
+            == PLANNING_PINS["universe.adv_window_days"],
+            "universe.min_price": PLANNING_PINS["universe.min_price"],
+            "min_price_note": "recorded for context; not used by the export",
+            "lookback_calendar_days": sep_daily_cfg["lookback_calendar_days"],
+            "export_window": {"from": sep_daily_cfg["from"], "to": sep_daily_cfg["to"]},
+            "screen_start": sep_daily_cfg["screen_start"],
+            "evidence": PLANNING_PINS["evidence"],
+            "status": PLANNING_PINS["status"],
+        }
     defects = validate_manifest(manifest)
     if defects:
         raise ExportRefused("manifest validation failed: " + "; ".join(defects))
@@ -665,7 +938,7 @@ def _build_into_staging(
         "PU-1 NOTICE\n"
         f"License status recorded by the operator: {license_status} (scope UNKNOWN/PERSONAL for "
         "Sharadar in the registry).\n"
-        "Internal identity diagnostics only. Not for presentation, redistribution or any external "
+        "Internal diagnostics / screening inputs only. Not for presentation, redistribution or any external "
         "use. A label or sidecar does not establish permission to share.\n"
         f"Consumers must require {COMPLETE_MARKER}; a directory without it is incomplete.\n",
         encoding="utf-8",
@@ -680,6 +953,7 @@ def _build_into_staging(
                 "export_id": export_id,
                 "manifest_sha256": sha256_file(man_path),
                 "files": sorted(f["file"] for f in files),
+                "report_files": sorted(str(r["file"]) for r in report_files),
                 "completed_utc": utc_now(),
             },
             indent=2,
@@ -688,6 +962,234 @@ def _build_into_staging(
         + "\n",
         encoding="utf-8",
     )
+
+
+def _month_starts(screen_start: date, to: date) -> list[date]:
+    y, m = screen_start.year, screen_start.month
+    if screen_start.day != 1:
+        m += 1
+    out: list[date] = []
+    while True:
+        if m == 13:
+            y, m = y + 1, 1
+        d = date(y, m, 1)
+        if d > to:
+            return out
+        out.append(d)
+        m += 1
+
+
+def _as_date(v: Any) -> date:
+    return v.date() if isinstance(v, datetime) else v
+
+
+def lookback_structural(
+    con: duckdb.DuckDBPyConnection, src: str, cfg: dict[str, Any]
+) -> list[dict[str, Any]]:
+    """Structural lookback check, fail closed. For each month start M in the screening range the
+    decision day D is the last date present strictly before M; the runner slice is the calendar
+    range [D - lookback_calendar_days, D] inclusive and must hold at least N distinct dates by
+    itself (history outside the slice never counts). ``src`` is a FROM-able SQL source."""
+    need = int(cfg["required_lookback_trading_days"])
+    span = int(cfg["lookback_calendar_days"])
+    months = _month_starts(date.fromisoformat(cfg["screen_start"]), date.fromisoformat(cfg["to"]))
+    if not months:
+        raise ExportRefused("no month start lies in [screen-start, sep-date-to]; no decision day")
+    out: list[dict[str, Any]] = []
+    for m in months:
+        row = con.execute(f'SELECT MAX("date") FROM {src} WHERE "date" < DATE \'{m}\'').fetchone()
+        if row is None or row[0] is None:
+            raise ExportRefused(
+                f"lookback inadequate: no session before month start {m} in the exported window; "
+                "the decision day is undefined (nothing exported)"
+            )
+        d = _as_date(row[0])
+        start = d - timedelta(days=span)
+        cnt = con.execute(
+            f'SELECT COUNT(DISTINCT "date") FROM {src} '
+            f"WHERE \"date\" BETWEEN DATE '{start}' AND DATE '{d}'"
+        ).fetchone()
+        n = int(cnt[0]) if cnt else 0
+        if n < need:
+            raise ExportRefused(
+                f"lookback inadequate: decision day {d} (month start {m}): the runner slice "
+                f"[{start}, {d}] holds {n} distinct trading dates < required {need}; history "
+                "outside the slice does not count (nothing exported)"
+            )
+        out.append(
+            {
+                "month_start": str(m),
+                "decision_day": str(d),
+                "decision_day_gap_calendar_days": (m - d).days,
+                "d_precedes_month_start": d < m,
+                "slice_start": str(start),
+                "slice_end": str(d),
+                "distinct_trading_dates_in_slice": n,
+            }
+        )
+    return out
+
+
+def _issuer_report(
+    con: duckdb.DuckDBPyConnection, src: str, day: dict[str, Any], need: int, has_lu: bool
+) -> tuple[dict[str, Any], list[dict[str, Any]]]:
+    d, start = day["decision_day"], day["slice_start"]
+    rows = con.execute(
+        f"""SELECT "ticker",
+               COUNT(DISTINCT "date"),
+               COUNT(DISTINCT "date") FILTER (WHERE "close" > 0 AND "closeunadj" > 0 AND "volume" > 0),
+               COUNT(*) FILTER (WHERE "close" IS NULL OR "closeunadj" IS NULL OR "volume" IS NULL),
+               COUNT(*) FILTER (WHERE "volume" = 0),
+               COUNT(*) FILTER (WHERE "close" <= 0 OR "closeunadj" <= 0)
+            FROM {src}
+            WHERE "date" BETWEEN DATE '{start}' AND DATE '{d}'
+              AND "ticker" IN (SELECT "ticker" FROM {src} WHERE "date" = DATE '{d}')
+            GROUP BY "ticker" ORDER BY "ticker" """
+    ).fetchall()
+    affected: list[dict[str, Any]] = []
+    for t, n_rows, usable, nulls, zero_vol, nonpos in rows:
+        if usable >= need:
+            continue
+        reasons = []
+        if n_rows < need:
+            reasons.append(f"ROWS_IN_SLICE_LT_{need}")
+        if nulls:
+            reasons.append("NULL_FIELD")
+        if zero_vol:
+            reasons.append("ZERO_VOLUME")
+        if nonpos:
+            reasons.append("NONPOSITIVE_PRICE")
+        affected.append(
+            {
+                "ticker": t,
+                "reasons": reasons,
+                "rows_in_slice": int(n_rows),
+                "usable_in_slice": int(usable),
+            }
+        )
+    by_reason: dict[str, int] = {}
+    for a in affected:
+        for r in a["reasons"]:
+            by_reason[r] = by_reason.get(r, 0) + 1
+    in_slice = con.execute(
+        f'SELECT COUNT(*), MAX("date"), COUNT(*) FILTER (WHERE "date" > DATE \'{d}\') FROM {src} '
+        f"WHERE \"date\" BETWEEN DATE '{start}' AND DATE '{d}'"
+    ).fetchone()
+    after = con.execute(f"SELECT COUNT(*) FROM {src} WHERE \"date\" > DATE '{d}'").fetchone()
+    lastupd: dict[str, Any]
+    if has_lu:
+        lu = con.execute(
+            f"SELECT COUNT(*) FILTER (WHERE CAST(\"lastupdated\" AS DATE) > DATE '{d}'), "
+            f'MIN("lastupdated"), MAX("lastupdated") FROM {src} '
+            f"WHERE \"date\" BETWEEN DATE '{start}' AND DATE '{d}'"
+        ).fetchone()
+        lastupd = {
+            "rows_in_slice_with_lastupdated_after_decision_day": int(lu[0]) if lu else 0,
+            "lastupdated_min": None if not lu or lu[1] is None else str(lu[1]),
+            "lastupdated_max": None if not lu or lu[2] is None else str(lu[2]),
+            "caveat": "vendor lastupdated is not an as-of timestamp: later revisions may be "
+            "present in delivered rows; report only, nothing filtered or changed",
+        }
+    else:
+        lastupd = _unavailable("column lastupdated is absent from the export")
+    summary = {
+        **day,
+        "required_trading_days": need,
+        "tickers_on_decision_day": len(rows),
+        "affected_issuers_count": len(affected),
+        "affected_by_reason": dict(sorted(by_reason.items())),
+        "affected_sample": [a["ticker"] for a in affected[:AFFECTED_SAMPLE_CAP]],
+        "rows_in_slice": int(in_slice[0]) if in_slice else 0,
+        "max_date_in_slice": None if not in_slice or in_slice[1] is None else str(in_slice[1]),
+        "rows_in_slice_with_date_after_decision_day": int(in_slice[2]) if in_slice else 0,
+        "exported_rows_after_decision_day_not_in_slice": int(after[0]) if after else 0,
+        "lastupdated_vs_decision_day": lastupd,
+    }
+    return summary, affected
+
+
+def _sep_daily_section(
+    staging: Path, plan: dict[str, Any], cfg: dict[str, Any], structural: list[dict[str, Any]]
+) -> tuple[dict[str, Any], list[dict[str, Any]]]:
+    """Window statistics, the structural lookback check re-run on the delivered file (must equal the
+    in-transaction result) and the per-issuer / availability report."""
+    path = staging / "sep_daily.parquet"
+    src = "read_parquet('" + path.as_posix().replace("'", "''") + "')"
+    need = int(cfg["required_lookback_trading_days"])
+    con = duckdb.connect(":memory:")
+    try:
+        n, lo, hi, tickers, dates = con.execute(
+            f'SELECT COUNT(*), MIN("date"), MAX("date"), COUNT(DISTINCT "ticker"), '
+            f'COUNT(DISTINCT "date") FROM {src}'
+        ).fetchone() or (0, None, None, 0, 0)
+        per_year = {
+            str(y): int(c)
+            for y, c in con.execute(
+                f'SELECT year("date"), COUNT(*) FROM {src} GROUP BY 1 ORDER BY 1'
+            ).fetchall()
+        }
+        again = lookback_structural(con, src, cfg)
+        if again != structural:
+            raise ExportRefused("lookback structural result differs between source and file")
+        has_lu = "lastupdated" in plan["columns"]
+        days: list[dict[str, Any]] = []
+        affected_by_day: dict[str, list[dict[str, Any]]] = {}
+        for day in again:
+            summary, affected = _issuer_report(con, src, day, need, has_lu)
+            days.append(summary)
+            affected_by_day[day["decision_day"]] = affected
+    finally:
+        con.close()
+    report = {
+        "schema": "range002.lookback_affected_issuers.v1",
+        "note": "informational: these issuers will be excluded visibly by the universe builder as "
+        "INSUFFICIENT_HISTORY; this export changes no universe and removes no row",
+        "usable_definition": "close, closeunadj and volume non-null and > 0 on a date in the slice",
+        "required_trading_days": need,
+        "lookback_calendar_days": cfg["lookback_calendar_days"],
+        "decision_days": affected_by_day,
+    }
+    rp = staging / AFFECTED_FILE
+    rp.write_text(json.dumps(report, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    write_license_sidecar(rp)
+    report_files = [
+        {
+            "file": AFFECTED_FILE,
+            "byte_sha256": sha256_file(rp),
+            "bytes": rp.stat().st_size,
+            "license_sidecar": sidecar_path(rp).name,
+        }
+    ]
+    section = {
+        "requested_window": {"from": cfg["from"], "to": cfg["to"], "inclusive": True},
+        "screen_start": cfg["screen_start"],
+        "min_date_present": None if lo is None else str(lo),
+        "max_date_present": None if hi is None else str(hi),
+        "rows": int(n),
+        "distinct_tickers": int(tickers),
+        "distinct_trading_dates": int(dates),
+        "rows_per_year": per_year,
+        "columns_requested": plan["columns_requested"],
+        "columns_present": plan["columns"],
+        "columns_missing": plan["columns_missing"],
+        "price_basis_declared": dict(PRICE_BASIS_DECLARED),
+        "price_basis_note": "claims transcribed from vendor documentation; never verified here",
+        "provenance_fields_present": [c for c in ("lastupdated",) if c in plan["columns"]],
+        "provenance_note": "ingest run ids and dataset_coverage rows are in ingest_identifiers",
+        "lookback": {
+            "rule": "per month start M: D = last date in sep_daily < M; runner slice "
+            "[D - lookback_calendar_days, D] must hold >= required distinct dates by itself",
+            "required_trading_days": need,
+            "lookback_calendar_days": cfg["lookback_calendar_days"],
+            "found_trading_days_min": min(d["distinct_trading_dates_in_slice"] for d in days),
+            "decision_days": days,
+            "affected_issuers_file": AFFECTED_FILE,
+            "affected_issuers_note": report["note"],
+            "result": "PASS",
+        },
+        "limitations": list(SEP_DAILY_LIMITATIONS),
+    }
+    return section, report_files
 
 
 # ---------------------------------------------------------------- cleanup
@@ -786,6 +1288,24 @@ def build_parser() -> argparse.ArgumentParser:
         help="omit sep_coverage (default: included; ticker/min/max/count only, no prices)",
     )
     ap.add_argument("--license-status", default="UNKNOWN", choices=LICENSE_STATUSES)
+    ap.add_argument("--include-sep-daily", action="store_true")
+    ap.add_argument(
+        "--sep-date-from", help="YYYY-MM-DD inclusive; required with --include-sep-daily"
+    )
+    ap.add_argument("--sep-date-to", help="YYYY-MM-DD inclusive; required with --include-sep-daily")
+    ap.add_argument("--screen-start", help="YYYY-MM-DD first date of the screening quarter")
+    ap.add_argument("--required-lookback-trading-days", type=int)
+    ap.add_argument(
+        "--lookback-calendar-days",
+        type=int,
+        help="runner slice length: [D - L, D]; required with --include-sep-daily",
+    )
+    ap.add_argument(
+        "--table",
+        action="append",
+        default=[],
+        help="assert a table in scope; out-of-scope (e.g. intraday/minute) names are refused",
+    )
     ap.add_argument("--cleanup", metavar="EXPORT_ID", help="dry-run removal of one export")
     ap.add_argument("--apply", action="store_true", help="with --cleanup: really delete")
     ap.add_argument("--verify", metavar="EXPORT_DIR", help="re-validate a published export")
@@ -837,6 +1357,11 @@ def main(argv: list[str] | None = None) -> int:
             purpose=a.purpose, executing_identity=a.executing_identity,
             permission_ref=a.permission_ref, permission_scope=a.permission_scope,
             include_sep_coverage=not a.no_sep_coverage,
+            include_sep_daily=a.include_sep_daily, sep_date_from=a.sep_date_from,
+            sep_date_to=a.sep_date_to, screen_start=a.screen_start,
+            required_lookback_trading_days=a.required_lookback_trading_days,
+            lookback_calendar_days=a.lookback_calendar_days,
+            requested_tables=a.table,
             license_status=a.license_status,
         )  # fmt: skip
         print(f"published: {final}")
