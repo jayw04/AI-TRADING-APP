@@ -131,6 +131,8 @@ def main() -> int:
     if a.out.exists():
         raise SystemExit(f"{a.out} exists; never overwritten")
     res = classify(json.loads(a.manifest.read_text(encoding="utf-8")), _load_records(a.probe))
+    res["manifest_sha256"] = hashlib.sha256(a.manifest.read_bytes()).hexdigest()
+    res["probe_files_sha256"] = [hashlib.sha256(x.read_bytes()).hexdigest() for x in a.probe]
     text = json.dumps(res, indent=1, sort_keys=True) + "\n"
     a.out.write_text(text, encoding="utf-8")
     print(f"wrote {a.out} sha256={hashlib.sha256(text.encode()).hexdigest()}")

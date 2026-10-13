@@ -1,0 +1,51 @@
+//@version=5
+// RANGE-002 opening-range overlay: a visual / logic CHECK only (not the production kernel).
+// Plots, per session, the opening range (09:30-09:59 ET, from the bars this chart actually has),
+// the entry trigger (OR high + 1 tick), the stop (OR low), the cost-to-initial-risk estimate
+//   est = 2 * baseBps / 1e4 * trigger / (trigger - orLow)   (inclusive: eligible when est <= theta)
+// and flags any opening-range minute for which THIS chart has no bar.
+// Record before comparing: symbol, data feed/exchange, interval, timezone, session, adjustment.
+// A missing bar here and in the stored SIP bars does NOT prove nothing traded.
+indicator("RANGE-002 OR overlay (check only)", overlay = true, max_labels_count = 200)
+
+baseBps = input.float(5.0, "base bps per side")
+theta   = input.float(0.10, "theta (cost-to-risk ceiling)")
+tick    = input.float(0.01, "tick")
+
+inOr   = not na(time(timeframe.period, "0930-0959", "America/New_York"))
+newDay = ta.change(time("D", "America/New_York")) != 0
+
+var float orHigh = na
+var float orLow  = na
+var int   orBars = 0
+var int   orGaps = 0
+
+if newDay
+    orHigh := na
+    orLow  := na
+    orBars := 0
+    orGaps := 0
+
+if inOr
+    orHigh := na(orHigh) ? high : math.max(orHigh, high)
+    orLow  := na(orLow) ? low : math.min(orLow, low)
+    orBars += 1
+    // consecutive 1-minute bars inside the OR must be 60 000 ms apart; a larger step is a gap
+    if timeframe.isminutes and timeframe.multiplier == 1 and not newDay and not na(time[1]) and (time - time[1]) > 60000 and not na(time("1", "0930-0959", "America/New_York")[1])
+        orGaps += int((time - time[1]) / 60000) - 1
+
+trigger = orHigh + tick
+risk    = trigger - orLow
+est     = risk > 0 ? 2.0 * baseBps / 10000.0 * trigger / risk : na
+eligible = not na(est) and est <= theta
+
+afterOr = not inOr and not na(orHigh)
+plot(afterOr ? orHigh : na, "OR high", color.new(color.teal, 0), style = plot.style_linebr)
+plot(afterOr ? orLow : na, "OR low / stop", color.new(color.red, 0), style = plot.style_linebr)
+plot(afterOr ? trigger : na, "trigger", color.new(color.orange, 0), style = plot.style_linebr)
+
+if afterOr and not afterOr[1] and barstate.isconfirmed
+    label.new(bar_index, orHigh,
+      text = (eligible ? "ELIGIBLE " : "COST-INELIGIBLE ") + "est=" + str.tostring(est, "#.####") +
+             " OR bars=" + str.tostring(orBars) + (orGaps > 0 ? " GAPS=" + str.tostring(orGaps) : ""),
+      style = label.style_label_down, color = eligible ? color.green : color.gray, textcolor = color.white)

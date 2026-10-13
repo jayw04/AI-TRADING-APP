@@ -51,7 +51,7 @@ import json
 import sys
 from calendar import monthrange
 from dataclasses import dataclass
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
@@ -847,18 +847,21 @@ def _pc_summary(pc: dict[str, Any] | None) -> dict[str, Any] | None:
     }
 
 
-def or_completeness_gate(cov: Any, threshold: float | None) -> dict[str, Any]:
+def or_completeness_gate(
+    cov: Any, threshold: float | None, valid_count: int | None = None
+) -> dict[str, Any]:
     """The opening-range completeness gate, with numerator and denominator explicit. Evaluated
     only when a threshold is supplied; independent of (and in addition to) returned coverage."""
     if threshold is None:
         return {"evaluated": False, "meets_threshold": None, "threshold": None}
     if not 0.0 < threshold <= 1.0:
         raise DescriptiveRunRefusal("or-completeness-threshold must be in (0, 1]")
-    rate = cov.or_complete_of_expected
+    numerator = cov.or_complete_count if valid_count is None else valid_count
+    rate = (numerator / cov.denominator) if cov.denominator else None
     return {
         "evaluated": True,
         "measure": "or_complete_of_expected",
-        "numerator": cov.or_complete_count,
+        "numerator": numerator,
         "denominator": cov.denominator,
         "rate": rate,
         "threshold": threshold,
@@ -1159,6 +1162,90 @@ STATUS_ACQ_VALIDATED = "ACQUISITION_VALIDATED"
 STATUS_ACQ_DEFECT = "ACQUISITION_VALIDATED_WITH_PREREQUISITE_DEFECT"
 
 
+def _load_no_trade_evidence(
+    classification: Path,
+    classification_sha: str,
+    census_manifest: Path,
+    census_manifest_sha: str,
+    store: Path,
+    tiers: str,
+) -> tuple[dict[tuple[str, date], frozenset[Any]], dict[str, Any]]:
+    """Accounted-for missing minutes from a frozen census, as the loader's NO_TRADE evidence.
+
+    Only the explicitly chosen tier(s) are accepted ("positive" = trades present and every one
+    documented as not updating a minute bar; "both" adds complete-but-empty same-provider
+    responses). Every minute is re-checked against the store (it must have NO bar). Nothing is
+    inferred: a minute that is not listed stays a DATA_GAP."""
+    if tiers not in ("positive", "both"):
+        raise DescriptiveRunRefusal("accounted-tiers must be 'positive' or 'both' (no default)")
+    craw = Path(classification).read_bytes()
+    mraw = Path(census_manifest).read_bytes()
+    if hashlib.sha256(craw).hexdigest() != classification_sha:
+        raise DescriptiveRunRefusal("census classification sha256 differs; nothing opened")
+    if hashlib.sha256(mraw).hexdigest() != census_manifest_sha:
+        raise DescriptiveRunRefusal("census manifest sha256 differs; nothing opened")
+    cls = json.loads(craw.decode("utf-8"))
+    man = json.loads(mraw.decode("utf-8"))
+    if cls.get("schema") != "range002.census_classification.v1":
+        raise DescriptiveRunRefusal("not a census classification")
+    if cls.get("manifest_sha256") != census_manifest_sha:
+        raise DescriptiveRunRefusal("classification is not bound to this census manifest")
+    ok_classes = {"ACCOUNTED_FOR_POSITIVE"} | (
+        {"ACCOUNTED_FOR_EMPTY_SAME_PROVIDER"} if tiers == "both" else set()
+    )
+    by_id = {x["id"]: x for x in man["samples"]}
+    out: dict[tuple[str, date], set[Any]] = {}
+    n_total = n_acc = 0
+    for item in cls["per_sample"]:
+        smp = by_id.get(item["id"])
+        if smp is None:
+            raise DescriptiveRunRefusal(f"classified sample {item['id']} is not in the manifest")
+        day = date.fromisoformat(smp["day"])
+        for hhmm, klass in item["classes"].items():
+            n_total += 1
+            if klass in ok_classes:
+                n_acc += 1
+                hh, mm = (int(x) for x in hhmm.split(":"))
+                out.setdefault((smp["symbol"], day), set()).add(_hhmmss(f"{hh:02d}:{mm:02d}:00"))
+    # the store must hold NO bar for any accounted minute (a contradiction is a refusal)
+    con = duckdb.connect(str(store), read_only=True)
+    try:
+        for (sym, day), mins in out.items():
+            rows = con.execute(
+                "SELECT ts FROM minute_bars WHERE symbol = ? AND ts >= ? AND ts < ?",
+                [
+                    sym,
+                    datetime.combine(day, _hhmmss("00:00:00")),
+                    datetime.combine(day + timedelta(days=2), _hhmmss("00:00:00")),
+                ],
+            ).fetchall()
+            from zoneinfo import ZoneInfo
+
+            et = ZoneInfo("America/New_York")
+            have = {
+                r[0].replace(tzinfo=ZoneInfo("UTC")).astimezone(et).time().replace(second=0)
+                for r in rows
+                if r[0].replace(tzinfo=ZoneInfo("UTC")).astimezone(et).date() == day
+            }
+            clash = sorted(m for m in mins if m in have)
+            if clash:
+                raise DescriptiveRunRefusal(
+                    f"{sym} {day}: accounted minute(s) {clash[:3]} have a stored bar; refused"
+                )
+    finally:
+        con.close()
+    info = {
+        "classification_sha256": classification_sha,
+        "census_manifest_sha256": census_manifest_sha,
+        "tiers": tiers,
+        "minutes_classified": n_total,
+        "minutes_accounted_applied": n_acc,
+        "symbol_days_with_accounted_minutes": len(out),
+        "rule_source": cls.get("rule_source"),
+    }
+    return {k: frozenset(v) for k, v in out.items()}, info
+
+
 def _check_acquisition_validation(
     path: Path,
     sha: str,
@@ -1169,6 +1256,7 @@ def _check_acquisition_validation(
     minute_bars: Path,
     daily_snapshot: Path,
     manifest_sha: str,
+    evidence_sha: str | None = None,
 ) -> None:
     """Pre-registry refusal: a revised (cost-aware) evaluation opens its attempt only on a
     validated acquisition bound by hash to THIS spec, range, store, snapshot and manifest."""
@@ -1189,6 +1277,8 @@ def _check_acquisition_validation(
         problems.append("daily snapshot differs")
     if v.get("snapshot_manifest_sha256") != manifest_sha:
         problems.append("snapshot manifest differs")
+    if v.get("no_trade_evidence_sha256") != evidence_sha:
+        problems.append("missing-minute evidence differs from the validated policy")
     if v.get("status") != STATUS_ACQ_VALIDATED or v.get("all_prerequisites_pass") is not True:
         problems.append("prerequisites did not all pass; no performance attempt may be opened")
     if problems:
@@ -1225,6 +1315,15 @@ def run(
     fetch_plan: FetchPlan | None = None,
     acquisition_validation: Path | None = None,
     acquisition_validation_sha256: str | None = None,
+    no_trade_evidence: Path | None = None,
+    no_trade_evidence_sha256: str | None = None,
+    census_manifest: Path | None = None,
+    census_manifest_sha256: str | None = None,
+    accounted_tiers: str | None = None,
+    carry_acquisition_evidence: Path | None = None,
+    carry_acquisition_evidence_sha256: str | None = None,
+    linked_validation: Path | None = None,
+    linked_validation_sha256: str | None = None,
 ) -> RunOutcome:
     """Execute one authorized descriptive run. Raises on any refusal; never leaves a run OPEN."""
     d0, d1 = _parse_date(date_start, "date-start"), _parse_date(date_end, "date-end")  # type: ignore[arg-type]
@@ -1259,6 +1358,31 @@ def run(
             raise DescriptiveRunRefusal(f"{p} does not exist")
     if fetch_plan is not None:
         _fetch_preflight(fetch_plan, Path(minute_bars))
+    ntm_map: dict[tuple[str, date], frozenset[Any]] = {}
+    ntm_info: dict[str, Any] | None = None
+    if no_trade_evidence is not None:
+        if not (
+            no_trade_evidence_sha256
+            and census_manifest
+            and census_manifest_sha256
+            and accounted_tiers
+        ):
+            raise DescriptiveRunRefusal(
+                "missing-minute evidence needs --no-trade-evidence-sha256, --census-manifest, "
+                "--census-manifest-sha256 and --accounted-tiers (positive|both)"
+            )
+        if fetch_plan is not None:
+            raise DescriptiveRunRefusal(
+                "missing-minute evidence is applied to stored bars, not a fetch"
+            )
+        ntm_map, ntm_info = _load_no_trade_evidence(
+            no_trade_evidence,
+            no_trade_evidence_sha256,
+            census_manifest,
+            census_manifest_sha256,
+            Path(minute_bars),
+            accounted_tiers,
+        )
 
     # Everything that needs no registry row: spec (hash-bound decision), manifest, ledger.
     view, draft = _load_spec(Path(spec_path))
@@ -1297,6 +1421,7 @@ def run(
             minute_bars=Path(minute_bars),
             daily_snapshot=Path(daily_snapshot),
             manifest_sha=manifest_sha,
+            evidence_sha=no_trade_evidence_sha256 if ntm_info else None,
         )
     requested = DateRange(d0, d1)
     if requested.overlaps(view.partitions.holdout):
@@ -1404,6 +1529,19 @@ def run(
         scopes_acq = sorted({b.scope for b in builds})
         acquisition: dict[str, Any] | None = None
         evidence_path: Path | None = None
+        if fetch_plan is None and carry_acquisition_evidence is not None:
+            if not carry_acquisition_evidence_sha256:
+                raise DescriptiveRunRefusal("carried acquisition evidence needs its sha256")
+            eraw = Path(carry_acquisition_evidence).read_bytes()
+            if hashlib.sha256(eraw).hexdigest() != carry_acquisition_evidence_sha256:
+                raise DescriptiveRunRefusal("carried acquisition evidence sha256 differs")
+            acquisition = json.loads(eraw.decode("utf-8"))
+            if acquisition.get("store_sha256") != file_sha256(Path(minute_bars)):
+                raise DescriptiveRunRefusal("carried acquisition evidence is for another store")
+            acquisition["carried_from"] = {
+                "evidence_sha256": carry_acquisition_evidence_sha256,
+                "note": "original acquisition evidence preserved unchanged; no bar refetched",
+            }
         if fetch_plan is not None:
             acquisition, evidence_path = _acquire(
                 cap,
@@ -1430,7 +1568,7 @@ def run(
             sessions_cal,
             source_feed=minute_feed,
             source_ts_convention=minute_ts_convention,
-            no_trade_evidence={},
+            no_trade_evidence=ntm_map,
             permaticker_of=perma,
         )
         observed = {
@@ -1477,8 +1615,14 @@ def run(
                     f"{coverage_threshold}: screening refused; see {evidence_path.name}"
                 )
 
+        valid_or = sum(
+            1
+            for pr in observed.values()
+            if pr.or_gap_minutes <= params.or_max_gap_minutes and pr.or_bar_count >= 1
+        )
         if acquisition_only:
-            gate = or_completeness_gate(cov, or_completeness_threshold)
+            gate = or_completeness_gate(cov, or_completeness_threshold, valid_or)
+            gate["accounted_minutes"] = ntm_info
             first_sep = daily_con.execute("SELECT min(date) FROM sep").fetchone()
             need = authorized.start - timedelta(days=lookback_calendar_days)
             have: Any = first_sep[0] if first_sep else None
@@ -1510,6 +1654,13 @@ def run(
                 "minute_bars_sha256": _path_digest(Path(minute_bars)),
                 "code_sha": code_sha,
                 "all_prerequisites_pass": ok,
+                "no_trade_evidence_sha256": no_trade_evidence_sha256 if ntm_info else None,
+                "missing_minute_policy": ntm_info,
+                "linked_validation": (
+                    {"path": Path(linked_validation).name, "sha256": linked_validation_sha256}
+                    if linked_validation is not None
+                    else None
+                ),
                 "prerequisites": prereq,
                 "coverage": {
                     **dataclasses.asdict(cov),
@@ -1560,7 +1711,8 @@ def run(
         candidates = {cid: summarize(cap, screen.trades[cid]) for cid in cand_ids}
 
         defect = not cov.meets_threshold
-        or_gate = or_completeness_gate(cov, or_completeness_threshold)
+        or_gate = or_completeness_gate(cov, or_completeness_threshold, valid_or)
+        or_gate["accounted_minutes"] = ntm_info
         or_defect = bool(or_gate["evaluated"]) and not or_gate["meets_threshold"]
         cov_dict = dataclasses.asdict(cov)
         cov_dict["by_year"] = {str(y): v for y, v in sorted(cov.by_year.items())}
@@ -1776,6 +1928,15 @@ def _build_parser() -> argparse.ArgumentParser:
     req("--coverage-threshold", required=True, type=float)
     p.add_argument("--acquisition-validation", type=Path, default=None)
     p.add_argument("--acquisition-validation-sha256", default=None)
+    p.add_argument("--no-trade-evidence", type=Path, default=None)
+    p.add_argument("--no-trade-evidence-sha256", default=None)
+    p.add_argument("--census-manifest", type=Path, default=None)
+    p.add_argument("--census-manifest-sha256", default=None)
+    p.add_argument("--accounted-tiers", choices=("positive", "both"), default=None)
+    p.add_argument("--carry-acquisition-evidence", type=Path, default=None)
+    p.add_argument("--carry-acquisition-evidence-sha256", default=None)
+    p.add_argument("--linked-validation", type=Path, default=None)
+    p.add_argument("--linked-validation-sha256", default=None)
     p.add_argument(
         "--or-completeness-threshold",
         type=float,
@@ -1926,6 +2087,15 @@ def main(argv: list[str] | None = None) -> int:
             or_completeness_threshold=a.or_completeness_threshold,
             acquisition_validation=a.acquisition_validation,
             acquisition_validation_sha256=a.acquisition_validation_sha256,
+            no_trade_evidence=a.no_trade_evidence,
+            no_trade_evidence_sha256=a.no_trade_evidence_sha256,
+            census_manifest=a.census_manifest,
+            census_manifest_sha256=a.census_manifest_sha256,
+            accounted_tiers=a.accounted_tiers,
+            carry_acquisition_evidence=a.carry_acquisition_evidence,
+            carry_acquisition_evidence_sha256=a.carry_acquisition_evidence_sha256,
+            linked_validation=a.linked_validation,
+            linked_validation_sha256=a.linked_validation_sha256,
             equity=a.equity,
             tick=a.tick,
             code_sha=a.code_sha,

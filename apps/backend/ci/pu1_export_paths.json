@@ -648,6 +648,12 @@
       "reason": "RANGE-002 offline classification of the missing-minute census (counts and classes only), written to the private research run directory"
     },
     {
+      "file": "apps/backend/scripts/research/range002/compare_tv_csv.py",
+      "functions": "*",
+      "classification": "INTERNAL_ONLY",
+      "reason": "RANGE-002 private comparison of an owner-exported TradingView CSV with the stored bars (counts and provenance only), written to the private research directory"
+    },
+    {
       "file": "apps/backend/scripts/research/range002/audit_replay_run.py",
       "functions": "*",
       "classification": "INTERNAL_ONLY",
