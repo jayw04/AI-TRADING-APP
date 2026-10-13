@@ -677,9 +677,14 @@ def _acquire(
             f"{len(symbols)}; missing={sorted(set(symbols) - set(entries))[:5]} "
             f"extra={sorted(set(entries) - set(symbols))[:5]}; nothing was requested"
         )
-    amap = {v: e["request_symbol"] for v, e in entries.items() if e["request_symbol"] != v}
+    # dated request-symbol schedules, only where the vendor's own history says the symbol differed
+    schedules = {
+        v: tuple((x["from"], x["request_symbol"]) for x in e["schedule"])
+        for v, e in entries.items()
+        if len(e["schedule"]) > 1 or e["schedule"][0]["request_symbol"] != v
+    }
     binding = {
-        "symbol_map": dict(sorted(amap.items())),
+        "symbol_schedules": {k: [list(x) for x in v] for k, v in sorted(schedules.items())},
         "symbol_mapping_sha256": plan.symbol_map_sha256,
         "symbol_mapping_by_provenance": mapping.get("by_provenance"),
         "spec_sha256": view.spec_sha256,
@@ -791,7 +796,7 @@ def _acquire(
             journal_path=plan.journal_path,
             script_sha256=file_sha256(Path(fm.__file__)),
             binding=binding,
-            symbol_map={v: (a, plan.asof) for v, a in amap.items()},
+            symbol_map=schedules,
         )
         fm.run_fetch(cap, transport, cfg, http_attempts=attempts)
         cache = _verify_cache(Path(minute_bars), plan.journal_path)

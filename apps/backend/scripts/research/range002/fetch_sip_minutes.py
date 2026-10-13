@@ -80,6 +80,7 @@ from app.research.range002.data.fetch_adapter import (  # noqa: E402
     REQUIRED_ADJUSTMENT,
     REQUIRED_FEED,
     FetchAuthorization,
+    FetchResult,
     PageRequest,
     PageResponse,
     RawBar,
@@ -285,10 +286,12 @@ class RunConfig:
     #: optional run binding (spec, baseline, universe, dates, sources, request cap) written
     #: into the journal header: a resume under a different binding is refused
     binding: dict[str, Any] | None = None
-    #: vendor ticker -> (Alpaca symbol, asof date) for tickers the daily vendor disambiguates
-    #: (e.g. a reused ticker 'APC1' that Alpaca knows as 'APC' mapped as of a date). Bars are
-    #: STORED under the vendor ticker so the runner's expected symbol-days still match.
-    symbol_map: dict[str, tuple[str, str]] | None = None
+    #: vendor ticker -> dated schedule ((from_date_iso, Alpaca symbol), ...), ascending, the
+    #: symbol the vendor's own ACTIONS history says the company traded as from that date
+    #: (e.g. 'META' traded as 'FB'; 'CB' was 'ACE' until 2016-01-14). A window that spans a
+    #: change is split at the change date. Bars are STORED under the vendor ticker so the
+    #: runner's expected symbol-days still match.
+    symbol_map: dict[str, tuple[tuple[str, str], ...]] | None = None
 
 
 def _now_utc() -> str:
@@ -354,6 +357,49 @@ def _chunk_stats(
     }
 
 
+def schedule_segments(
+    sched: tuple[tuple[str, str], ...], start: datetime, end: datetime
+) -> list[tuple[str, datetime, datetime]]:
+    """Split [start, end) at each schedule boundary (ET midnight of its from-date); one
+    (request symbol, segment start, segment end) per piece, together covering [start, end) once."""
+    cuts = [(_et_midnight_utc(date.fromisoformat(d)), sym) for d, sym in sched]
+    cuts.sort()
+    if not cuts:
+        raise FetchRefusal("empty symbol schedule")
+    segs: list[tuple[str, datetime, datetime]] = []
+    for i, (t0, sym) in enumerate(cuts):
+        t1 = cuts[i + 1][0] if i + 1 < len(cuts) else end
+        lo, hi = max(t0, start) if i else start, min(t1, end)
+        if lo < hi:
+            segs.append((sym, lo, hi))
+    return segs
+
+
+def _fetch_scheduled(
+    capability: object,
+    transport: Callable[[PageRequest], PageResponse],
+    cfg: RunConfig,
+    vendor: str,
+    start: datetime,
+    end: datetime,
+    sched: tuple[tuple[str, str], ...],
+) -> FetchResult:
+    bars: list[RawBar] = []
+    pages = 0
+    for sym, lo, hi in schedule_segments(sched, start, end):
+        part = fetch_symbol_window(
+            capability, transport, symbol=sym, start_utc=lo, end_utc=hi,
+            feed=REQUIRED_FEED, adjustment=REQUIRED_ADJUSTMENT, asof=lo.date().isoformat(),
+            limit=cfg.limit, max_pages=cfg.max_pages,
+        )  # fmt: skip
+        bars.extend(part.bars)
+        pages += part.pages
+    ordered = tuple(sorted(bars, key=lambda b: b.t))
+    if len({b.t for b in ordered}) != len(ordered):
+        raise DataDefectError(f"{vendor}: duplicate bar timestamps across scheduled segments")
+    return FetchResult(symbol=vendor, bars=ordered, pages=pages, adjustment=REQUIRED_ADJUSTMENT)
+
+
 def run_fetch(
     capability: object,
     transport: Callable[[PageRequest], PageResponse],
@@ -396,16 +442,15 @@ def run_fetch(
             if (symbol, key) in done:
                 continue
             before = http_attempts()
-            req_symbol, req_asof = (cfg.symbol_map or {}).get(symbol, (symbol, cfg.asof))
-            if req_symbol != symbol:
-                req_asof = start.date().isoformat()  # map the symbol as of the window
-            res = fetch_symbol_window(
-                capability, transport, symbol=req_symbol, start_utc=start, end_utc=end,
-                feed=REQUIRED_FEED, adjustment=REQUIRED_ADJUSTMENT, asof=req_asof,
-                limit=cfg.limit, max_pages=cfg.max_pages,
-            )  # fmt: skip
-            if req_symbol != symbol:  # store under the vendor ticker the run expects
-                res = replace(res, symbol=symbol)
+            sched = (cfg.symbol_map or {}).get(symbol)
+            if sched is None:
+                res = fetch_symbol_window(
+                    capability, transport, symbol=symbol, start_utc=start, end_utc=end,
+                    feed=REQUIRED_FEED, adjustment=REQUIRED_ADJUSTMENT, asof=cfg.asof,
+                    limit=cfg.limit, max_pages=cfg.max_pages,
+                )  # fmt: skip
+            else:
+                res = _fetch_scheduled(capability, transport, cfg, symbol, start, end, sched)
             stats = _chunk_stats(symbol, key, res.bars, res.pages, before, http_attempts())
             days = day_evidence(res.bars)
             stats["days"] = days

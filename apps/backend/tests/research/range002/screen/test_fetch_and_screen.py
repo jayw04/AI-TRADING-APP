@@ -71,6 +71,7 @@ def _write_mapping(
         {
             "vendor_ticker": sym,
             "request_symbol": sym,
+            "schedule": [{"from": "2016-01-01", "request_symbol": sym}],
             "asof_policy": "-",
             "provenance": "UNVERIFIED" if sym == unverified else "ALPHA_TICKER_AS_IS",
             "evidence": {},

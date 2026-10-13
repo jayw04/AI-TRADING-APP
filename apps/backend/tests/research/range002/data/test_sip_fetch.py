@@ -560,7 +560,7 @@ def test_mapped_symbol_is_requested_with_asof_and_stored_under_the_vendor_ticker
         symbols=("AAA", "APC1"),
         date_from=date(2026, 3, 2),
         date_to=date(2026, 3, 6),
-        symbol_map={"APC1": ("APC", "-")},
+        symbol_map={"APC1": (("2026-03-02", "APC"),)},
     )
     _run(cap, cfg, v)
     requested = {(c["url"].rsplit("/", 2)[-2], c["params"]["asof"]) for c in v.calls}
@@ -571,3 +571,39 @@ def test_mapped_symbol_is_requested_with_asof_and_stored_under_the_vendor_ticker
     finally:
         con.close()
     assert stored == {"AAA", "APC1"}
+
+
+def test_a_rename_inside_the_window_is_split_without_dropping_or_duplicating_bars(
+    cap: object, tmp_path: Path
+) -> None:
+    """CB-style: the vendor ticker 'CB' traded as 'ACE' until a change date inside the window. The
+    window is split at ET midnight of the change date; each part is requested under its own symbol
+    and asof; bars are stored once, under the vendor ticker."""
+    v = FakeVendor()
+    cfg = _cfg_run(
+        tmp_path,
+        symbols=("CB",),
+        date_from=date(2026, 3, 2),
+        date_to=date(2026, 3, 6),
+        symbol_map={"CB": (("2026-03-02", "ACE"), ("2026-03-04", "CB"))},
+    )
+    _run(cap, cfg, v)
+    requested = [(c["url"].rsplit("/", 2)[-2], c["params"]["asof"]) for c in v.calls]
+    assert ("ACE", "2026-03-02") in requested and ("CB", "2026-03-04") in requested
+    assert all(sym in ("ACE", "CB") for sym, _ in requested)
+    con = duckdb.connect(str(tmp_path / "min.duckdb"), read_only=True)
+    try:
+        syms = {r[0] for r in con.execute("SELECT DISTINCT symbol FROM minute_bars").fetchall()}
+        n, nd = con.execute("SELECT COUNT(*), COUNT(DISTINCT ts) FROM minute_bars").fetchone()
+    finally:
+        con.close()
+    assert syms == {"CB"} and n == nd and n > 0
+
+
+def test_schedule_segments_cover_the_window_exactly_once() -> None:
+    from datetime import datetime
+
+    start, end = datetime(2016, 1, 1, 5), datetime(2016, 2, 1, 5)
+    segs = fsm.schedule_segments((("2016-01-01", "ACE"), ("2016-01-15", "CB")), start, end)
+    assert [s[0] for s in segs] == ["ACE", "CB"]
+    assert segs[0][1] == start and segs[-1][2] == end and segs[0][2] == segs[1][1]
