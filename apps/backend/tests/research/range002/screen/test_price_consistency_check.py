@@ -75,9 +75,20 @@ def test_matching_series_pass_and_a_different_price_level_is_flagged(tmp_path: P
     )
     out = _check(daily, store, ["GOOD", "WRONG", "NEAR", "ABSENT"])
     assert out["symbols_exceeding_fraction"] == ["WRONG"]
-    assert out["symbols_with_any_mismatch"] == {"WRONG": [4, 4]}
+    assert out["per_symbol_not_passing"]["WRONG"] == {
+        "numerator_not_passing": 4,
+        "denominator_sip_days": 4,
+        "mismatching": 4,
+        "missing_comparisons": 0,
+        "fraction": 1.0,
+    }
+    assert out["totals"] == {
+        "sip_symbol_days": 12,
+        "compared": 12,
+        "mismatching": 4,
+        "missing_comparisons": 0,
+    }
     assert out["missing_comparisons"]["symbols_without_any_comparable_day"] == ["ABSENT"]
-    assert out["symbol_days_compared"] == 12
     assert out["check"] == "cross_source_price_consistency"
     assert "not proof of issuer identity" in out["what_it_is_not"]
     text = json.dumps(out)
@@ -85,43 +96,59 @@ def test_matching_series_pass_and_a_different_price_level_is_flagged(tmp_path: P
         assert needle not in text
 
 
-def test_a_symbol_below_the_mismatch_fraction_is_not_refused(tmp_path: Path) -> None:
-    store, daily = _stores(tmp_path, {"A": 100.0}, {"A": 100.0})
-    daily.execute("UPDATE \"sep\" SET closeunadj = 150.0 WHERE date = DATE '2016-01-04'")
-    out = _check(daily, store, ["A"], max_mismatch_fraction=0.5)
-    assert out["symbols_with_any_mismatch"] == {"A": [4, 1]}
-    assert out["symbols_exceeding_fraction"] == []
-
-
-def test_missing_comparisons_are_reported_in_both_directions(tmp_path: Path) -> None:
-    store, daily = _stores(tmp_path, {"A": 100.0}, {"A": 100.0})
-    daily.execute("DELETE FROM \"sep\" WHERE date = DATE '2016-01-04'")  # SIP day, no vendor row
-    daily.execute("INSERT INTO \"sep\" VALUES ('A', DATE '2016-01-08', 100.0)")  # vendor, no SIP
-    out = _check(daily, store, ["A"])
-    miss = out["missing_comparisons"]
-    assert miss["sip_days_without_vendor_row_by_symbol"] == {"A": 1}
-    assert miss["vendor_days_without_sip_bars_by_symbol"] == {"A": 1}
-    assert out["symbol_days_compared"] == 3
-
-
-def test_mismatches_on_corporate_action_days_are_reported_not_removed(tmp_path: Path) -> None:
+def test_every_mismatch_is_listed_with_its_corporate_action_flag(tmp_path: Path) -> None:
     store, daily = _stores(
         tmp_path, {"A": 100.0}, {"A": 100.0}, actions=[("A", date(2016, 1, 5), "split")]
     )
-    daily.execute("UPDATE \"sep\" SET closeunadj = 50.0 WHERE date = DATE '2016-01-05'")
+    daily.execute(
+        "UPDATE \"sep\" SET closeunadj = 50.0 WHERE date IN (DATE '2016-01-05', DATE '2016-01-07')"
+    )
     out = _check(daily, store, ["A"], max_mismatch_fraction=0.9)
+    assert out["mismatches"] == [
+        {"symbol": "A", "day": "2016-01-05", "corporate_action_that_day": "split"},
+        {"symbol": "A", "day": "2016-01-07", "corporate_action_that_day": None},
+    ]
     assert out["mismatching_days_on_a_corporate_action_day"] == 1
-    assert out["symbol_days_mismatching"] == 1  # still counted toward the fraction
     assert out["corporate_action_symbol_days_in_window"] == 1
 
 
-def test_settings_have_no_defaults_and_are_proposed_not_baseline(tmp_path: Path) -> None:
+def test_a_missing_comparison_counts_as_not_passing_never_as_passing(tmp_path: Path) -> None:
+    store, daily = _stores(tmp_path, {"A": 100.0}, {"A": 100.0})
+    # two of four SIP days have no vendor row: 2/4 = 50% not passing, over the 10% limit
+    daily.execute("DELETE FROM \"sep\" WHERE date IN (DATE '2016-01-04', DATE '2016-01-05')")
+    out = _check(daily, store, ["A"])
+    assert out["symbols_exceeding_fraction"] == ["A"]
+    row = out["per_symbol_not_passing"]["A"]
+    assert (row["numerator_not_passing"], row["denominator_sip_days"]) == (2, 4)
+    assert row["mismatching"] == 0 and row["missing_comparisons"] == 2
+    assert out["totals"]["compared"] == 2 and out["totals"]["missing_comparisons"] == 2
+    miss = out["missing_comparisons"]
+    assert miss["sip_days_without_usable_vendor_close_by_symbol"] == {"A": 2}
+
+
+def test_vendor_days_without_sip_bars_are_reported(tmp_path: Path) -> None:
+    store, daily = _stores(tmp_path, {"A": 100.0}, {"A": 100.0})
+    daily.execute("INSERT INTO \"sep\" VALUES ('A', DATE '2016-01-08', 100.0)")
+    out = _check(daily, store, ["A"])
+    assert out["missing_comparisons"]["vendor_days_without_sip_bars_by_symbol"] == {"A": 1}
+    assert out["totals"]["sip_symbol_days"] == 4
+
+
+def test_a_symbol_below_the_fraction_is_not_refused(tmp_path: Path) -> None:
+    store, daily = _stores(tmp_path, {"A": 100.0}, {"A": 100.0})
+    daily.execute("UPDATE \"sep\" SET closeunadj = 150.0 WHERE date = DATE '2016-01-04'")
+    out = _check(daily, store, ["A"], max_mismatch_fraction=0.5)
+    assert out["per_symbol_not_passing"]["A"]["numerator_not_passing"] == 1
+    assert out["symbols_exceeding_fraction"] == []
+
+
+def test_settings_have_no_defaults_and_are_owner_approved_for_this_attempt(tmp_path: Path) -> None:
     store, daily = _stores(tmp_path, {"A": 100.0}, {"A": 100.0})
     with pytest.raises(TypeError):
         rds.price_consistency_check(  # type: ignore[call-arg]
             daily, store, ["A"], date_from=FROM, date_to=TO
         )
     out = _check(daily, store, ["A"])
-    assert "PROPOSED" in out["proposed_settings_status"]
+    assert "this attempt only" in out["proposed_settings_status"]
     assert not hasattr(rds, "IDENTITY_PRICE_TOLERANCE")
     assert not hasattr(rds, "IDENTITY_MAX_BAD_FRACTION")

@@ -717,51 +717,112 @@ def price_consistency_check(
     ).fetchall():
         if tkr in symset:
             action_days[(tkr, day)] = str(act)
-    per: dict[str, list[int]] = {}
-    sip_without_vendor: dict[str, int] = {}
-    mismatch_on_action_day = 0
-    for (sym, day), last in sip.items():
+    # Per symbol, over the SIP regular-session days present in the store:
+    #   denominator = SIP days; numerator (NOT passing) = days whose vendor close disagrees beyond
+    #   the tolerance + days with no usable vendor close to compare. A missing comparison never
+    #   counts as passing.
+    per: dict[str, dict[str, int]] = {}
+    mismatches: list[dict[str, Any]] = []
+    for (sym, day), last in sorted(sip.items()):
+        rec = per.setdefault(sym, {"sip_days": 0, "compared": 0, "mismatching": 0, "missing": 0})
+        rec["sip_days"] += 1
         ref = daily.get((sym, day))
-        if ref is None:
-            sip_without_vendor[sym] = sip_without_vendor.get(sym, 0) + 1
+        if ref is None or ref <= 0 or last <= 0:
+            rec["missing"] += 1
             continue
-        if ref <= 0 or last <= 0:
-            continue
-        rec = per.setdefault(sym, [0, 0])
-        rec[0] += 1
+        rec["compared"] += 1
         if abs(ref / last - 1.0) > tolerance:
-            rec[1] += 1
-            if (sym, day) in action_days:
-                mismatch_on_action_day += 1
-    vendor_without_sip: dict[str, int] = {}
+            rec["mismatching"] += 1
+            mismatches.append(
+                {
+                    "symbol": sym,
+                    "day": day.isoformat(),
+                    "corporate_action_that_day": action_days.get((sym, day)),
+                }
+            )
     sip_keys = set(sip)
+    vendor_without_sip: dict[str, int] = {}
     for sym, day in daily:
         if (sym, day) not in sip_keys:
             vendor_without_sip[sym] = vendor_without_sip.get(sym, 0) + 1
-    compared = sum(v[0] for v in per.values())
-    exceeding = sorted(s for s, (n, bad) in per.items() if n and bad / n > max_mismatch_fraction)
+
+    def _frac(rec: dict[str, int]) -> float:
+        return (rec["mismatching"] + rec["missing"]) / rec["sip_days"] if rec["sip_days"] else 0.0
+
+    exceeding = sorted(s for s, rec in per.items() if _frac(rec) > max_mismatch_fraction)
+    totals = {
+        "sip_symbol_days": sum(r["sip_days"] for r in per.values()),
+        "compared": sum(r["compared"] for r in per.values()),
+        "mismatching": sum(r["mismatching"] for r in per.values()),
+        "missing_comparisons": sum(r["missing"] for r in per.values()),
+    }
+    per_symbol_not_passing = {
+        s: {
+            "numerator_not_passing": rec["mismatching"] + rec["missing"],
+            "denominator_sip_days": rec["sip_days"],
+            "mismatching": rec["mismatching"],
+            "missing_comparisons": rec["missing"],
+            "fraction": _frac(rec),
+        }
+        for s, rec in sorted(per.items())
+        if rec["mismatching"] or rec["missing"]
+    }
     return {
         "check": "cross_source_price_consistency",
         "what_it_is_not": "not proof of issuer identity; a screening aid against wrong mappings",
         "comparison": "vendor unadjusted close vs last regular-session SIP 1-minute bar close",
         "proposed_settings_status": (
-            "tolerance and max_mismatch_fraction are PROPOSED data-quality settings, not part of "
-            "the frozen baseline; set before the run and not tuned afterwards"
+            "tolerance and max_mismatch_fraction are PROPOSED data-quality settings approved by "
+            "the owner for this attempt only; not part of the frozen baseline; not to be tuned "
+            "after candidate performance is seen"
         ),
         "tolerance": tolerance,
         "max_mismatch_fraction": max_mismatch_fraction,
-        "symbols_compared": len(per),
-        "symbol_days_compared": compared,
-        "symbol_days_mismatching": sum(v[1] for v in per.values()),
+        "fraction_definition": (
+            "per symbol: (days whose vendor close disagrees beyond the tolerance + days with no "
+            "usable vendor close) / SIP regular-session days present; a missing comparison counts "
+            "as NOT passing"
+        ),
+        "totals": totals,
+        "symbols_compared": sum(1 for r in per.values() if r["compared"]),
         "symbols_exceeding_fraction": exceeding,
-        "symbols_with_any_mismatch": {s: v for s, v in sorted(per.items()) if v[1] > 0},
-        "mismatching_days_on_a_corporate_action_day": mismatch_on_action_day,
+        "per_symbol_not_passing": per_symbol_not_passing,
+        "mismatches": mismatches,
+        "mismatching_days_on_a_corporate_action_day": sum(
+            1 for m in mismatches if m["corporate_action_that_day"]
+        ),
         "corporate_action_symbol_days_in_window": len(action_days),
         "missing_comparisons": {
-            "sip_days_without_vendor_row_by_symbol": dict(sorted(sip_without_vendor.items())),
+            "sip_days_without_usable_vendor_close_by_symbol": {
+                s: r["missing"] for s, r in sorted(per.items()) if r["missing"]
+            },
             "vendor_days_without_sip_bars_by_symbol": dict(sorted(vendor_without_sip.items())),
-            "symbols_without_any_comparable_day": sorted(s for s in symbols if s not in per),
+            "symbols_without_any_comparable_day": sorted(
+                s for s in symbols if per.get(s, {}).get("compared", 0) == 0
+            ),
         },
+    }
+
+
+def _pc_summary(pc: dict[str, Any] | None) -> dict[str, Any] | None:
+    """Report-side summary of the price-consistency check: settings, totals, the symbols over the
+    limit and the explicit numerator/denominator rows; the full mismatch list stays in the
+    acquisition evidence file."""
+    if pc is None:
+        return None
+    return {
+        "check": pc["check"],
+        "what_it_is_not": pc["what_it_is_not"],
+        "tolerance": pc["tolerance"],
+        "max_mismatch_fraction": pc["max_mismatch_fraction"],
+        "fraction_definition": pc["fraction_definition"],
+        "totals": pc["totals"],
+        "symbols_exceeding_fraction": pc["symbols_exceeding_fraction"],
+        "per_symbol_not_passing": pc["per_symbol_not_passing"],
+        "mismatching_days_on_a_corporate_action_day": pc[
+            "mismatching_days_on_a_corporate_action_day"
+        ],
+        "mismatch_list_in": "acquisition evidence file (price_consistency_check.mismatches)",
     }
 
 
@@ -839,6 +900,11 @@ def _acquire(
         "requests_per_minute": plan.requests_per_minute,
         "snapshot_manifest_sha256": manifest_sha,
         "code_sha": code_sha,
+        "price_consistency_settings": {
+            "tolerance": plan.price_tolerance,
+            "max_mismatch_fraction": plan.price_max_mismatch_fraction,
+            "status": "owner-approved for attempt 4 only; proposed data-quality settings, not baseline",
+        },
     }
     if plan.transport_factory is not None:
         transport = plan.transport_factory(cap, auth)
@@ -1330,6 +1396,9 @@ def run(
                         "actual": acquisition["actual"],
                         "probe": acquisition["probe"],
                         "convention_check": acquisition.get("convention_check"),
+                        "price_consistency": _pc_summary(
+                            acquisition.get("price_consistency_check")
+                        ),
                         "store_sha256": acquisition.get("store_sha256"),
                     }
                     if acquisition is not None

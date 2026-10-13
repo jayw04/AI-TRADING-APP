@@ -23,6 +23,9 @@ from app.research.range002.data.fetch_adapter import (
     RawBar,
 )
 from app.research.range002.governance.run_registry import RunRegistry, RunStatus
+from tests.research.range002.screen.test_descriptive_run_rehearsal import (
+    _manifest_for as rehearsal_manifest_for,
+)
 from tests.research.range002.screen.test_descriptive_run_rehearsal import (  # noqa: F401
     minutes_root,
     rds,
@@ -117,7 +120,50 @@ def _plan(world: dict[str, Any], **over: Any) -> tuple[Any, dict[str, int]]:
     return rds.FetchPlan(**base), counter
 
 
+def _align_daily_to_minutes(world: dict[str, Any]) -> None:
+    """Give the synthetic vendor daily table a row, with the same unadjusted close as the last
+    regular-session bar, for every day the synthetic minute store covers. A missing comparison now
+    counts as NOT passing, so the end-to-end fixture must carry comparable vendor closes."""
+    snap: Path = world["kwargs"]["daily_snapshot"]
+    minutes: Path = world["kwargs"]["minute_bars"]
+    m = duckdb.connect(str(minutes), read_only=True)
+    try:
+        rows = m.execute(
+            """
+            WITH et AS (
+              SELECT symbol, close,
+                     CAST((ts AT TIME ZONE 'UTC') AT TIME ZONE 'America/New_York' AS TIMESTAMP) AS lt
+              FROM minute_bars
+            )
+            SELECT symbol, CAST(lt AS DATE), arg_max(close, lt) FROM et
+            WHERE CAST(lt AS TIME) >= TIME '09:30:00' AND CAST(lt AS TIME) < TIME '16:00:00'
+            GROUP BY 1, 2
+            """
+        ).fetchall()
+    finally:
+        m.close()
+    d = duckdb.connect(str(snap))
+    try:
+        for sym, day, close in rows:
+            n = d.execute(
+                'SELECT COUNT(*) FROM "sep" WHERE ticker = ? AND date = ?', [sym, day]
+            ).fetchone()[0]
+            if n:
+                d.execute(
+                    'UPDATE "sep" SET closeunadj = ? WHERE ticker = ? AND date = ?',
+                    [close, sym, day],
+                )
+            else:
+                d.execute(
+                    'INSERT INTO "sep" VALUES (?, ?, ?, ?, ?)', [sym, day, close, close, 1_000_000]
+                )
+    finally:
+        d.close()
+    world["kwargs"]["snapshot_manifest"].write_text(rehearsal_manifest_for(snap), encoding="utf-8")
+
+
 def _kwargs(world: dict[str, Any], plan: Any, store: Path) -> dict[str, Any]:
+    _align_daily_to_minutes(world)
     kw = dict(world["kwargs"])
     kw["minute_bars"] = store
     kw["fetch_plan"] = plan
@@ -136,6 +182,11 @@ def test_fetch_and_screen_is_one_governed_run_and_validates_before_screening(
     assert acq["actual"]["http_attempts"] == counter["calls"] > 0
     assert acq["actual"]["bars_returned"] > 0
     assert acq["planned_estimate"] is not None  # an estimate, kept apart from the actuals
+    settings = acq["binding"]["price_consistency_settings"]
+    assert (settings["tolerance"], settings["max_mismatch_fraction"]) == (0.05, 0.10)
+    assert "attempt 4 only" in settings["status"]
+    pc = acq["price_consistency"]
+    assert pc["totals"]["missing_comparisons"] == 0 and pc["symbols_exceeding_fraction"] == []
     assert acq["probe"]["bars"] > 0 and acq["binding"]["universe_sha256"] == _sha(SYMBOLS)
     assert out.report["status"] == rds.STATUS_COMPLETE
     ev = json.loads(
