@@ -55,7 +55,7 @@ from zoneinfo import ZoneInfo
 BASE_URL = "https://data.alpaca.markets/v2/stocks"
 _ET = ZoneInfo("America/New_York")
 EXIT_OK, EXIT_REFUSED = 0, 2
-TOOL_VERSION = "1.1.0"
+TOOL_VERSION = "1.2.0"
 PAGE_LIMIT = 10_000
 MAX_REQUESTS_PER_SAMPLE = 4
 #: ASSUMPTION, labelled as such: SIP condition codes treated as "regular" (regular sale, ISO sweep)
@@ -67,10 +67,14 @@ CLASS_EXCLUDED = "TRADES_PRESENT_POTENTIALLY_EXCLUDED_BY_BAR_RULES"
 CLASS_ELIGIBLE = "ELIGIBLE_TRADES_PRESENT_BAR_ABSENT"
 CLASS_UNRESOLVED = "UNRESOLVED_AVAILABILITY"
 CLASS_INCOMPLETE = "INCOMPLETE_EVIDENCE"
+#: bars endpoint (request-construction check): the provider returns a bar the store lacks
+CLASS_BARS_RETURNED = "BARS_RETURNED_FOR_INTERVAL_STORE_LACKS"
+CLASS_NO_BARS = "NO_BARS_RETURNED"
 
 RECORD_FIELDS = (
     "id",
     "stratum",
+    "endpoint",
     "symbol",
     "request_symbol",
     "asof",
@@ -107,6 +111,9 @@ class Sample:
     #: acquisition requested the dated request symbol of the mapping, with asof "-")
     request_symbol: str
     asof: str
+    #: "trades" (default) or "bars" (1Min, raw): only timestamps (and trade condition
+    #: codes) are read
+    endpoint: str
     day: date
     interval_start: dtime
     interval_end: dtime
@@ -138,6 +145,7 @@ def load_manifest(path: Path, expected_sha256: str) -> tuple[list[Sample], str]:
             symbol=str(s["symbol"]),
             request_symbol=str(s.get("request_symbol", s["symbol"])),
             asof=str(s.get("asof", "-")),
+            endpoint=str(s.get("endpoint", "trades")),
             day=date.fromisoformat(s["day"]),
             interval_start=_hms(s["interval_start_et"]),
             interval_end=_hms(s["interval_end_et"]),
@@ -149,6 +157,8 @@ def load_manifest(path: Path, expected_sha256: str) -> tuple[list[Sample], str]:
         seen.add(smp.id)
         if not (smp.window_start <= smp.interval_start < smp.interval_end <= smp.window_end):
             raise ProbeRefusal(f"{smp.id}: interval must lie inside its window")
+        if smp.endpoint not in ("trades", "bars"):
+            raise ProbeRefusal(f"{smp.id}: endpoint must be trades or bars")
         out.append(smp)
     if not out:
         raise ProbeRefusal("manifest has no samples")
@@ -218,7 +228,8 @@ def _probe_one(
     http_get: HttpGet,
     sleep: Callable[[float], None],
 ) -> dict[str, Any]:
-    url = f"{BASE_URL}/{smp.request_symbol}/trades"
+    is_bars = smp.endpoint == "bars"
+    url = f"{BASE_URL}/{smp.request_symbol}/{'bars' if is_bars else 'trades'}"
     params: dict[str, str] = {
         "feed": "sip",
         "start": _rfc3339(smp.day, smp.window_start),
@@ -227,6 +238,8 @@ def _probe_one(
         "limit": str(PAGE_LIMIT),
         "sort": "asc",
     }
+    if is_bars:
+        params.update({"timeframe": "1Min", "adjustment": "raw"})
     iv_lo = datetime.combine(smp.day, smp.interval_start, tzinfo=_ET)
     iv_hi = datetime.combine(smp.day, smp.interval_end, tzinfo=_ET)
     stamps: list[datetime] = []
@@ -254,11 +267,11 @@ def _probe_one(
         if status != 200 or not isinstance(body, dict):
             error = True
             break
-        trades = body.get("trades")
+        trades = body.get("bars" if is_bars else "trades")
         if not isinstance(trades, list):
             error = True
             break
-        for tr in trades:  # ONLY t and c are read; price and size are never touched
+        for tr in trades:  # ONLY t (and c for trades) are read; no price or size is touched
             if not isinstance(tr, dict) or not isinstance(tr.get("t"), str):
                 error = True
                 break
@@ -279,10 +292,21 @@ def _probe_one(
     inside = [i for i, ts in enumerate(stamps) if iv_lo <= ts < iv_hi]
     in_codes = [codes[i] for i in inside]
     hist = Counter(code for i in inside for code in (codes[i] or ("<none>",)))
-    cls = classify(complete=complete and not error, interval_codes=in_codes, n_window=len(stamps))
+    ok = complete and not error
+    if is_bars:
+        cls = (
+            CLASS_INCOMPLETE
+            if not ok
+            else CLASS_BARS_RETURNED
+            if inside
+            else (CLASS_NO_BARS if stamps else CLASS_UNRESOLVED)
+        )
+    else:
+        cls = classify(complete=ok, interval_codes=in_codes, n_window=len(stamps))
     rec: dict[str, Any] = {
         "id": smp.id,
         "stratum": smp.stratum,
+        "endpoint": smp.endpoint,
         "symbol": smp.symbol,
         "request_symbol": smp.request_symbol,
         "asof": smp.asof,
@@ -336,7 +360,7 @@ def run_probe(
         "schema": "range002.trades_probe.v1",
         "tool_version": TOOL_VERSION,
         "return_blind": True,
-        "values_read": ["t", "c", "next_page_token(presence)"],
+        "values_read": ["t", "c (trades only)", "next_page_token(presence)"],
         "feed": "sip",
         "regular_condition_assumption": sorted(REGULAR_CONDITIONS),
         "requests_made": budget.used,

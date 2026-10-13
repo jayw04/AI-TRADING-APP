@@ -239,3 +239,50 @@ def test_cli_writes_output_and_chained_access_log(
         )
         == sp.EXIT_REFUSED
     )
+
+
+def test_bars_endpoint_reads_only_timestamps(tmp_path: Path) -> None:
+    doc = {
+        "schema": sp.MANIFEST_SCHEMA,
+        "samples": [
+            {
+                "id": "BARS1",
+                "stratum": "t",
+                "symbol": "AMGN",
+                "endpoint": "bars",
+                "day": DAY,
+                "interval_start_et": "10:26:00",
+                "interval_end_et": "10:30:00",
+                "window_start_et": "10:20:00",
+                "window_end_et": "10:40:00",
+            }
+        ],
+    }
+    path = tmp_path / "b.json"
+    path.write_text(json.dumps(doc), "utf-8")
+    sha = hashlib.sha256(path.read_bytes()).hexdigest()
+    samples, _ = sp.load_manifest(path, sha)
+    seen: list[tuple[str, dict[str, str]]] = []
+    bar = {"t": f"{DAY}T15:27:00Z", "o": 1.0, "h": 2.0, "l": 0.5, "c": 1.5, "v": 9}
+
+    def get(url: str, params: Any, headers: Any) -> tuple[int, Any]:
+        seen.append((url, dict(params)))
+        return 200, {"bars": [bar], "symbol": "AMGN", "next_page_token": None}
+
+    out = sp.run_probe(samples, max_requests=3, key="k", secret="s", http_get=get)
+    assert seen[0][0].endswith("/AMGN/bars") and seen[0][1]["timeframe"] == "1Min"
+    rec = out["records"][0]
+    assert rec["classification"] == sp.CLASS_BARS_RETURNED and rec["endpoint"] == "bars"
+    assert "1.5" not in json.dumps(out) and set(rec) == set(sp.RECORD_FIELDS)
+    empty = sp.run_probe(
+        samples,
+        max_requests=3,
+        key="k",
+        secret="s",
+        http_get=lambda *_a: (200, {"bars": [], "next_page_token": None}),
+    )
+    assert empty["records"][0]["classification"] == sp.CLASS_UNRESOLVED
+    with pytest.raises(sp.ProbeRefusal):
+        bad = dict(doc["samples"][0], endpoint="quotes")
+        path.write_text(json.dumps({"schema": sp.MANIFEST_SCHEMA, "samples": [bad]}), "utf-8")
+        sp.load_manifest(path, hashlib.sha256(path.read_bytes()).hexdigest())
