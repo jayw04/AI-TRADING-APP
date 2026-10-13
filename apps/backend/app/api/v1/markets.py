@@ -29,7 +29,7 @@ from app.auth.market_access import grant_for_api_id
 from app.auth.stub import CurrentUser, get_current_user
 from app.config import get_settings
 from app.markets.cn_ashare import SCOPE
-from app.markets.cn_ashare.research import CANDIDATES
+from app.markets.cn_ashare.registry import catalog, to_candidate
 from app.markets.cn_ashare.store import CnAshareStore, StoreRefusal, resolve
 from app.markets.context import Market
 from app.markets.registry import MARKETS, MarketInfo, UnsupportedMarket, api_ids
@@ -167,27 +167,14 @@ async def strategies(
 ) -> dict[str, Any]:
     store = _open_store()
     runs: list[dict[str, Any]] = []
+    rows = None
     if store is not None:
         with store:
+            rows = store.registry()
             runs = store.runs(limit=500)
-    out = []
-    for c in CANDIDATES.values():
-        mine = [r for r in runs if r["candidate_id"] == c.candidate_id]
-        last = mine[0] if mine else None
-        out.append(
-            {
-                **asdict(c),
-                "run_count": len(mine),
-                "last_run": None
-                if last is None
-                else {
-                    "run_id": last["run_id"],
-                    "created_at_utc": last["created_at_utc"],
-                    "sample_label": last["sample_label"],
-                },
-            }  # fmt: skip
-        )
-    return {**_header(info), "candidates": out}
+    if not rows:
+        rows = catalog()
+    return {**_header(info), "candidates": [to_candidate(row, runs) for row in rows]}
 
 
 @router.get("/{market}/results")

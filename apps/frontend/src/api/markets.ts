@@ -89,11 +89,18 @@ export interface StrategyCandidate {
   name: string;
   hypothesis: string;
   signal: string;
-  lookback_days: number;
+  lookback_days: number | null;
   direction: string;
   top_k: number;
   rebalance: string;
   status: string;
+  family?: string;
+  version?: string;
+  blocked_reason?: string | null;
+  source_us_strategy_id?: number | null;
+  source_us_version?: string | null;
+  source_us_code_path?: string | null;
+  equivalence?: string;
   run_count: number;
   last_run: { run_id: string; created_at_utc: string; sample_label: string } | null;
 }

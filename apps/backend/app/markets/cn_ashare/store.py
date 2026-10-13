@@ -68,6 +68,13 @@ CREATE TABLE IF NOT EXISTS data_issues (
   kind VARCHAR NOT NULL, provider VARCHAR, dataset VARCHAR, detail VARCHAR NOT NULL,
   source_ref VARCHAR, resolved BOOLEAN NOT NULL DEFAULT FALSE
 );
+CREATE TABLE IF NOT EXISTS cn_strategies (
+  cn_strategy_id VARCHAR PRIMARY KEY, sort_order INTEGER NOT NULL, family VARCHAR NOT NULL,
+  version VARCHAR NOT NULL, name VARCHAR NOT NULL, hypothesis VARCHAR NOT NULL,
+  signal VARCHAR NOT NULL, status VARCHAR NOT NULL, blocked_reason VARCHAR,
+  source_us_strategy_id INTEGER, source_us_version VARCHAR, source_us_code_path VARCHAR,
+  equivalence VARCHAR NOT NULL, config_json VARCHAR NOT NULL, created_at_utc VARCHAR NOT NULL
+);
 """
 
 #: Issue severities. A BLOCKER means the affected data must not be used until it is resolved.
@@ -120,6 +127,9 @@ class CnAshareStore:
         self.con = duckdb.connect(str(path), read_only=read_only)
         if not read_only:
             self.con.execute(_SCHEMA)
+            from app.markets.cn_ashare.registry import seed_registry
+
+            seed_registry(self.con)
 
     def close(self) -> None:
         self.con.close()
@@ -331,6 +341,21 @@ class CnAshareStore:
                 item.update(symbols=s[0], first_date=str(s[1]), last_date=str(s[2]))
             out.append(item)
         return out
+
+    def registry(self) -> list[dict[str, Any]] | None:
+        """Persisted China strategies, or None when this file has no registry table yet."""
+        try:
+            rows = self._dicts(
+                "SELECT cn_strategy_id, sort_order, family, version, name, hypothesis, signal, "
+                "status, blocked_reason, source_us_strategy_id, source_us_version, "
+                "source_us_code_path, equivalence, config_json FROM cn_strategies ORDER BY sort_order",
+                [],
+            )
+        except duckdb.CatalogException:
+            return None
+        for row in rows:
+            row["config"] = json.loads(row.pop("config_json"))
+        return rows
 
     def runs(self, limit: int = 20) -> list[dict[str, Any]]:
         rows = self.con.execute(

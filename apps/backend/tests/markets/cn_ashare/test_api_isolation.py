@@ -124,8 +124,12 @@ async def test_views_without_a_store(cn_paths: Path, client: AsyncClient) -> Non
     assert {p["source_id"] for p in body["providers"]} == {"tushare_pro", "baostock"}
     assert (await client.get(f"{BASE}/cn_ashare/results")).json()["runs"] == []
     cands = (await client.get(f"{BASE}/cn_ashare/strategies")).json()["candidates"]
-    assert {c["candidate_id"] for c in cands} == {"CN-MOM-20D", "CN-REV-5D"}
-    assert all(c["status"] == "CANDIDATE" and c["last_run"] is None for c in cands)
+    by_id = {c["candidate_id"]: c for c in cands}
+    assert {"CN-MOM-20D", "CN-REV-5D", "CN-RANGE-ORB", "CN-LOWVOL-W"} <= set(by_id)
+    assert by_id["CN-MOM-20D"]["equivalence"] == "NOT_ASSUMED"
+    assert by_id["CN-MOM-20D"]["status"] == "CANDIDATE" and by_id["CN-MOM-20D"]["last_run"] is None
+    assert by_id["CN-RANGE-ORB"]["status"] == "BLOCKED" and by_id["CN-RANGE-ORB"]["blocked_reason"]
+    assert all(c["candidate_id"].startswith("CN-") for c in cands)
 
 
 @pytest.mark.asyncio
