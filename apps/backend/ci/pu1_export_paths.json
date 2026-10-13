@@ -616,6 +616,12 @@
       "reason": "RANGE-002 descriptive-run report writer; report.md is footer-stamped and both reports carry PERSONAL/UNKNOWN scope sidecars (alpaca_market_data + sharadar), so the export seam refuses them"
     },
     {
+      "file": "apps/backend/scripts/research/range002/fetch_sip_minutes.py",
+      "functions": "*",
+      "classification": "INTERNAL_ONLY",
+      "reason": "RANGE-002 SIP minute-bar fetch (personal research use): writes the private minute_bars store, journal, fetch manifest and convention-evidence file beside it; the store, manifest and evidence carry PERSONAL/UNKNOWN scope sidecars (alpaca_market_data), so the export seam refuses them; no price content is rendered"
+    },
+    {
       "file": "apps/backend/scripts/research/range002/freeze_spec.py",
       "functions": "*",
       "classification": "INTERNAL_ONLY",

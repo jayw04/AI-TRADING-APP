@@ -1,11 +1,11 @@
-"""Vendor-fetch adapter, BUILD scope: pagination, validation, journal and storage gates against a
-MOCK transport. No network code exists in this module and no real vendor call can be made.
+"""Vendor-fetch adapter: pagination, validation, journal and storage gates around an injected
+transport (a mock in tests, ``alpaca_transport`` in a governed run).
 
 A transport is any callable ``PageRequest -> PageResponse`` injected by the caller. The real
-vendor transport is deliberately NOT built: ``vendor_transport`` refuses unless a complete
-``FetchAuthorization`` (permitted-use reference, entitlement reference, storage permission) is
-supplied, and even then raises ``NotImplementedError``. Real fetching and any storage of fetched
-data remain conditional on that authorization and on the vendor's permitted-use answer.
+Alpaca transport lives in ``alpaca_transport``; ``vendor_transport`` hands it out only after a
+complete ``FetchAuthorization`` (permitted-use reference, entitlement reference), a guard
+capability and an explicit config. Storing fetched data additionally needs ``storage_permitted``.
+This module itself contains no network code.
 
 What the adapter enforces, so a mock-tested pipeline cannot drift when a real transport lands:
 the request must be RAW, SIP and carry an explicit ``asof`` decision; every page respects the
@@ -88,11 +88,22 @@ def _authorized(auth: FetchAuthorization | None) -> FetchAuthorization:
 
 @requires_capability
 def vendor_transport(
-    capability: object, authorization: FetchAuthorization | None
+    capability: object,
+    authorization: FetchAuthorization | None,
+    *,
+    config: Any = None,
 ) -> Callable[[PageRequest], PageResponse]:
-    """The real vendor transport is intentionally not part of BUILD scope."""
+    """The real Alpaca bars transport, behind the same authorization gate as every other step.
+
+    Refuses unless a complete ``FetchAuthorization`` is supplied (and a guard capability, via the
+    decorator). Without a ``config`` (``alpaca_transport.AlpacaTransportConfig``) nothing is built
+    and ``NotImplementedError`` is raised, exactly as before."""
     _authorized(authorization)
-    raise NotImplementedError("the real vendor transport is not built; BUILD scope uses mocks")
+    if config is None:
+        raise NotImplementedError("no transport config supplied; nothing is built by default")
+    from app.research.range002.data.alpaca_transport import build_alpaca_transport
+
+    return build_alpaca_transport(capability, config)
 
 
 @requires_capability
@@ -170,10 +181,15 @@ def store_fetched_bars(
             f"{result.symbol}: refusing to store bars fetched with adjustment "
             f"{result.adjustment!r}; only {REQUIRED_ADJUSTMENT!r} is stored"
         )
-    for b in result.bars:
+    batch = 500  # multi-row VALUES: row-at-a-time inserts are impractical at minute-bar volume
+    for i in range(0, len(result.bars), batch):
+        part = result.bars[i : i + batch]
+        args: list[Any] = []
+        for b in part:
+            args += [result.symbol, b.t, b.o, b.h, b.low, b.c, b.v, result.adjustment]
         con.execute(
-            "INSERT INTO minute_bars VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-            [result.symbol, b.t, b.o, b.h, b.low, b.c, b.v, result.adjustment],
+            "INSERT INTO minute_bars VALUES " + ", ".join(["(?, ?, ?, ?, ?, ?, ?, ?)"] * len(part)),
+            args,
         )
     journal.add(key)
     return len(result.bars)
