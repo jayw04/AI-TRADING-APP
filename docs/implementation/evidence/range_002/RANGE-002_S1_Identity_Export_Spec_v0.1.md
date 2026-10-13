@@ -53,7 +53,7 @@ Schema evidence is limited to repository definitions: `apps/backend/app/factor_d
 | sep_daily | ticker, date, close, closeunadj, volume | required | store.py `_SEP_COLS` L34-44, DDL L137-147; manifest.py L41 | verified |
 | sep_daily | open, high, low, closeadj, lastupdated | optional (recorded in `columns_missing` if absent) | store.py `_SEP_COLS` L34-44, DDL L137-147 | verified in schema; may be absent in the real store |
 
-`tickers` and `actions` are required tables (fail closed if absent). `ingest_runs` and `dataset_coverage` are recorded as "not exported: table absent" when absent. `sep` is required only when `sep_coverage` or `sep_daily` is requested. Deliberately NOT exported: `tickers.sector`, `tickers.industry`.
+`tickers` and `actions` are required tables (fail closed if absent). A required column that is absent from an older store refuses the export, except `tickers.permaticker` when the operator passes `--tolerate-missing-column tickers.permaticker` (below). `ingest_runs` and `dataset_coverage` are recorded as "not exported: table absent" when absent. `sep` is required only when `sep_coverage` or `sep_daily` is requested. Deliberately NOT exported: `tickers.sector`, `tickers.industry`.
 
 Column guard (allowlist). Price/volume names (`open, high, low, close, volume, closeadj, closeunadj, adj_close, price`, plus any column containing `close`, `volume` or `adj`) are allowed ONLY in `sep_daily` and ONLY from the explicit list above. In any other table they are refused at planning time and by manifest validation; any `sep_daily` column outside the explicit list is refused. Intraday/minute/SIP/bar tables (names matching intraday, minute, bars, sip, quote, trade, ...) requested through `--table` are refused by name with an "out of scope" message; any other unlisted table name is refused too.
 
@@ -66,6 +66,12 @@ UNVERIFIED (cannot be established from repository sources; to be observed, never
 4. The vocabulary of `actions.action` values and `actions.value` semantics.
 5. Whether `run_id`/`dataset_coverage` rows exist for the datasets of interest.
 6. The price basis of `close`, `closeadj`, `closeunadj`, `volume`: recorded as vendor-documentation claims (`price_basis_declared`), never verified by the script.
+
+### 2a. Older stores without `tickers.permaticker` (`--tolerate-missing-column`)
+
+An older store (for example `factor_data.deepen.duckdb`) can have a `tickers` table without `permaticker`. Default behaviour is unchanged: the export refuses (`table 'tickers' lacks requested column(s) ['permaticker']`). The repeatable option `--tolerate-missing-column tickers.permaticker` waives exactly that one column, by owner decision. The allowlist is exactly `{permaticker}`; any other value (`tickers.ticker`, any other tickers column, any sep/actions column, a value without the `tickers.` prefix) is refused with a message that any additional tolerated column needs its own justification and a code change.
+
+When the column is absent and tolerated: it is omitted from the SELECT and from the file (nothing is substituted: `ticker` is never used in its place, the file simply has no permaticker column and the logical hash covers only the exported columns); the tickers file entry records `columns_missing` and `columns_tolerated_missing`; the manifest gets `tolerated_missing_columns: ["tickers.permaticker"]`, `tolerate_missing_column_requested`, `pit_valid: false`, `identity_status: "UNAVAILABLE_NO_PERMATICKER"` and a top-level `limitations` entry "identity key permaticker absent: no stable issuer identity in this store" (also appended to the `sep_daily` limitations). Validation requires all of these whenever a tolerated column is listed. When the column is present the option has no effect (`tolerated_missing_columns` is `[]`, no `pit_valid`/`identity_status`). Without the option none of these keys appear, so default manifests are unchanged in structure. Everything else (sep_daily, lookback, gap, guards, PU-1 sidecars) is unchanged; the per-issuer lookback report is ticker-keyed and works the same. Such an export cannot support PIT identity: it is labelled not PIT-valid and must not be used as if it were.
 
 ## 3. Query text
 
@@ -173,6 +179,8 @@ python -I apps/backend/scripts/research/range002/export_identity_snapshot.py \
   --screen-start 2016-01-01 --required-lookback-trading-days 20 --lookback-calendar-days 45 \
   --max-decision-gap-days 7
 ```
+
+For an older store whose `tickers` lacks `permaticker`, add `--tolerate-missing-column tickers.permaticker` (section 2a; the export is then labelled `pit_valid: false`).
 
 Optional: `--no-sep-coverage`, `--license-status UNKNOWN|PERSONAL|COMMERCIAL_OK` (default UNKNOWN). Afterwards:
 

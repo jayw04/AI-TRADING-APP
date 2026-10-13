@@ -8,7 +8,8 @@
         [--no-sep-coverage] [--license-status UNKNOWN|PERSONAL|COMMERCIAL_OK] \\
         [--include-sep-daily --sep-date-from YYYY-MM-DD --sep-date-to YYYY-MM-DD \\
          --screen-start YYYY-MM-DD --required-lookback-trading-days N \\
-         --lookback-calendar-days L --max-decision-gap-days G]
+         --lookback-calendar-days L --max-decision-gap-days G] \\
+        [--tolerate-missing-column tickers.<col> ...]
 
     python -I export_identity_snapshot.py --cleanup <export-id> --dest-root <dir> [--apply]
     python -I export_identity_snapshot.py --verify <export dir>
@@ -61,7 +62,7 @@ from typing import Any
 
 import duckdb
 
-SCRIPT_VERSION = "1.3.0"
+SCRIPT_VERSION = "1.4.0"
 MANIFEST_SCHEMA_VERSION = "range002.identity_export_manifest.v1"
 SIDECAR_SUFFIX = ".license.json"
 LICENSE_SOURCES = ["sharadar"]
@@ -217,6 +218,9 @@ VERIFIED_IN_SCHEMA: dict[str, frozenset[str]] = {
     ),
 }
 VERIFIED_IN_SCHEMA["sep_daily"] = VERIFIED_IN_SCHEMA["sep"]
+#: tickers columns that ``--tolerate-missing-column`` may waive when absent from an older store.
+#: Never ``ticker``; never sep/actions columns.
+TOLERABLE_TICKERS_COLUMNS = frozenset({"permaticker"})
 SEP_COVERAGE_COLUMNS = ("ticker", "min_date", "max_date", "n_rows")
 ALL_TABLE_NAMES = tuple(t[0] for t in TABLE_SPECS) + ("sep_coverage", "sep_daily")
 DATE_TYPE_PREFIXES = ("DATE", "TIMESTAMP")
@@ -398,8 +402,32 @@ def validate_manifest(manifest: dict[str, Any]) -> list[str]:
             )
             if not (ok_list or ok_unavail):
                 defects.append(f"ingest_identifiers.{k} must be a non-empty list or 'unavailable'")
+    tol = manifest.get("tolerated_missing_columns")
+    if "tolerated_missing_columns" in manifest:
+        ok = isinstance(tol, list) and all(
+            isinstance(c, str)
+            and c.startswith("tickers.")
+            and c.split(".", 1)[1] in TOLERABLE_TICKERS_COLUMNS
+            for c in tol
+        )
+        if not ok:
+            defects.append("tolerated_missing_columns must list allowlisted tickers.<col> only")
+        if tol and not manifest.get("limitations"):
+            defects.append("tolerated_missing_columns recorded without limitations")
+        if tol and (
+            manifest.get("pit_valid") is not False
+            or manifest.get("identity_status") != "UNAVAILABLE_NO_PERMATICKER"
+        ):
+            defects.append("tolerated permaticker requires pit_valid false and identity_status")
     files = manifest.get("files")
     if isinstance(files, list):
+        for f in files:
+            if isinstance(f, dict) and f.get("table") == "tickers":
+                waived = {c.split(".", 1)[1] for c in tol} if isinstance(tol, list) else set()
+                req_cols = next(r for t, r, _o, _q in TABLE_SPECS if t == "tickers")
+                lacking = [c for c in req_cols if c not in f.get("columns", []) and c not in waived]
+                if lacking:
+                    defects.append(f"tickers file lacks required column(s) {lacking}")
         names = [f.get("table") for f in files if isinstance(f, dict)]
         for req in ("tickers", "actions"):
             if req not in names:
@@ -582,6 +610,7 @@ def plan_queries(
     schema: dict[str, dict[str, str]],
     include_sep_coverage: bool,
     sep_daily: dict[str, str] | None = None,
+    tolerate_missing: frozenset[str] = frozenset(),
 ) -> tuple[list[dict[str, Any]], dict[str, str]]:
     """Resolve the explicit SELECT per table against the introspected schema. Raises
     ExportRefused when a REQUESTED column or required table is missing."""
@@ -595,12 +624,19 @@ def plan_queries(
             not_exported[table] = "table absent from the source schema"
             continue
         missing = [c for c in required if c not in have]
-        if missing:
-            raise ExportRefused(f"table {table!r} lacks requested column(s) {missing}")
+        tolerated = [c for c in missing if table == "tickers" and c in tolerate_missing]
+        hard = [c for c in missing if c not in tolerated]
+        if hard:
+            raise ExportRefused(f"table {table!r} lacks requested column(s) {hard}")
         absent_opt = [c for c in optional if c not in have]
-        cols = list(required) + [c for c in optional if c in have]
+        cols = [c for c in required if c in have] + [c for c in optional if c in have]
+        extra: dict[str, Any] = {}
+        if table == "tickers" and tolerate_missing:
+            extra["columns_missing"] = tolerated
+            extra["columns_tolerated_missing"] = tolerated
         plans.append(
             {
+                **extra,
                 "table": table,
                 "columns": cols,
                 "optional_columns_absent": absent_opt,
@@ -657,6 +693,27 @@ def plan_queries(
         if bad:
             raise ExportRefused("column guard: " + "; ".join(bad))
     return plans, not_exported
+
+
+def parse_tolerated_columns(values: Iterable[str]) -> frozenset[str]:
+    """``tickers.<col>`` entries -> column names; anything else is refused."""
+    out: set[str] = set()
+    for v in values:
+        table, _, col = str(v).partition(".")
+        if table != "tickers" or not col:
+            raise ExportRefused(
+                f"--tolerate-missing-column {v!r} refused: only tickers.<column> is allowed"
+            )
+        if col == "ticker":
+            raise ExportRefused("--tolerate-missing-column tickers.ticker refused: key column")
+        if col not in TOLERABLE_TICKERS_COLUMNS:
+            raise ExportRefused(
+                f"--tolerate-missing-column {v!r} refused: only "
+                f"{sorted(TOLERABLE_TICKERS_COLUMNS)} may be tolerated; any additional tolerated "
+                "column needs its own justification and a code change"
+            )
+        out.add(col)
+    return frozenset(out)
 
 
 def _check_id(export_id: str) -> None:
@@ -755,6 +812,7 @@ def run_export(
     required_lookback_trading_days: int | None = None,
     lookback_calendar_days: int | None = None,
     max_decision_gap_days: int | None = None,
+    tolerate_missing_columns: Iterable[str] = (),
     requested_tables: Iterable[str] = (),
 ) -> Path:
     for label, val in (
@@ -769,6 +827,8 @@ def run_export(
         raise ExportRefused(f"--license-status must be one of {LICENSE_STATUSES}")
     _check_id(export_id)
     check_requested_tables(requested_tables, include_sep_daily)
+    tolerate_requested = [str(v) for v in tolerate_missing_columns]
+    tolerate = parse_tolerated_columns(tolerate_requested)
     sep_daily_cfg = _sep_daily_config(
         include_sep_daily,
         sep_date_from,
@@ -796,6 +856,7 @@ def run_export(
             executing_identity=executing_identity, permission_ref=permission_ref,
             permission_scope=permission_scope, include_sep_coverage=include_sep_coverage,
             license_status=license_status, sep_daily_cfg=sep_daily_cfg,
+            tolerate_missing=tolerate, tolerate_requested=sorted(tolerate_requested),
         )  # fmt: skip
         marker = staging / COMPLETE_MARKER
         try:
@@ -830,6 +891,8 @@ def _build_into_staging(
     include_sep_coverage: bool,
     license_status: str,
     sep_daily_cfg: dict[str, Any] | None = None,
+    tolerate_missing: frozenset[str] = frozenset(),
+    tolerate_requested: list[str] | None = None,
 ) -> None:
     con = duckdb.connect(str(source), read_only=True)
     try:
@@ -840,6 +903,7 @@ def _build_into_staging(
             schema,
             include_sep_coverage,
             None if sep_daily_cfg is None else {k: str(v) for k, v in sep_daily_cfg.items()},
+            tolerate_missing,
         )
         structural: list[dict[str, Any]] | None = None
         if sep_daily_cfg is not None:
@@ -881,6 +945,11 @@ def _build_into_staging(
                 "columns": p["columns"],
                 "optional_columns_absent": p["optional_columns_absent"],
                 "columns_missing": p.get("columns_missing", []),
+                **(
+                    {"columns_tolerated_missing": p["columns_tolerated_missing"]}
+                    if "columns_tolerated_missing" in p
+                    else {}
+                ),
                 "byte_sha256": sha256_file(path),
                 "logical_sha256": logical,
                 "bytes": path.stat().st_size,
@@ -943,6 +1012,23 @@ def _build_into_staging(
         },
         "marker": COMPLETE_MARKER,
     }
+    if tolerate_requested:
+        tk = next(p for p in plans if p["table"] == "tickers")
+        gone = [f"tickers.{c}" for c in tk["columns_tolerated_missing"]]
+        notes = [
+            "identity key permaticker absent: no stable issuer identity in this store"
+            if c == "tickers.permaticker"
+            else f"{c} absent from this store (tolerated by operator option); not exported"
+            for c in gone
+        ]
+        manifest["tolerated_missing_columns"] = gone
+        if gone:
+            manifest["pit_valid"] = False
+            manifest["identity_status"] = "UNAVAILABLE_NO_PERMATICKER"
+        manifest["tolerate_missing_column_requested"] = tolerate_requested
+        manifest["limitations"] = notes
+        if sep_daily_section is not None:
+            sep_daily_section["limitations"] = [*sep_daily_section["limitations"], *notes]
     if sep_daily_section is not None and sep_daily_cfg is not None:
         manifest["sep_daily"] = sep_daily_section
         manifest["report_files"] = report_files
@@ -1352,6 +1438,15 @@ def build_parser() -> argparse.ArgumentParser:
         default=[],
         help="assert a table in scope; out-of-scope (e.g. intraday/minute) names are refused",
     )
+    ap.add_argument(
+        "--tolerate-missing-column",
+        action="append",
+        default=[],
+        metavar="tickers.COL",
+        help="repeatable; waive a tickers column absent from an older store (allowlist: "
+        + ", ".join(sorted(TOLERABLE_TICKERS_COLUMNS))
+        + "); never ticker, sep or actions columns",
+    )
     ap.add_argument("--cleanup", metavar="EXPORT_ID", help="dry-run removal of one export")
     ap.add_argument("--apply", action="store_true", help="with --cleanup: really delete")
     ap.add_argument("--verify", metavar="EXPORT_DIR", help="re-validate a published export")
@@ -1409,6 +1504,7 @@ def main(argv: list[str] | None = None) -> int:
             lookback_calendar_days=a.lookback_calendar_days,
             max_decision_gap_days=a.max_decision_gap_days,
             requested_tables=a.table,
+            tolerate_missing_columns=a.tolerate_missing_column,
             license_status=a.license_status,
         )  # fmt: skip
         print(f"published: {final}")

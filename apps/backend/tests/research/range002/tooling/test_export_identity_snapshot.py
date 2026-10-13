@@ -1046,3 +1046,135 @@ def test_manifest_validation_requires_gap_fields(hist: Path, dest: Path) -> None
     bad = json.loads(json.dumps(m))
     bad["sep_daily"]["lookback"]["decision_days"][0]["gap_within_limit"] = False
     assert ex.validate_manifest(bad)
+
+
+# =============================================================== tolerated missing permaticker
+TOL = ["tickers.permaticker"]
+
+
+def _drop_permaticker(path: Path) -> Path:
+    con = duckdb.connect(str(path))
+    con.execute("ALTER TABLE tickers DROP COLUMN permaticker")
+    con.close()
+    return path
+
+
+@pytest.fixture
+def old_store(hist: Path) -> Path:
+    return _drop_permaticker(hist)
+
+
+def test_missing_permaticker_refuses_by_default(old_store: Path, dest: Path) -> None:
+    with pytest.raises(ex.ExportRefused, match="permaticker"):
+        do_export(old_store, dest)
+    assert not (dest / "exp-1").exists()
+
+
+def test_tolerated_permaticker_exports_and_is_labelled(old_store: Path, dest: Path) -> None:
+    out = do_export(old_store, dest, tolerate_missing_columns=TOL)
+    m = manifest_of(out)
+    assert ex.validate_manifest(m) == [] and ex.validate_export_dir(out, m) == []
+    assert m["tolerated_missing_columns"] == ["tickers.permaticker"]
+    assert m["pit_valid"] is False
+    assert m["identity_status"] == "UNAVAILABLE_NO_PERMATICKER"
+    assert (
+        "identity key permaticker absent: no stable issuer identity in this store"
+        in (m["limitations"])
+    )
+    t = next(f for f in m["files"] if f["table"] == "tickers")
+    assert t["columns_missing"] == ["permaticker"]
+    assert t["columns_tolerated_missing"] == ["permaticker"]
+    assert "permaticker" not in t["columns"]
+    # nothing substitutes ticker for permaticker: no file carries any permaticker-like column
+    con = duckdb.connect(":memory:")
+    for f in out.glob("*.parquet"):
+        cols = [
+            r[0].lower()
+            for r in con.execute(
+                f"DESCRIBE SELECT * FROM read_parquet('{f.as_posix()}')"
+            ).fetchall()
+        ]
+        assert "permaticker" not in cols and "perma_ticker" not in cols
+    assert "permaticker" not in m["queries"]["tickers"]
+
+
+def test_tolerated_export_with_sep_daily_report_and_hash(tmp_path: Path, dest: Path) -> None:
+    src = _drop_permaticker(_add_issuers(add_history(build_store(tmp_path / "s.duckdb"))))
+    out = do_export(src, dest, "a", tolerate_missing_columns=TOL, **WINDOW)
+    m = manifest_of(out)
+    assert ex.validate_manifest(m) == [] and ex.validate_export_dir(out, m) == []
+    rep = json.loads((out / "lookback_affected_issuers.json").read_text(encoding="utf-8"))
+    assert {a["ticker"] for a in rep["decision_days"]["2015-12-31"]} == {"CCC", "DDD", "EEE"}
+    assert any("permaticker absent" in x for x in m["sep_daily"]["limitations"])
+    b = manifest_of(do_export(src, dest, "b", tolerate_missing_columns=TOL, **WINDOW))
+    assert [f["logical_sha256"] for f in m["files"]] == [f["logical_sha256"] for f in b["files"]]
+
+
+@pytest.mark.parametrize(
+    "value",
+    ["tickers.isdelisted", "tickers.category", "tickers.ticker", "sep.close", "actions.date",
+     "permaticker", "tickers."],
+)  # fmt: skip
+def test_other_columns_refused_for_tolerance(old_store: Path, dest: Path, value: str) -> None:
+    with pytest.raises(ex.ExportRefused, match="refused"):
+        do_export(old_store, dest, tolerate_missing_columns=[value])
+    assert list(dest.iterdir()) == []
+    if value == "tickers.isdelisted":
+        with pytest.raises(ex.ExportRefused, match="justification and a code change"):
+            do_export(old_store, dest, tolerate_missing_columns=[value])
+
+
+def test_tolerated_option_has_no_effect_when_column_present(hist: Path, dest: Path) -> None:
+    out = do_export(hist, dest, tolerate_missing_columns=TOL)
+    m = manifest_of(out)
+    t = next(f for f in m["files"] if f["table"] == "tickers")
+    assert "permaticker" in t["columns"] and t["columns_tolerated_missing"] == []
+    assert m["tolerated_missing_columns"] == []
+    assert "pit_valid" not in m and "identity_status" not in m
+    assert ex.validate_manifest(m) == []
+
+
+def test_default_manifest_has_no_tolerance_fields(hist: Path, dest: Path) -> None:
+    m = manifest_of(do_export(hist, dest))
+    for k in ("tolerated_missing_columns", "pit_valid", "identity_status", "limitations"):
+        assert k not in m
+    t = next(f for f in m["files"] if f["table"] == "tickers")
+    assert "columns_tolerated_missing" not in t
+
+
+def test_tolerated_validation_requires_labels(old_store: Path, dest: Path) -> None:
+    m = manifest_of(do_export(old_store, dest, tolerate_missing_columns=TOL))
+    for key in ("pit_valid", "identity_status", "limitations"):
+        bad = json.loads(json.dumps(m))
+        del bad[key]
+        assert ex.validate_manifest(bad)
+    bad = json.loads(json.dumps(m))
+    bad["tolerated_missing_columns"] = ["tickers.isdelisted"]
+    assert ex.validate_manifest(bad)
+    # a tickers file lacking permaticker without the waiver is a defect
+    bad = json.loads(json.dumps(m))
+    del bad["tolerated_missing_columns"]
+    assert any("lacks required column" in d for d in ex.validate_manifest(bad))
+
+
+def test_cli_tolerate_option(old_store: Path, dest: Path) -> None:
+    script = str(SCRIPTS / "export_identity_snapshot.py")
+    base = [
+        sys.executable, "-I", script, "--source", str(old_store), "--dest-root", str(dest),
+        "--purpose", "p", "--executing-identity", "me",
+        "--permission-ref", PERM_REF, "--permission-scope", PERM_SCOPE,
+    ]  # fmt: skip
+    r0 = subprocess.run([*base, "--export-id", "c0"], capture_output=True, text=True)
+    assert r0.returncode == 2 and "permaticker" in r0.stderr
+    r1 = subprocess.run(
+        [*base, "--export-id", "c1", "--tolerate-missing-column", "tickers.permaticker"],
+        capture_output=True,
+        text=True,
+    )
+    assert r1.returncode == 0, r1.stderr
+    r2 = subprocess.run(
+        [*base, "--export-id", "c2", "--tolerate-missing-column", "tickers.name"],
+        capture_output=True,
+        text=True,
+    )
+    assert r2.returncode == 2 and "code change" in r2.stderr
