@@ -231,6 +231,31 @@ def report(path: str) -> str:
             "\n## identity / temporal checks: SKIPPED - need a permanent id and first/last price dates"
         )
 
+    # ---- observed `category` labels (SELECT DISTINCT establishes labels, NOT economic meaning) ---------
+    cat_name = tk_c.get("category")
+    if cat_name:
+        c = _qi(cat_name)
+        tb = _qi(tk_c.get("table"))
+        where = f"WHERE {tb} = 'SEP'" if tb else ""
+        q(
+            "OBSERVED category LABELS (counts + up to 5 example tickers each; labels only, no meaning "
+            "is inferred; filtered to table='SEP' when a table column exists)",
+            f"""
+            SELECT COALESCE(CAST({c} AS VARCHAR), '<NULL>') AS category,
+                   COUNT(*) AS rows,
+                   COUNT(DISTINCT {t}) AS distinct_tickers,
+                   string_agg(DISTINCT CAST({t} AS VARCHAR), ', ' ORDER BY CAST({t} AS VARCHAR))
+                       FILTER (WHERE rn <= 5) AS example_tickers
+            FROM (
+              SELECT *, row_number() OVER (PARTITION BY {c} ORDER BY {t}) AS rn
+              FROM "tickers" {where}
+            ) x
+            GROUP BY 1 ORDER BY 2 DESC
+            """,
+        )
+    else:
+        lines.append("\n## OBSERVED category LABELS: SKIPPED - tickers.category not present")
+
     # ---- volume adjustment semantics (the PIT ADV recovers traded shares from volume * close/closeunadj,
     # which is only valid if `volume` is split-adjusted on the same basis as `close`) -------------------
     act_c = cols("actions")

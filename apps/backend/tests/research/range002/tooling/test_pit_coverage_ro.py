@@ -170,3 +170,37 @@ def test_volume_semantics_check_does_not_force_an_ambiguous_observation(tmp_path
         "CONSISTENT_WITH_SPLIT_ADJUSTED_VOLUME" not in out
         and "CONSISTENT_WITH_AS_TRADED_VOLUME" not in out
     )
+
+
+def test_observed_category_labels_are_counted_with_examples_and_not_interpreted(
+    tmp_path: Path,
+) -> None:
+    path = tmp_path / "cat.duckdb"
+    con = duckdb.connect(str(path))
+    con.execute(
+        'CREATE TABLE tickers("table" VARCHAR, ticker VARCHAR, permaticker BIGINT, category VARCHAR,'
+        " isdelisted VARCHAR, firstpricedate DATE, lastpricedate DATE)"
+    )
+    con.execute(
+        """INSERT INTO tickers VALUES
+        ('SEP','AAA',1,'Domestic Common Stock','N','2010-01-04','2026-06-12'),
+        ('SEP','BBB',2,'Domestic Common Stock','N','2010-01-04','2026-06-12'),
+        ('SEP','CCC',3,'Domestic','N','2010-01-04','2026-06-12'),
+        ('SF1','ZZZ',4,'ETF','N','2010-01-04','2026-06-12'),
+        ('SEP','DDD',5,NULL,'N','2010-01-04','2026-06-12')"""
+    )
+    con.execute("CREATE TABLE sep(ticker VARCHAR, date DATE, close DOUBLE, volume DOUBLE)")
+    con.close()
+    out = pit_coverage_ro.report(str(path))
+    rows = {
+        r.split(" | ")[0]: r.split(" | ")
+        for r in _section(
+            out,
+            next(t for t in out.splitlines() if t.startswith("## OBSERVED category LABELS"))[3:],
+        )
+    }
+    assert rows["Domestic Common Stock"][1:3] == ["2", "2"]
+    assert rows["Domestic Common Stock"][3] == "AAA, BBB"
+    assert "ETF" not in rows  # filtered to table='SEP'
+    assert rows["<NULL>"][1] == "1"
+    assert "Domestic" in rows  # reported as an observed label; no meaning is inferred
