@@ -268,3 +268,31 @@ def test_planned_later_phase_run_does_not_block_acquisition_but_prior_exposure_d
     )
     with pytest.raises(gov_errors.ExposureOverlapError):
         rds.run(**kw2)
+
+
+def test_planned_acquisition_entry_never_blocks_the_evaluation() -> None:
+    from datetime import date
+
+    from app.research.range002.governance.model import DateRange as DR
+
+    doc = json.loads(DECIDED_LEDGER)
+    doc["entries"] = [
+        *doc["entries"],
+        {
+            "id": "planned-acq",
+            "start": "2016-03-01",
+            "end": "2016-03-07",
+            "description": "t",
+            "source": "t",
+            "observed_by": "t",
+            "kind": "planned_run",
+            "phase": "ACQ",
+            "partition": "DEVELOPMENT_SELECTION",
+            "planned_label": "acq",
+        },
+    ]
+    led = ExposureLedger.from_text(json.dumps(doc))
+    rng = DR(date(2016, 3, 1), date(2016, 3, 7))
+    for ph in (Phase.P3A, Phase.ACQ):
+        hits = led.blocking_overlaps(rng, phase=ph, partition=Partition.DEVELOPMENT_SELECTION)
+        assert "planned-acq" not in [h.id for h in hits]

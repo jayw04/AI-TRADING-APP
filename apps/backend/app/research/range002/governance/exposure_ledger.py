@@ -334,12 +334,17 @@ class ExposureLedger:
         Every overlapping ``prior_exposure`` entry blocks. An overlapping ``planned_run`` entry
         is set aside ONLY when it covers the whole request and names the same phase and
         partition; a planned entry that overlaps a request it does not exactly authorise (a
-        broader range, another partition or phase) blocks like a prior exposure."""
+        broader range, another partition or phase) blocks like a prior exposure. A planned
+        ACQUISITION entry (phase ACQ) never blocks: it is not seen data."""
         blocking: list[ExposureEntry] = []
         for e in self.overlaps(window):
             if e.kind == KIND_RETURN_BLIND_PROBE:
                 # recorded and visible, never blocking: a probe observes only status codes,
                 # bar counts and timestamps (no price, volume or result value)
+                continue
+            if e.kind == KIND_PLANNED_RUN and e.phase == Phase.ACQ.value:
+                # a planned ACQUISITION observes no result (no trade is simulated, no performance
+                # computed): it is never seen data and does not block any request
                 continue
             authorised = (
                 e.kind == KIND_PLANNED_RUN
