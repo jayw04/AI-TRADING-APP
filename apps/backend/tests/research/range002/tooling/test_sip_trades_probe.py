@@ -286,3 +286,13 @@ def test_bars_endpoint_reads_only_timestamps(tmp_path: Path) -> None:
         bad = dict(doc["samples"][0], endpoint="quotes")
         path.write_text(json.dumps({"schema": sp.MANIFEST_SCHEMA, "samples": [bad]}), "utf-8")
         sp.load_manifest(path, hashlib.sha256(path.read_bytes()).hexdigest())
+
+
+def test_null_list_is_the_providers_empty_result_and_blank_code_is_regular(tmp_path: Path) -> None:
+    out = _run(tmp_path, [(200, {"trades": None, "next_page_token": None})])
+    assert out["records"][0]["classification"] == sp.CLASS_UNRESOLVED  # empty window: not no-print
+    blank = {"trades": [_tr("09:30:01", [" "]), _tr("09:29:10")], "next_page_token": None}
+    sub = tmp_path / "blank"
+    sub.mkdir()
+    out2 = _run(sub, [(200, blank)])
+    assert out2["records"][0]["classification"] == sp.CLASS_ELIGIBLE

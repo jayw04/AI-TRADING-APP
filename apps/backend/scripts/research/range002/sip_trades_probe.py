@@ -25,7 +25,7 @@ always reported so a reader can reclassify):
                                      provider's trades endpoint shows)
   TRADES_PRESENT_POTENTIALLY_EXCLUDED_BY_BAR_RULES
                                      trades in the interval and every one carries a condition code
-                                     outside the assumed regular set (``@``, ``F``)
+                                     outside the assumed regular set (``@``, ``F``, blank)
   ELIGIBLE_TRADES_PRESENT_BAR_ABSENT at least one trade in the interval carries only assumed
                                      regular codes while the bar is absent: an aggregation or
                                      delivery anomaly to investigate
@@ -55,11 +55,11 @@ from zoneinfo import ZoneInfo
 BASE_URL = "https://data.alpaca.markets/v2/stocks"
 _ET = ZoneInfo("America/New_York")
 EXIT_OK, EXIT_REFUSED = 0, 2
-TOOL_VERSION = "1.2.0"
+TOOL_VERSION = "1.2.1"
 PAGE_LIMIT = 10_000
 MAX_REQUESTS_PER_SAMPLE = 4
 #: ASSUMPTION, labelled as such: SIP condition codes treated as "regular" (regular sale, ISO sweep)
-REGULAR_CONDITIONS = frozenset({"@", "F"})
+REGULAR_CONDITIONS = frozenset({"@", "F", " "})  # blank code = regular sale in historical SIP data
 MANIFEST_SCHEMA = "range002.trades_probe_manifest.v1"
 
 CLASS_NO_TRADES = "NO_TRADES_RETURNED"
@@ -268,6 +268,8 @@ def _probe_one(
             error = True
             break
         trades = body.get("bars" if is_bars else "trades")
+        if trades is None and status == 200:  # the provider's complete empty result
+            trades = []
         if not isinstance(trades, list):
             error = True
             break
