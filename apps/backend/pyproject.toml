@@ -90,6 +90,9 @@ dev = [
     "mypy>=1.13",
     "types-requests",
 ]
+# Laptop A-share research only. CI installs the dev extra; this group is not in
+# GOVERNED_EXTRAS, so the shared constraints files stay unchanged.
+cn-ashare = ["tushare==1.4.29"]
 
 [tool.setuptools.packages.find]
 where = ["."]
