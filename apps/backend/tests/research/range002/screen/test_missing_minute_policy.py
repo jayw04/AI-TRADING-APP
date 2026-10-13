@@ -239,3 +239,56 @@ def test_revalidation_carries_original_evidence_and_unlocks_the_evaluation_once(
                 carry_acquisition_evidence_sha256=_sha(bpath),
             )
         )
+
+
+def _policy_spec(tmp: Path, ev: dict[str, Any], original_sha: str, linked_sha: str) -> Path:
+    payload = synth_payload(exits__candidates=copy.deepcopy(SEVEN))
+    payload["registration"]["related_programs"] = [
+        {
+            "relation": rds.ADOPTED_POLICY_RELATION,
+            "tiers": "both",
+            "bound_artifacts": {
+                "census_classification_sha256": ev["no_trade_evidence_sha256"],
+                "census_manifest_sha256": ev["census_manifest_sha256"],
+                "original_acquisition_evidence_sha256": original_sha,
+                "linked_validation_sha256": linked_sha,
+            },
+        }
+    ]
+    return _freeze(tmp, payload, "frozen_policy.json")
+
+
+def test_spec_binds_the_exact_census_artefacts(world: dict[str, Any], tmp_path: Path) -> None:
+    _remove_or_minute(world["kwargs"]["minute_bars"])
+    store: Path = world["kwargs"]["minute_bars"]
+    epath = tmp_path / "orig.json"
+    epath.write_text(
+        json.dumps({"store_sha256": file_sha256(store), "binding": {}}), encoding="utf-8"
+    )
+    vpath = tmp_path / "orig_validation.json"
+    vpath.write_text("{}", encoding="utf-8")
+    ev = _evidence(world["tmp"], EMPTY)
+    spec = _policy_spec(tmp_path, ev, _sha(epath), _sha(vpath))
+    good = dict(
+        spec_path=spec,
+        accounted_tiers="both",
+        carry_acquisition_evidence=epath,
+        carry_acquisition_evidence_sha256=_sha(epath),
+        linked_validation=vpath,
+        linked_validation_sha256=_sha(vpath),
+        **ev,
+    )
+    # no census artefacts at all: refused, nothing opened
+    with pytest.raises(rds.DescriptiveRunRefusal, match="binds the adopted"):
+        rds.run(**_acq_kw(world, out="n1", spec_path=spec))
+    # another tier / another classification: refused
+    with pytest.raises(rds.DescriptiveRunRefusal, match="tiers"):
+        rds.run(**_acq_kw(world, out="n2", **dict(good, accounted_tiers="positive")))
+    other = tmp_path / "other_class.json"
+    other.write_text(Path(ev["no_trade_evidence"]).read_text() + " ", encoding="utf-8")
+    bad = dict(good, no_trade_evidence=other, no_trade_evidence_sha256=_sha(other))
+    with pytest.raises(rds.DescriptiveRunRefusal, match="census classification"):
+        rds.run(**_acq_kw(world, out="n3", **bad))
+    out = rds.run(**_acq_kw(world, out="ok", **good))
+    assert out.report["missing_minute_policy_adopted"]["tiers"] == "both"
+    assert out.report["limitations_carried_forward"]

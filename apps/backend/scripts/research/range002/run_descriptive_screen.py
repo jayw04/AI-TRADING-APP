@@ -1167,13 +1167,64 @@ CARRIED_LIMITATIONS = [
     "daily tables are sequential vendor pulls (cross_table_consistent false); named integrity "
     "exceptions are recorded in the snapshot manifest",
     "issuer identity rests on permaticker, name, price interval and ACTIONS chain; the price "
-    "consistency check is a screening aid, not an identity proof",
+    "consistency check is a screening aid, not an identity proof; census controls support "
+    "request mapping, timing and boundary correctness only, not issuer identity",
+    "tier-E minutes are complete EMPTY responses from the same provider as the bars: supporting "
+    "evidence, not independently verified no-trade minutes; the 10% common-gap detector is a "
+    "warning heuristic, not proof that smaller outages cannot occur",
     "data-quality diagnostics were inspected before any strategy result was viewed; the strategy "
     "rule is Q1-informed; this window is development-partition evidence, not untouched P3B "
     "confirmation",
 ]
 STATUS_ACQ_VALIDATED = "ACQUISITION_VALIDATED"
 STATUS_ACQ_DEFECT = "ACQUISITION_VALIDATED_WITH_PREREQUISITE_DEFECT"
+
+
+ADOPTED_POLICY_RELATION = "missing_minute_policy_v1_ADOPTED_P_PLUS_E"
+
+
+def _adopted_policy(draft: Any) -> dict[str, Any] | None:
+    """The adopted missing-minute policy entry the SPEC itself carries (inside its hash), or None."""
+    progs = draft.registration.related_programs
+    if not isinstance(progs, list):
+        return None
+    for e in progs:
+        if isinstance(e, dict) and e.get("relation") == ADOPTED_POLICY_RELATION:
+            return e
+    return None
+
+
+def _check_policy_binding(
+    policy: dict[str, Any],
+    *,
+    evidence_sha: str | None,
+    manifest_sha: str | None,
+    tiers: str | None,
+    carry_sha: str | None,
+    linked_sha: str | None,
+    acquisition_only: bool,
+) -> None:
+    """A spec that carries the adopted policy binds the exact census artefacts: a run that supplies
+    anything else (or nothing) is refused before any registry row."""
+    bound = policy.get("bound_artifacts") or {}
+    want = {
+        "tiers": (tiers, policy.get("tiers")),
+        "census classification": (evidence_sha, bound.get("census_classification_sha256")),
+        "census manifest": (manifest_sha, bound.get("census_manifest_sha256")),
+    }
+    if acquisition_only:
+        want["original acquisition evidence"] = (
+            carry_sha,
+            bound.get("original_acquisition_evidence_sha256"),
+        )
+        want["linked original validation"] = (linked_sha, bound.get("linked_validation_sha256"))
+    bad = [name for name, (got, exp) in want.items() if got != exp]
+    if bad:
+        raise DescriptiveRunRefusal(
+            "the spec binds the adopted missing-minute policy; these inputs differ or are missing: "
+            + ", ".join(bad)
+            + "; nothing opened"
+        )
 
 
 def _load_no_trade_evidence(
@@ -1400,6 +1451,17 @@ def run(
 
     # Everything that needs no registry row: spec (hash-bound decision), manifest, ledger.
     view, draft = _load_spec(Path(spec_path))
+    policy_entry = _adopted_policy(draft)
+    if policy_entry is not None and phase is not Phase.P2:
+        _check_policy_binding(
+            policy_entry,
+            evidence_sha=no_trade_evidence_sha256,
+            manifest_sha=census_manifest_sha256,
+            tiers=accounted_tiers,
+            carry_sha=carry_acquisition_evidence_sha256,
+            linked_sha=linked_validation_sha256,
+            acquisition_only=acquisition_only,
+        )
     manifest_bytes = Path(snapshot_manifest).read_bytes()
     try:
         manifest = parse_snapshot_manifest(manifest_bytes.decode("utf-8"))
@@ -1671,6 +1733,7 @@ def run(
                 "limitations_carried_forward": CARRIED_LIMITATIONS,
                 "no_trade_evidence_sha256": no_trade_evidence_sha256 if ntm_info else None,
                 "missing_minute_policy": ntm_info,
+                "missing_minute_policy_adopted": policy_entry,
                 "linked_validation": (
                     {"path": Path(linked_validation).name, "sha256": linked_validation_sha256}
                     if linked_validation is not None
@@ -1871,6 +1934,8 @@ def run(
         }
         if params.max_cost_to_risk is not None:
             report["limitations_carried_forward"] = CARRIED_LIMITATIONS
+            report["missing_minute_policy"] = ntm_info
+            report["missing_minute_policy_adopted"] = policy_entry
             report["cost_to_risk_eligibility"] = {
                 "formula": "2 * base_bps_per_side / 1e4 * trigger / (trigger - or_low) <= ceiling",
                 "ceiling": params.max_cost_to_risk,

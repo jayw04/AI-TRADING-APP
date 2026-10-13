@@ -654,6 +654,12 @@
       "reason": "RANGE-002 private comparison of an owner-exported TradingView CSV with the stored bars (counts and provenance only), written to the private research directory"
     },
     {
+      "file": "apps/backend/scripts/research/range002/census_tier_e_gap_share.py",
+      "functions": "*",
+      "classification": "INTERNAL_ONLY",
+      "reason": "RANGE-002 read-only disclosure helper (counts and shares only), prints to the terminal"
+    },
+    {
       "file": "apps/backend/scripts/research/range002/audit_replay_run.py",
       "functions": "*",
       "classification": "INTERNAL_ONLY",

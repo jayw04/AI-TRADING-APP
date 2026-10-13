@@ -8,8 +8,8 @@ Per MISSING MINUTE (frozen method, in this order):
                                  sample was never attempted
   UNRESOLVED_CONTROL_FAILED      a stored-bar control minute in the window returned no bar-eligible
                                  trade, or returned timestamps fall outside the query window: the
-                                 query construction (symbol identity / timestamps / boundaries)
-                                 is not verified
+                                 query construction (request mapping / timing / boundaries) is
+                                 not verified (controls do NOT establish issuer identity)
   UNRESOLVED_NO_CONTROL          no stored-bar minute inside the window to verify against
   UNRESOLVED_SUSPECTED_PROVIDER_GAP  the minute is a suspected common-provider gap (>= OUTAGE_SHARE
                                  of the day's symbols lack a bar): never accounted for
