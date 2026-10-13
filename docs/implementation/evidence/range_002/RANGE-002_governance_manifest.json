@@ -4,8 +4,8 @@
   "approved_by": "Jay Wang (owner instruction 2026-10-13)",
   "approved_on": "2026-10-13",
   "p3_attempt_limits": {
-    "p3a": 4,
+    "p3a": 5,
     "p3b": 1
   },
-  "notes": "RANGE-002 governance manifest (Round 5 N-A). P3A limit 4 per the owner's recorded amendment of 2026-10-13: attempts 1 and 2 were acquisition defects with no strategy result viewed, attempt 3 is the corrected 2016-Q1 diagnostic, attempt 4 is the full development run if warranted and authorized; no further spare. P3B limit 1. The genesis id was read back from RunRegistry.enroll_new on the AWS research registry and is unchanged; consumed attempts and failure records are preserved. approved_by is an identifier string, not a signature. Level 1 only: a copied registry keeps its genesis id and filesystem edits of this file are Level 2 limitations."
+  "notes": "RANGE-002 governance manifest (Round 5 N-A). P3A limit 5 per the owner's recorded amendment of 2026-10-13: attempts 1-3 were acquisition/identity defects with no strategy result viewed (attempt 3 acquired and validated its data then refused to screen on coverage); attempt 4 is the corrected 2016-Q1 diagnostic; attempt 5 is reserved for the full development run, subject to its own scope decision; no further spare. P3B limit 1. The genesis id was read back from RunRegistry.enroll_new and is unchanged; consumed attempts and failure records are preserved. approved_by is an identifier string, not a signature. Level 1 only: a copied registry keeps its genesis id and filesystem edits of this file are Level 2 limitations."
 }
