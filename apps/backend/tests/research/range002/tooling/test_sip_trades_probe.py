@@ -141,6 +141,41 @@ def test_manifest_hash_mismatch_refuses(tmp_path: Path) -> None:
         sp.load_manifest(path, "0" * 64)
 
 
+def test_request_uses_the_dated_request_symbol_and_asof(tmp_path: Path) -> None:
+    doc = {
+        "schema": sp.MANIFEST_SCHEMA,
+        "samples": [
+            {
+                "id": "R1",
+                "stratum": "t",
+                "symbol": "BKNG",
+                "request_symbol": "PCLN",
+                "asof": "-",
+                "day": DAY,
+                "interval_start_et": "09:30:00",
+                "interval_end_et": "09:31:00",
+                "window_start_et": "09:25:00",
+                "window_end_et": "09:36:00",
+            }
+        ],
+    }
+    path = tmp_path / "r.json"
+    path.write_text(json.dumps(doc), "utf-8")
+    sha = hashlib.sha256(path.read_bytes()).hexdigest()
+    samples, _ = sp.load_manifest(path, sha)
+    urls: list[str] = []
+    seen: list[dict[str, str]] = []
+
+    def get(url: str, params: Any, headers: Any) -> tuple[int, Any]:
+        urls.append(url)
+        seen.append(dict(params))
+        return 200, {"trades": [_tr("09:29:10")], "next_page_token": None}
+
+    out = sp.run_probe(samples, max_requests=5, key="k", secret="s", http_get=get)
+    assert urls[0].endswith("/PCLN/trades") and seen[0]["asof"] == "-"
+    assert out["records"][0]["symbol"] == "BKNG" and out["records"][0]["request_symbol"] == "PCLN"
+
+
 def test_output_is_return_blind(tmp_path: Path) -> None:
     out = _run(tmp_path, [(200, {"trades": [_tr("09:30:01")], "next_page_token": None})])
     text = json.dumps(out)

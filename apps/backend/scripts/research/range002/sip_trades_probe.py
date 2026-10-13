@@ -55,7 +55,7 @@ from zoneinfo import ZoneInfo
 BASE_URL = "https://data.alpaca.markets/v2/stocks"
 _ET = ZoneInfo("America/New_York")
 EXIT_OK, EXIT_REFUSED = 0, 2
-TOOL_VERSION = "1.0.0"
+TOOL_VERSION = "1.1.0"
 PAGE_LIMIT = 10_000
 MAX_REQUESTS_PER_SAMPLE = 4
 #: ASSUMPTION, labelled as such: SIP condition codes treated as "regular" (regular sale, ISO sweep)
@@ -72,6 +72,8 @@ RECORD_FIELDS = (
     "id",
     "stratum",
     "symbol",
+    "request_symbol",
+    "asof",
     "day",
     "interval_et",
     "window_et",
@@ -101,6 +103,10 @@ class Sample:
     id: str
     stratum: str
     symbol: str
+    #: the symbol REQUESTED from the provider (the store key is the vendor ticker; the original
+    #: acquisition requested the dated request symbol of the mapping, with asof "-")
+    request_symbol: str
+    asof: str
     day: date
     interval_start: dtime
     interval_end: dtime
@@ -130,6 +136,8 @@ def load_manifest(path: Path, expected_sha256: str) -> tuple[list[Sample], str]:
             id=str(s["id"]),
             stratum=str(s["stratum"]),
             symbol=str(s["symbol"]),
+            request_symbol=str(s.get("request_symbol", s["symbol"])),
+            asof=str(s.get("asof", "-")),
             day=date.fromisoformat(s["day"]),
             interval_start=_hms(s["interval_start_et"]),
             interval_end=_hms(s["interval_end_et"]),
@@ -210,11 +218,12 @@ def _probe_one(
     http_get: HttpGet,
     sleep: Callable[[float], None],
 ) -> dict[str, Any]:
-    url = f"{BASE_URL}/{smp.symbol}/trades"
+    url = f"{BASE_URL}/{smp.request_symbol}/trades"
     params: dict[str, str] = {
         "feed": "sip",
         "start": _rfc3339(smp.day, smp.window_start),
         "end": _rfc3339(smp.day, smp.window_end),
+        "asof": smp.asof,
         "limit": str(PAGE_LIMIT),
         "sort": "asc",
     }
@@ -275,6 +284,8 @@ def _probe_one(
         "id": smp.id,
         "stratum": smp.stratum,
         "symbol": smp.symbol,
+        "request_symbol": smp.request_symbol,
+        "asof": smp.asof,
         "day": smp.day.isoformat(),
         "interval_et": f"{smp.interval_start.isoformat()}-{smp.interval_end.isoformat()}",
         "window_et": f"{smp.window_start.isoformat()}-{smp.window_end.isoformat()}",
