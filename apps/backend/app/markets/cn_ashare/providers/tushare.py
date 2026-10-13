@@ -5,7 +5,9 @@ Endpoints: ``stock_basic`` (list_status L/D/P, so delisted names are included), 
 (a cumulative back-adjustment factor for every trading day).
 
 ``daily`` omits suspended days and carries no ST flag, so normalized rows have ``trade_status=1`` and
-``is_st=None``. The token is read from a file, never from an environment variable.
+``is_st=None``. The token is read from a file, never from an environment variable. Calls go to
+``https://api.tushare.pro`` with the HTTP client's default certificate verification. The installed
+library's own default is plain HTTP on ``api.waditu.com``.
 """
 
 from __future__ import annotations
@@ -19,6 +21,7 @@ from app.markets.cn_ashare.providers.base import Fetched, ProviderError, parse_d
 from app.markets.cn_ashare.symbols import SymbolError, parse
 
 _FMT = units.TUSHARE.date_format
+_HTTPS_URL = "https://api.tushare.pro/dataapi"
 _BASIC_FIELDS = "ts_code,symbol,name,exchange,market,list_status,list_date,delist_date"
 
 
@@ -53,7 +56,9 @@ class TushareProvider:
             raise ProviderError(f"Tushare token file {p} is empty")
         import tushare  # optional dependency, imported only when Tushare is actually used
 
-        return cls(tushare.pro_api(token))
+        client = tushare.pro_api(token)
+        client._DataApi__http_url = _HTTPS_URL  # noqa: SLF001 — library exposes no public host setting
+        return cls(client)
 
     def securities(self) -> Fetched:
         raw: list[dict[str, Any]] = []
