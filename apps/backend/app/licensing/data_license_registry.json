@@ -1,0 +1,102 @@
+{
+  "schema_version": 1,
+  "entries": [
+    {
+      "source_id": "alpaca_market_data",
+      "license_scope": "PERSONAL",
+      "covers": [
+        "bars",
+        "trades",
+        "quotes",
+        "every Alpaca market-data feed (sip, iex, delayed_sip, any other feed value)"
+      ],
+      "basis": {
+        "date": "2026-10-12",
+        "document": "Alpaca Terms & Conditions and NYSE Market Data Display Services Agreement (owner's reading, PU-1 ruling 2026-10-12)",
+        "documents": [
+          {
+            "name": "Alpaca Terms & Conditions",
+            "summary": "personal, non-commercial use; copying restricted for publication, distribution or commercial enterprise",
+            "sha256": null,
+            "sha256_status": "PENDING_OWNER_SUPPLIED_AS_FETCHED_2026-10-12"
+          },
+          {
+            "name": "NYSE Market Data Display Services Agreement",
+            "summary": "no furnishing to others; derived data counts as Market Data",
+            "sha256": null,
+            "sha256_status": "PENDING_OWNER_SUPPLIED_AS_FETCHED_2026-10-12"
+          }
+        ],
+        "reading": "local storage permitted for personal use; no retention limit; no deletion required on cancel",
+        "reading_status": "owner's reading of the documents, recorded as such; not a legal conclusion",
+        "recheck_triggers": [
+          "either document hash changes",
+          "use becomes commercial",
+          "any account trading on these signals moves to an entity"
+        ]
+      },
+      "owner_ruling_ref": "PU-1 ruling 2026-10-12 (Jay Wang)"
+    },
+    {
+      "source_id": "owner_generated_records",
+      "license_scope": "COMMERCIAL_OK",
+      "covers": [
+        "the owner's own account, order, risk-gate-refusal and operational (uptime/reconciliation) records; no vendor market data"
+      ],
+      "basis": {
+        "date": "2026-10-12",
+        "document": "owner-generated operational records; contains no vendor market data",
+        "documents": [],
+        "no_vendor_documents": "owner-generated records; no vendor licence applies",
+        "reading": "a metric that touches market data (slippage against quotes, fill quality, P&L marked to market prices) is NOT covered: it carries the market-data source and stays PERSONAL by taint propagation",
+        "reading_status": "owner ruling, recorded as such; not a legal conclusion",
+        "recheck_triggers": [
+          "any field in these records is found to embed vendor market data"
+        ]
+      },
+      "owner_ruling_ref": "PU-1 ruling 2026-10-12 (Jay Wang)"
+    },
+    {
+      "source_id": "sharadar",
+      "license_scope": "UNKNOWN",
+      "covers": ["SEP prices", "SF1 fundamentals", "ACTIONS", "TICKERS"],
+      "basis": {"document": "contract not yet read", "date": null},
+      "owner_ruling_ref": "none: UNKNOWN is treated as PERSONAL until the contract is read"
+    },
+    {
+      "source_id": "fmp",
+      "license_scope": "UNKNOWN",
+      "covers": ["FMP /stable fundamentals and prices"],
+      "basis": {"document": "contract not yet read", "date": null},
+      "owner_ruling_ref": "none: UNKNOWN is treated as PERSONAL until the contract is read"
+    },
+    {
+      "source_id": "quiver",
+      "license_scope": "UNKNOWN",
+      "covers": ["government contracts", "congress trades", "lobbying"],
+      "basis": {"document": "contract not yet read (Hobbyist plan: no commercial-use rights per app/altdata/source_registry.py)", "date": null},
+      "owner_ruling_ref": "none: UNKNOWN is treated as PERSONAL until the contract is read"
+    },
+    {
+      "source_id": "sec_edgar",
+      "license_scope": "UNKNOWN",
+      "covers": ["SEC EDGAR filings (Form 4 insider transactions, CIK map) via data.sec.gov and www.sec.gov"],
+      "basis": {"document": "terms not yet read or ruled on by the owner (registered so the build-time registry-closure check passes; UNKNOWN is blocked like PERSONAL)", "date": null},
+      "owner_ruling_ref": "none: UNKNOWN is treated as PERSONAL until the terms are read"
+    },
+    {
+      "source_id": "usaspending",
+      "license_scope": "UNKNOWN",
+      "covers": ["USAspending.gov award data (Quiver cross-check)"],
+      "basis": {"document": "terms not yet read or ruled on by the owner (registered so the build-time registry-closure check passes; UNKNOWN is blocked like PERSONAL)", "date": null},
+      "owner_ruling_ref": "none: UNKNOWN is treated as PERSONAL until the terms are read"
+    },
+    {
+      "source_id": "fred",
+      "license_scope": "UNKNOWN",
+      "covers": ["FRED DGS3MO 3-month T-bill snapshot (cash benchmark)"],
+      "basis": {"document": "terms not yet read or ruled on by the owner (registered so the build-time registry-closure check passes; UNKNOWN is blocked like PERSONAL)", "date": null},
+      "owner_ruling_ref": "none: UNKNOWN is treated as PERSONAL until the terms are read"
+    }
+  ]
+}

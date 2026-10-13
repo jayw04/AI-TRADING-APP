@@ -408,6 +408,21 @@ jobs:
         if: matrix.p.project == 'backend'
         run: python apps/backend/scripts/check_research_plane_isolation.py
 
+      # PU-1 personal-use presentation gate (ADR 0057): the leaf-package/import tripwire, plus the
+      # two closure checks -- every export/render entry is gated or registered with a reason, and
+      # every ingestion source has a licence-registry row. Stdlib only; fail the build, not runtime.
+      - name: PU-1 presentation-gate invariant check (backend)
+        if: matrix.p.project == 'backend'
+        run: bash apps/backend/scripts/check_pu1_presentation_gate.sh
+
+      - name: PU-1 export-path closure check (backend)
+        if: matrix.p.project == 'backend'
+        run: python apps/backend/scripts/check_pu1_export_path_closure.py
+
+      - name: PU-1 licence-registry closure check (backend)
+        if: matrix.p.project == 'backend'
+        run: python apps/backend/scripts/check_pu1_registry_closure.py
+
   # The FULL Python suite, one matrix entry PER PROJECT that must run FULL this event (see the FULL
   # matrix). pytest + coverage for each; the backend entry additionally runs the risk/P2/P3 branch-
   # coverage gates. Runs on every push / dispatch / schedule AND on a PR for each project the classifier
@@ -452,6 +467,17 @@ jobs:
         if: matrix.pf.project == 'backend'
         working-directory: ${{ matrix.pf.dir }}
         run: python scripts/check_p3_coverage.py
+      # PU-1 gate tests are REQUIRED tests (ADR 0057): a skipped, deselected, renamed or deleted gate
+      # test passes plain pytest, so this re-runs them with JUnit and fails unless every test in
+      # apps/backend/ci/pu1_required_tests.json was collected AND PASSED.
+      - name: PU-1 required tests (gate tests + required-test verifier)
+        if: matrix.pf.project == 'backend'
+        working-directory: ${{ matrix.pf.dir }}
+        run: |
+          pytest tests/licensing tests/api/test_evidence_endpoint.py -p no:cacheprovider -vv \
+            -o junit_family=xunit2 --junitxml=pu1-junit.xml
+          python scripts/ci_verify_required_tests.py --junit pu1-junit.xml \
+            --manifest ci/pu1_required_tests.json --root . --phases pu1
 
       # RANGE-002 Linux acceptance evidence. The plain `pytest -q` above is green whether or not the
       # symlink / hardlink and POSIX fcntl tests EXECUTED (a skip, or a test that was never collected,

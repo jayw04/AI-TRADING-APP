@@ -50,7 +50,11 @@ PENDING = "PENDING"
 # Worst-first ordering when several outcomes are recorded for one id.
 _SEVERITY = (ERROR, FAILED, SKIPPED, PASSED)
 
-VALID_PHASES = ("pr2", "pr3")
+# "pu1" = the PU-1 presentation-gate required tests (apps/backend/ci/pu1_required_tests.json). It is a
+# separate phase with its own manifest and is NOT in the default set, so the RANGE-002 acceptance
+# step (whose JUnit contains only range002 tests) is unaffected.
+VALID_PHASES = ("pr2", "pr3", "pu1")
+DEFAULT_PHASES = ("pr2", "pr3")
 
 EXIT_OK = 0
 EXIT_FAIL = 1
@@ -236,8 +240,8 @@ def build_parser() -> argparse.ArgumentParser:
     )
     p.add_argument(
         "--phases",
-        default=",".join(VALID_PHASES),
-        help="comma-separated enabled phases (default: pr2,pr3)",
+        default=",".join(DEFAULT_PHASES),
+        help="comma-separated enabled phases (default: pr2,pr3; PU-1 uses --phases pu1)",
     )
     p.add_argument(
         "--allow-pending",

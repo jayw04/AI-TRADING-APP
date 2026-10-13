@@ -1,0 +1,477 @@
+{
+  "schema": 1,
+  "purpose": "PU-1 field classification of Alpaca broker/trading API responses. The broker API is a MIXED source: owner transaction/account records and marked-to-market market data arrive in the same response, so the host is not blanket NON_DATA. OWNER_RECORD fields map to owner_generated_records (COMMERCIAL_OK); MARKET_DATA fields map to alpaca_market_data (PERSONAL). Any field or response kind NOT listed here is classified MARKET_DATA (conservative). Used by app/licensing/broker_fields.py; the AST check in scripts/check_pu1_registry_closure.py enforces that modules reading the ast_enforced names go through that helper or are allowlisted with a reason.",
+  "source_ids": {
+    "OWNER_RECORD": "owner_generated_records",
+    "MARKET_DATA": "alpaca_market_data"
+  },
+  "default_class": "MARKET_DATA",
+  "ast_enforced_market_data_names": [
+    "current_price",
+    "market_value",
+    "unrealized_pl",
+    "unrealized_plpc",
+    "unrealized_intraday_pl",
+    "unrealized_intraday_plpc",
+    "change_today",
+    "lastday_price",
+    "long_market_value",
+    "short_market_value",
+    "position_market_value",
+    "portfolio_value",
+    "last_equity",
+    "buying_power",
+    "regt_buying_power",
+    "daytrading_buying_power",
+    "non_marginable_buying_power"
+  ],
+  "ast_not_enforced_note": "'equity' and 'cash' are classified in the table but NOT AST-enforced: 'equity' is a pervasive non-broker key (backtest curves, snapshots) and enforcing it would be noise. Consumers of broker 'equity' must use the helper by convention and are covered by tests at the wired extraction points.",
+  "kinds": {
+    "position": {
+      "description": "Alpaca broker/trading API position (GET /v2/positions) and its local mirror (positions table columns of the same names).",
+      "fields": {
+        "asset_id": {
+          "class": "OWNER_RECORD"
+        },
+        "symbol": {
+          "class": "OWNER_RECORD"
+        },
+        "exchange": {
+          "class": "OWNER_RECORD"
+        },
+        "asset_class": {
+          "class": "OWNER_RECORD"
+        },
+        "side": {
+          "class": "OWNER_RECORD"
+        },
+        "qty": {
+          "class": "OWNER_RECORD",
+          "note": "the owner's position size (own transaction record)"
+        },
+        "qty_available": {
+          "class": "OWNER_RECORD"
+        },
+        "avg_entry_price": {
+          "class": "OWNER_RECORD",
+          "note": "own average entry price: the owner's transaction record; owner ruling pending on treating own execution prices as owner records",
+          "review": true
+        },
+        "cost_basis": {
+          "class": "OWNER_RECORD",
+          "note": "own cost basis (qty x own entry price): the owner's transaction record; owner ruling pending",
+          "review": true
+        },
+        "current_price": {
+          "class": "MARKET_DATA",
+          "note": "latest market price"
+        },
+        "market_value": {
+          "class": "MARKET_DATA",
+          "note": "qty x current market price: marked to market"
+        },
+        "unrealized_pl": {
+          "class": "MARKET_DATA",
+          "note": "marked to market"
+        },
+        "unrealized_plpc": {
+          "class": "MARKET_DATA",
+          "note": "marked to market"
+        },
+        "unrealized_intraday_pl": {
+          "class": "MARKET_DATA",
+          "note": "marked to market"
+        },
+        "unrealized_intraday_plpc": {
+          "class": "MARKET_DATA",
+          "note": "marked to market"
+        },
+        "change_today": {
+          "class": "MARKET_DATA",
+          "note": "market-price change"
+        },
+        "lastday_price": {
+          "class": "MARKET_DATA",
+          "note": "prior-day market close"
+        },
+        "asset_marginable": {
+          "class": "MARKET_DATA",
+          "note": "vendor reference attribute (conservative)"
+        }
+      }
+    },
+    "order": {
+      "description": "Alpaca order object (POST/GET /v2/orders) and the local orders table.",
+      "fields": {
+        "id": {
+          "class": "OWNER_RECORD"
+        },
+        "client_order_id": {
+          "class": "OWNER_RECORD"
+        },
+        "asset_id": {
+          "class": "OWNER_RECORD"
+        },
+        "symbol": {
+          "class": "OWNER_RECORD"
+        },
+        "asset_class": {
+          "class": "OWNER_RECORD"
+        },
+        "side": {
+          "class": "OWNER_RECORD"
+        },
+        "type": {
+          "class": "OWNER_RECORD"
+        },
+        "order_type": {
+          "class": "OWNER_RECORD"
+        },
+        "order_class": {
+          "class": "OWNER_RECORD"
+        },
+        "time_in_force": {
+          "class": "OWNER_RECORD"
+        },
+        "status": {
+          "class": "OWNER_RECORD"
+        },
+        "extended_hours": {
+          "class": "OWNER_RECORD"
+        },
+        "qty": {
+          "class": "OWNER_RECORD"
+        },
+        "notional": {
+          "class": "OWNER_RECORD"
+        },
+        "filled_qty": {
+          "class": "OWNER_RECORD"
+        },
+        "limit_price": {
+          "class": "OWNER_RECORD",
+          "note": "the owner's own order instruction"
+        },
+        "stop_price": {
+          "class": "OWNER_RECORD",
+          "note": "the owner's own order instruction"
+        },
+        "trail_price": {
+          "class": "OWNER_RECORD"
+        },
+        "trail_percent": {
+          "class": "OWNER_RECORD"
+        },
+        "created_at": {
+          "class": "OWNER_RECORD"
+        },
+        "submitted_at": {
+          "class": "OWNER_RECORD"
+        },
+        "filled_at": {
+          "class": "OWNER_RECORD"
+        },
+        "updated_at": {
+          "class": "OWNER_RECORD"
+        },
+        "canceled_at": {
+          "class": "OWNER_RECORD"
+        },
+        "expired_at": {
+          "class": "OWNER_RECORD"
+        },
+        "failed_at": {
+          "class": "OWNER_RECORD"
+        },
+        "replaced_at": {
+          "class": "OWNER_RECORD"
+        },
+        "filled_avg_price": {
+          "class": "OWNER_RECORD",
+          "note": "own average fill price: the owner's transaction record; owner ruling pending on treating own execution prices as owner records",
+          "review": true
+        },
+        "hwm": {
+          "class": "MARKET_DATA",
+          "note": "high-water mark of the market price (trailing stop): market-derived"
+        },
+        "legs": {
+          "class": "MARKET_DATA",
+          "note": "nested order objects, not individually classified (conservative)"
+        }
+      }
+    },
+    "fill": {
+      "description": "Execution/fill row (local fills table, Alpaca trade-update fill events).",
+      "fields": {
+        "order_id": {
+          "class": "OWNER_RECORD"
+        },
+        "qty": {
+          "class": "OWNER_RECORD"
+        },
+        "commission": {
+          "class": "OWNER_RECORD"
+        },
+        "ts": {
+          "class": "OWNER_RECORD"
+        },
+        "symbol": {
+          "class": "OWNER_RECORD"
+        },
+        "side": {
+          "class": "OWNER_RECORD"
+        },
+        "price": {
+          "class": "OWNER_RECORD",
+          "note": "own fill price: the owner's transaction record; owner ruling pending",
+          "review": true
+        }
+      }
+    },
+    "account": {
+      "description": "Alpaca account object (GET /v2/account) and the local accounts_state table.",
+      "fields": {
+        "id": {
+          "class": "OWNER_RECORD"
+        },
+        "account_number": {
+          "class": "OWNER_RECORD"
+        },
+        "status": {
+          "class": "OWNER_RECORD"
+        },
+        "currency": {
+          "class": "OWNER_RECORD"
+        },
+        "created_at": {
+          "class": "OWNER_RECORD"
+        },
+        "cash": {
+          "class": "OWNER_RECORD",
+          "note": "the owner's cash balance"
+        },
+        "pattern_day_trader": {
+          "class": "OWNER_RECORD"
+        },
+        "trading_blocked": {
+          "class": "OWNER_RECORD"
+        },
+        "transfers_blocked": {
+          "class": "OWNER_RECORD"
+        },
+        "account_blocked": {
+          "class": "OWNER_RECORD"
+        },
+        "trade_suspended_by_user": {
+          "class": "OWNER_RECORD"
+        },
+        "shorting_enabled": {
+          "class": "OWNER_RECORD"
+        },
+        "multiplier": {
+          "class": "OWNER_RECORD"
+        },
+        "daytrade_count": {
+          "class": "OWNER_RECORD"
+        },
+        "equity": {
+          "class": "MARKET_DATA",
+          "note": "cash + marked-to-market positions"
+        },
+        "last_equity": {
+          "class": "MARKET_DATA",
+          "note": "prior-close equity: marked to market"
+        },
+        "portfolio_value": {
+          "class": "MARKET_DATA",
+          "note": "marked to market"
+        },
+        "long_market_value": {
+          "class": "MARKET_DATA"
+        },
+        "short_market_value": {
+          "class": "MARKET_DATA"
+        },
+        "position_market_value": {
+          "class": "MARKET_DATA"
+        },
+        "buying_power": {
+          "class": "MARKET_DATA",
+          "note": "derived from marked equity (conservative)"
+        },
+        "regt_buying_power": {
+          "class": "MARKET_DATA"
+        },
+        "daytrading_buying_power": {
+          "class": "MARKET_DATA"
+        },
+        "non_marginable_buying_power": {
+          "class": "MARKET_DATA"
+        },
+        "initial_margin": {
+          "class": "MARKET_DATA"
+        },
+        "maintenance_margin": {
+          "class": "MARKET_DATA"
+        },
+        "last_maintenance_margin": {
+          "class": "MARKET_DATA"
+        },
+        "sma": {
+          "class": "MARKET_DATA"
+        },
+        "day_change": {
+          "class": "MARKET_DATA",
+          "note": "derived from equity vs last_equity"
+        },
+        "day_change_pct": {
+          "class": "MARKET_DATA",
+          "note": "derived from equity vs last_equity"
+        }
+      }
+    },
+    "activity": {
+      "description": "Alpaca account activities (GET /v2/account/activities): fills, dividends, transfers.",
+      "fields": {
+        "id": {
+          "class": "OWNER_RECORD"
+        },
+        "activity_type": {
+          "class": "OWNER_RECORD"
+        },
+        "transaction_time": {
+          "class": "OWNER_RECORD"
+        },
+        "type": {
+          "class": "OWNER_RECORD"
+        },
+        "qty": {
+          "class": "OWNER_RECORD"
+        },
+        "side": {
+          "class": "OWNER_RECORD"
+        },
+        "symbol": {
+          "class": "OWNER_RECORD"
+        },
+        "leaves_qty": {
+          "class": "OWNER_RECORD"
+        },
+        "cum_qty": {
+          "class": "OWNER_RECORD"
+        },
+        "order_id": {
+          "class": "OWNER_RECORD"
+        },
+        "date": {
+          "class": "OWNER_RECORD"
+        },
+        "description": {
+          "class": "OWNER_RECORD"
+        },
+        "net_amount": {
+          "class": "OWNER_RECORD",
+          "note": "the owner's own cash movement"
+        },
+        "per_share_amount": {
+          "class": "OWNER_RECORD"
+        },
+        "price": {
+          "class": "OWNER_RECORD",
+          "note": "own fill price: the owner's transaction record; owner ruling pending",
+          "review": true
+        }
+      }
+    },
+    "portfolio_history": {
+      "description": "Alpaca portfolio history (GET /v2/account/portfolio/history).",
+      "fields": {
+        "timestamp": {
+          "class": "OWNER_RECORD"
+        },
+        "timeframe": {
+          "class": "OWNER_RECORD"
+        },
+        "equity": {
+          "class": "MARKET_DATA"
+        },
+        "profit_loss": {
+          "class": "MARKET_DATA"
+        },
+        "profit_loss_pct": {
+          "class": "MARKET_DATA"
+        },
+        "base_value": {
+          "class": "MARKET_DATA"
+        }
+      }
+    },
+    "asset": {
+      "description": "Alpaca asset master (GET /v2/assets): vendor reference data, not owner-generated.",
+      "default_class": "MARKET_DATA",
+      "fields": {
+        "id": {
+          "class": "MARKET_DATA",
+          "note": "vendor-provided reference data (not an owner record)"
+        },
+        "class": {
+          "class": "MARKET_DATA",
+          "note": "vendor-provided reference data (not an owner record)"
+        },
+        "exchange": {
+          "class": "MARKET_DATA",
+          "note": "vendor-provided reference data (not an owner record)"
+        },
+        "symbol": {
+          "class": "MARKET_DATA",
+          "note": "vendor-provided reference data (not an owner record)"
+        },
+        "name": {
+          "class": "MARKET_DATA",
+          "note": "vendor-provided reference data (not an owner record)"
+        },
+        "status": {
+          "class": "MARKET_DATA",
+          "note": "vendor-provided reference data (not an owner record)"
+        },
+        "tradable": {
+          "class": "MARKET_DATA",
+          "note": "vendor-provided reference data (not an owner record)"
+        },
+        "marginable": {
+          "class": "MARKET_DATA",
+          "note": "vendor-provided reference data (not an owner record)"
+        },
+        "shortable": {
+          "class": "MARKET_DATA",
+          "note": "vendor-provided reference data (not an owner record)"
+        },
+        "easy_to_borrow": {
+          "class": "MARKET_DATA",
+          "note": "vendor-provided reference data (not an owner record)"
+        },
+        "fractionable": {
+          "class": "MARKET_DATA",
+          "note": "vendor-provided reference data (not an owner record)"
+        },
+        "min_order_size": {
+          "class": "MARKET_DATA",
+          "note": "vendor-provided reference data (not an owner record)"
+        },
+        "min_trade_increment": {
+          "class": "MARKET_DATA",
+          "note": "vendor-provided reference data (not an owner record)"
+        },
+        "price_increment": {
+          "class": "MARKET_DATA",
+          "note": "vendor-provided reference data (not an owner record)"
+        },
+        "maintenance_margin_requirement": {
+          "class": "MARKET_DATA",
+          "note": "vendor-provided reference data (not an owner record)"
+        }
+      }
+    }
+  }
+}

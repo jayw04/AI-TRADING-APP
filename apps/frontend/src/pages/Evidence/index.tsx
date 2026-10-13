@@ -1,8 +1,11 @@
 import { useQuery } from "@tanstack/react-query";
 import { evidenceApi } from "@/api/evidence";
-import type { ResearchProgram, KpiRow } from "@/api/evidence";
+import type { ResearchProgram, KpiRow, PanelId, PanelLicense } from "@/api/evidence";
 
 const REFETCH_MS = 15_000;
+
+// PU-1: fixed marking. There is deliberately no prop, setting or query parameter that hides it.
+const PU1_FOOTER = "PERSONAL USE ONLY — not for presentation (PU-1)";
 
 const DOT: Record<ResearchProgram["color"], string> = {
   green: "bg-emerald-500",
@@ -18,15 +21,43 @@ const KPI_BADGE: Record<KpiRow["status"], string> = {
   n_a: "bg-neutral-800 text-neutral-400",
 };
 
-function Card({ title, subtitle, children }: { title: string; subtitle?: string; children: React.ReactNode }) {
+// PU-1: a panel is presentable only with an explicit COMMERCIAL_OK scope; a missing field,
+// missing panel entry or failed response is blocked.
+function panelBlocked(lic: PanelLicense | undefined): boolean {
+  return lic?.license_scope !== "COMMERCIAL_OK";
+}
+
+function Card({
+  title,
+  subtitle,
+  license,
+  children,
+}: {
+  title: string;
+  subtitle?: string;
+  license: PanelLicense | undefined;
+  children: React.ReactNode;
+}) {
   return (
     <div className="rounded-lg bg-neutral-900 border border-neutral-800 p-5">
       <h3 className="text-base font-semibold text-neutral-100">{title}</h3>
       {subtitle && <p className="text-xs text-neutral-400 mt-0.5">{subtitle}</p>}
       <div className="mt-3">{children}</div>
+      {panelBlocked(license) && (
+        <div
+          role="note"
+          data-pu1="personal-use-only"
+          className="mt-3 rounded-md border border-red-800 bg-red-950 px-3 py-2 text-center text-xs font-semibold text-red-300"
+        >
+          {PU1_FOOTER}
+        </div>
+      )}
     </div>
   );
 }
+
+// Panels rendered below. Print needs EVERY one of them to be COMMERCIAL_OK.
+const VISIBLE_PANELS: PanelId[] = ["confidence", "research_programs", "kpis", "strategies"];
 
 function Bar({ label, value, weight }: { label: string; value: number; weight: number }) {
   return (
@@ -50,6 +81,10 @@ export default function Evidence() {
     retry: false,
   });
   const d = q.data;
+  // PU-1: Print is enabled only when EVERY visible panel is explicitly COMMERCIAL_OK (a missing
+  // field, a missing panel or a failed response is blocked: PU1_PERSONAL_SCOPE_BLOCKED).
+  const panels = d?.panels;
+  const personalScope = !d || VISIBLE_PANELS.some((id) => panelBlocked(panels?.[id]));
 
   return (
     <div className="grid gap-4">
@@ -63,6 +98,8 @@ export default function Evidence() {
         </div>
         <button
           onClick={() => window.print()}
+          disabled={personalScope}
+          title={personalScope ? "PU1_PERSONAL_SCOPE_BLOCKED: personal-use data cannot be printed" : undefined}
           className="print:hidden shrink-0 rounded-md border border-neutral-700 px-3 py-1.5 text-sm text-neutral-200 hover:bg-neutral-800"
         >
           Print report
@@ -75,7 +112,7 @@ export default function Evidence() {
       {d && (
         <div className="grid gap-4 lg:grid-cols-2">
           {/* Production Confidence Score */}
-          <Card title="Production Confidence Score" subtitle="Rises with clean operation over time">
+          <Card title="Production Confidence Score" subtitle="Rises with clean operation over time" license={panels?.confidence}>
             <div className="flex items-baseline gap-3">
               <span className="text-4xl font-bold text-neutral-100">{Math.round(d.confidence.score)}</span>
               <span className="text-neutral-500">/ 100</span>
@@ -95,7 +132,7 @@ export default function Evidence() {
           </Card>
 
           {/* Research programs */}
-          <Card title="Research Programs" subtitle="Every program produces a citable verdict">
+          <Card title="Research Programs" subtitle="Every program produces a citable verdict" license={panels?.research_programs}>
             <ul className="space-y-2">
               {d.research_programs.map((p) => (
                 <li key={p.id} className="flex gap-3 text-sm">
@@ -113,7 +150,7 @@ export default function Evidence() {
           </Card>
 
           {/* Operational KPIs */}
-          <Card title="Operational KPIs" subtitle={`${d.kpis.summary.ok ?? 0} ok · ${d.kpis.summary.watch ?? 0} watch · ${d.kpis.summary.n_a ?? 0} n/a`}>
+          <Card title="Operational KPIs" subtitle={`${d.kpis.summary.ok ?? 0} ok · ${d.kpis.summary.watch ?? 0} watch · ${d.kpis.summary.n_a ?? 0} n/a`} license={panels?.kpis}>
             <table className="w-full text-sm">
               <tbody>
                 {d.kpis.rows.map((k) => (
@@ -134,7 +171,7 @@ export default function Evidence() {
           </Card>
 
           {/* Live strategy books */}
-          <Card title="Live Strategy Books" subtitle="The momentum risk dial + any other registered strategies">
+          <Card title="Live Strategy Books" subtitle="The momentum risk dial + any other registered strategies" license={panels?.strategies}>
             <table className="w-full text-sm">
               <tbody>
                 {d.strategies.map((s) => (
@@ -152,6 +189,16 @@ export default function Evidence() {
               </tbody>
             </table>
           </Card>
+        </div>
+      )}
+
+      {!d && (
+        <div
+          role="note"
+          data-pu1="personal-use-only"
+          className="rounded-md border border-red-800 bg-red-950 px-3 py-2 text-center text-sm font-semibold text-red-300"
+        >
+          {PU1_FOOTER}
         </div>
       )}
     </div>

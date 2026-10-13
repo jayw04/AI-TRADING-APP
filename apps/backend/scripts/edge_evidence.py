@@ -17,13 +17,17 @@ From the repo root (so the default store path resolves):
 
 Use a small window + --bootstrap 300 + --walk-forward 80x5 for a fast smoke; the full headline run
 (1997-2026, n=200, 200x7) is a long job.
+
+INTERNAL report (PU-1). Inputs: the Sharadar-sourced factor store (prices, tickers, sectors) and,
+when present, the committed SPY benchmark fixture built from Alpaca bars, so the declared sources
+are ``sharadar`` and ``alpaca_market_data`` (UNKNOWN / PERSONAL). The output carries the PU-1 footer
+and a scope sidecar. A label or sidecar does not establish permission to share it.
 """
 
 from __future__ import annotations
 
 import argparse
 import hashlib
-import json
 import platform
 import socket
 import subprocess
@@ -40,6 +44,19 @@ if str(BACKEND_ROOT) not in sys.path:
 from app.factor_data import evidence as ev  # noqa: E402
 from app.factor_data.backtest import run_momentum_backtest  # noqa: E402
 from app.factor_data.store import FactorDataStore  # noqa: E402
+from app.licensing import (  # noqa: E402
+    ALPACA_MARKET_DATA,
+    PERMISSION_NOTE,
+    write_internal_json,
+    write_internal_report,
+)
+
+# PU-1 declared sources, from this script's actual reads: the factor store (Sharadar SEP / TICKERS
+# / sector data via FactorDataStore + ev.dataset_health) and tests/fixtures/spy_daily.parquet (SPY
+# daily closes generated from Alpaca bars by scripts/build_spy_fixture.py). The FMP / Quiver tables
+# that also live in the store are not read by the momentum backtest or the health gate. If a
+# future option reads them, add the source here.
+LICENSE_SOURCES: tuple[str, ...] = ("sharadar", ALPACA_MARKET_DATA)
 
 # Seven contiguous regime windows (the 5 from the vol-scaling walk-forward + 2 recent).
 REGIME_WINDOWS: list[tuple[str, date, date]] = [
@@ -317,9 +334,9 @@ def main() -> int:
     if args.report_dir:
         d = Path(args.report_dir)
         d.mkdir(parents=True, exist_ok=True)
-        (d / "edge_evidence.json").write_text(json.dumps(result, indent=2, default=str),
-                                              encoding="utf-8")
-        (d / "edge_evidence.md").write_text(_render_md(result), encoding="utf-8")
+        write_internal_json(d / "edge_evidence.json",
+                            {**result, "license_note": PERMISSION_NOTE}, sources=LICENSE_SOURCES)
+        write_internal_report(d / "edge_evidence.md", _render_md(result), sources=LICENSE_SOURCES)
         print(f"  wrote {d / 'edge_evidence.json'} + edge_evidence.md")
     return 0
 
@@ -430,6 +447,8 @@ def _render_md(r: dict[str, Any]) -> str:
         "",
         "## Recommendation",
         "Carry this baseline into §2 (vol-scaling / sector-caps lift) using the same harness.",
+        "",
+        f"_{PERMISSION_NOTE}_",
     ]
     return "\n".join(lines) + "\n"
 

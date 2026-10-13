@@ -1,0 +1,762 @@
+{
+  "schema": 1,
+  "purpose": "PU-1 export-path registry. Every function that writes, renders or targets an outbound location is listed as GATED (passes through the app.licensing seam / marks output) or INTERNAL_ONLY (private working set, with a reason). Verified by apps/backend/scripts/check_pu1_export_path_closure.py; a function on neither list fails the build. Adding an INTERNAL_ONLY entry is a reviewed change; there is no override.",
+  "entries": [
+    {
+      "file": "apps/backend/app/api/v1/evidence.py",
+      "functions": [
+        "evidence_summary"
+      ],
+      "classification": "GATED",
+      "reason": "Evidence API (feeds the printable Evidence page): per-panel license_scope/license_sources/footer, combined top-level scope; marking is the control, the page disables Print"
+    },
+    {
+      "file": "apps/backend/app/licensing/envelope.py",
+      "functions": "*",
+      "classification": "GATED",
+      "reason": "the PU-1 seam itself (app/licensing): the only package allowed to write for external use; gate-before-write is verified by the check"
+    },
+    {
+      "file": "apps/backend/app/licensing/output.py",
+      "functions": "*",
+      "classification": "GATED",
+      "reason": "the PU-1 seam itself (app/licensing): the only package allowed to write for external use; gate-before-write is verified by the check"
+    },
+    {
+      "file": "apps/backend/app/research/dashboard/render.py",
+      "functions": [
+        "render_dashboard",
+        "write_dashboard"
+      ],
+      "classification": "GATED",
+      "reason": "research dashboard render/write: stamps the PU-1 footer and writes through write_internal_report (sidecar scope)"
+    },
+    {
+      "file": "apps/backend/app/validation/aws/s3_sink.py",
+      "functions": "*",
+      "classification": "INTERNAL_ONLY",
+      "reason": "ADR-0046 S3 Object-Lock external-witness sink: publishes chain-tip anchors (hashes) to the governed witness bucket via put_object; sealed/frozen governed writer, detected by the third-party egress rule, not a presentation path"
+    },
+    {
+      "file": "scripts/fleet_audit/ec2_fleet_audit.py",
+      "functions": "*",
+      "classification": "INTERNAL_ONLY",
+      "reason": "EC2 fleet-audit Lambda: writes a dated infrastructure receipt (instance ids, verdict) to the owner's S3 receipt bucket via put_object, detected by the third-party egress rule; operational detection control, no market data, not a presentation path"
+    },
+    {
+      "file": "scripts/reports/morning_opportunities.py",
+      "functions": [
+        "main"
+      ],
+      "classification": "GATED",
+      "reason": "user-facing watchlist printed with the PU-1 footer via stamp (sources: alpaca_market_data)"
+    },
+    {
+      "file": "apps/backend/app/altdata/insider_monitor.py",
+      "functions": "*",
+      "classification": "INTERNAL_ONLY",
+      "reason": "EAD insider-monitor universe manifest: internal research working set"
+    },
+    {
+      "file": "apps/backend/app/api/v1/strategy_authoring.py",
+      "functions": "*",
+      "classification": "INTERNAL_ONLY",
+      "reason": "writes the owner's own authored strategy source into the private strategies_user/ tree; code, not a report"
+    },
+    {
+      "file": "apps/backend/app/brokers/adr0043_reconcile.py",
+      "functions": "*",
+      "classification": "INTERNAL_ONLY",
+      "reason": "ADR-0043 governed reconciliation evidence record; sealed/frozen governed writer, not a presentation path"
+    },
+    {
+      "file": "apps/backend/app/jobs/scheduler_heartbeat.py",
+      "functions": "*",
+      "classification": "INTERNAL_ONLY",
+      "reason": "persists a local host-id file for the scheduler heartbeat; operational state"
+    },
+    {
+      "file": "apps/backend/app/market_data/bar_cache.py",
+      "functions": "*",
+      "classification": "INTERNAL_ONLY",
+      "reason": "local market-data bar cache (parquet); internal cache read back by the platform, never rendered"
+    },
+    {
+      "file": "apps/backend/app/research/capture/store.py",
+      "functions": "*",
+      "classification": "INTERNAL_ONLY",
+      "reason": "MDQ immutable research-capture archive (sealed/frozen writer); internal evidence store"
+    },
+    {
+      "file": "apps/backend/app/research/disc001/snapshot.py",
+      "functions": "*",
+      "classification": "INTERNAL_ONLY",
+      "reason": "DISC-001 watchlist snapshot record: internal research evidence"
+    },
+    {
+      "file": "apps/backend/app/research/engine/orchestrator.py",
+      "functions": "*",
+      "classification": "INTERNAL_ONLY",
+      "reason": "research-registry run artifacts under the owner's local research store"
+    },
+    {
+      "file": "apps/backend/app/risk/loss_control/phase0_checkpoint.py",
+      "functions": "*",
+      "classification": "INTERNAL_ONLY",
+      "reason": "ADR-0043 sealed loss-control checkpoint; sealed/frozen writer, not a presentation path"
+    },
+    {
+      "file": "apps/backend/app/services/gapper_shadow_ledger.py",
+      "functions": "*",
+      "classification": "INTERNAL_ONLY",
+      "reason": "gapper shadow-ledger persistence: internal research ledger"
+    },
+    {
+      "file": "apps/backend/app/services/premarket_evidence.py",
+      "functions": "*",
+      "classification": "INTERNAL_ONLY",
+      "reason": "premarket evidence record consumed by the (gated) morning_opportunities report; internal store"
+    },
+    {
+      "file": "apps/backend/app/services/strategy_authoring/backtest.py",
+      "functions": "*",
+      "classification": "INTERNAL_ONLY",
+      "reason": "writes generated strategy code to a temp file for the sandboxed backtest; not an output"
+    },
+    {
+      "file": "apps/backend/app/validation/aws/integration_proof.py",
+      "functions": "*",
+      "classification": "INTERNAL_ONLY",
+      "reason": "ADR-0046 integration-proof evidence bundle; sealed/frozen governed writer"
+    },
+    {
+      "file": "apps/backend/app/validation/aws/production_witness.py",
+      "functions": "*",
+      "classification": "INTERNAL_ONLY",
+      "reason": "ADR-0046 production-witness evidence bundle; sealed/frozen governed writer"
+    },
+    {
+      "file": "apps/backend/app/validation/chain_anchor.py",
+      "functions": "*",
+      "classification": "INTERNAL_ONLY",
+      "reason": "forward-validation chain anchor log (append-only); sealed/frozen governed writer"
+    },
+    {
+      "file": "apps/backend/app/validation/forward_session_runner.py",
+      "functions": "*",
+      "classification": "INTERNAL_ONLY",
+      "reason": "forward-validation session receipts/stop log (append-only); sealed/frozen governed writer"
+    },
+    {
+      "file": "apps/backend/app/validation/instrument_state_store.py",
+      "functions": "*",
+      "classification": "INTERNAL_ONLY",
+      "reason": "forward-validation instrument state store; governed internal store"
+    },
+    {
+      "file": "apps/backend/app/validation/observation_store.py",
+      "functions": "*",
+      "classification": "INTERNAL_ONLY",
+      "reason": "forward-validation observation store (append-only); governed internal store"
+    },
+    {
+      "file": "apps/backend/app/validation/shadow_ledger.py",
+      "functions": "*",
+      "classification": "INTERNAL_ONLY",
+      "reason": "forward-validation shadow ledger; governed internal store"
+    },
+    {
+      "file": "apps/backend/scripts/adr0042_canary_lib.py",
+      "functions": "*",
+      "classification": "INTERNAL_ONLY",
+      "reason": "ADR-0042/0043 governed harness, canary or seal writer; sealed/frozen output, not a presentation path"
+    },
+    {
+      "file": "apps/backend/scripts/adr0042_concurrency_worker.py",
+      "functions": "*",
+      "classification": "INTERNAL_ONLY",
+      "reason": "ADR-0042/0043 governed harness, canary or seal writer; sealed/frozen output, not a presentation path"
+    },
+    {
+      "file": "apps/backend/scripts/adr0042_preflight.py",
+      "functions": "*",
+      "classification": "INTERNAL_ONLY",
+      "reason": "ADR-0042/0043 governed harness, canary or seal writer; sealed/frozen output, not a presentation path"
+    },
+    {
+      "file": "apps/backend/scripts/adr0043_canary_lib.py",
+      "functions": "*",
+      "classification": "INTERNAL_ONLY",
+      "reason": "ADR-0042/0043 governed harness, canary or seal writer; sealed/frozen output, not a presentation path"
+    },
+    {
+      "file": "apps/backend/scripts/adr0043_churn_driver.py",
+      "functions": "*",
+      "classification": "INTERNAL_ONLY",
+      "reason": "ADR-0042/0043 governed harness, canary or seal writer; sealed/frozen output, not a presentation path"
+    },
+    {
+      "file": "apps/backend/scripts/adr0043_evgap_acq_freeze_seal.py",
+      "functions": "*",
+      "classification": "INTERNAL_ONLY",
+      "reason": "ADR-0042/0043 governed harness, canary or seal writer; sealed/frozen output, not a presentation path"
+    },
+    {
+      "file": "apps/backend/scripts/adr0043_o34_acq_freeze_seal.py",
+      "functions": "*",
+      "classification": "INTERNAL_ONLY",
+      "reason": "ADR-0042/0043 governed harness, canary or seal writer; sealed/frozen output, not a presentation path"
+    },
+    {
+      "file": "apps/backend/scripts/adr0043_session_open.py",
+      "functions": "*",
+      "classification": "INTERNAL_ONLY",
+      "reason": "ADR-0042/0043 governed harness, canary or seal writer; sealed/frozen output, not a presentation path"
+    },
+    {
+      "file": "apps/backend/scripts/adr0043_wp0_seal.py",
+      "functions": "*",
+      "classification": "INTERNAL_ONLY",
+      "reason": "ADR-0042/0043 governed harness, canary or seal writer; sealed/frozen output, not a presentation path"
+    },
+    {
+      "file": "apps/backend/scripts/backtest_momentum_stage2.py",
+      "functions": "*",
+      "classification": "INTERNAL_ONLY",
+      "reason": "internal research / validation script output written to the owner's local research tree; not an outbound location"
+    },
+    {
+      "file": "apps/backend/scripts/backtest_momentum_stage3.py",
+      "functions": "*",
+      "classification": "INTERNAL_ONLY",
+      "reason": "internal research / validation script output written to the owner's local research tree; not an outbound location"
+    },
+    {
+      "file": "apps/backend/scripts/backtest_momentum_stage4.py",
+      "functions": "*",
+      "classification": "INTERNAL_ONLY",
+      "reason": "internal research / validation script output written to the owner's local research tree; not an outbound location"
+    },
+    {
+      "file": "apps/backend/scripts/backtest_momentum_window.py",
+      "functions": "*",
+      "classification": "INTERNAL_ONLY",
+      "reason": "internal research / validation script output written to the owner's local research tree; not an outbound location"
+    },
+    {
+      "file": "apps/backend/scripts/backtest_range_trader_sweep.py",
+      "functions": "*",
+      "classification": "INTERNAL_ONLY",
+      "reason": "internal research script output (reports/CSV/JSON) written to the owner's local research tree; not an outbound location"
+    },
+    {
+      "file": "apps/backend/scripts/bake_code_identity.py",
+      "functions": "*",
+      "classification": "INTERNAL_ONLY",
+      "reason": "operational / data-pipeline writer (identity bake, factor store, event store, resume marker); internal state, not a report"
+    },
+    {
+      "file": "apps/backend/scripts/build_spy_fixture.py",
+      "functions": "*",
+      "classification": "INTERNAL_ONLY",
+      "reason": "test-fixture generator; writes synthetic or local fixture bars, never an outbound location"
+    },
+    {
+      "file": "apps/backend/scripts/candidate_engine.py",
+      "functions": "*",
+      "classification": "INTERNAL_ONLY",
+      "reason": "internal research / validation script output written to the owner's local research tree; not an outbound location"
+    },
+    {
+      "file": "apps/backend/scripts/candidate_engine_v0_2.py",
+      "functions": "*",
+      "classification": "INTERNAL_ONLY",
+      "reason": "internal research / validation script output written to the owner's local research tree; not an outbound location"
+    },
+    {
+      "file": "apps/backend/scripts/candidate_engine_v0_3.py",
+      "functions": "*",
+      "classification": "INTERNAL_ONLY",
+      "reason": "internal research / validation script output written to the owner's local research tree; not an outbound location"
+    },
+    {
+      "file": "apps/backend/scripts/candidate_engine_v0_4.py",
+      "functions": "*",
+      "classification": "INTERNAL_ONLY",
+      "reason": "internal research / validation script output written to the owner's local research tree; not an outbound location"
+    },
+    {
+      "file": "apps/backend/scripts/candidate_engine_v0_5.py",
+      "functions": "*",
+      "classification": "INTERNAL_ONLY",
+      "reason": "internal research / validation script output written to the owner's local research tree; not an outbound location"
+    },
+    {
+      "file": "apps/backend/scripts/cap020_regime_validation.py",
+      "functions": "*",
+      "classification": "INTERNAL_ONLY",
+      "reason": "internal research / validation script output written to the owner's local research tree; not an outbound location"
+    },
+    {
+      "file": "apps/backend/scripts/ci_replay_adr0043_gate.py",
+      "functions": "*",
+      "classification": "INTERNAL_ONLY",
+      "reason": "ADR-0042/0043 governed harness, canary or seal writer; sealed/frozen output, not a presentation path"
+    },
+    {
+      "file": "apps/backend/scripts/ci_verify_required_tests.py",
+      "functions": "*",
+      "classification": "INTERNAL_ONLY",
+      "reason": "CI helper writing its own result table; not market data, not a presentation path"
+    },
+    {
+      "file": "apps/backend/scripts/confidence_score.py",
+      "functions": "*",
+      "classification": "INTERNAL_ONLY",
+      "reason": "INTERNAL evidence report written under docs/implementation/evidence (the owner's working tree) through write_internal_report/write_internal_json (PU-1 footer + scope sidecar; declared sources: owner_generated_records + alpaca_market_data (replay mismatch counters recompute breaker trips from marked-to-market unrealized_pl)). Kept INTERNAL_ONLY until content and source basis support presentation: a presentation label or sidecar does not establish permission to share it; it leaves the working tree only through export_file_for_external_use, which refuses PERSONAL/UNKNOWN scope and files without a valid sidecar."
+    },
+    {
+      "file": "apps/backend/scripts/drift_audit_momentum_daily.py",
+      "functions": "*",
+      "classification": "INTERNAL_ONLY",
+      "reason": "internal research / validation script output written to the owner's local research tree; not an outbound location"
+    },
+    {
+      "file": "apps/backend/scripts/edge_evidence.py",
+      "functions": "*",
+      "classification": "INTERNAL_ONLY",
+      "reason": "INTERNAL evidence report written under docs/implementation/evidence (the owner's working tree) through write_internal_report/write_internal_json (PU-1 footer + scope sidecar; declared sources: sharadar + alpaca_market_data (factor store; SPY fixture from Alpaca bars)). Kept INTERNAL_ONLY until content and source basis support presentation: a presentation label or sidecar does not establish permission to share it; it leaves the working tree only through export_file_for_external_use, which refuses PERSONAL/UNKNOWN scope and files without a valid sidecar."
+    },
+    {
+      "file": "apps/backend/scripts/factor_evidence.py",
+      "functions": "*",
+      "classification": "INTERNAL_ONLY",
+      "reason": "operational / data-pipeline writer (identity bake, factor store, event store, resume marker); internal state, not a report"
+    },
+    {
+      "file": "apps/backend/scripts/factor_refresh.py",
+      "functions": "*",
+      "classification": "INTERNAL_ONLY",
+      "reason": "operational / data-pipeline writer (identity bake, factor store, event store, resume marker); internal state, not a report"
+    },
+    {
+      "file": "apps/backend/scripts/factor_research.py",
+      "functions": "*",
+      "classification": "INTERNAL_ONLY",
+      "reason": "internal research script output (reports/CSV/JSON) written to the owner's local research tree; not an outbound location"
+    },
+    {
+      "file": "apps/backend/scripts/fi001_phase1_measurement.py",
+      "functions": "*",
+      "classification": "INTERNAL_ONLY",
+      "reason": "internal research / validation script output written to the owner's local research tree; not an outbound location"
+    },
+    {
+      "file": "apps/backend/scripts/fi001_phase2_interaction.py",
+      "functions": "*",
+      "classification": "INTERNAL_ONLY",
+      "reason": "internal research / validation script output written to the owner's local research tree; not an outbound location"
+    },
+    {
+      "file": "apps/backend/scripts/fi001_phase3_allocation.py",
+      "functions": "*",
+      "classification": "INTERNAL_ONLY",
+      "reason": "internal research / validation script output written to the owner's local research tree; not an outbound location"
+    },
+    {
+      "file": "apps/backend/scripts/fi001_phase4_adaptive.py",
+      "functions": "*",
+      "classification": "INTERNAL_ONLY",
+      "reason": "internal research / validation script output written to the owner's local research tree; not an outbound location"
+    },
+    {
+      "file": "apps/backend/scripts/forward_validation/build_combined_delta.py",
+      "functions": "*",
+      "classification": "INTERNAL_ONLY",
+      "reason": "forward-validation / layer-2 governed-corpus evidence writer; sealed/frozen governed output kept in the evidence store, not edited"
+    },
+    {
+      "file": "apps/backend/scripts/forward_validation/build_delta_artifacts.py",
+      "functions": "*",
+      "classification": "INTERNAL_ONLY",
+      "reason": "forward-validation / layer-2 governed-corpus evidence writer; sealed/frozen governed output kept in the evidence store, not edited"
+    },
+    {
+      "file": "apps/backend/scripts/forward_validation/build_price_universe_artifact.py",
+      "functions": "*",
+      "classification": "INTERNAL_ONLY",
+      "reason": "forward-validation / layer-2 governed-corpus evidence writer; sealed/frozen governed output kept in the evidence store, not edited"
+    },
+    {
+      "file": "apps/backend/scripts/forward_validation/build_tickers_delta.py",
+      "functions": "*",
+      "classification": "INTERNAL_ONLY",
+      "reason": "forward-validation / layer-2 governed-corpus evidence writer; sealed/frozen governed output kept in the evidence store, not edited"
+    },
+    {
+      "file": "apps/backend/scripts/forward_validation/build_universe_crosswalk.py",
+      "functions": "*",
+      "classification": "INTERNAL_ONLY",
+      "reason": "forward-validation / layer-2 governed-corpus evidence writer; sealed/frozen governed output kept in the evidence store, not edited"
+    },
+    {
+      "file": "apps/backend/scripts/forward_validation/capture_verify_session.py",
+      "functions": "*",
+      "classification": "INTERNAL_ONLY",
+      "reason": "forward-validation / layer-2 governed-corpus evidence writer; sealed/frozen governed output kept in the evidence store, not edited"
+    },
+    {
+      "file": "apps/backend/scripts/forward_validation/extract_single_vintage.py",
+      "functions": "*",
+      "classification": "INTERNAL_ONLY",
+      "reason": "forward-validation / layer-2 governed-corpus evidence writer; sealed/frozen governed output kept in the evidence store, not edited"
+    },
+    {
+      "file": "apps/backend/scripts/forward_validation/generate_construction_manifests.py",
+      "functions": "*",
+      "classification": "INTERNAL_ONLY",
+      "reason": "forward-validation / layer-2 governed-corpus evidence writer; sealed/frozen governed output kept in the evidence store, not edited"
+    },
+    {
+      "file": "apps/backend/scripts/forward_validation/generate_measurement_freeze.py",
+      "functions": "*",
+      "classification": "INTERNAL_ONLY",
+      "reason": "forward-validation / layer-2 governed-corpus evidence writer; sealed/frozen governed output kept in the evidence store, not edited"
+    },
+    {
+      "file": "apps/backend/scripts/forward_validation/july27_exclusion_impact_check.py",
+      "functions": "*",
+      "classification": "INTERNAL_ONLY",
+      "reason": "forward-validation / layer-2 governed-corpus evidence writer; sealed/frozen governed output kept in the evidence store, not edited"
+    },
+    {
+      "file": "apps/backend/scripts/forward_validation/layer2_adjustment_reconciliation.py",
+      "functions": "*",
+      "classification": "INTERNAL_ONLY",
+      "reason": "forward-validation / layer-2 governed-corpus evidence writer; sealed/frozen governed output kept in the evidence store, not edited"
+    },
+    {
+      "file": "apps/backend/scripts/forward_validation/layer2_complete_package.py",
+      "functions": "*",
+      "classification": "INTERNAL_ONLY",
+      "reason": "forward-validation / layer-2 governed-corpus evidence writer; sealed/frozen governed output kept in the evidence store, not edited"
+    },
+    {
+      "file": "apps/backend/scripts/forward_validation/layer2_lineage_hole_census.py",
+      "functions": "*",
+      "classification": "INTERNAL_ONLY",
+      "reason": "forward-validation / layer-2 governed-corpus evidence writer; sealed/frozen governed output kept in the evidence store, not edited"
+    },
+    {
+      "file": "apps/backend/scripts/forward_validation/layer2_residual_relevance.py",
+      "functions": "*",
+      "classification": "INTERNAL_ONLY",
+      "reason": "forward-validation / layer-2 governed-corpus evidence writer; sealed/frozen governed output kept in the evidence store, not edited"
+    },
+    {
+      "file": "apps/backend/scripts/forward_validation/layer2_shop_tln_quarantine.py",
+      "functions": "*",
+      "classification": "INTERNAL_ONLY",
+      "reason": "forward-validation / layer-2 governed-corpus evidence writer; sealed/frozen governed output kept in the evidence store, not edited"
+    },
+    {
+      "file": "apps/backend/scripts/forward_validation/layer2_step4_july27_recompute.py",
+      "functions": "*",
+      "classification": "INTERNAL_ONLY",
+      "reason": "forward-validation / layer-2 governed-corpus evidence writer; sealed/frozen governed output kept in the evidence store, not edited"
+    },
+    {
+      "file": "apps/backend/scripts/forward_validation/layer2_step5_exclusion_impact_273.py",
+      "functions": "*",
+      "classification": "INTERNAL_ONLY",
+      "reason": "forward-validation / layer-2 governed-corpus evidence writer; sealed/frozen governed output kept in the evidence store, not edited"
+    },
+    {
+      "file": "apps/backend/scripts/forward_validation/layer2_step6_corpus_manifest.py",
+      "functions": "*",
+      "classification": "INTERNAL_ONLY",
+      "reason": "forward-validation / layer-2 governed-corpus evidence writer; sealed/frozen governed output kept in the evidence store, not edited"
+    },
+    {
+      "file": "apps/backend/scripts/forward_validation/layer2_step7_supersession_package.py",
+      "functions": "*",
+      "classification": "INTERNAL_ONLY",
+      "reason": "forward-validation / layer-2 governed-corpus evidence writer; sealed/frozen governed output kept in the evidence store, not edited"
+    },
+    {
+      "file": "apps/backend/scripts/forward_validation/layer2_tolerance_remeasurement.py",
+      "functions": "*",
+      "classification": "INTERNAL_ONLY",
+      "reason": "forward-validation / layer-2 governed-corpus evidence writer; sealed/frozen governed output kept in the evidence store, not edited"
+    },
+    {
+      "file": "apps/backend/scripts/forward_validation/phase_c_readiness.py",
+      "functions": "*",
+      "classification": "INTERNAL_ONLY",
+      "reason": "forward-validation / layer-2 governed-corpus evidence writer; sealed/frozen governed output kept in the evidence store, not edited"
+    },
+    {
+      "file": "apps/backend/scripts/gapper_stage0_census.py",
+      "functions": "*",
+      "classification": "INTERNAL_ONLY",
+      "reason": "internal research / validation script output written to the owner's local research tree; not an outbound location"
+    },
+    {
+      "file": "apps/backend/scripts/generate_deployment_evidence.py",
+      "functions": "*",
+      "classification": "INTERNAL_ONLY",
+      "reason": "internal research / validation script output written to the owner's local research tree; not an outbound location"
+    },
+    {
+      "file": "apps/backend/scripts/generate_fixture_bars.py",
+      "functions": "*",
+      "classification": "INTERNAL_ONLY",
+      "reason": "test-fixture generator; writes synthetic or local fixture bars, never an outbound location"
+    },
+    {
+      "file": "apps/backend/scripts/harden_grid.py",
+      "functions": "*",
+      "classification": "INTERNAL_ONLY",
+      "reason": "internal research / validation script output written to the owner's local research tree; not an outbound location"
+    },
+    {
+      "file": "apps/backend/scripts/ingest_form4_resume.py",
+      "functions": "*",
+      "classification": "INTERNAL_ONLY",
+      "reason": "operational / data-pipeline writer (identity bake, factor store, event store, resume marker); internal state, not a report"
+    },
+    {
+      "file": "apps/backend/scripts/live_evidence.py",
+      "functions": "*",
+      "classification": "INTERNAL_ONLY",
+      "reason": "INTERNAL evidence report written under docs/implementation/evidence (the owner's working tree) through write_internal_report/write_internal_json (PU-1 footer + scope sidecar; declared sources: owner_generated_records + alpaca_market_data (position market_value/unrealized_pl, account equity)). Kept INTERNAL_ONLY until content and source basis support presentation: a presentation label or sidecar does not establish permission to share it; it leaves the working tree only through export_file_for_external_use, which refuses PERSONAL/UNKNOWN scope and files without a valid sidecar."
+    },
+    {
+      "file": "apps/backend/scripts/low_vol_research.py",
+      "functions": "*",
+      "classification": "INTERNAL_ONLY",
+      "reason": "internal research script output (reports/CSV/JSON) written to the owner's local research tree; not an outbound location"
+    },
+    {
+      "file": "apps/backend/scripts/mdq_evaluate_k.py",
+      "functions": "*",
+      "classification": "INTERNAL_ONLY",
+      "reason": "internal research / validation script output written to the owner's local research tree; not an outbound location"
+    },
+    {
+      "file": "apps/backend/scripts/migrate_event_store_ead.py",
+      "functions": "*",
+      "classification": "INTERNAL_ONLY",
+      "reason": "operational / data-pipeline writer (identity bake, factor store, event store, resume marker); internal state, not a report"
+    },
+    {
+      "file": "apps/backend/scripts/mom002_broad_momentum.py",
+      "functions": "*",
+      "classification": "INTERNAL_ONLY",
+      "reason": "internal research / validation script output written to the owner's local research tree; not an outbound location"
+    },
+    {
+      "file": "apps/backend/scripts/monthly_evidence.py",
+      "functions": "*",
+      "classification": "INTERNAL_ONLY",
+      "reason": "INTERNAL evidence report written under docs/implementation/evidence (the owner's working tree) through write_internal_report/write_internal_json (PU-1 footer + scope sidecar; declared sources: owner_generated_records + alpaca_market_data (account equity curve; replay lineage)). Kept INTERNAL_ONLY until content and source basis support presentation: a presentation label or sidecar does not establish permission to share it; it leaves the working tree only through export_file_for_external_use, which refuses PERSONAL/UNKNOWN scope and files without a valid sidecar."
+    },
+    {
+      "file": "apps/backend/scripts/multifactor_explore.py",
+      "functions": "*",
+      "classification": "INTERNAL_ONLY",
+      "reason": "internal research / validation script output written to the owner's local research tree; not an outbound location"
+    },
+    {
+      "file": "apps/backend/scripts/multifactor_retest.py",
+      "functions": "*",
+      "classification": "INTERNAL_ONLY",
+      "reason": "internal research / validation script output written to the owner's local research tree; not an outbound location"
+    },
+    {
+      "file": "apps/backend/scripts/ops_kpis.py",
+      "functions": "*",
+      "classification": "INTERNAL_ONLY",
+      "reason": "INTERNAL evidence report written under docs/implementation/evidence (the owner's working tree) through write_internal_report/write_internal_json (PU-1 footer + scope sidecar; declared sources: owner_generated_records + alpaca_market_data (replay-consistency row; other rows owner records only)). Kept INTERNAL_ONLY until content and source basis support presentation: a presentation label or sidecar does not establish permission to share it; it leaves the working tree only through export_file_for_external_use, which refuses PERSONAL/UNKNOWN scope and files without a valid sidecar."
+    },
+    {
+      "file": "apps/backend/scripts/preview_total_return_pricing.py",
+      "functions": "*",
+      "classification": "INTERNAL_ONLY",
+      "reason": "internal research / validation script output written to the owner's local research tree; not an outbound location"
+    },
+    {
+      "file": "apps/backend/scripts/range_5c_gate.py",
+      "functions": "*",
+      "classification": "INTERNAL_ONLY",
+      "reason": "internal research script output (reports/CSV/JSON) written to the owner's local research tree; not an outbound location"
+    },
+    {
+      "file": "apps/backend/scripts/range_calibration_report.py",
+      "functions": "*",
+      "classification": "INTERNAL_ONLY",
+      "reason": "internal research script output (reports/CSV/JSON) written to the owner's local research tree; not an outbound location"
+    },
+    {
+      "file": "apps/backend/scripts/range_evidence.py",
+      "functions": "*",
+      "classification": "INTERNAL_ONLY",
+      "reason": "INTERNAL evidence report written under docs/implementation/evidence (the owner's working tree) through write_internal_report/write_internal_json (PU-1 footer + scope sidecar; declared sources: alpaca_market_data (Alpaca 5-min bars)). Kept INTERNAL_ONLY until content and source basis support presentation: a presentation label or sidecar does not establish permission to share it; it leaves the working tree only through export_file_for_external_use, which refuses PERSONAL/UNKNOWN scope and files without a valid sidecar."
+    },
+    {
+      "file": "apps/backend/scripts/range_postrun_check.py",
+      "functions": "*",
+      "classification": "INTERNAL_ONLY",
+      "reason": "internal research script output (reports/CSV/JSON) written to the owner's local research tree; not an outbound location"
+    },
+    {
+      "file": "apps/backend/scripts/research/range002/freeze_spec.py",
+      "functions": "*",
+      "classification": "INTERNAL_ONLY",
+      "reason": "RANGE-002 frozen-spec writer; sealed/frozen governed output, not edited"
+    },
+    {
+      "file": "apps/backend/scripts/research_compare.py",
+      "functions": "*",
+      "classification": "INTERNAL_ONLY",
+      "reason": "internal research / validation script output written to the owner's local research tree; not an outbound location"
+    },
+    {
+      "file": "apps/backend/scripts/research_portfolio_study.py",
+      "functions": "*",
+      "classification": "INTERNAL_ONLY",
+      "reason": "internal research script output (reports/CSV/JSON) written to the owner's local research tree; not an outbound location"
+    },
+    {
+      "file": "apps/backend/scripts/run_insider_reproduction.py",
+      "functions": "*",
+      "classification": "INTERNAL_ONLY",
+      "reason": "internal research / validation script output written to the owner's local research tree; not an outbound location"
+    },
+    {
+      "file": "apps/backend/scripts/run_port001_reproduction.py",
+      "functions": "*",
+      "classification": "INTERNAL_ONLY",
+      "reason": "internal research / validation script output written to the owner's local research tree; not an outbound location"
+    },
+    {
+      "file": "apps/backend/scripts/screen_intraday_oscillation.py",
+      "functions": "*",
+      "classification": "INTERNAL_ONLY",
+      "reason": "internal research / validation script output written to the owner's local research tree; not an outbound location"
+    },
+    {
+      "file": "apps/backend/scripts/screen_range_candidates.py",
+      "functions": "*",
+      "classification": "INTERNAL_ONLY",
+      "reason": "internal research script output (reports/CSV/JSON) written to the owner's local research tree; not an outbound location"
+    },
+    {
+      "file": "apps/backend/scripts/sector_rotation_research.py",
+      "functions": "*",
+      "classification": "INTERNAL_ONLY",
+      "reason": "internal research script output (reports/CSV/JSON) written to the owner's local research tree; not an outbound location"
+    },
+    {
+      "file": "apps/backend/scripts/sector_rotation_v2_research.py",
+      "functions": "*",
+      "classification": "INTERNAL_ONLY",
+      "reason": "internal research script output (reports/CSV/JSON) written to the owner's local research tree; not an outbound location"
+    },
+    {
+      "file": "apps/backend/scripts/sip_oneshot_proof.py",
+      "functions": "*",
+      "classification": "INTERNAL_ONLY",
+      "reason": "internal research / validation script output written to the owner's local research tree; not an outbound location"
+    },
+    {
+      "file": "apps/backend/scripts/trend_research.py",
+      "functions": "*",
+      "classification": "INTERNAL_ONLY",
+      "reason": "internal research script output (reports/CSV/JSON) written to the owner's local research tree; not an outbound location"
+    },
+    {
+      "file": "apps/backend/scripts/tv001_supertrend_validation.py",
+      "functions": "*",
+      "classification": "INTERNAL_ONLY",
+      "reason": "internal research / validation script output written to the owner's local research tree; not an outbound location"
+    },
+    {
+      "file": "apps/backend/scripts/verify_beta_cap.py",
+      "functions": "*",
+      "classification": "INTERNAL_ONLY",
+      "reason": "internal research / validation script output written to the owner's local research tree; not an outbound location"
+    },
+    {
+      "file": "apps/backend/scripts/verify_tilt_parity.py",
+      "functions": "*",
+      "classification": "INTERNAL_ONLY",
+      "reason": "internal research / validation script output written to the owner's local research tree; not an outbound location"
+    },
+    {
+      "file": "apps/backend/scripts/weighting_defect_impact_study.py",
+      "functions": "*",
+      "classification": "INTERNAL_ONLY",
+      "reason": "internal research script output (reports/CSV/JSON) written to the owner's local research tree; not an outbound location"
+    },
+    {
+      "file": "scripts/ci_usage_report.py",
+      "functions": "*",
+      "classification": "INTERNAL_ONLY",
+      "reason": "CI/dependency tooling output; contains no licensed market data"
+    },
+    {
+      "file": "scripts/create_user.py",
+      "functions": "*",
+      "classification": "INTERNAL_ONLY",
+      "reason": "operator credential tooling writing a local one-time credentials file; not a data export"
+    },
+    {
+      "file": "scripts/ops/log_watcher.py",
+      "functions": "*",
+      "classification": "INTERNAL_ONLY",
+      "reason": "ops log-watcher state and journal files on the host; operational, not a report"
+    },
+    {
+      "file": "scripts/regenerate_dependency_locks.py",
+      "functions": "*",
+      "classification": "INTERNAL_ONLY",
+      "reason": "CI/dependency tooling output; contains no licensed market data"
+    },
+    {
+      "file": "scripts/research/mkt_proj_001/data_audit.py",
+      "functions": "*",
+      "classification": "INTERNAL_ONLY",
+      "reason": "internal research script output (reports/CSV/JSON) written to the owner's local research tree; not an outbound location"
+    },
+    {
+      "file": "scripts/research/mkt_proj_001/run_validation.py",
+      "functions": "*",
+      "classification": "INTERNAL_ONLY",
+      "reason": "internal research script output (reports/CSV/JSON) written to the owner's local research tree; not an outbound location"
+    },
+    {
+      "file": "scripts/research/mkt_proj_001/train_and_evaluate.py",
+      "functions": "*",
+      "classification": "INTERNAL_ONLY",
+      "reason": "internal research script output (reports/CSV/JSON) written to the owner's local research tree; not an outbound location"
+    },
+    {
+      "file": "scripts/rotate_user_passwords.py",
+      "functions": "*",
+      "classification": "INTERNAL_ONLY",
+      "reason": "operator credential tooling writing a local one-time credentials file; not a data export"
+    }
+  ],
+  "frontend_entries": [
+    {
+      "file": "apps/frontend/src/pages/Evidence/index.tsx",
+      "must_contain": [
+        "panelBlocked",
+        "COMMERCIAL_OK",
+        "disabled={personalScope}"
+      ],
+      "reason": "Evidence page print trigger: disabled unless EVERY visible panel is explicitly COMMERCIAL_OK; each blocked panel shows the fixed PU-1 footer"
+    }
+  ]
+}
