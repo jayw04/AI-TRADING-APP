@@ -546,3 +546,28 @@ def test_adjacent_windows_neither_drop_nor_duplicate_a_boundary_bar(cap: object)
     assert stamps == [START + timedelta(minutes=i) for i in range(40)]
     assert first.bars[-1].t == boundary - timedelta(minutes=1)
     assert second.bars[0].t == boundary
+
+
+def test_mapped_symbol_is_requested_with_asof_and_stored_under_the_vendor_ticker(
+    cap: object, tmp_path: Path
+) -> None:
+    """A vendor-disambiguated ticker ('APC1') is requested from Alpaca under its base symbol with
+    the window's date as asof, and its bars are stored under the vendor ticker so the runner's
+    expected symbol-days still match; unmapped symbols are untouched."""
+    v = FakeVendor()
+    cfg = _cfg_run(
+        tmp_path,
+        symbols=("AAA", "APC1"),
+        date_from=date(2026, 3, 2),
+        date_to=date(2026, 3, 6),
+        symbol_map={"APC1": ("APC", "-")},
+    )
+    _run(cap, cfg, v)
+    requested = {(c["url"].rsplit("/", 2)[-2], c["params"]["asof"]) for c in v.calls}
+    assert requested == {("AAA", "-"), ("APC", "2026-03-02")}
+    con = duckdb.connect(str(tmp_path / "min.duckdb"), read_only=True)
+    try:
+        stored = {r[0] for r in con.execute("SELECT DISTINCT symbol FROM minute_bars").fetchall()}
+    finally:
+        con.close()
+    assert stored == {"AAA", "APC1"}

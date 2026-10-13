@@ -217,3 +217,17 @@ def test_fetch_without_storage_permission_is_refused_before_a_run(world: dict[st
     with pytest.raises(rds.DescriptiveRunRefusal, match="storage-permitted"):
         rds.run(**_kwargs(world, plan, world["tmp"] / "fetched.duckdb"))
     assert tuple(RunRegistry(world["registry_path"]).runs()) == ()
+
+
+def test_alpaca_symbol_map_uses_only_vendor_evidence() -> None:
+    """A disambiguated reused ticker maps to its base symbol ONLY when the vendor's own
+    relatedtickers lists that base; everything else is left untouched (no guessing)."""
+    con = duckdb.connect(":memory:")
+    con.execute('CREATE TABLE tickers("table" VARCHAR, ticker VARCHAR, relatedtickers VARCHAR)')
+    con.execute(
+        "INSERT INTO tickers VALUES ('SEP','APC1','AEUA ANDKU APC'), ('SEP','DD1','CTA-PA DD'),"
+        " ('SEP','XYZ1','OTHER'), ('SEP','BRK.B','BRK.A'), ('SEP','AAA',NULL),"
+        " ('SF1','NOPE1','NOPE')"
+    )
+    got = rds.alpaca_symbol_map(con, ["APC1", "DD1", "XYZ1", "BRK.B", "AAA", "NOPE1"], "SEP")
+    assert got == {"APC1": "APC", "DD1": "DD"}

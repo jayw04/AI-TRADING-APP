@@ -58,7 +58,7 @@ import re
 import sys
 from collections import Counter
 from collections.abc import Callable, Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import UTC, date, datetime, time, timedelta
 from pathlib import Path
 from typing import Any
@@ -285,6 +285,10 @@ class RunConfig:
     #: optional run binding (spec, baseline, universe, dates, sources, request cap) written
     #: into the journal header: a resume under a different binding is refused
     binding: dict[str, Any] | None = None
+    #: vendor ticker -> (Alpaca symbol, asof date) for tickers the daily vendor disambiguates
+    #: (e.g. a reused ticker 'APC1' that Alpaca knows as 'APC' mapped as of a date). Bars are
+    #: STORED under the vendor ticker so the runner's expected symbol-days still match.
+    symbol_map: dict[str, tuple[str, str]] | None = None
 
 
 def _now_utc() -> str:
@@ -392,11 +396,16 @@ def run_fetch(
             if (symbol, key) in done:
                 continue
             before = http_attempts()
+            req_symbol, req_asof = (cfg.symbol_map or {}).get(symbol, (symbol, cfg.asof))
+            if req_symbol != symbol:
+                req_asof = start.date().isoformat()  # map the symbol as of the window
             res = fetch_symbol_window(
-                capability, transport, symbol=symbol, start_utc=start, end_utc=end,
-                feed=REQUIRED_FEED, adjustment=REQUIRED_ADJUSTMENT, asof=cfg.asof,
+                capability, transport, symbol=req_symbol, start_utc=start, end_utc=end,
+                feed=REQUIRED_FEED, adjustment=REQUIRED_ADJUSTMENT, asof=req_asof,
                 limit=cfg.limit, max_pages=cfg.max_pages,
             )  # fmt: skip
+            if req_symbol != symbol:  # store under the vendor ticker the run expects
+                res = replace(res, symbol=symbol)
             stats = _chunk_stats(symbol, key, res.bars, res.pages, before, http_attempts())
             days = day_evidence(res.bars)
             stats["days"] = days

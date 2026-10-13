@@ -500,6 +500,30 @@ class FetchPlan:
     environ: Any = None  # test seam
 
 
+def alpaca_symbol_map(daily_con: Any, symbols: list[str], table_filter: str) -> dict[str, str]:
+    """vendor ticker -> Alpaca symbol, ONLY where the evidence supports it.
+
+    The daily vendor disambiguates a reused ticker with a numeric suffix ('APC1', 'DD1'). The
+    suffixed label is not an Alpaca symbol (HTTP 400). The base symbol is used only when the
+    vendor's own ``relatedtickers`` field for that row lists it; anything else is left as is, so a
+    wrong guess cannot silently fetch another company's bars."""
+    import re
+
+    out: dict[str, str] = {}
+    for s in symbols:
+        m = re.fullmatch(r"([A-Z]+(?:\.[A-Z])?)(\d+)", s)
+        if not m:
+            continue
+        row = daily_con.execute(
+            'SELECT relatedtickers FROM "tickers" WHERE "table" = ? AND ticker = ?',
+            [table_filter, s],
+        ).fetchone()
+        related = (row[0] or "").split() if row else []
+        if m.group(1) in related:
+            out[s] = m.group(1)
+    return out
+
+
 def _fetch_module() -> Any:
     name = "fetch_sip_minutes"
     if name in sys.modules:
@@ -598,6 +622,8 @@ def _acquire(
     plan: FetchPlan,
     *,
     builds: list[Any],
+    daily_con: Any,
+    table_filter: str,
     authorized: DateRange,
     sessions_cal: Any,
     view: Any,
@@ -634,7 +660,9 @@ def _acquire(
     auth = FetchAuthorization(
         plan.authorization_id, plan.permitted_use_ref, plan.entitlement_ref, plan.storage_permitted
     )
+    amap = alpaca_symbol_map(daily_con, symbols, table_filter)
     binding = {
+        "symbol_map": dict(sorted(amap.items())),
         "spec_sha256": view.spec_sha256,
         "baseline_id": view.baseline_id,
         "strategy_version": view.strategy_version,
@@ -744,6 +772,7 @@ def _acquire(
             journal_path=plan.journal_path,
             script_sha256=file_sha256(Path(fm.__file__)),
             binding=binding,
+            symbol_map={v: (a, plan.asof) for v, a in amap.items()},
         )
         fm.run_fetch(cap, transport, cfg, http_attempts=attempts)
         cache = _verify_cache(Path(minute_bars), plan.journal_path)
@@ -987,6 +1016,8 @@ def run(
                 cap,
                 fetch_plan,
                 builds=builds,
+                daily_con=daily_con,
+                table_filter=table_filter,
                 authorized=authorized,
                 sessions_cal=sessions_cal,
                 view=view,
