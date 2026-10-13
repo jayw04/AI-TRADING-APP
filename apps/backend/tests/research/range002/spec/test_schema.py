@@ -40,7 +40,9 @@ def _all_models() -> list[type[BaseModel]]:
 #: The only field allowed an (absent == None) default: the optional A-SCREEN profile declaration.
 #: Absent means the FULL profile, which keeps every existing v1 spec and its hash unchanged. It is
 #: not a P0 value, so R9 (no developer-chosen defaults for decisions) is not weakened.
-_OPTIONAL_NON_P0 = {("DraftSpec", "profile")}
+#: optional, non-P0, absent == no such rule, and omitted from the spec hash when null (so every
+#: spec frozen before the field existed keeps its hash)
+_OPTIONAL_NON_P0 = {("DraftSpec", "profile"), ("Signal", "max_cost_to_risk")}
 
 
 def test_no_field_has_a_default():
@@ -48,7 +50,7 @@ def test_no_field_has_a_default():
     for model in _all_models():
         for name, field in model.model_fields.items():
             if (model.__name__, name) in _OPTIONAL_NON_P0:
-                assert field.default is None, "the profile default must be absent (== full)"
+                assert field.default is None, "an optional field's default must be None (== absent)"
                 continue
             assert field.is_required(), f"{model.__name__}.{name} has a default"
 

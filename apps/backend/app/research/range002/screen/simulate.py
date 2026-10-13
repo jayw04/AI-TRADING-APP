@@ -39,6 +39,7 @@ from app.research.range002.screen.types import (
     FAMILY_FIXED_R,
     FAMILY_SCALE_OUT,
     FAMILY_TRAILING,
+    STATE_COST_INELIGIBLE,
     STATE_ENTERED,
     STATE_ENTRY_AT_OR_AFTER_EOD,
     STATE_INVALID_RISK,
@@ -201,6 +202,14 @@ def _simulate(params: ScreenParams, session: SessionBars, tick: float, equity: f
     if (or_high - or_low) < params.min_or_width_ticks * tick:
         return Outcome(session.symbol, session.day, STATE_OR_TOO_NARROW, or_high, or_low, None, ())
     trigger = or_high + params.tick_offset * tick
+    if params.max_cost_to_risk is not None and trigger > or_low:
+        # Known when the opening range closes (no later bar is read): estimated round-trip
+        # cost in units of the initial risk, from the spec's own base cost.
+        est = 2.0 * params.base_bps_per_side / 10_000.0 * trigger / (trigger - or_low)
+        if est > params.max_cost_to_risk:
+            return Outcome(
+                session.symbol, session.day, STATE_COST_INELIGIBLE, or_high, or_low, None, ()
+            )
     eod = _eod_time(params, session)
     first_armed = True
     for idx, bar in enumerate(session.bars):
@@ -312,6 +321,8 @@ def run_screen(
     if len(set(keys)) != len(keys):
         raise DataDefectError("duplicate symbol-day in the session set")
     states = dict.fromkeys(TERMINAL_STATES, 0)
+    if params.max_cost_to_risk is not None:  # key exists only when the rule is configured
+        states[STATE_COST_INELIGIBLE] = 0
     exits: dict[str, dict[str, int]] = {c.id: {} for c in params.candidates}
     trades: dict[str, list[Trade]] = {c.id: [] for c in params.candidates}
     for session in ordered:

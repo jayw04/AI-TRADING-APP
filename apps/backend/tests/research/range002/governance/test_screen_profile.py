@@ -272,6 +272,8 @@ def test_profile_is_inside_the_hash_and_full_hash_is_unchanged() -> None:
     expected = {
         k: v for k, v in draft.model_dump(mode="json").items() if k not in ("decision", "profile")
     }
+    # an absent optional rule (signal.max_cost_to_risk) is omitted so older hashes are unchanged
+    expected["signal"] = {k: v for k, v in expected["signal"].items() if k != "max_cost_to_risk"}
     assert spec_sha256(draft) == content_sha256(expected)
     assert "profile" not in draft.hashable_payload()
 

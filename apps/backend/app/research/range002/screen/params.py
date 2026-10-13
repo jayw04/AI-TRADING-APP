@@ -183,4 +183,5 @@ def extract_params(capability: object, draft: DraftSpec) -> ScreenParams:
         halt_policy=HALT_POLICY_UNEXECUTABLE,
         candidates=tuple(specs),
         unmodelled_execution=unmodelled,
+        max_cost_to_risk=(float(s.max_cost_to_risk) if s.max_cost_to_risk is not None else None),
     )

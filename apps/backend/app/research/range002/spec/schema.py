@@ -40,7 +40,7 @@ MAX_EXIT_CANDIDATES = 8
 
 # Dotted paths that are legitimately null at freeze time (not P0 decisions).
 # registration.trial_ledger_id is assigned by run_registry; `decision` is checked separately.
-_NON_P0_NULLABLE = frozenset({"registration.trial_ledger_id", "profile"})
+_NON_P0_NULLABLE = frozenset({"registration.trial_ledger_id", "profile", "signal.max_cost_to_risk"})
 
 _ID_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_\-]{0,31}$")
 _SHA_RE = re.compile(r"^[0-9a-f]{64}$")
@@ -317,6 +317,13 @@ class Signal(_OpenFieldsModel):
     entry_window: Annotated[tuple[str, str], _eq(("10:00:00", "14:59:59"))]
     tick_offset: Annotated[int, _eq(1)]
     max_entries_per_symbol_day: Annotated[int, _eq(1)]
+    #: OPTIONAL cost-to-initial-risk eligibility (cost-aware revision). A symbol-day is
+    #: eligible only if the estimated round-trip cost, as a multiple of the initial risk
+    #: known when the opening range closes, is at most this value:
+    #:   2 * base_bps_per_side / 1e4 * trigger / (trigger - or_low)  <=  max_cost_to_risk
+    #: Absent/null = no such rule, and the field is omitted from the spec hash, so every
+    #: existing frozen spec keeps its hash.
+    max_cost_to_risk: OptPos = None
 
 
 class Exit(_Model):
@@ -834,6 +841,8 @@ class DraftSpec(_Model):
         payload.pop("decision")
         if payload.get("profile") is None:  # the FULL profile: hash unchanged by this feature
             payload.pop("profile", None)
+        if payload["signal"].get("max_cost_to_risk") is None:  # absent rule: hash unchanged
+            payload["signal"].pop("max_cost_to_risk", None)
         return payload
 
     def unset_p0_fields(self) -> list[str]:

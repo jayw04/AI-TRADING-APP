@@ -34,6 +34,8 @@ STATE_INVALID_RISK = "INVALID_RISK"
 #: entered (an entry there could only be flattened at that same bar's open, an impossible order).
 STATE_ENTRY_AT_OR_AFTER_EOD = "ENTRY_AT_OR_AFTER_EOD_CUTOFF"
 STATE_ENTERED = "ENTERED"
+#: Only present in a funnel when the spec sets ``signal.max_cost_to_risk``.
+STATE_COST_INELIGIBLE = "COST_TO_RISK_INELIGIBLE"
 TERMINAL_STATES = (
     "OR_INCOMPLETE",
     "OR_TOO_NARROW",
@@ -116,6 +118,8 @@ class ScreenParams:
     #: execution settings present in the spec that the bar-level kernel does NOT simulate; carried
     #: so every report states them as unmodelled instead of implying execution realism.
     unmodelled_execution: tuple[str, ...]
+    #: optional cost-to-initial-risk eligibility ceiling (None = rule not in the spec)
+    max_cost_to_risk: float | None = None
 
 
 @dataclass(frozen=True)
