@@ -493,6 +493,9 @@ class FetchPlan:
     #: a store/journal left by an earlier run may be reused only with this explicit statement:
     #: the re-run is a NEW governed attempt (it draws on the attempt budget again)
     acknowledge_new_attempt_ref: str | None = None
+    #: explicit request symbol + provenance for EVERY universe symbol (build_symbol_mapping.py)
+    symbol_map_path: Path | None = None
+    symbol_map_sha256: str | None = None
     limit: int = 10000
     max_pages: int = 100
     max_retries: int = 5
@@ -500,28 +503,33 @@ class FetchPlan:
     environ: Any = None  # test seam
 
 
-def alpaca_symbol_map(daily_con: Any, symbols: list[str], table_filter: str) -> dict[str, str]:
-    """vendor ticker -> Alpaca symbol, ONLY where the evidence supports it.
-
-    The daily vendor disambiguates a reused ticker with a numeric suffix ('APC1', 'DD1'). The
-    suffixed label is not an Alpaca symbol (HTTP 400). The base symbol is used only when the
-    vendor's own ``relatedtickers`` field for that row lists it; anything else is left as is, so a
-    wrong guess cannot silently fetch another company's bars."""
-    import re
-
-    out: dict[str, str] = {}
-    for s in symbols:
-        m = re.fullmatch(r"([A-Z]+(?:\.[A-Z])?)(\d+)", s)
-        if not m:
-            continue
-        row = daily_con.execute(
-            'SELECT relatedtickers FROM "tickers" WHERE "table" = ? AND ticker = ?',
-            [table_filter, s],
-        ).fetchone()
-        related = (row[0] or "").split() if row else []
-        if m.group(1) in related:
-            out[s] = m.group(1)
-    return out
+def _load_symbol_mapping(plan: FetchPlan) -> dict[str, Any]:
+    """The explicit, hash-bound request-symbol mapping (``build_symbol_mapping.py``). Refused when
+    missing, altered, or when any entry is UNVERIFIED: nothing is guessed or silently dropped."""
+    path = plan.symbol_map_path
+    if path is None or not plan.symbol_map_sha256:
+        raise DescriptiveRunRefusal(
+            "fetch: --fetch-symbol-map and --fetch-symbol-map-sha256 are required: every symbol "
+            "needs an explicit request symbol and provenance before anything is requested"
+        )
+    if not Path(path).is_file():
+        raise DescriptiveRunRefusal(f"fetch: symbol mapping {path} does not exist")
+    data = Path(path).read_bytes()
+    if hashlib.sha256(data).hexdigest() != plan.symbol_map_sha256:
+        raise DescriptiveRunRefusal(
+            "fetch: the symbol mapping file does not match its bound sha256"
+        )
+    doc = json.loads(data.decode("utf-8"))
+    if doc.get("schema") != "range002.symbol_mapping.v1":
+        raise DescriptiveRunRefusal(
+            "fetch: symbol mapping schema is not range002.symbol_mapping.v1"
+        )
+    bad = [
+        e["vendor_ticker"] for e in doc.get("entries", []) if e.get("provenance") == "UNVERIFIED"
+    ]
+    if bad or doc.get("unverified"):
+        raise DescriptiveRunRefusal(f"fetch: symbol mapping has UNVERIFIED symbols {bad}")
+    return doc
 
 
 def _fetch_module() -> Any:
@@ -559,6 +567,7 @@ def _fetch_preflight(plan: FetchPlan, minute_bars: Path) -> None:
         )
     if len(plan.universe_sha256) != 64:
         raise DescriptiveRunRefusal("fetch plan: universe sha256 must be 64 hex")
+    _load_symbol_mapping(plan)  # refuses missing / altered / UNVERIFIED before an attempt exists
     have_store, have_journal = Path(minute_bars).exists(), plan.journal_path.exists()
     if have_store != have_journal:
         raise DescriptiveRunRefusal(
@@ -660,9 +669,19 @@ def _acquire(
     auth = FetchAuthorization(
         plan.authorization_id, plan.permitted_use_ref, plan.entitlement_ref, plan.storage_permitted
     )
-    amap = alpaca_symbol_map(daily_con, symbols, table_filter)
+    mapping = _load_symbol_mapping(plan)
+    entries = {e["vendor_ticker"]: e for e in mapping["entries"]}
+    if set(entries) != set(symbols):
+        raise DataDefectError(
+            f"the symbol mapping covers {len(entries)} symbols but the run's universe has "
+            f"{len(symbols)}; missing={sorted(set(symbols) - set(entries))[:5]} "
+            f"extra={sorted(set(entries) - set(symbols))[:5]}; nothing was requested"
+        )
+    amap = {v: e["request_symbol"] for v, e in entries.items() if e["request_symbol"] != v}
     binding = {
         "symbol_map": dict(sorted(amap.items())),
+        "symbol_mapping_sha256": plan.symbol_map_sha256,
+        "symbol_mapping_by_provenance": mapping.get("by_provenance"),
         "spec_sha256": view.spec_sha256,
         "baseline_id": view.baseline_id,
         "strategy_version": view.strategy_version,
@@ -1324,6 +1343,8 @@ def _build_parser() -> argparse.ArgumentParser:
     req("--fetch-permission-basis-claimed", default=None)
     req("--fetch-storage-permitted", action="store_true")
     req("--fetch-acknowledge-new-attempt-ref", default=None)
+    req("--fetch-symbol-map", type=Path, default=None)
+    req("--fetch-symbol-map-sha256", default=None)
     req("--fetch-limit", type=int, default=10000)
     req("--fetch-max-pages", type=int, default=100)
     req("--statistics-config", type=Path, default=None)
@@ -1388,6 +1409,8 @@ def main(argv: list[str] | None = None) -> int:
                 permission_basis_claimed=a.fetch_permission_basis_claimed,
                 storage_permitted=bool(a.fetch_storage_permitted),
                 acknowledge_new_attempt_ref=a.fetch_acknowledge_new_attempt_ref,
+                symbol_map_path=a.fetch_symbol_map,
+                symbol_map_sha256=a.fetch_symbol_map_sha256,
                 limit=a.fetch_limit,
                 max_pages=a.fetch_max_pages,
             )

@@ -7,6 +7,7 @@ network or a vendor. Reuses the descriptive-run rehearsal world."""
 from __future__ import annotations
 
 import contextlib
+import hashlib
 import json
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -63,10 +64,37 @@ def _fake_transport_factory(source: Path, counter: dict[str, int]) -> Any:
     return factory
 
 
+def _write_mapping(
+    tmp: Path, symbols: list[str], *, unverified: str | None = None, name: str | None = None
+) -> Path:
+    entries = [
+        {
+            "vendor_ticker": sym,
+            "request_symbol": sym,
+            "asof_policy": "-",
+            "provenance": "UNVERIFIED" if sym == unverified else "ALPHA_TICKER_AS_IS",
+            "evidence": {},
+        }
+        for sym in symbols
+    ]
+    doc = {
+        "schema": "range002.symbol_mapping.v1",
+        "entries": entries,
+        "unverified": [unverified] if unverified else [],
+        "by_provenance": {"ALPHA_TICKER_AS_IS": len(symbols)},
+    }
+    path = tmp / (name or ("mapping_bad.json" if unverified else "mapping.json"))
+    path.write_text(json.dumps(doc, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    return path
+
+
 def _plan(world: dict[str, Any], **over: Any) -> tuple[Any, dict[str, int]]:
     tmp: Path = world["tmp"]
     counter = {"calls": 0}
+    mapping = _write_mapping(tmp, SYMBOLS)
     base: dict[str, Any] = {
+        "symbol_map_path": mapping,
+        "symbol_map_sha256": hashlib.sha256(mapping.read_bytes()).hexdigest(),
         "universe_sha256": _sha(SYMBOLS),
         "journal_path": tmp / "fetch.jsonl",
         "key_env": "K",
@@ -219,15 +247,36 @@ def test_fetch_without_storage_permission_is_refused_before_a_run(world: dict[st
     assert tuple(RunRegistry(world["registry_path"]).runs()) == ()
 
 
-def test_alpaca_symbol_map_uses_only_vendor_evidence() -> None:
-    """A disambiguated reused ticker maps to its base symbol ONLY when the vendor's own
-    relatedtickers lists that base; everything else is left untouched (no guessing)."""
-    con = duckdb.connect(":memory:")
-    con.execute('CREATE TABLE tickers("table" VARCHAR, ticker VARCHAR, relatedtickers VARCHAR)')
-    con.execute(
-        "INSERT INTO tickers VALUES ('SEP','APC1','AEUA ANDKU APC'), ('SEP','DD1','CTA-PA DD'),"
-        " ('SEP','XYZ1','OTHER'), ('SEP','BRK.B','BRK.A'), ('SEP','AAA',NULL),"
-        " ('SF1','NOPE1','NOPE')"
+def test_unverified_mapping_is_refused_before_any_run_row(world: dict[str, Any]) -> None:
+    bad = _write_mapping(world["tmp"], SYMBOLS, unverified="DEAD")
+    plan, counter = _plan(
+        world, symbol_map_path=bad, symbol_map_sha256=hashlib.sha256(bad.read_bytes()).hexdigest()
     )
-    got = rds.alpaca_symbol_map(con, ["APC1", "DD1", "XYZ1", "BRK.B", "AAA", "NOPE1"], "SEP")
-    assert got == {"APC1": "APC", "DD1": "DD"}
+    with pytest.raises(rds.DescriptiveRunRefusal, match="UNVERIFIED"):
+        rds.run(**_kwargs(world, plan, world["tmp"] / "fetched.duckdb"))
+    assert counter["calls"] == 0
+    assert tuple(RunRegistry(world["registry_path"]).runs()) == ()
+
+
+def test_altered_or_missing_mapping_is_refused_before_any_run_row(world: dict[str, Any]) -> None:
+    plan, _ = _plan(world, symbol_map_sha256="0" * 64)
+    with pytest.raises(rds.DescriptiveRunRefusal, match="does not match its bound sha256"):
+        rds.run(**_kwargs(world, plan, world["tmp"] / "fetched.duckdb"))
+    plan2, _ = _plan(world, symbol_map_path=None, symbol_map_sha256=None)
+    with pytest.raises(rds.DescriptiveRunRefusal, match="required"):
+        rds.run(**_kwargs(world, plan2, world["tmp"] / "fetched2.duckdb"))
+    assert tuple(RunRegistry(world["registry_path"]).runs()) == ()
+
+
+def test_mapping_that_does_not_cover_the_runs_universe_requests_nothing(
+    world: dict[str, Any],
+) -> None:
+    short = _write_mapping(world["tmp"], SYMBOLS[:2], name="mapping_short.json")
+    plan, counter = _plan(
+        world,
+        symbol_map_path=short,
+        symbol_map_sha256=hashlib.sha256(short.read_bytes()).hexdigest(),
+    )
+    with pytest.raises(Exception, match="mapping covers"):
+        rds.run(**_kwargs(world, plan, world["tmp"] / "fetched.duckdb"))
+    assert counter["calls"] == 0

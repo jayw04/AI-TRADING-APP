@@ -640,6 +640,12 @@
       "reason": "RANGE-002 return-blind symbol-mapping probe: writes one JSON file of HTTP statuses, bar counts and bar timestamps only (no price or volume field exists in its schema); inherits the market-data scope of its requests, so any external use is refused by the export seam"
     },
     {
+      "file": "apps/backend/scripts/research/range002/build_symbol_mapping.py",
+      "functions": "*",
+      "classification": "INTERNAL_ONLY",
+      "reason": "RANGE-002 request-symbol mapping builder: reads the export's TICKERS metadata and a return-blind probe file (statuses, counts, timestamps) and writes one JSON mapping of symbols and provenance; no price or volume value is read or written"
+    },
+    {
       "file": "apps/backend/scripts/research/range002/freeze_spec.py",
       "functions": "*",
       "classification": "INTERNAL_ONLY",
