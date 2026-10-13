@@ -105,8 +105,8 @@ def compare(
 
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__)
-    for a in ("csv", "store", "out"):
-        ap.add_argument(f"--{a}", required=True, type=Path)
+    for name in ("csv", "store", "out"):
+        ap.add_argument(f"--{name}", required=True, type=Path)
     for a in (
         "symbol",
         "day",
