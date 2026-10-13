@@ -23,6 +23,26 @@ from app.research.range002.spec.hashing import file_sha256
 PURE_FUNCTIONS = ("parse_snapshot_manifest", "verify_snapshot_files")
 
 MANIFEST_SCHEMA = "range002.snapshot_manifest.v1"
+#: v2 adds ``consistency_class`` and an ``integrity`` section ALONGSIDE v1 (v1 is unchanged and
+#: still parses exactly as before). A v2 manifest declares HOW the tables were acquired:
+#: ``single_transaction`` (cross_table_consistent must be true) or
+#: ``sequential_pulls_evidence_checked`` (the tables were separate vendor pulls; cross_table_consistent
+#: must be false, the evidence is in ``consistency_basis``, and ``integrity.all_passed`` records the
+#: builder's referential / interval / coverage checks). Such a snapshot is refused unless the
+#: caller passes the explicit ``allow_sequential_pulls`` opt-in AND ``integrity.all_passed`` is
+#: true; the opt-in never turns a ``cross_table_consistent=false`` into "consistent".
+MANIFEST_SCHEMA_V2 = "range002.snapshot_manifest.v2"
+_SCHEMAS = (MANIFEST_SCHEMA, MANIFEST_SCHEMA_V2)
+CLASS_SINGLE_TRANSACTION = "single_transaction"
+CLASS_SEQUENTIAL_PULLS = "sequential_pulls_evidence_checked"
+CLASS_UNDECLARED = "undeclared_v1"
+_CLASSES = (CLASS_SINGLE_TRANSACTION, CLASS_SEQUENTIAL_PULLS)
+SEQUENTIAL_PULLS_LIMITATION = (
+    "LIMITATION: the daily tables (tickers, sep, actions) were acquired as sequential vendor API "
+    "pulls, not in one transaction. Vendor revision stamps and referential/coverage checks are "
+    "evidence, not proof, that the tables describe one state; a revision, deletion or ACTIONS "
+    "change between pulls would not be detected."
+)
 
 #: (table, required columns). ``tickers`` must be the RAW vendor TICKERS rows (all of them), not
 #: a store table collapsed to one row per ticker: a collapsed table cannot show ticker reuse.
@@ -74,6 +94,11 @@ class SnapshotManifest:
     cross_table_consistent: bool
     consistency_basis: str
     tables: tuple[TableEntry, ...]
+    #: v1 documents: ``single_transaction`` when declared consistent, else ``undeclared_v1``
+    consistency_class: str = CLASS_UNDECLARED
+    #: v2 only: ``integrity.all_passed`` (None when the section is absent or v1)
+    integrity_all_passed: bool | None = None
+    schema: str = MANIFEST_SCHEMA
 
 
 @dataclass(frozen=True)
@@ -93,8 +118,9 @@ def parse_snapshot_manifest(text: str) -> SnapshotManifest:
         raw = json.loads(text)
     except json.JSONDecodeError as exc:
         raise ManifestError(f"manifest is not valid JSON: {exc}") from exc
-    if not isinstance(raw, dict) or raw.get("schema") != MANIFEST_SCHEMA:
-        raise ManifestError(f"manifest schema must be {MANIFEST_SCHEMA!r}")
+    if not isinstance(raw, dict) or raw.get("schema") not in _SCHEMAS:
+        raise ManifestError(f"manifest schema must be one of {list(_SCHEMAS)!r}")
+    schema = raw["schema"]
     tables: list[TableEntry] = []
     for name, spec in sorted(_need(raw, "tables", dict, "manifest").items()):
         where = f"tables.{name}"
@@ -120,6 +146,22 @@ def parse_snapshot_manifest(text: str) -> SnapshotManifest:
     consistent = raw.get("cross_table_consistent")
     if not isinstance(consistent, bool):
         raise ManifestError("cross_table_consistent must be declared true or false")
+    klass = CLASS_SINGLE_TRANSACTION if consistent else CLASS_UNDECLARED
+    all_passed: bool | None = None
+    if schema == MANIFEST_SCHEMA_V2:
+        klass = _need(raw, "consistency_class", str, "manifest")
+        if klass not in _CLASSES:
+            raise ManifestError(f"consistency_class must be one of {list(_CLASSES)!r}")
+        if (klass == CLASS_SINGLE_TRANSACTION) != consistent:
+            raise ManifestError(
+                "consistency_class and cross_table_consistent disagree: single_transaction needs "
+                "cross_table_consistent true; sequential_pulls_evidence_checked needs false"
+            )
+        integrity = raw.get("integrity")
+        if integrity is not None:
+            if not isinstance(integrity, dict) or not isinstance(integrity.get("all_passed"), bool):
+                raise ManifestError("integrity must be an object with a boolean 'all_passed'")
+            all_passed = integrity["all_passed"]
     return SnapshotManifest(
         _need(raw, "source", str, "manifest"),
         _need(raw, "extracted_at_utc", str, "manifest"),
@@ -127,15 +169,31 @@ def parse_snapshot_manifest(text: str) -> SnapshotManifest:
         consistent,
         _need(raw, "consistency_basis", str, "manifest"),
         tuple(tables),
+        klass,
+        all_passed,
+        schema,
     )
 
 
-def verify_snapshot_files(manifest: SnapshotManifest, root: Path) -> VerifyReport:
-    """Structural and checksum verification. Returns every defect; empty means verified."""
+def verify_snapshot_files(
+    manifest: SnapshotManifest, root: Path, *, allow_sequential_pulls: bool = False
+) -> VerifyReport:
+    """Structural and checksum verification. Returns every defect; empty means verified.
+
+    A snapshot not declared cross-table consistent is refused, as before. The only exception is
+    a v2 manifest of class ``sequential_pulls_evidence_checked`` when the caller passes
+    ``allow_sequential_pulls=True`` AND the manifest's integrity checks all passed; the caller is
+    then responsible for carrying ``SEQUENTIAL_PULLS_LIMITATION`` into its report."""
     defects: list[str] = []
     by_name = {t.name: t for t in manifest.tables}
     if not manifest.cross_table_consistent:
-        defects.append("snapshot is not declared cross-table consistent")
+        sequential = manifest.consistency_class == CLASS_SEQUENTIAL_PULLS
+        if not (sequential and allow_sequential_pulls):
+            defects.append("snapshot is not declared cross-table consistent")
+        elif manifest.integrity_all_passed is not True:
+            defects.append(
+                "sequential-pull snapshot: integrity checks are absent or did not all pass"
+            )
     for table, required in REQUIRED_COLUMNS:
         entry = by_name.get(table)
         if entry is None:

@@ -616,6 +616,18 @@
       "reason": "RANGE-002 descriptive-run report writer; report.md is footer-stamped and both reports carry PERSONAL/UNKNOWN scope sidecars (alpaca_market_data + sharadar), so the export seam refuses them"
     },
     {
+      "file": "apps/backend/scripts/research/range002/build_snapshot_manifest.py",
+      "functions": "*",
+      "classification": "INTERNAL_ONLY",
+      "reason": "RANGE-002 snapshot-manifest builder: reads the Sharadar export directory (bytes and column statistics) and writes one JSON manifest next to it; no price or volume value is printed or written; inherits the export's PERSONAL/UNKNOWN scope"
+    },
+    {
+      "file": "apps/backend/scripts/research/range002/build_fetch_universe.py",
+      "functions": "*",
+      "classification": "INTERNAL_ONLY",
+      "reason": "RANGE-002 fetch-universe planner: reads the Sharadar export directory and writes a symbol list and a JSON report of symbols, ranks and counts only (no price or volume value); internal planning output, not an outbound location"
+    },
+    {
       "file": "apps/backend/scripts/research/range002/freeze_spec.py",
       "functions": "*",
       "classification": "INTERNAL_ONLY",

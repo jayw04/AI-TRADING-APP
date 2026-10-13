@@ -836,7 +836,9 @@ def authorize(
             record.get("minutes_path"), record.get("minutes_sha256"), "exposure ledger decision"
         )
         _check_exposure_binding(spec, exposure_ledger)
-        hits = exposure_ledger.overlaps(date_range)
+        # a planned_run entry authorises exactly its own phase/partition/range; every
+        # prior_exposure entry (and any planned entry not matching the request) blocks
+        hits = exposure_ledger.blocking_overlaps(date_range, phase=phase, partition=partition)
         if hits:
             raise ExposureOverlapError(
                 f"{partition.value} overlaps exposure-ledger entries {[h.id for h in hits]}"

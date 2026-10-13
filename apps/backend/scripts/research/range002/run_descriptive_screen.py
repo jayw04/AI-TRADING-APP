@@ -64,6 +64,7 @@ from app.licensing.envelope import sidecar_path, write_sidecar  # noqa: E402
 from app.licensing.render import stamp  # noqa: E402
 from app.research.range002.data.bar_loader import load_sessions  # noqa: E402
 from app.research.range002.data.manifest import (  # noqa: E402
+    SEQUENTIAL_PULLS_LIMITATION,
     ManifestError,
     parse_snapshot_manifest,
     verify_snapshot_files,
@@ -398,6 +399,12 @@ def _render_md(rep: dict[str, Any]) -> str:
         f"manifest sha256 `{dt['snapshot_manifest_sha256']}`; code `{dt['code_sha']}`; "
         f"universe scope {dt['universe_scopes']}"
     )
+    if dt["snapshot_manifest"].get("limitation"):
+        sm = dt["snapshot_manifest"]
+        L.append(
+            f"- **{sm['limitation']}** Opt-in reference: `{sm['sequential_pulls_opt_in_ref']}`; "
+            f"manifest integrity checks all passed: {sm['integrity_all_passed']}"
+        )
     if dt["provenance"]:
         L.append(f"- Provenance supplied: {dt['provenance']}")
     c = rep["coverage"]
@@ -513,6 +520,7 @@ def run(
     raw_vendor_rows_attested: bool = False,
     provenance: dict[str, str] | None = None,
     statistics_config: dict[str, Any] | None = None,
+    allow_sequential_pulls_ref: str | None = None,
 ) -> RunOutcome:
     """Execute one authorized descriptive run. Raises on any refusal; never leaves a run OPEN."""
     d0, d1 = _parse_date(date_start, "date-start"), _parse_date(date_end, "date-end")  # type: ignore[arg-type]
@@ -551,7 +559,11 @@ def run(
     verify_root = (
         Path(daily_snapshot) if Path(daily_snapshot).is_dir() else Path(daily_snapshot).parent
     )
-    verified = verify_snapshot_files(manifest, verify_root)
+    if allow_sequential_pulls_ref is not None and not allow_sequential_pulls_ref.strip():
+        raise DescriptiveRunRefusal("allow-sequential-pulls-ref must name the recorded decision")
+    verified = verify_snapshot_files(
+        manifest, verify_root, allow_sequential_pulls=allow_sequential_pulls_ref is not None
+    )
     if not verified.ok:
         raise DescriptiveRunRefusal(f"snapshot manifest verification failed: {verified.defects}")
     ledger = ExposureLedger.from_text(Path(exposure_ledger_path).read_text(encoding="utf-8"))
@@ -736,6 +748,14 @@ def run(
                     "extracted_at_utc": manifest.extracted_at_utc,
                     "method": manifest.method,
                     "cross_table_consistent": manifest.cross_table_consistent,
+                    "consistency_class": manifest.consistency_class,
+                    "integrity_all_passed": manifest.integrity_all_passed,
+                    "sequential_pulls_opt_in_ref": (
+                        allow_sequential_pulls_ref if not manifest.cross_table_consistent else None
+                    ),
+                    "limitation": (
+                        SEQUENTIAL_PULLS_LIMITATION if not manifest.cross_table_consistent else None
+                    ),
                 },
                 "code_sha": code_sha,
                 "table_filter": table_filter,
@@ -877,6 +897,13 @@ def _build_parser() -> argparse.ArgumentParser:
     req("--out-dir", required=True, type=Path)
     req("--exploratory-scope-amendment-id", default=None)
     req("--raw-vendor-rows-attested", action="store_true")
+    req(
+        "--allow-sequential-pulls-ref",
+        default=None,
+        help="explicit opt-in: accept a v2 snapshot of class sequential_pulls_evidence_checked "
+        "whose integrity checks all passed; the value names the recorded decision and is carried "
+        "into the report with the limitation text. Without it such a snapshot is refused.",
+    )
     ev = p.add_mutually_exclusive_group(required=True)
     ev.add_argument(
         "--delisting-action-value",
@@ -944,6 +971,7 @@ def main(argv: list[str] | None = None) -> int:
             delisting_actions=tuple(a.delisting_action_value or ()),
             provenance=prov,
             statistics_config=stats,
+            allow_sequential_pulls_ref=a.allow_sequential_pulls_ref,
         )
     except Exception as exc:  # every refusal is reported, run already ABORTED
         print(f"REFUSED: {type(exc).__name__}: {exc}", file=sys.stderr)
