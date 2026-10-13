@@ -28,7 +28,10 @@ ISO strings)::
                   "phase": <Phase value>, "partition": <Partition value>,
                   "planned_label": <str>}]}    # spec-independent label of the planned run
 
-``kind`` separates two different statements. ``prior_exposure`` (the default) says data in the
+``kind`` separates three different statements. ``return_blind_probe`` records an access that
+observed ONLY status codes, bar counts and timestamps (``probe_scope`` states exactly what);
+it is listed, but it never blocks a request because no price, volume or result value was seen.
+The other two are: ``prior_exposure`` (the default) says data in the
 window HAS been seen; it blocks every overlapping request, exactly as before. ``planned_run``
 records, BEFORE execution, the access one specific run is about to make; it is an authorisation
 statement, not contamination. The results guard ignores a ``planned_run`` entry only for a
@@ -64,10 +67,11 @@ from app.research.range002.spec.hashing import CanonicalisationError, content_sh
 SCHEMA_VERSION = 1
 _TOP_KEYS = frozenset({"schema_version", "decision", "entries"})
 _ENTRY_KEYS = frozenset({"id", "start", "end", "description", "source", "observed_by"})
-_ENTRY_OPTIONAL_KEYS = frozenset({"kind", "phase", "partition", "planned_label"})
+_ENTRY_OPTIONAL_KEYS = frozenset({"kind", "phase", "partition", "planned_label", "probe_scope"})
 KIND_PRIOR_EXPOSURE = "prior_exposure"
 KIND_PLANNED_RUN = "planned_run"
-_KINDS = frozenset({KIND_PRIOR_EXPOSURE, KIND_PLANNED_RUN})
+KIND_RETURN_BLIND_PROBE = "return_blind_probe"
+_KINDS = frozenset({KIND_PRIOR_EXPOSURE, KIND_PLANNED_RUN, KIND_RETURN_BLIND_PROBE})
 _DECISION_KEYS = frozenset({"decision_date", "record_kind", "minutes_path", "minutes_sha256"})
 _RECORD_KINDS = frozenset({"meeting_minutes", "owner_instruction"})
 _HEX64 = re.compile(r"^[0-9a-f]{64}$")
@@ -85,6 +89,7 @@ class ExposureEntry:
     phase: str | None = None  # planned_run only
     partition: str | None = None  # planned_run only
     planned_label: str | None = None  # planned_run only
+    probe_scope: str | None = None  # return_blind_probe only
 
 
 def _as_date(value: object, where: str) -> date:
@@ -125,11 +130,16 @@ def _entry_kind_fields(item: Mapping[str, Any], where: str) -> dict[str, Any]:
     kind = item.get("kind", KIND_PRIOR_EXPOSURE)
     if not isinstance(kind, str) or kind not in _KINDS:
         raise ExposureLedgerError(f"{where}: kind {kind!r} is not one of {sorted(_KINDS)}")
-    extra = sorted(k for k in ("phase", "partition", "planned_label") if k in item)
+    extra = sorted(k for k in ("phase", "partition", "planned_label", "probe_scope") if k in item)
     if kind == KIND_PRIOR_EXPOSURE:
         if extra:
             raise ExposureLedgerError(f"{where}: {extra} are allowed only on a planned_run entry")
         return {"kind": kind}
+    if kind == KIND_RETURN_BLIND_PROBE:
+        other = sorted(set(extra) - {"probe_scope"})
+        if other:
+            raise ExposureLedgerError(f"{where}: {other} are not allowed on a return_blind_probe")
+        return {"kind": kind, "probe_scope": _req_str(item, "probe_scope", where)}
     phase_text = _req_str(item, "phase", where)
     partition_text = _req_str(item, "partition", where)
     label = _req_str(item, "planned_label", where)
@@ -327,6 +337,10 @@ class ExposureLedger:
         broader range, another partition or phase) blocks like a prior exposure."""
         blocking: list[ExposureEntry] = []
         for e in self.overlaps(window):
+            if e.kind == KIND_RETURN_BLIND_PROBE:
+                # recorded and visible, never blocking: a probe observes only status codes,
+                # bar counts and timestamps (no price, volume or result value)
+                continue
             authorised = (
                 e.kind == KIND_PLANNED_RUN
                 and e.window.contains(window)

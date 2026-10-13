@@ -634,6 +634,12 @@
       "reason": "RANGE-002 SIP minute-bar fetch (personal research use): writes the private minute_bars store, journal, fetch manifest and convention-evidence file beside it; the store, manifest and evidence carry PERSONAL/UNKNOWN scope sidecars (alpaca_market_data), so the export seam refuses them; no price content is rendered"
     },
     {
+      "file": "apps/backend/scripts/research/range002/mapping_probe.py",
+      "functions": "*",
+      "classification": "INTERNAL_ONLY",
+      "reason": "RANGE-002 return-blind symbol-mapping probe: writes one JSON file of HTTP statuses, bar counts and bar timestamps only (no price or volume field exists in its schema); inherits the market-data scope of its requests, so any external use is refused by the export seam"
+    },
+    {
       "file": "apps/backend/scripts/research/range002/freeze_spec.py",
       "functions": "*",
       "classification": "INTERNAL_ONLY",
