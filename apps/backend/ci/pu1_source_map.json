@@ -67,6 +67,10 @@
   ],
   "non_data_hosts": [
     {
+      "host": "docs.alpaca.markets",
+      "reason": "provider documentation URL cited as the source of the documented bar-construction rule (a reference string; no market data is fetched from it)"
+    },
+    {
       "host": "127.0.0.1",
       "reason": "loopback; the platform's own services"
     },
