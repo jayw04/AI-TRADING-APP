@@ -12,6 +12,11 @@ class User(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     email: Mapped[str] = mapped_column(String(255), unique=True, nullable=False)
     display_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    # Comma-separated market grants: "us", "cn", or "us,cn". Existing users keep both.
+    # An empty or unknown value grants nothing (see app.auth.market_access).
+    market_access: Mapped[str] = mapped_column(
+        String(32), nullable=False, default="us,cn", server_default="us,cn"
+    )
     # Password authentication (P5 §3). bcrypt hash, cost 12. Nullable so the
     # migration doesn't break the pre-P5 seeded user; the CLI bootstrap fills it.
     password_hash: Mapped[str | None] = mapped_column(String(128), nullable=True)

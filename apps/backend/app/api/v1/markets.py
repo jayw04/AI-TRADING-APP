@@ -25,6 +25,7 @@ from typing import Any
 import duckdb
 from fastapi import APIRouter, Depends, HTTPException
 
+from app.auth.market_access import grant_for_api_id
 from app.auth.stub import CurrentUser, get_current_user
 from app.config import get_settings
 from app.markets.cn_ashare import SCOPE
@@ -40,7 +41,7 @@ router = APIRouter(prefix="/markets", tags=["markets"])
 _PROVIDERS = ("tushare_pro", "baostock")
 
 
-def scoped_market(market: str) -> MarketInfo:
+def scoped_market(market: str, user: CurrentUser = Depends(get_current_user)) -> MarketInfo:
     try:
         info = resolve_market(market)
     except UnsupportedMarket:
@@ -48,6 +49,12 @@ def scoped_market(market: str) -> MarketInfo:
             status_code=404,
             detail={"code": "UNSUPPORTED_MARKET", "market": market, "supported": api_ids()},
         ) from None
+    grant = grant_for_api_id(info.api_id)
+    if grant is None or grant not in user.markets:
+        raise HTTPException(
+            status_code=403,
+            detail={"code": "MARKET_FORBIDDEN", "market": market},
+        )
     if not info.scoped_api:
         raise HTTPException(
             status_code=404,
@@ -78,8 +85,9 @@ def _open_store() -> CnAshareStore | None:
 
 
 @router.get("")
-async def list_markets(_: CurrentUser = Depends(get_current_user)) -> dict[str, Any]:
-    return {"markets": [m.as_dict() for m in MARKETS.values()]}
+async def list_markets(user: CurrentUser = Depends(get_current_user)) -> dict[str, Any]:
+    visible = [m.as_dict() for m in MARKETS.values() if grant_for_api_id(m.api_id) in user.markets]
+    return {"markets": visible}
 
 
 @router.get("/{market}/data-status")

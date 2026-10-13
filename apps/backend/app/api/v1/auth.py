@@ -139,6 +139,7 @@ class MeResponse(BaseModel):
     email: str
     display_name: str | None
     session_id: int | None
+    markets: list[str]
 
 
 class TotpSetupResponse(BaseModel):
@@ -285,6 +286,7 @@ async def me(current_user: CurrentUser = Depends(get_current_user)) -> MeRespons
         email=current_user.email,
         display_name=current_user.display_name,
         session_id=current_user.session_id,
+        markets=sorted(current_user.markets),
     )
 
 

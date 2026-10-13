@@ -3,8 +3,10 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter, useLocation } from "react-router-dom";
 import { QueryClient } from "@tanstack/react-query";
 import App from "@/App";
-import { MARKETS, parseMarketId } from "@/markets/registry";
+import { MARKETS, parseMarketId, type MarketId } from "@/markets/registry";
 import { formatInstant, formatMoney } from "@/markets/format";
+import { clearSessionCaches, trackQueryClient } from "@/markets/queryClient";
+import { SessionProvider } from "@/markets/session";
 import { marketQueryKey } from "@/api/markets";
 
 const HEAD = {
@@ -149,6 +151,16 @@ describe("market registry and formatting", () => {
 
   it("puts the market in every scoped cache key", () => {
     expect(marketQueryKey(MARKETS.cn, "results")).toEqual(["market", "cn_ashare", "results"]);
+    expect(marketQueryKey(MARKETS.cn, "results", 7)).toEqual(["user", 7, "market", "cn_ashare", "results"]);
+  });
+
+  it("clears every tracked client", () => {
+    const client = new QueryClient();
+    client.setQueryData(["book"], { cash: 1 });
+    const release = trackQueryClient(client);
+    clearSessionCaches();
+    expect(client.getQueryCache().getAll()).toHaveLength(0);
+    release();
   });
 });
 
@@ -250,5 +262,75 @@ describe("market isolation", () => {
     expect(await screen.findByText("CANDIDATE")).toBeInTheDocument();
     expect(screen.getByText("Not run yet")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /activate|order|buy|sell/i })).not.toBeInTheDocument();
+  });
+});
+
+function renderSession(path: string, markets: readonly MarketId[], userId = 1) {
+  return render(
+    <SessionProvider value={{ user_id: userId, markets }}>
+      <MemoryRouter initialEntries={[path]}>
+        <App makeQueryClient={() => new QueryClient({ defaultOptions: { queries: { retry: false } } })} />
+        <Where />
+      </MemoryRouter>
+    </SessionProvider>,
+  );
+}
+
+describe("market grants", () => {
+  it("sends a China-only account home to A-share data", async () => {
+    renderSession("/", ["cn"]);
+    await waitFor(() => expect(where()).toBe("/cn/data"));
+    expect(await screen.findByText("CROSSCHECK_PRICE_MISMATCH")).toBeInTheDocument();
+  });
+
+  it("sends an account with both grants home to US", async () => {
+    renderSession("/", ["us", "cn"]);
+    await waitFor(() => expect(where()).toBe("/us"));
+  });
+
+  it("blocks a China-only account from a direct US url without calling US endpoints", async () => {
+    renderSession("/us/orders", ["cn"]);
+    expect(await screen.findByRole("heading", { name: "Market not available" })).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Orders" })).not.toBeInTheDocument();
+    expect(calls.filter((u) => u.includes("/api/v1/account"))).toEqual([]);
+    expect(screen.getByRole("link", { name: /中国 A股/ })).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: /US Equities/ })).not.toBeInTheDocument();
+  });
+
+  it("blocks a US-only account from a direct A-share url without calling the markets API", async () => {
+    renderSession("/cn/results", ["us"]);
+    expect(await screen.findByRole("heading", { name: "Market not available" })).toBeInTheDocument();
+    expect(screen.queryByText("CN-MOM-20D")).not.toBeInTheDocument();
+    expect(calls.filter((u) => u.startsWith("/api/v1/markets/"))).toEqual([]);
+  });
+
+  it("offers only the granted market in the selector", async () => {
+    renderSession("/cn/data", ["cn"]);
+    expect(await screen.findByText("CROSSCHECK_PRICE_MISMATCH")).toBeInTheDocument();
+    const options = screen.getAllByRole("option").map((o) => o.textContent);
+    expect(options).toEqual(["中国 A股"]);
+  });
+
+  it("refetches when the account changes", async () => {
+    const view = renderSession("/cn/results", ["cn"], 1);
+    expect(await screen.findByText("CN-MOM-20D")).toBeInTheDocument();
+    const before = calls.filter((u) => u.startsWith("/api/v1/markets/")).length;
+    view.rerender(
+      <SessionProvider value={{ user_id: 2, markets: ["cn"] }}>
+        <MemoryRouter initialEntries={["/cn/results"]}>
+          <App makeQueryClient={() => new QueryClient({ defaultOptions: { queries: { retry: false } } })} />
+          <Where />
+        </MemoryRouter>
+      </SessionProvider>,
+    );
+    await waitFor(() =>
+      expect(calls.filter((u) => u.startsWith("/api/v1/markets/")).length).toBeGreaterThan(before),
+    );
+  });
+
+  it("shows no market to an account with no grants", async () => {
+    renderSession("/", []);
+    expect(await screen.findByRole("heading", { name: "No market access" })).toBeInTheDocument();
+    expect(calls).toEqual([]);
   });
 });
