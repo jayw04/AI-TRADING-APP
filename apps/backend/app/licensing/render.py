@@ -15,6 +15,13 @@ from app.licensing.scopes import LicenseScope
 
 PERSONAL_FOOTER = "PERSONAL USE ONLY — not for presentation (PU-1)"
 
+# Neutral line carried by internal reports: a label or a sidecar records provenance; it is not a
+# permission to share or present (that is a separate decision, never inferred from a tag).
+PERMISSION_NOTE = (
+    "A presentation label or licence sidecar describes provenance only; it does not establish "
+    "permission to share or present this report."
+)
+
 Fmt = Literal["markdown", "text", "html"]
 
 

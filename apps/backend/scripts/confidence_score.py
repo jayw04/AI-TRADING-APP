@@ -2,7 +2,11 @@
 
 Reads the same operational/safety/verifiability signals as ``live_evidence.py`` / ``monthly_evidence.py``
 and composes them into a single 0–100 score (``app.ops.confidence``) that rises with clean operation
-over time. The complement to the evidence *report*: a number an allocator/buyer can track week over week.
+over time. The complement to the evidence *report*: a number that can be tracked week over week.
+
+INTERNAL report (PU-1). Its sources are declared in ``app.licensing.evidence_lineage`` (the replay
+mismatch counters depend on marked-to-market values, so the score is PERSONAL); the output carries
+the PU-1 footer and a scope sidecar. A label or sidecar does not establish permission to share it.
 
 > Read-only. ASCII-only stdout (cp1252-safe). No order path; queries the SQLite DB read-only.
 
@@ -13,7 +17,6 @@ over time. The complement to the evidence *report*: a number an allocator/buyer 
 from __future__ import annotations
 
 import argparse
-import json
 import sqlite3
 import subprocess
 import sys
@@ -25,6 +28,8 @@ BACKEND_ROOT = Path(__file__).resolve().parents[1]
 if str(BACKEND_ROOT) not in sys.path:
     sys.path.insert(0, str(BACKEND_ROOT))
 
+from app.licensing import PERMISSION_NOTE, write_internal_json, write_internal_report  # noqa: E402
+from app.licensing import evidence_lineage as lineage  # noqa: E402
 from app.ops.confidence import ConfidenceSignals, compute_confidence  # noqa: E402
 from app.ops.evidence_scope import paper_strategy_ids, resolve_paper_account  # noqa: E402
 
@@ -145,6 +150,8 @@ def _render(r: dict[str, Any]) -> str:
         "",
         "_The score is conservative by design: a new book scores low (no track record), an "
         "incident-free mature book scores high. Run weekly; it climbs as the clean record lengthens._",
+        "",
+        f"_{PERMISSION_NOTE}_",
     ]
     return "\n".join(lines) + "\n"
 
@@ -167,8 +174,10 @@ def _run_one(db: str, d: Path | None, *, strategy_id: int | None = None) -> dict
     print(f"  verifiability {r['components']['verifiability']:.0f} | safety {r['components']['safety']:.0f} "
           f"| maturity {r['components']['maturity']:.0f} | operational {r['components']['operational']:.0f}")
     if d:
-        (d / f"{name}.json").write_text(json.dumps(r, indent=2, default=str), encoding="utf-8")
-        (d / f"{name}.md").write_text(_render(r), encoding="utf-8")
+        sources = lineage.confidence_sources()
+        write_internal_json(d / f"{name}.json", {**r, "license_note": PERMISSION_NOTE},
+                            sources=sources)
+        write_internal_report(d / f"{name}.md", _render(r), sources=sources)
     return r
 
 

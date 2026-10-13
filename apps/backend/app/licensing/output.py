@@ -5,9 +5,11 @@ folders). They gate before any byte is written and take no override argument.
 
 from __future__ import annotations
 
+import json
 import shutil
 from collections.abc import Iterable
 from pathlib import Path
+from typing import Any
 
 from app.licensing.envelope import atomic_write, scope_of_file, sidecar_path, write_sidecar
 from app.licensing.gate import PersonalScopeBlocked, assert_presentable
@@ -21,6 +23,16 @@ def write_internal_report(
     srcs = tuple(sources)
     atomic_write(path, stamp(text, sources=srcs, fmt=fmt).encode("utf-8"))
     write_sidecar(path, srcs)
+    return path
+
+
+def write_internal_json(path: Path, obj: Any, *, sources: Iterable[str]) -> Path:
+    """Write an INTERNAL machine-readable report (JSON) byte-for-byte as ``json.dumps(indent=2,
+    default=str)`` would, plus its scope sidecar. No footer is injected (it would corrupt the JSON);
+    the sidecar binds the file's SHA-256 to its declared sources, and scope is recomputed from the
+    registry, so a missing/invalid sidecar is UNKNOWN."""
+    atomic_write(path, json.dumps(obj, indent=2, default=str).encode("utf-8"))
+    write_sidecar(path, tuple(sources))
     return path
 
 

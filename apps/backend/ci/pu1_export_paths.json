@@ -32,6 +32,18 @@
       "reason": "research dashboard render/write: stamps the PU-1 footer and writes through write_internal_report (sidecar scope)"
     },
     {
+      "file": "apps/backend/app/validation/aws/s3_sink.py",
+      "functions": "*",
+      "classification": "INTERNAL_ONLY",
+      "reason": "ADR-0046 S3 Object-Lock external-witness sink: publishes chain-tip anchors (hashes) to the governed witness bucket via put_object; sealed/frozen governed writer, detected by the third-party egress rule, not a presentation path"
+    },
+    {
+      "file": "scripts/fleet_audit/ec2_fleet_audit.py",
+      "functions": "*",
+      "classification": "INTERNAL_ONLY",
+      "reason": "EC2 fleet-audit Lambda: writes a dated infrastructure receipt (instance ids, verdict) to the owner's S3 receipt bucket via put_object, detected by the third-party egress rule; operational detection control, no market data, not a presentation path"
+    },
+    {
       "file": "scripts/reports/morning_opportunities.py",
       "functions": [
         "main"
@@ -301,7 +313,7 @@
       "file": "apps/backend/scripts/confidence_score.py",
       "functions": "*",
       "classification": "INTERNAL_ONLY",
-      "reason": "evidence report written under docs/implementation/evidence (the owner's working tree); not footer-stamped yet; leaves the working tree only through export_file_for_external_use, which refuses a file with no valid sidecar (UNKNOWN)"
+      "reason": "INTERNAL evidence report written under docs/implementation/evidence (the owner's working tree) through write_internal_report/write_internal_json (PU-1 footer + scope sidecar; declared sources: owner_generated_records + alpaca_market_data (replay mismatch counters recompute breaker trips from marked-to-market unrealized_pl)). Kept INTERNAL_ONLY until content and source basis support presentation: a presentation label or sidecar does not establish permission to share it; it leaves the working tree only through export_file_for_external_use, which refuses PERSONAL/UNKNOWN scope and files without a valid sidecar."
     },
     {
       "file": "apps/backend/scripts/drift_audit_momentum_daily.py",
@@ -313,7 +325,7 @@
       "file": "apps/backend/scripts/edge_evidence.py",
       "functions": "*",
       "classification": "INTERNAL_ONLY",
-      "reason": "evidence report written under docs/implementation/evidence (the owner's working tree); not footer-stamped yet; leaves the working tree only through export_file_for_external_use, which refuses a file with no valid sidecar (UNKNOWN)"
+      "reason": "INTERNAL evidence report written under docs/implementation/evidence (the owner's working tree) through write_internal_report/write_internal_json (PU-1 footer + scope sidecar; declared sources: sharadar + alpaca_market_data (factor store; SPY fixture from Alpaca bars)). Kept INTERNAL_ONLY until content and source basis support presentation: a presentation label or sidecar does not establish permission to share it; it leaves the working tree only through export_file_for_external_use, which refuses PERSONAL/UNKNOWN scope and files without a valid sidecar."
     },
     {
       "file": "apps/backend/scripts/factor_evidence.py",
@@ -517,7 +529,7 @@
       "file": "apps/backend/scripts/live_evidence.py",
       "functions": "*",
       "classification": "INTERNAL_ONLY",
-      "reason": "evidence report written under docs/implementation/evidence (the owner's working tree); not footer-stamped yet; leaves the working tree only through export_file_for_external_use, which refuses a file with no valid sidecar (UNKNOWN)"
+      "reason": "INTERNAL evidence report written under docs/implementation/evidence (the owner's working tree) through write_internal_report/write_internal_json (PU-1 footer + scope sidecar; declared sources: owner_generated_records + alpaca_market_data (position market_value/unrealized_pl, account equity)). Kept INTERNAL_ONLY until content and source basis support presentation: a presentation label or sidecar does not establish permission to share it; it leaves the working tree only through export_file_for_external_use, which refuses PERSONAL/UNKNOWN scope and files without a valid sidecar."
     },
     {
       "file": "apps/backend/scripts/low_vol_research.py",
@@ -547,7 +559,7 @@
       "file": "apps/backend/scripts/monthly_evidence.py",
       "functions": "*",
       "classification": "INTERNAL_ONLY",
-      "reason": "evidence report written under docs/implementation/evidence (the owner's working tree); not footer-stamped yet; leaves the working tree only through export_file_for_external_use, which refuses a file with no valid sidecar (UNKNOWN)"
+      "reason": "INTERNAL evidence report written under docs/implementation/evidence (the owner's working tree) through write_internal_report/write_internal_json (PU-1 footer + scope sidecar; declared sources: owner_generated_records + alpaca_market_data (account equity curve; replay lineage)). Kept INTERNAL_ONLY until content and source basis support presentation: a presentation label or sidecar does not establish permission to share it; it leaves the working tree only through export_file_for_external_use, which refuses PERSONAL/UNKNOWN scope and files without a valid sidecar."
     },
     {
       "file": "apps/backend/scripts/multifactor_explore.py",
@@ -565,7 +577,7 @@
       "file": "apps/backend/scripts/ops_kpis.py",
       "functions": "*",
       "classification": "INTERNAL_ONLY",
-      "reason": "evidence report written under docs/implementation/evidence (the owner's working tree); not footer-stamped yet; leaves the working tree only through export_file_for_external_use, which refuses a file with no valid sidecar (UNKNOWN)"
+      "reason": "INTERNAL evidence report written under docs/implementation/evidence (the owner's working tree) through write_internal_report/write_internal_json (PU-1 footer + scope sidecar; declared sources: owner_generated_records + alpaca_market_data (replay-consistency row; other rows owner records only)). Kept INTERNAL_ONLY until content and source basis support presentation: a presentation label or sidecar does not establish permission to share it; it leaves the working tree only through export_file_for_external_use, which refuses PERSONAL/UNKNOWN scope and files without a valid sidecar."
     },
     {
       "file": "apps/backend/scripts/preview_total_return_pricing.py",
@@ -589,7 +601,7 @@
       "file": "apps/backend/scripts/range_evidence.py",
       "functions": "*",
       "classification": "INTERNAL_ONLY",
-      "reason": "evidence report written under docs/implementation/evidence (the owner's working tree); not footer-stamped yet; leaves the working tree only through export_file_for_external_use, which refuses a file with no valid sidecar (UNKNOWN)"
+      "reason": "INTERNAL evidence report written under docs/implementation/evidence (the owner's working tree) through write_internal_report/write_internal_json (PU-1 footer + scope sidecar; declared sources: alpaca_market_data (Alpaca 5-min bars)). Kept INTERNAL_ONLY until content and source basis support presentation: a presentation label or sidecar does not establish permission to share it; it leaves the working tree only through export_file_for_external_use, which refuses PERSONAL/UNKNOWN scope and files without a valid sidecar."
     },
     {
       "file": "apps/backend/scripts/range_postrun_check.py",

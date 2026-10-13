@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "purpose": "PU-1 registry closure map: deterministic mapping from ingestion hosts / vendor-SDK imports / snapshot modules to licence-registry source_ids. Verified by apps/backend/scripts/check_pu1_registry_closure.py; an unmapped source, or a mapped source with no registry row, fails the build. Entries marked judgement=true were mapped by the implementing session and are listed for owner review.",
+  "purpose": "PU-1 registry closure map: deterministic mapping from ingestion hosts / vendor-SDK imports / snapshot modules to licence-registry source_ids. Verified by apps/backend/scripts/check_pu1_registry_closure.py; an unmapped source, or a mapped source with no registry row, fails the build. Entries marked judgement=true were mapped by the implementing session and are listed for owner review. MIXED entries (Alpaca broker API hosts / trading SDK) are classified per field via the field table; 'broker_field_access' makes any module that reads an AST-enforced market-data field name go through app.licensing.broker_fields or be allowlisted with a reason.",
   "hosts": [
     {
       "host": "data.alpaca.markets",
@@ -41,6 +41,30 @@
       "judgement": true
     }
   ],
+  "mixed_hosts": [
+    {
+      "host": "api.alpaca.markets",
+      "classification": "MIXED",
+      "field_classification": "apps/backend/app/licensing/broker_field_classification.json",
+      "source_ids": [
+        "owner_generated_records",
+        "alpaca_market_data"
+      ],
+      "note": "Alpaca broker/trading API: owner transaction/account records AND marked-to-market market-data fields in the same response. Classified per field, never blanket NON_DATA; unlisted fields are alpaca_market_data (conservative).",
+      "judgement": true
+    },
+    {
+      "host": "paper-api.alpaca.markets",
+      "classification": "MIXED",
+      "field_classification": "apps/backend/app/licensing/broker_field_classification.json",
+      "source_ids": [
+        "owner_generated_records",
+        "alpaca_market_data"
+      ],
+      "note": "Alpaca broker/trading API: owner transaction/account records AND marked-to-market market-data fields in the same response. Classified per field, never blanket NON_DATA; unlisted fields are alpaca_market_data (conservative).",
+      "judgement": true
+    }
+  ],
   "non_data_hosts": [
     {
       "host": "127.0.0.1",
@@ -57,16 +81,6 @@
     {
       "host": "www.anthropic.com",
       "reason": "documentation URL for LLM pricing, not a data source (LLM calls are governed by ADR 0006)"
-    },
-    {
-      "host": "api.alpaca.markets",
-      "reason": "broker trading/account API (orders, account state); a market-data field read from it is tainted at its point of use, never classified here",
-      "judgement": true
-    },
-    {
-      "host": "paper-api.alpaca.markets",
-      "reason": "broker trading/account API (orders, account state); a market-data field read from it is tainted at its point of use, never classified here",
-      "judgement": true
     }
   ],
   "imports": [
@@ -76,11 +90,19 @@
       "note": "Alpaca market-data SDK (bars, trades, quotes, corporate actions, screener, live stream); every feed"
     }
   ],
-  "non_data_imports": [
+  "mixed_imports": [
     {
       "prefix": "alpaca.trading",
-      "reason": "Alpaca trading SDK: order/account API (the owner's own records), not market data"
-    },
+      "classification": "MIXED",
+      "field_classification": "apps/backend/app/licensing/broker_field_classification.json",
+      "source_ids": [
+        "owner_generated_records",
+        "alpaca_market_data"
+      ],
+      "note": "Alpaca trading SDK models (Position, TradeAccount, Order, ...): the same MIXED broker responses; classified per field, not blanket NON_DATA."
+    }
+  ],
+  "non_data_imports": [
     {
       "prefix": "alpaca.common",
       "reason": "Alpaca SDK shared exception types"
@@ -100,5 +122,163 @@
   ],
   "altdata_source_names": {
     "quiver": "quiver"
+  },
+  "broker_field_access": {
+    "helper_module": "app.licensing.broker_fields",
+    "field_table": "apps/backend/app/licensing/broker_field_classification.json",
+    "note": "AST rule: a Python module under the scan roots that reads an ast_enforced_market_data_names field (attribute load, string subscript, or .get/.pop/.setdefault first argument) must CALL a broker_fields helper (classify_field / sources_of_fields / scope_of_fields / subset_with_lineage / taint_from_fields) or be listed here with a reason. Limits: dynamic getattr and constructed keys, keyword arguments, dict-literal keys, and fields reached through third-party model_dump are not caught; an in-file helper call does not prove every access is routed through it.",
+    "allowlist": [
+      {
+        "file": "apps/backend/app/risk/account_snapshot.py",
+        "fields": [
+          "current_price",
+          "market_value"
+        ],
+        "disposition": "order_path_table_only",
+        "reason": "governed order-path / risk / broker code: classified by the field table only; PU-1 is labelling-only and this module must not import app.licensing (check_pu1_presentation_gate.sh B)"
+      },
+      {
+        "file": "apps/backend/app/risk/buying_power.py",
+        "fields": [
+          "buying_power"
+        ],
+        "disposition": "order_path_table_only",
+        "reason": "governed order-path / risk / broker code: classified by the field table only; PU-1 is labelling-only and this module must not import app.licensing (check_pu1_presentation_gate.sh B)"
+      },
+      {
+        "file": "apps/backend/app/risk/circuit_breaker.py",
+        "fields": [
+          "last_equity",
+          "unrealized_pl"
+        ],
+        "disposition": "order_path_table_only",
+        "reason": "governed order-path / risk / broker code: classified by the field table only; PU-1 is labelling-only and this module must not import app.licensing (check_pu1_presentation_gate.sh B)"
+      },
+      {
+        "file": "apps/backend/app/risk/engine.py",
+        "fields": [
+          "last_equity",
+          "market_value"
+        ],
+        "disposition": "order_path_table_only",
+        "reason": "governed order-path / risk / broker code: classified by the field table only; PU-1 is labelling-only and this module must not import app.licensing (check_pu1_presentation_gate.sh B)"
+      },
+      {
+        "file": "apps/backend/app/risk/loss_control/preflight.py",
+        "fields": [
+          "last_equity"
+        ],
+        "disposition": "order_path_table_only",
+        "reason": "governed order-path / risk / broker code: classified by the field table only; PU-1 is labelling-only and this module must not import app.licensing (check_pu1_presentation_gate.sh B)"
+      },
+      {
+        "file": "apps/backend/app/brokers/adr0043_reconcile.py",
+        "fields": [
+          "last_equity",
+          "portfolio_value",
+          "position_market_value"
+        ],
+        "disposition": "order_path_table_only",
+        "reason": "broker-package ADR-0043 sealed reconciliation record: classified by the field table only; app/brokers must not import app.licensing"
+      },
+      {
+        "file": "apps/backend/app/services/account_sync.py",
+        "fields": [
+          "last_equity",
+          "buying_power",
+          "portfolio_value"
+        ],
+        "disposition": "persistence_mirror_table_only",
+        "reason": "persistence mirror of the broker response into the DB (feeds the risk engine's DB-bound inputs); not edited so no behaviour changes on a state path; taint is applied at the read surfaces that are wired (positions/account API, live_evidence, evidence KPIs, daily_report)"
+      },
+      {
+        "file": "apps/backend/app/services/position_sync.py",
+        "fields": [
+          "market_value",
+          "unrealized_pl",
+          "unrealized_plpc"
+        ],
+        "disposition": "persistence_mirror_table_only",
+        "reason": "persistence mirror of the broker response into the DB (feeds the risk engine's DB-bound inputs); not edited so no behaviour changes on a state path; taint is applied at the read surfaces that are wired (positions/account API, live_evidence, evidence KPIs, daily_report)"
+      },
+      {
+        "file": "apps/backend/app/services/equity_snapshot.py",
+        "fields": [
+          "portfolio_value"
+        ],
+        "disposition": "persistence_mirror_table_only",
+        "reason": "persistence mirror of the broker response into the DB (feeds the risk engine's DB-bound inputs); not edited so no behaviour changes on a state path; taint is applied at the read surfaces that are wired (positions/account API, live_evidence, evidence KPIs, daily_report)"
+      },
+      {
+        "file": "apps/backend/scripts/adr0042_canary_lib.py",
+        "fields": [
+          "last_equity"
+        ],
+        "disposition": "governed_harness_table_only",
+        "reason": "ADR-0042/0043 governed canary/harness script: sealed/frozen, not edited; classified by the field table only"
+      },
+      {
+        "file": "apps/backend/scripts/adr0042_canary_run.py",
+        "fields": [
+          "market_value"
+        ],
+        "disposition": "governed_harness_table_only",
+        "reason": "ADR-0042/0043 governed canary/harness script: sealed/frozen, not edited; classified by the field table only"
+      },
+      {
+        "file": "apps/backend/scripts/adr0042_churn_to_breach.py",
+        "fields": [
+          "buying_power",
+          "market_value"
+        ],
+        "disposition": "governed_harness_table_only",
+        "reason": "ADR-0042/0043 governed canary/harness script: sealed/frozen, not edited; classified by the field table only"
+      },
+      {
+        "file": "apps/backend/scripts/adr0042_preflight.py",
+        "fields": [
+          "buying_power"
+        ],
+        "disposition": "governed_harness_table_only",
+        "reason": "ADR-0042/0043 governed canary/harness script: sealed/frozen, not edited; classified by the field table only"
+      },
+      {
+        "file": "apps/backend/scripts/adr0043_canary_lib.py",
+        "fields": [
+          "last_equity"
+        ],
+        "disposition": "governed_harness_table_only",
+        "reason": "ADR-0042/0043 governed canary/harness script: sealed/frozen, not edited; classified by the field table only"
+      },
+      {
+        "file": "apps/backend/scripts/adr0043_churn_driver.py",
+        "fields": [
+          "buying_power"
+        ],
+        "disposition": "governed_harness_table_only",
+        "reason": "ADR-0042/0043 governed canary/harness script: sealed/frozen, not edited; classified by the field table only"
+      },
+      {
+        "file": "apps/backend/scripts/adr0043_scoped_sync.py",
+        "fields": [
+          "last_equity",
+          "buying_power",
+          "portfolio_value",
+          "market_value",
+          "unrealized_pl",
+          "unrealized_plpc"
+        ],
+        "disposition": "governed_harness_table_only",
+        "reason": "ADR-0042/0043 governed canary/harness script: sealed/frozen, not edited; classified by the field table only"
+      },
+      {
+        "file": "apps/backend/scripts/adr0043_session_open.py",
+        "fields": [
+          "last_equity"
+        ],
+        "disposition": "governed_harness_table_only",
+        "reason": "ADR-0042/0043 governed canary/harness script: sealed/frozen, not edited; classified by the field table only"
+      }
+    ]
   }
 }

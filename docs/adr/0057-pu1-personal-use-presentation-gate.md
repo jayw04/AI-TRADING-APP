@@ -62,7 +62,9 @@ its terms.
    two documents (hash `null` with status `PENDING_OWNER_SUPPLIED_AS_FETCHED_2026-10-12` — no hash is
    fabricated), the owner's reading, the re-check triggers and the ruling reference. `sharadar`, `fmp`
    and `quiver` stay `UNKNOWN`; `sec_edgar`, `usaspending` and `fred` are registered `UNKNOWN` so the
-   build-time closure passes without anyone asserting terms nobody has read.
+   build-time closure passes without anyone asserting terms nobody has read. Public accessibility
+   alone does not establish a commercial-use classification: `sec_edgar`, `usaspending` and `fred`
+   stay `UNKNOWN` and are resolved in a later bounded task.
 6. **First `COMMERCIAL_OK` entry: `owner_generated_records`** — the owner's own account, order,
    gate-refusal and operational records, "owner-generated operational records; contains no vendor
    market data". A metric that touches market data (slippage against quotes, fill quality, P&L marked
@@ -76,6 +78,44 @@ its terms.
    books), not per KPI type or view. Each panel and KPI row carries its own `license_scope`,
    `license_sources` and footer; the top level is the combined most-restrictive scope; Print is
    enabled only when every visible panel is explicitly `COMMERCIAL_OK` (a missing field is blocked).
+
+9. **The Alpaca broker/trading API is a MIXED source, classified per field.** An order id, a
+   quantity and the owner's cash balance are the owner's operational records; `market_value`,
+   `current_price`, `unrealized_pl*`, `change_today`, `lastday_price` and marked-to-market account
+   equity are market data — and they arrive in the same response. The two broker hosts and the
+   `alpaca.trading` SDK are therefore `MIXED` in `ci/pu1_source_map.json` (not blanket `NON_DATA`),
+   pointing at `app/licensing/broker_field_classification.json`. `OWNER_RECORD` fields map to
+   `owner_generated_records`; `MARKET_DATA` fields map to `alpaca_market_data`; any field or response
+   kind the table does not name is `MARKET_DATA` (conservative), an unreadable table classifies
+   everything `MARKET_DATA`, and consuming no fields at all is an empty lineage (`UNKNOWN`). The
+   helper `app.licensing.broker_fields` returns the sources/scope of the subset of fields a derived
+   artifact actually consumed (`sources_of_fields`, `scope_of_fields`, `subset_with_lineage`,
+   `taint_from_fields`, `field_license_block`). The registry-closure check enforces, by AST, that a
+   module reading one of the table's enforced market-data field names (`market_value`,
+   `current_price`, `unrealized_pl`, `unrealized_plpc`, `change_today`, `lastday_price`,
+   `portfolio_value`, `last_equity`, `buying_power`, ...) calls the helper or is listed with a
+   reason. Own fill prices, average entry price and cost basis are classified `OWNER_RECORD` (the
+   owner's transaction record) with `review: true`: **an owner ruling on treating own execution
+   prices as owner records is pending**, and a derived metric that compares them to a quote carries
+   the market-data source by taint. Order-path extraction points (risk engine, router, broker
+   adapters) and ADR-0042/0043 harnesses are *classified by the table only* and are not edited
+   (`app/brokers`, `app/risk`, `app/orders` must not import `app.licensing`).
+10. **Evidence lineage is traced per KPI row, not asserted per panel** (`app/licensing/evidence_lineage.py`,
+    each input with a file:line trace). A row's sources are the union of its inputs' sources; the
+    panel is the most restrictive of its rows; taint is never removed to make a panel presentable.
+    Finding: `replay_consistency` is **not** an owner-records-only row. Replay recomputes the
+    circuit-breaker trip from the audit fingerprint (`net_pnl = realized_pnl_today +
+    unrealized_pnl_now`), and `unrealized_pnl_now` is `SUM(positions.unrealized_pl)`, a broker
+    marked-to-market field. The replay counters cannot be split by decision type, so the ratio, and
+    every panel that consumes the replay counters (confidence), carry `alpaca_market_data` and are
+    `PERSONAL`; the other KPI rows stay `COMMERCIAL_OK`.
+11. **Evidence reports are INTERNAL.** `monthly_evidence`, `live_evidence`, `confidence_score`,
+    `ops_kpis`, `edge_evidence` and `range_evidence` write through the shared writers
+    (`write_internal_report` / `write_internal_json`) with sources declared from their actual reads,
+    carry the PU-1 footer and a scope sidecar, and are `INTERNAL_ONLY` in the export-path registry
+    until content and source basis support presentation. The previous "customer-facing" /
+    "allocator-readable" wording was removed (wording only), and each report states that a
+    presentation label or sidecar does not establish permission to share it.
 
 ## Rationale
 
@@ -102,8 +142,32 @@ Alternatives considered:
 - Checks: `apps/backend/scripts/check_pu1_export_path_closure.py`,
   `check_pu1_registry_closure.py`, `check_pu1_presentation_gate.sh`; data files
   `apps/backend/ci/pu1_export_paths.json`, `pu1_source_map.json`, `pu1_required_tests.json`.
+- Broker-field classification: `app/licensing/broker_field_classification.json` +
+  `app/licensing/broker_fields.py`; Evidence lineage: `app/licensing/evidence_lineage.py`; the
+  broker-field AST rule and its allowlist live in `check_pu1_registry_closure.py` /
+  `ci/pu1_source_map.json` (`broker_field_access`). Wired surfaces: `/api/v1/evidence/summary`,
+  `/api/v1/positions`, `/api/v1/account`, `scripts/live_evidence.py`, `scripts/reports/daily_report.py`.
 - The AST check does not see non-Python export paths other than the frontend print trigger (a text
   rule over `apps/frontend/src`); shell scripts are out of scope.
+- **What the export-path closure does not prove.** It is a deterministic by-name AST rule, not a
+  proof that no byte can leave. It detects: direct and referenced writer attributes
+  (`w = p.write_text; w(x)`), `getattr(o, "write_text")` with a literal name, `open`/`io.open`/
+  `gzip.open`/... and simple aliases, an `open` with a non-literal mode, subprocess/`os.system`
+  commands whose literal text redirects (`>`, `>>`, `tee`), a fixed list of third-party egress
+  method names (`put_object`, `upload_file`, `sendmail`, ...), literal `importlib.import_module` /
+  `__import__` of a rendering library, and constant-folded or path-builder-assembled outbound
+  segments. It does **not** prove, and tests assert it does not detect: non-literal `getattr` /
+  `import_module` names or any path built from variables; a subprocess command assembled at run
+  time; writing through a third-party client under a method name outside the list, or an HTTP
+  client body (requests/httpx/urllib); redirection performed outside Python (`> report.md`, a
+  scheduled-task wrapper) and any non-Python script; `exec`/`eval` of generated code; writes by
+  method name on an instance the check cannot type. A new covered route is added to
+  `DETECTED_BYPASSES`, a newly understood gap to `UNCOVERED_BYPASSES`, in
+  `tests/licensing/test_pu1_ci_checks.py`. The same honesty applies to the broker-field rule: it
+  does not catch dynamic `getattr`, constructed keys, keyword arguments, dict-literal keys,
+  `model_dump()` of a third-party object, or the un-enforced `equity`/`cash` names, and a helper
+  call anywhere in a module satisfies the rule for the module without proving each access is
+  routed through it.
 - `check_pu1_export_path_closure.py` lists internal research writers and sealed/frozen writers as
   `INTERNAL_ONLY` with a reason **without editing them**.
 

@@ -14,9 +14,19 @@ from app.db.models.account import Account, AccountMode
 from app.db.models.account_state import AccountState
 from app.db.models.equity_snapshot import EquitySnapshot
 from app.db.session import get_session
+from app.licensing.broker_fields import field_license_block
 from app.services.day_change_basis import UNAVAILABLE
 
 router = APIRouter(prefix="/account", tags=["account"])
+
+# PU-1: the fields of the broker account object this response exposes (per-field classification in
+# app/licensing/broker_field_classification.json; cash/status are owner records, equity-derived
+# fields are marked to market).
+_ACCOUNT_FIELDS_USED = (
+    "status", "cash", "equity", "last_equity", "buying_power", "portfolio_value",
+    "day_change", "day_change_pct", "daytrade_count", "pattern_day_trader",
+    "trading_blocked", "account_blocked",
+)
 
 
 @router.get("", response_model=AccountResponse)
@@ -96,4 +106,5 @@ async def get_account(
         trading_blocked=state.trading_blocked,
         account_blocked=state.account_blocked,
         updated_at=state.updated_at,
+        **field_license_block("account", _ACCOUNT_FIELDS_USED),
     )
