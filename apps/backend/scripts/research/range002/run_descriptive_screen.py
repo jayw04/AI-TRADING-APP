@@ -1158,6 +1158,20 @@ def _hhmmss(text: str) -> Any:
 
 
 VALIDATION_SCHEMA = "range002.acquisition_validation.v1"
+#: Not removed by any mapping, coverage or completeness check; carried into every validation and
+#: evaluation report. "PIT_FULL" is the universe builder's label, NOT an independent verification.
+CARRIED_LIMITATIONS = [
+    "universe category map is taken from CURRENT-snapshot TICKERS metadata, not an independently "
+    "verified point-in-time category; the builder label PIT_FULL does not remove this",
+    "TICKERS is as delivered by the vendor now; issuer history is not reconstructed",
+    "daily tables are sequential vendor pulls (cross_table_consistent false); named integrity "
+    "exceptions are recorded in the snapshot manifest",
+    "issuer identity rests on permaticker, name, price interval and ACTIONS chain; the price "
+    "consistency check is a screening aid, not an identity proof",
+    "data-quality diagnostics were inspected before any strategy result was viewed; the strategy "
+    "rule is Q1-informed; this window is development-partition evidence, not untouched P3B "
+    "confirmation",
+]
 STATUS_ACQ_VALIDATED = "ACQUISITION_VALIDATED"
 STATUS_ACQ_DEFECT = "ACQUISITION_VALIDATED_WITH_PREREQUISITE_DEFECT"
 
@@ -1639,7 +1653,7 @@ def run(
                 "price_consistency_no_symbol_over_limit": (
                     pc.get("symbols_exceeding_fraction") == [] if pc else False
                 ),
-                "universe_scope_pit_full": scopes_acq == ["PIT_FULL"],
+                "universe_scope_label_is_builder_pit_full": scopes_acq == ["PIT_FULL"],
             }
             ok = all(prereq.values())
             val = {
@@ -1654,6 +1668,7 @@ def run(
                 "minute_bars_sha256": _path_digest(Path(minute_bars)),
                 "code_sha": code_sha,
                 "all_prerequisites_pass": ok,
+                "limitations_carried_forward": CARRIED_LIMITATIONS,
                 "no_trade_evidence_sha256": no_trade_evidence_sha256 if ntm_info else None,
                 "missing_minute_policy": ntm_info,
                 "linked_validation": (
@@ -1855,6 +1870,7 @@ def run(
             "optional_bootstrap": None,
         }
         if params.max_cost_to_risk is not None:
+            report["limitations_carried_forward"] = CARRIED_LIMITATIONS
             report["cost_to_risk_eligibility"] = {
                 "formula": "2 * base_bps_per_side / 1e4 * trigger / (trigger - or_low) <= ceiling",
                 "ceiling": params.max_cost_to_risk,

@@ -1,0 +1,270 @@
+{
+  "controls": {
+    "naive_orb": {
+      "definition": null
+    },
+    "random_entry": {
+      "invalid_draw_policy": null,
+      "repetitions": null,
+      "seed": null
+    }
+  },
+  "costs": {
+    "accounting_mode": "all_in",
+    "base_bps_per_side": 5.0,
+    "components": {
+      "additional_components": [],
+      "all_in_per_side_debit": true,
+      "itemised": false,
+      "represents": [
+        "fee",
+        "spread",
+        "slippage"
+      ]
+    },
+    "stress_bps_per_side": 15.0
+  },
+  "data": {
+    "bar": "1min",
+    "daily_price_basis": "SEP_SPLIT_ADJUSTED",
+    "feed": "sip",
+    "fetch_mode": "bounded_monthly_chunked_resumable_sip_acquisition",
+    "intraday_price_basis": "raw",
+    "session": "rth",
+    "tz": "America/New_York",
+    "vendor": "daily: Sharadar SEP/TICKERS/ACTIONS (sequential vendor pulls); intraday: Alpaca SIP raw 1-minute bars"
+  },
+  "decision": null,
+  "diagnostics": {
+    "taxonomy": null
+  },
+  "execution": {
+    "ack_latency_ms": null,
+    "bar_timestamp_convention": "start",
+    "crossed_before_arm_policy": "SKIP",
+    "eod_lead_s": null,
+    "order_reservation_policy": null,
+    "order_type": null,
+    "stop_protection_policy": null,
+    "submit_latency_ms": null,
+    "tie_break": null,
+    "vendor_delay_ms": null
+  },
+  "exit": {
+    "eod_flat": "15:55:00",
+    "halfday_offset_min": 5.0,
+    "stop": "or_low"
+  },
+  "exits": {
+    "candidates": [
+      {
+        "family": "time",
+        "id": "E1",
+        "params": {}
+      },
+      {
+        "family": "fixed_r",
+        "id": "E2a",
+        "params": {
+          "r_multiple": 2.0
+        }
+      }
+    ],
+    "complexity_order": [
+      "time",
+      "fixed_r"
+    ],
+    "selection": {
+      "eligibility": {
+        "min_pf": 1.0,
+        "min_trades": 300
+      },
+      "score": "bootstrap_lower_bound_mean_net_r",
+      "stop_test": "max_stat_bootstrap",
+      "tie_tolerance_r": 0.0
+    }
+  },
+  "fill": {
+    "halt_policy": "UNEXECUTABLE_DURING_UNAVAILABLE",
+    "same_bar_policy": "worst_case",
+    "slippage_model": null
+  },
+  "gates": {
+    "basis": "signal_level",
+    "max_dd": null,
+    "min_trades": 300,
+    "pf_base": 1.3,
+    "redundancy_corr_max": 0.85,
+    "stress_mean_positive": true,
+    "trade_unit": {
+      "partial_exit_fills": "aggregated_into_one_net_pnl_and_one_initial_risk_denominator",
+      "unit": "entry"
+    },
+    "win_rate": null,
+    "yearly": null
+  },
+  "governance": {
+    "exposure_signed": {
+      "exposure_ledger_sha256": "e484d494fb5e133410cb4953964a46d3583c283030210355a80fca337928eff6"
+    },
+    "registry_genesis_id": "da2dd976-a5eb-496f-bd89-d37d860bc632"
+  },
+  "p3": {
+    "criteria": {
+      "confirmatory_alpha_one_sided": 0.05,
+      "gate_basis": "signal_level",
+      "insufficient_evidence_if_traded_days_below": 100,
+      "insufficient_evidence_if_trades_below": 300,
+      "lower_bound_confidence_one_sided": 0.95,
+      "max_statistic_alpha_exploratory": 0.1,
+      "or_coverage_threshold": 0.98,
+      "revise_if_base_pf_below": 1.15,
+      "selection_eligibility_pf_strictly_above": 1.0,
+      "tie_break": "frozen_complexity_order",
+      "tie_delta_r": 0.0,
+      "unavailable_exit_valuation": "WORSE_OF_LAST_CLOSE_AND_INITIAL_STOP"
+    },
+    "max_p3a_attempts": 5,
+    "max_p3b_attempts": 1
+  },
+  "p5": {
+    "account_id": null,
+    "cost_ratio_contract": null,
+    "degradation_tolerance": null,
+    "max_cost_ratio": 1.5,
+    "min_days": 60,
+    "min_trades": 100,
+    "shadow_acceptance": null
+  },
+  "partitions": {
+    "development_confirmation": [
+      "2020-01-01",
+      "2021-12-31"
+    ],
+    "development_selection": [
+      "2016-01-01",
+      "2019-12-31"
+    ],
+    "exposed": [
+      [
+        "2026-01-01",
+        "2026-07-31"
+      ]
+    ],
+    "holdout": [
+      "2022-01-01",
+      "2025-12-31"
+    ]
+  },
+  "profile": {
+    "name": "screen",
+    "version": 3,
+    "required_fields_sha256": "16fd7d9e60767391dc1757dde22985086dc6776bf05348424003b67353e0f185",
+    "unmodelled_fields_sha256": "0298fe82ad0374a5139a0d739f49188081bf358a283edcb142c2b180725efb2c"
+  },
+  "program": "RANGE-002",
+  "registration": {
+    "related_programs": [
+      {
+        "relation": "cost_aware_revision_of",
+        "parent_spec_sha256": "84dc328eb4b063a500dedb72766450c366e779ba2c225284a77be37d54018e08",
+        "parent_strategy_version": "RANGE-002/screen-v2",
+        "parent_run": "range002-run-000011",
+        "audit": "AUDIT-RANGE002-2016Q1-20261013-A4R",
+        "exposed_findings_window": "2016-01-01..2016-03-31 (development diagnostic; private; prior_exposure in the successor ledger)",
+        "rule_provenance": "Q1-informed development, not an independently conceived or data-calibrated threshold; one value declared, no alternatives evaluated or compared",
+        "frozen_definitions": [
+          "eligibility: 2 * base_bps_per_side / 1e4 * trigger / (trigger - or_low) <= ceiling (inclusive boundary), base 5 bps per side",
+          "non-positive or non-finite risk -> INVALID_RISK, never eligible",
+          "entry trigger = or_high + 1 tick; stop = or_low; exits E1 (time) and E2a (fixed 2R)",
+          "disclosure: gap fills make actual entry risk and cost differ from the trigger-based estimate"
+        ],
+        "reserved_evaluation_window": "2017-01-01..2017-06-30 (development_selection partition; not P3B confirmation; 2020-2021 and the holdout preserved); reservation only, acquisition and run are separate decisions",
+        "spec_v06_frozen_sha256": "5e88071d37fb77e1b9b25bd5081339eecf6bceaf0fff9eebf661c7ed122bcf71"
+      },
+      {
+        "relation": "missing_minute_policy_v1_PROPOSED_NOT_ADOPTED",
+        "tier_choice": "OWNER DECISION REQUIRED: P (positive evidence only) or P+E (adds complete-empty same-provider responses)",
+        "minute_classes": {
+          "VALID_BAR": "a stored 1-minute SIP bar",
+          "ACCOUNTED_NO_BAR_ELIGIBLE_PRINT": "a no-bar minute examined by a frozen census with a COMPLETE trades response (pagination followed to the end of the interval), symbol identity and query boundaries verified (every stored-bar control minute in the window returned >=1 bar-eligible trade; all returned timestamps inside the window), no suspected common-provider gap (>=10% of the day's symbols lack a bar at that minute) and either (P) trades present, every one documented as NOT updating a minute bar, or (E) no trade returned",
+          "DATA_GAP": "every other no-bar minute: incomplete or unverified evidence, a suspected provider gap, or bar-eligible trades present with no bar (a data defect)"
+        },
+        "bar_eligibility_rule": "provider-documented condition table for MINUTE bars (Alpaca Market Data FAQ); strictest rule when a trade has several conditions; code B updates only on tape C; a trade with no condition list is treated as eligible",
+        "or_levels": "max(high) and min(low) over VALID_BAR minutes inside 09:30:00-09:59:59 ET; accounted minutes contribute nothing; no bar or opening price is ever synthesised",
+        "or_valid_when": "zero DATA_GAP minutes in the opening range (or_completeness_rule 0, unchanged) AND at least one VALID_BAR in it",
+        "or_invalid_despite_accounted_minutes": [
+          "any DATA_GAP minute in the opening range",
+          "no VALID_BAR in the opening range",
+          "a bar-eligible trade present in a minute with no bar",
+          "a suspected common-provider gap minute in the range"
+        ],
+        "gate": "or-valid member-days / expected member-days >= 0.98; the expected population (denominator) is unchanged; tier P and tier E counts are reported separately",
+        "tolerance": "none: no missing-minute count tolerance is used",
+        "scope": "prospective; applies to 2017-H1 after adoption; never re-grades Q1 or any earlier run",
+        "evaluation_scope": "development-partition evidence, not untouched P3B confirmation; data-quality diagnostics preceded any strategy result; strategy rule Q1-informed"
+      }
+    ],
+    "trial_ledger_id": null
+  },
+  "risk": {
+    "daily_loss_limit": null,
+    "fill_risk_tolerance": null,
+    "gross_cap": null,
+    "max_concurrent": null,
+    "max_participation": null,
+    "per_name_cap": null,
+    "per_trade_pct": 0.25,
+    "per_trade_unit": "percent"
+  },
+  "signal": {
+    "entry_window": [
+      "10:00:00",
+      "14:59:59"
+    ],
+    "max_entries_per_symbol_day": 1,
+    "min_or_width_ticks": 5.0,
+    "missing_minute_classes": [
+      "NO_TRADE_MINUTE",
+      "DATA_GAP"
+    ],
+    "or_completeness_rule": 0,
+    "or_end": "09:59:59",
+    "or_start": "09:30:00",
+    "tick_offset": 1,
+    "max_cost_to_risk": 0.1
+  },
+  "spec_version": 1,
+  "stats": {
+    "adjustment": "holm",
+    "alpha_one_sided": 0.05,
+    "bootstrap": {
+      "block_len": 10.0,
+      "ci_type": "percentile",
+      "cluster": "trading_day",
+      "confidence_level": 0.95,
+      "method": "stationary",
+      "reps": null,
+      "seed": null
+    },
+    "hypothesis_family": null,
+    "regime": {
+      "criterion": null,
+      "definition": null
+    }
+  },
+  "universe": {
+    "adv_window_days": 20,
+    "category_map": [
+      "Domestic Common Stock",
+      "Domestic Common Stock Primary Class"
+    ],
+    "include_delisted": true,
+    "instrument_types": [
+      "common_stock"
+    ],
+    "min_price": 10.0,
+    "n": 100,
+    "rebuild": "monthly"
+  }
+}
