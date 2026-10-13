@@ -71,13 +71,15 @@ def test_committed_manifest_exists_parses_and_state_is_consistent():
 
 
 def test_committed_manifest_carries_the_owner_approved_values():
-    """Pins the shipped state. The owner's recorded instruction (2026-10-13) set the P3A limit to
-    3 (diagnostic subset + full development run + one defect-recovery attempt) and the P3B limit
-    to 1; the genesis id is READ BACK from RunRegistry.enroll_new on the research registry, never
-    typed. A session must not change these without a new recorded owner decision."""
+    """Pins the shipped state. The owner's recorded instruction set the P3A limit to 3 on
+    2026-10-13 and AMENDED it to 4 the same day after two acquisition-defect attempts (no strategy
+    result viewed; attempt 3 = corrected diagnostic, attempt 4 = full development run if
+    authorized); P3B stays 1. The genesis id is READ BACK from RunRegistry.enroll_new on the
+    research registry, never typed, and is unchanged by the amendment. A session must not change
+    these without a new recorded owner decision."""
     m = load_manifest()
     assert m.approved_registry_genesis_id == "da2dd976-a5eb-496f-bd89-d37d860bc632"
-    assert (m.max_p3a_attempts, m.max_p3b_attempts) == (3, 1)
+    assert (m.max_p3a_attempts, m.max_p3b_attempts) == (4, 1)
     assert m.is_genesis_approved
 
 
