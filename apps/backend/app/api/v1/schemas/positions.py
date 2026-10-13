@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from datetime import datetime
 from decimal import Decimal
+from typing import Any
 
 from pydantic import BaseModel, ConfigDict
 
@@ -29,6 +30,11 @@ class PositionListResponse(BaseModel):
     gross_exposure: Decimal
     net_exposure: Decimal
     total_unrealized_pl: Decimal
+    # PU-1: per-field licence lineage of this response (additive; see app.licensing.broker_fields).
+    license_scope: str | None = None
+    license_sources: list[str] | None = None
+    license_footer: str | None = None
+    license_field_sources: dict[str, Any] | None = None
 
 
 class ClosePositionRequest(BaseModel):

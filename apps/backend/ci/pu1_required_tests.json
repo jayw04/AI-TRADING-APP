@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "purpose": "PU-1 presentation-gate required tests: every listed test must be collected AND PASSED (not skipped, missing, failed or errored). Verified by scripts/ci_verify_required_tests.py --phases pu1. Covers PERSONAL/UNKNOWN/missing-tag blocking, sidecar-over-envelope, taint propagation through join/resample/backtest, non-suppressible footer, COMMERCIAL_OK pass-through, owner_generated_records, per-panel Evidence scopes and the two PU-1 CI checks. Node ids are relative to apps/backend. Removing or skipping one fails CI; adding a test later needs no manifest change.",
+  "purpose": "PU-1 presentation-gate required tests: every listed test must be collected AND PASSED (not skipped, missing, failed or errored). Verified by scripts/ci_verify_required_tests.py --phases pu1. Covers PERSONAL/UNKNOWN/missing-tag blocking, sidecar-over-envelope, taint propagation through join/resample/backtest, non-suppressible footer, COMMERCIAL_OK pass-through, owner_generated_records, per-panel Evidence scopes the two PU-1 CI checks, broker-field classification, per-KPI evidence lineage, report outputs and the export-path bypass cases. Node ids are relative to apps/backend. Removing or skipping one fails CI; adding a test later needs no manifest change.",
   "tests": [
     {
       "id": "tests/licensing/test_pu1_ci_checks.py::test_real_tree_is_closed",
@@ -340,6 +340,366 @@
     },
     {
       "id": "tests/api/test_evidence_endpoint.py::test_status_counts_sum_to_total",
+      "phase": "pu1"
+    },
+    {
+      "id": "tests/licensing/test_pu1_broker_fields.py::test_order_ids_and_qty_alone_are_owner_records",
+      "phase": "pu1"
+    },
+    {
+      "id": "tests/licensing/test_pu1_broker_fields.py::test_adding_a_marked_to_market_field_makes_the_metric_market_data[market_value]",
+      "phase": "pu1"
+    },
+    {
+      "id": "tests/licensing/test_pu1_broker_fields.py::test_adding_a_marked_to_market_field_makes_the_metric_market_data[current_price]",
+      "phase": "pu1"
+    },
+    {
+      "id": "tests/licensing/test_pu1_broker_fields.py::test_unrealized_pnl_is_personal[unrealized_pl]",
+      "phase": "pu1"
+    },
+    {
+      "id": "tests/licensing/test_pu1_broker_fields.py::test_unrealized_pnl_is_personal[unrealized_plpc]",
+      "phase": "pu1"
+    },
+    {
+      "id": "tests/licensing/test_pu1_broker_fields.py::test_unrealized_pnl_is_personal[unrealized_intraday_pl]",
+      "phase": "pu1"
+    },
+    {
+      "id": "tests/licensing/test_pu1_broker_fields.py::test_unknown_field_name_is_conservatively_personal",
+      "phase": "pu1"
+    },
+    {
+      "id": "tests/licensing/test_pu1_broker_fields.py::test_field_and_kind_names_are_case_and_space_insensitive",
+      "phase": "pu1"
+    },
+    {
+      "id": "tests/licensing/test_pu1_broker_fields.py::test_account_object_splits_cash_from_marked_equity",
+      "phase": "pu1"
+    },
+    {
+      "id": "tests/licensing/test_pu1_broker_fields.py::test_own_execution_prices_are_owner_records_pending_an_owner_ruling",
+      "phase": "pu1"
+    },
+    {
+      "id": "tests/licensing/test_pu1_broker_fields.py::test_asset_master_is_vendor_reference_data_not_an_owner_record",
+      "phase": "pu1"
+    },
+    {
+      "id": "tests/licensing/test_pu1_broker_fields.py::test_subset_with_lineage_taints_only_by_fields_actually_used",
+      "phase": "pu1"
+    },
+    {
+      "id": "tests/licensing/test_pu1_broker_fields.py::test_no_fields_consumed_is_an_empty_lineage_and_unknown",
+      "phase": "pu1"
+    },
+    {
+      "id": "tests/licensing/test_pu1_broker_fields.py::test_taint_from_fields_unions_with_extra_sources_and_survives_derive",
+      "phase": "pu1"
+    },
+    {
+      "id": "tests/licensing/test_pu1_broker_fields.py::test_unusable_table_classifies_everything_as_market_data",
+      "phase": "pu1"
+    },
+    {
+      "id": "tests/licensing/test_pu1_broker_fields.py::test_field_license_block_distinguishes_fields_within_one_response",
+      "phase": "pu1"
+    },
+    {
+      "id": "tests/licensing/test_pu1_broker_fields.py::test_table_is_consistent_with_the_registry_and_the_enforced_names",
+      "phase": "pu1"
+    },
+    {
+      "id": "tests/licensing/test_pu1_broker_fields.py::test_helper_is_a_leaf_that_the_order_path_does_not_import",
+      "phase": "pu1"
+    },
+    {
+      "id": "tests/licensing/test_pu1_broker_fields.py::test_positions_endpoint_declares_per_field_lineage",
+      "phase": "pu1"
+    },
+    {
+      "id": "tests/licensing/test_pu1_ci_checks.py::test_mixed_host_needs_a_field_table_registered_sources_and_the_mixed_label",
+      "phase": "pu1"
+    },
+    {
+      "id": "tests/licensing/test_pu1_ci_checks.py::test_real_broker_hosts_are_mixed_not_blanket_non_data",
+      "phase": "pu1"
+    },
+    {
+      "id": "tests/licensing/test_pu1_ci_checks.py::test_helper_names_match_the_script_and_the_module",
+      "phase": "pu1"
+    },
+    {
+      "id": "tests/licensing/test_pu1_ci_checks.py::test_unclassified_market_data_field_read_fails_the_build",
+      "phase": "pu1"
+    },
+    {
+      "id": "tests/licensing/test_pu1_ci_checks.py::test_every_access_form_is_detected[attribute]",
+      "phase": "pu1"
+    },
+    {
+      "id": "tests/licensing/test_pu1_ci_checks.py::test_every_access_form_is_detected[subscript]",
+      "phase": "pu1"
+    },
+    {
+      "id": "tests/licensing/test_pu1_ci_checks.py::test_every_access_form_is_detected[get]",
+      "phase": "pu1"
+    },
+    {
+      "id": "tests/licensing/test_pu1_ci_checks.py::test_every_access_form_is_detected[pop]",
+      "phase": "pu1"
+    },
+    {
+      "id": "tests/licensing/test_pu1_ci_checks.py::test_calling_the_helper_satisfies_the_rule",
+      "phase": "pu1"
+    },
+    {
+      "id": "tests/licensing/test_pu1_ci_checks.py::test_allowlist_needs_a_reason_names_its_fields_and_must_not_go_stale",
+      "phase": "pu1"
+    },
+    {
+      "id": "tests/licensing/test_pu1_ci_checks.py::test_field_access_limits_are_documented_and_stay_undetected",
+      "phase": "pu1"
+    },
+    {
+      "id": "tests/licensing/test_pu1_ci_checks.py::test_field_table_must_agree_with_the_enforced_names",
+      "phase": "pu1"
+    },
+    {
+      "id": "tests/licensing/test_pu1_ci_checks.py::test_real_tree_field_access_is_closed_and_every_allowlist_entry_is_reasoned",
+      "phase": "pu1"
+    },
+    {
+      "id": "tests/licensing/test_pu1_ci_checks.py::test_bypass_route_is_detected[variable_held_method]",
+      "phase": "pu1"
+    },
+    {
+      "id": "tests/licensing/test_pu1_ci_checks.py::test_bypass_route_is_detected[partial_of_method]",
+      "phase": "pu1"
+    },
+    {
+      "id": "tests/licensing/test_pu1_ci_checks.py::test_bypass_route_is_detected[getattr_literal]",
+      "phase": "pu1"
+    },
+    {
+      "id": "tests/licensing/test_pu1_ci_checks.py::test_bypass_route_is_detected[io_open]",
+      "phase": "pu1"
+    },
+    {
+      "id": "tests/licensing/test_pu1_ci_checks.py::test_bypass_route_is_detected[io_open_alias_import]",
+      "phase": "pu1"
+    },
+    {
+      "id": "tests/licensing/test_pu1_ci_checks.py::test_bypass_route_is_detected[io_open_alias_assign]",
+      "phase": "pu1"
+    },
+    {
+      "id": "tests/licensing/test_pu1_ci_checks.py::test_bypass_route_is_detected[gzip_open]",
+      "phase": "pu1"
+    },
+    {
+      "id": "tests/licensing/test_pu1_ci_checks.py::test_bypass_route_is_detected[open_dynamic_mode]",
+      "phase": "pu1"
+    },
+    {
+      "id": "tests/licensing/test_pu1_ci_checks.py::test_bypass_route_is_detected[path_open_keyword_mode]",
+      "phase": "pu1"
+    },
+    {
+      "id": "tests/licensing/test_pu1_ci_checks.py::test_bypass_route_is_detected[subprocess_redirect]",
+      "phase": "pu1"
+    },
+    {
+      "id": "tests/licensing/test_pu1_ci_checks.py::test_bypass_route_is_detected[os_system_redirect]",
+      "phase": "pu1"
+    },
+    {
+      "id": "tests/licensing/test_pu1_ci_checks.py::test_bypass_route_is_detected[subprocess_tee]",
+      "phase": "pu1"
+    },
+    {
+      "id": "tests/licensing/test_pu1_ci_checks.py::test_bypass_route_is_detected[third_party_client_s3]",
+      "phase": "pu1"
+    },
+    {
+      "id": "tests/licensing/test_pu1_ci_checks.py::test_bypass_route_is_detected[third_party_client_getattr]",
+      "phase": "pu1"
+    },
+    {
+      "id": "tests/licensing/test_pu1_ci_checks.py::test_bypass_route_is_detected[third_party_mail]",
+      "phase": "pu1"
+    },
+    {
+      "id": "tests/licensing/test_pu1_ci_checks.py::test_bypass_route_is_detected[importlib_literal]",
+      "phase": "pu1"
+    },
+    {
+      "id": "tests/licensing/test_pu1_ci_checks.py::test_bypass_route_is_detected[dunder_import_literal]",
+      "phase": "pu1"
+    },
+    {
+      "id": "tests/licensing/test_pu1_ci_checks.py::test_bypass_route_is_detected[string_concat_path]",
+      "phase": "pu1"
+    },
+    {
+      "id": "tests/licensing/test_pu1_ci_checks.py::test_bypass_route_is_detected[fstring_constant_path]",
+      "phase": "pu1"
+    },
+    {
+      "id": "tests/licensing/test_pu1_ci_checks.py::test_bypass_route_is_detected[os_path_join_segment]",
+      "phase": "pu1"
+    },
+    {
+      "id": "tests/licensing/test_pu1_ci_checks.py::test_bypass_route_is_detected[path_div_segment]",
+      "phase": "pu1"
+    },
+    {
+      "id": "tests/licensing/test_pu1_ci_checks.py::test_bypass_route_is_detected[joinpath_segment]",
+      "phase": "pu1"
+    },
+    {
+      "id": "tests/licensing/test_pu1_ci_checks.py::test_documented_uncovered_bypass_stays_undetected[getattr_variable_name]",
+      "phase": "pu1"
+    },
+    {
+      "id": "tests/licensing/test_pu1_ci_checks.py::test_documented_uncovered_bypass_stays_undetected[getattr_built_name]",
+      "phase": "pu1"
+    },
+    {
+      "id": "tests/licensing/test_pu1_ci_checks.py::test_documented_uncovered_bypass_stays_undetected[importlib_variable_name]",
+      "phase": "pu1"
+    },
+    {
+      "id": "tests/licensing/test_pu1_ci_checks.py::test_documented_uncovered_bypass_stays_undetected[path_from_variables]",
+      "phase": "pu1"
+    },
+    {
+      "id": "tests/licensing/test_pu1_ci_checks.py::test_documented_uncovered_bypass_stays_undetected[subprocess_dynamic_command]",
+      "phase": "pu1"
+    },
+    {
+      "id": "tests/licensing/test_pu1_ci_checks.py::test_documented_uncovered_bypass_stays_undetected[writer_from_factory]",
+      "phase": "pu1"
+    },
+    {
+      "id": "tests/licensing/test_pu1_ci_checks.py::test_documented_uncovered_bypass_stays_undetected[third_party_client_other_method]",
+      "phase": "pu1"
+    },
+    {
+      "id": "tests/licensing/test_pu1_ci_checks.py::test_documented_uncovered_bypass_stays_undetected[http_post_body]",
+      "phase": "pu1"
+    },
+    {
+      "id": "tests/licensing/test_pu1_ci_checks.py::test_documented_uncovered_bypass_stays_undetected[exec_string]",
+      "phase": "pu1"
+    },
+    {
+      "id": "tests/licensing/test_pu1_ci_checks.py::test_documented_uncovered_bypass_stays_undetected[print_to_file_object]",
+      "phase": "pu1"
+    },
+    {
+      "id": "tests/licensing/test_pu1_ci_checks.py::test_shell_redirection_outside_python_and_non_python_scripts_are_out_of_scope",
+      "phase": "pu1"
+    },
+    {
+      "id": "tests/licensing/test_pu1_ci_checks.py::test_filename_with_an_a_is_not_an_append_mode",
+      "phase": "pu1"
+    },
+    {
+      "id": "tests/licensing/test_pu1_ci_checks.py::test_documented_limits_appear_in_the_script_docstring_and_the_adr",
+      "phase": "pu1"
+    },
+    {
+      "id": "tests/licensing/test_pu1_evidence_lineage.py::test_replay_consistency_depends_on_marked_to_market_pnl_and_other_rows_do_not",
+      "phase": "pu1"
+    },
+    {
+      "id": "tests/licensing/test_pu1_evidence_lineage.py::test_panel_lineage_confidence_is_market_dependent_strategies_is_not",
+      "phase": "pu1"
+    },
+    {
+      "id": "tests/licensing/test_pu1_evidence_lineage.py::test_every_scorecard_row_is_classified_and_every_input_has_a_trace",
+      "phase": "pu1"
+    },
+    {
+      "id": "tests/licensing/test_pu1_evidence_lineage.py::test_the_replay_row_traces_the_breaker_trip_recompute_end_to_end",
+      "phase": "pu1"
+    },
+    {
+      "id": "tests/licensing/test_pu1_evidence_lineage.py::test_a_row_with_market_data_lineage_restricts_only_itself_and_the_panel",
+      "phase": "pu1"
+    },
+    {
+      "id": "tests/licensing/test_pu1_evidence_lineage.py::test_kpis_panel_is_presentable_only_when_every_row_is",
+      "phase": "pu1"
+    },
+    {
+      "id": "tests/licensing/test_pu1_evidence_lineage.py::test_an_unclassified_kpi_row_is_unknown_and_blocks_the_panel",
+      "phase": "pu1"
+    },
+    {
+      "id": "tests/licensing/test_pu1_evidence_lineage.py::test_ops_kpis_report_marks_each_row_with_its_own_scope",
+      "phase": "pu1"
+    },
+    {
+      "id": "tests/licensing/test_pu1_report_outputs.py::test_declared_sources_come_from_the_real_reads",
+      "phase": "pu1"
+    },
+    {
+      "id": "tests/licensing/test_pu1_report_outputs.py::test_ops_kpis_and_confidence_report_write_footer_note_and_sidecar",
+      "phase": "pu1"
+    },
+    {
+      "id": "tests/licensing/test_pu1_report_outputs.py::test_live_evidence_report_writes_footer_note_and_sidecar",
+      "phase": "pu1"
+    },
+    {
+      "id": "tests/licensing/test_pu1_report_outputs.py::test_monthly_evidence_report_writes_footer_note_and_sidecar",
+      "phase": "pu1"
+    },
+    {
+      "id": "tests/licensing/test_pu1_report_outputs.py::test_range_evidence_report_writes_footer_note_and_sidecar",
+      "phase": "pu1"
+    },
+    {
+      "id": "tests/licensing/test_pu1_report_outputs.py::test_edge_evidence_writes_only_through_the_shared_writers",
+      "phase": "pu1"
+    },
+    {
+      "id": "tests/licensing/test_pu1_report_outputs.py::test_reports_are_internal_and_no_longer_labelled_customer_facing[monthly_evidence]",
+      "phase": "pu1"
+    },
+    {
+      "id": "tests/licensing/test_pu1_report_outputs.py::test_reports_are_internal_and_no_longer_labelled_customer_facing[live_evidence]",
+      "phase": "pu1"
+    },
+    {
+      "id": "tests/licensing/test_pu1_report_outputs.py::test_reports_are_internal_and_no_longer_labelled_customer_facing[confidence_score]",
+      "phase": "pu1"
+    },
+    {
+      "id": "tests/licensing/test_pu1_report_outputs.py::test_reports_are_internal_and_no_longer_labelled_customer_facing[ops_kpis]",
+      "phase": "pu1"
+    },
+    {
+      "id": "tests/licensing/test_pu1_report_outputs.py::test_reports_are_internal_and_no_longer_labelled_customer_facing[edge_evidence]",
+      "phase": "pu1"
+    },
+    {
+      "id": "tests/licensing/test_pu1_report_outputs.py::test_reports_are_internal_and_no_longer_labelled_customer_facing[range_evidence]",
+      "phase": "pu1"
+    },
+    {
+      "id": "tests/licensing/test_pu1_report_outputs.py::test_kpi_module_docstring_no_longer_claims_customer_facing",
+      "phase": "pu1"
+    },
+    {
+      "id": "tests/licensing/test_pu1_report_outputs.py::test_report_scripts_are_internal_only_in_the_export_registry",
+      "phase": "pu1"
+    },
+    {
+      "id": "tests/licensing/test_pu1_report_outputs.py::test_daily_report_is_stamped_with_a_declared_lineage",
       "phase": "pu1"
     }
   ]

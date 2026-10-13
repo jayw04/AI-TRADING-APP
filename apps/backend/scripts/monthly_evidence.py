@@ -1,6 +1,6 @@
-"""P12.5 — Monthly evidence report (institutional cadence, read-only).
+"""P12.5 — Monthly evidence report (monthly cadence, read-only).
 
-Aggregates one calendar month of the live paper book into an institutional report — the monthly
+Aggregates one calendar month of the live paper book into a monthly report — the monthly
 complement to the weekly ``live_evidence.py`` snapshot. Sections: performance, risk, operations,
 incidents, recovery, replay, reconciliation, changes, lessons learned.
 
@@ -13,6 +13,11 @@ incidents, recovery, replay, reconciliation, changes, lessons learned.
 Performance comes from the ``equity_snapshots`` time series filtered to the month (accrues daily);
 the operational/safety/verifiability trail comes from ``audit_log`` + ``reconciliation_runs`` +
 ``replay_runs``. A risk-engine *rejection* is a success signal (the gate worked), NOT an incident.
+
+INTERNAL report (PU-1). The performance section reads account equity (marked to market) and the
+replay section depends on marked-to-market unrealized P&L (the breaker-trip replay), so the
+declared sources include ``alpaca_market_data`` and the report is PERSONAL. The output carries the
+PU-1 footer and a scope sidecar. A label or sidecar does not establish permission to share it.
 """
 
 from __future__ import annotations
@@ -32,6 +37,28 @@ if str(BACKEND_ROOT) not in sys.path:
     sys.path.insert(0, str(BACKEND_ROOT))
 
 from app.factor_data import evidence as ev  # noqa: E402  (reuse the §1 curve metrics)
+from app.licensing import (  # noqa: E402
+    OWNER_GENERATED_RECORDS,
+    PERMISSION_NOTE,
+    taint_from_fields,
+    write_internal_json,
+    write_internal_report,
+)
+
+# PU-1 declared lineage (kind, fields actually consumed). Audit counts, reconciliation runs and
+# the strategy config are owner records; account equity (equity_snapshots.equity) is marked to
+# market; replay_runs counters depend on unrealized_pl through the breaker-trip replay.
+_BROKER_FIELDS_USED: tuple[tuple[str, tuple[str, ...]], ...] = (
+    ("account", ("equity",)),
+    ("position", ("unrealized_pl",)),
+)
+LICENSE_SOURCES: tuple[str, ...] = tuple(
+    sorted(
+        taint_from_fields(
+            None, *_BROKER_FIELDS_USED, extra_sources=(OWNER_GENERATED_RECORDS,)
+        ).sources
+    )
+)
 
 # audit actions that represent a real operational problem (a risk *rejection* is NOT here — that is
 # the gate doing its job, reported under Risk).
@@ -297,7 +324,7 @@ def _render(r: dict[str, Any]) -> str:
         f"_Generated {r['generated_at']} · git {r['git_sha']} · window {r['window']['start']} -> "
         f"{r['window']['end']} · live paper book (read-only)_",
         "",
-        "> **Monthly production-validation report (P12.5).** The institutional complement to the "
+        "> **Monthly production-validation report (P12.5).** The monthly complement to the "
         "weekly snapshot: one month of performance + the operational / safety / verifiability record + "
         "an incident log + lessons learned. Short-window live P&L is *indicative*, not alpha (ADR 0014).",
         "",
@@ -354,7 +381,8 @@ def _render(r: dict[str, Any]) -> str:
         lines.append("_No configuration / lifecycle changes this month._")
     lines += ["", "## 9. Lessons learned", ""]
     lines += [f"- {ln}" for ln in r["lessons_learned"]]
-    lines += ["", "_Run monthly; the monthly reports accumulate into the institutional track record._"]
+    lines += ["", "_Run monthly; the monthly reports accumulate into the live track record._",
+              "", f"_{PERMISSION_NOTE}_"]
     return "\n".join(lines) + "\n"
 
 
@@ -415,13 +443,15 @@ def main() -> int:
         r = build(args.db, sid, month)
         _emit(month, sid, r)
         if d:
-            (d / f"monthly_evidence_{sid}.json").write_text(
-                json.dumps(r, indent=2, default=str), encoding="utf-8")
-            (d / f"monthly_evidence_{sid}.md").write_text(_render(r), encoding="utf-8")
+            payload = {**r, "license_note": PERMISSION_NOTE}
+            write_internal_json(d / f"monthly_evidence_{sid}.json", payload,
+                                sources=LICENSE_SOURCES)
+            write_internal_report(d / f"monthly_evidence_{sid}.md", _render(r),
+                                  sources=LICENSE_SOURCES)
             if sid == primary:  # canonical filenames (back-compat)
-                (d / "monthly_evidence.json").write_text(
-                    json.dumps(r, indent=2, default=str), encoding="utf-8")
-                (d / "monthly_evidence.md").write_text(_render(r), encoding="utf-8")
+                write_internal_json(d / "monthly_evidence.json", payload, sources=LICENSE_SOURCES)
+                write_internal_report(d / "monthly_evidence.md", _render(r),
+                                      sources=LICENSE_SOURCES)
     if d:
         print(f"  wrote {len(ids)} report(s) to {d} (canonical = id={primary})")
     return 0

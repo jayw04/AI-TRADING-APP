@@ -1,9 +1,13 @@
 """P13.5 — Operational KPI scorecard from the live paper book (read-only).
 
-Reads the durable audit/ops tables and renders the customer-facing operational KPIs
+Reads the durable audit/ops tables and renders the operational KPIs
 (``app.ops.kpis``): reconciliation success + drift, replay consistency, risk-gate efficacy,
 circuit-breaker recovery, fill success, operational continuity. The complement to the P11
-operator-facing Prometheus/Grafana dashboard (runtime) — this is the allocator-readable rollup.
+operator-facing Prometheus/Grafana dashboard (runtime) — this is the durable point-in-time rollup.
+
+INTERNAL report (PU-1). Its sources are declared in ``app.licensing.evidence_lineage`` (the replay
+row depends on marked-to-market values, so the report is PERSONAL); the output carries the PU-1
+footer and a scope sidecar. A label or sidecar does not establish permission to share it.
 
 > Read-only. ASCII-only stdout (cp1252-safe). No order path; queries the SQLite DB read-only.
 
@@ -14,7 +18,6 @@ operator-facing Prometheus/Grafana dashboard (runtime) — this is the allocator
 from __future__ import annotations
 
 import argparse
-import json
 import sqlite3
 import subprocess
 import sys
@@ -26,6 +29,13 @@ BACKEND_ROOT = Path(__file__).resolve().parents[1]
 if str(BACKEND_ROOT) not in sys.path:
     sys.path.insert(0, str(BACKEND_ROOT))
 
+from app.licensing import (  # noqa: E402
+    PERMISSION_NOTE,
+    write_internal_json,
+    write_internal_report,
+)
+from app.licensing import evidence_lineage as lineage  # noqa: E402
+from app.licensing.gate import safe_effective_scope  # noqa: E402
 from app.ops.evidence_scope import paper_strategy_ids, resolve_paper_account  # noqa: E402
 from app.ops.kpis import KpiInputs, build_scorecard, scorecard_summary  # noqa: E402
 
@@ -158,20 +168,24 @@ def _render(r: dict[str, Any]) -> str:
         "",
         f"_Generated {r['generated_at']} · git {r['git_sha']} · {scope_txt} · read-only_",
         "",
-        "> The customer-facing operational metrics — the durable complement to the P11 operator "
+        "> The operational metrics — the durable complement to the P11 operator "
         "Prometheus/Grafana dashboard. Status **ok** / **watch** (reported, not alerting).",
+        "",
+        f"> {PERMISSION_NOTE}",
         "",
         f"**{s['ok']} ok · {s.get('watch', 0)} watch · {s.get('n_a', 0)} n/a**",
         "",
-        "| KPI | Value | Target | Status | Detail |",
-        "|---|---|---|---|---|",
+        "| KPI | Value | Target | Status | Detail | Licence scope |",
+        "|---|---|---|---|---|---|",
     ]
+    rowsrc = lineage.kpi_row_sources()
     for k in r["kpis"]:
         val = "n/a" if k["value"] is None else (
             f"{k['value']:.1f}{k['unit']}" if k["unit"] == "%" else f"{k['value']} {k['unit']}")
         tgt = f"{k['target']}{'%' if k['unit'] == '%' else ''}"
         mark = {"ok": "ok", "watch": "WATCH", "n_a": "n/a"}[k["status"]]
-        lines.append(f"| {k['label']} | {val} | {tgt} | {mark} | {k['note']} |")
+        scope = safe_effective_scope(sources=rowsrc.get(k["key"], ())).name
+        lines.append(f"| {k['label']} | {val} | {tgt} | {mark} | {k['note']} | {scope} |")
     lines += ["", f"_{r['latency_note']}_", "",
               "_Run weekly; the KPIs strengthen as the clean operating record lengthens._"]
     return "\n".join(lines) + "\n"
@@ -194,8 +208,10 @@ def _run_one(db: str, d: Path | None, *, strategy_id: int | None = None) -> dict
     s = r["summary"]
     print(f"[ops-kpis] {label}: {s['ok']} ok | {s.get('watch', 0)} watch | {s.get('n_a', 0)} n/a")
     if d:
-        (d / f"{name}.json").write_text(json.dumps(r, indent=2, default=str), encoding="utf-8")
-        (d / f"{name}.md").write_text(_render(r), encoding="utf-8")
+        sources = lineage.kpi_scorecard_sources()
+        write_internal_json(d / f"{name}.json", {**r, "license_note": PERMISSION_NOTE},
+                            sources=sources)
+        write_internal_report(d / f"{name}.md", _render(r), sources=sources)
     return r
 
 

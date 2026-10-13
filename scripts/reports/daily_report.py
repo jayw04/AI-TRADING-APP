@@ -21,6 +21,7 @@ from app.db.models.account import Account, AccountMode
 from app.db.models.strategy import Strategy
 from app.db.models.user import User
 from app.db.session import get_sessionmaker
+from app.licensing import OWNER_GENERATED_RECORDS, stamp, taint_from_fields
 from app.utils.time import EASTERN
 
 # order statuses that are NOT terminal — if these linger, something stalled
@@ -30,6 +31,23 @@ NON_TERMINAL = {
 }
 STUCK_WARN_MIN = 15   # 🟡
 STUCK_CRIT_MIN = 60   # 🔴
+
+# PU-1 declared lineage of this report: the broker-response fields it actually reads (per-field
+# classification in app/licensing/broker_field_classification.json) plus the factor-store health
+# lines (Sharadar SEP) and the portfolio-analytics / continuous-evidence sections (built from the
+# owner's equity snapshots, whose equity is marked to market). Account equity / last_equity make the
+# report PERSONAL; the fixed personal-use footer is appended by stamp() at the end.
+_BROKER_FIELDS_USED = (
+    ("account", ("account_number", "equity", "last_equity", "cash",
+                 "trading_blocked", "account_blocked")),
+    ("order", ("status", "filled_at", "submitted_at", "created_at", "side", "qty", "symbol",
+               "filled_avg_price")),
+    ("position", ("symbol", "qty")),
+)
+REPORT_SOURCES = tuple(sorted(
+    taint_from_fields(None, *_BROKER_FIELDS_USED,
+                      extra_sources=(OWNER_GENERATED_RECORDS, "sharadar")).sources
+))
 
 
 def _enum(v):
@@ -312,7 +330,7 @@ async def main():
     out.append("")
     out.extend(user_blocks)
 
-    print("\n".join(out))
+    print(stamp("\n".join(out), sources=REPORT_SOURCES))
 
 
 asyncio.run(main())

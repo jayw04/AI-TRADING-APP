@@ -609,18 +609,38 @@ async def test_evidence_summary_declares_per_panel_scope(client) -> None:
         "strategies",
     }
     # built only from the owner's records: presentable, no footer
-    for name in ("confidence", "kpis", "strategies"):
-        assert panels[name]["license_scope"] == "COMMERCIAL_OK", name
-        assert panels[name]["license_sources"] == ["owner_generated_records"]
-        assert panels[name]["license_footer"] is None
+    assert panels["strategies"]["license_scope"] == "COMMERCIAL_OK"
+    assert panels["strategies"]["license_sources"] == ["owner_generated_records"]
+    assert panels["strategies"]["license_footer"] is None
+    # confidence consumes the replay mismatch counters, and replay recomputes circuit-breaker trips
+    # from marked-to-market unrealized P&L: it carries the market-data source and is blocked
+    assert panels["confidence"]["license_scope"] == "PERSONAL"
+    assert panels["confidence"]["license_sources"] == [
+        "alpaca_market_data",
+        "owner_generated_records",
+    ]
+    assert panels["confidence"]["license_footer"] == FOOTER
+    # the kpis panel is the most restrictive of its rows (one restricted row restricts the panel)
+    assert panels["kpis"]["license_scope"] == "PERSONAL"
+    assert panels["kpis"]["license_footer"] == FOOTER
     # built on backtests over vendor data: blocked, footer present
     for name in ("research_programs", "research_status_counts"):
         assert panels[name]["license_scope"] == "PERSONAL", name
         assert "alpaca_market_data" in panels[name]["license_sources"]
         assert panels[name]["license_footer"] == FOOTER
-    # every KPI row carries its own scope
-    assert all(r["license_scope"] == "COMMERCIAL_OK" for r in body["kpis"]["rows"])
-    assert all(r["license_sources"] == ["owner_generated_records"] for r in body["kpis"]["rows"])
+    # every KPI row carries its own scope: only the replay row reaches market data
+    rows = {r["key"]: r for r in body["kpis"]["rows"]}
+    assert rows["replay_consistency"]["license_scope"] == "PERSONAL"
+    assert rows["replay_consistency"]["license_sources"] == [
+        "alpaca_market_data",
+        "owner_generated_records",
+    ]
+    for key, row in rows.items():
+        if key == "replay_consistency":
+            continue
+        assert row["license_scope"] == "COMMERCIAL_OK", key
+        assert row["license_sources"] == ["owner_generated_records"], key
+        assert row["license_footer"] is None, key
 
 
 def test_evidence_license_block_fails_closed_and_every_kpi_row_is_classified() -> None:
@@ -649,7 +669,9 @@ def test_evidence_license_block_fails_closed_and_every_kpi_row_is_classified() -
         expected_snapshot_days=0,
         actual_snapshot_days=0,
     )
-    assert {r["key"] for r in build_scorecard(zero)} <= set(ev._KPI_ROW_SOURCES)
+    from app.licensing import evidence_lineage as lineage
+
+    assert {r["key"] for r in build_scorecard(zero)} <= set(lineage.kpi_row_sources())
 
 
 def test_dashboard_maps_any_alpaca_provider_to_the_single_market_data_source(tmp_path) -> None:

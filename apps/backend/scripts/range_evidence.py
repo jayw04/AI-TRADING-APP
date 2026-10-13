@@ -16,12 +16,16 @@ a CI that includes (or sits below) zero = no demonstrable edge.
         --symbol PLTR --entry-sigma 2.0 --exit-sigma 0.5 --stop-sigma 3.0 \
         --start 2026-01-02 --end 2026-06-12 --windows 4 --bootstrap 2000 \
         --report-dir docs/implementation/evidence/range_rejection
+
+INTERNAL report (PU-1). Its only data input is the Alpaca 5-min bar fetch
+(``_fetch_rth_bars`` -> ``app.market_data.bar_cache._alpaca_fetch_bars``), so the declared source is
+``alpaca_market_data`` (PERSONAL). The output carries the PU-1 footer and a scope sidecar. A label
+or sidecar does not establish permission to share it.
 """
 
 from __future__ import annotations
 
 import argparse
-import json
 import random
 import sys
 from datetime import UTC, date, datetime
@@ -31,6 +35,17 @@ from typing import Any
 BACKEND_ROOT = Path(__file__).resolve().parents[1]
 if str(BACKEND_ROOT) not in sys.path:
     sys.path.insert(0, str(BACKEND_ROOT))
+
+from app.licensing import (  # noqa: E402
+    ALPACA_MARKET_DATA,
+    PERMISSION_NOTE,
+    write_internal_json,
+    write_internal_report,
+)
+
+# PU-1 declared source: the only data read is the Alpaca 5-min RTH bar fetch in _run. The strategy
+# template and the bootstrap are the owner's own code / pure statistics.
+LICENSE_SOURCES: tuple[str, ...] = (ALPACA_MARKET_DATA,)
 
 
 def _git_sha() -> str:
@@ -179,8 +194,9 @@ def main() -> int:
     if args.report_dir:
         d = Path(args.report_dir)
         d.mkdir(parents=True, exist_ok=True)
-        (d / "range_evidence.json").write_text(json.dumps(result, indent=2, default=str), encoding="utf-8")
-        (d / "range_evidence.md").write_text(_render(result), encoding="utf-8")
+        write_internal_json(d / "range_evidence.json",
+                            {**result, "license_note": PERMISSION_NOTE}, sources=LICENSE_SOURCES)
+        write_internal_report(d / "range_evidence.md", _render(result), sources=LICENSE_SOURCES)
         print(f"  wrote {d / 'range_evidence.json'} + range_evidence.md")
     return 0
 
@@ -224,6 +240,8 @@ def _render(r: dict[str, Any]) -> str:
         "Range Trader does not clear that bar — recorded as a documented, citable 'honest no.' "
         "Intraday history is ~6 months (one regime); a deeper walk-forward would need more intraday "
         "data, but the bootstrap on the full trade set is the load-bearing test and it is decisive._",
+        "",
+        f"_{PERMISSION_NOTE}_",
     ]
     return "\n".join(lines) + "\n"
 
