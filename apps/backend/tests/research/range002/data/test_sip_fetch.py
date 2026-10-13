@@ -459,3 +459,45 @@ def test_round_trip_store_is_what_the_runner_loader_reads(cap: object, tmp_path:
     con.close()
     assert s is not None and len(s.bars) == 5 and s.bars[0].start == time(9, 30)
     assert params.intraday_price_basis == "raw"
+
+
+def test_vendor_end_is_inclusive_so_the_transport_asks_for_the_last_instant_before_end(
+    cap: object,
+) -> None:
+    """Observed 2026-10-13 on the first real request: a bar labelled exactly at `end` came back
+    (the adapter flagged it outside [start, end) and aborted before any bulk fetch). The transport
+    must therefore request `end - 1s`, and a vendor with an inclusive end must then yield no bar
+    at `end`."""
+
+    class InclusiveEndVendor(FakeVendor):
+        def __call__(
+            self, url: str, params: Mapping[str, str], headers: Mapping[str, str]
+        ) -> HttpReply:
+            self.calls.append({"url": url, "params": dict(params), "headers": dict(headers)})
+            s = datetime.strptime(params["start"], "%Y-%m-%dT%H:%M:%SZ")
+            e = datetime.strptime(params["end"], "%Y-%m-%dT%H:%M:%SZ")
+            bars: list[dict[str, Any]] = []
+            t = s
+            while t <= e:  # INCLUSIVE end, on the minute grid
+                if t.second == 0:
+                    bars.append(
+                        {
+                            "t": t.strftime("%Y-%m-%dT%H:%M:%SZ"),
+                            "o": 10.0, "h": 10.1, "l": 9.9, "c": 10.0, "v": 100,
+                            "n": 1, "vw": 10.0,
+                        }
+                    )  # fmt: skip
+                t += timedelta(minutes=1)
+            sym = url.rsplit("/", 2)[-2]
+            return HttpReply(200, {}, {"bars": bars, "symbol": sym, "next_page_token": None})
+
+    v = InclusiveEndVendor()
+    res = fetch_symbol_window(
+        cap, _T(_cfg(v)), symbol="AAA", start_utc=START, end_utc=END, feed="sip",
+        adjustment="raw", asof="-", limit=10_000, max_pages=2,
+    )  # fmt: skip
+    assert v.calls[0]["params"]["end"] == (END - timedelta(seconds=1)).strftime(
+        "%Y-%m-%dT%H:%M:%SZ"
+    )
+    assert res.bars and all(START <= b.t < END for b in res.bars)
+    assert res.bars[-1].t == END - timedelta(minutes=1)

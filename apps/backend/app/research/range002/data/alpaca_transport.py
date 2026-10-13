@@ -28,7 +28,7 @@ import os
 import time as _time
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from typing import Any
 from urllib.parse import quote
 
@@ -213,7 +213,10 @@ class _AlpacaBarsTransport:
         params = {
             "timeframe": TIMEFRAME,
             "start": _to_rfc3339(req.start_utc),
-            "end": _to_rfc3339(req.end_utc),
+            # The vendor treats `end` as INCLUSIVE (observed 2026-10-13: a bar labelled exactly at
+            # `end` was returned). The adapter's window is [start, end), so ask for the last
+            # instant before `end`; a 1-minute bar labelled at `end` is then never requested.
+            "end": _to_rfc3339(req.end_utc - timedelta(seconds=1)),
             "limit": str(req.limit),
             "adjustment": req.adjustment,
             "feed": req.feed,
