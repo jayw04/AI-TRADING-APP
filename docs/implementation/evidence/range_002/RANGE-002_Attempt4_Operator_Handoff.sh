@@ -9,9 +9,10 @@
 # against the Sharadar export and writes only under /opt/workbench/data/research/range002_run
 # (store, journal, outputs) and range002_registry (the run row).
 #
-# The two price-consistency settings are PROPOSED data-quality settings (not part of the frozen
-# baseline). They have NO defaults: Jay sets them before the run, and they are not tuned after
-# candidate performance is seen. The check cannot prove issuer identity.
+# The two price-consistency settings are data-quality settings the owner approved for attempt 4
+# ONLY (0.05 and 0.10; not part of the frozen baseline; recorded in the owner record rev5). They
+# have NO defaults and are not tuned after candidate performance is seen. A missing comparison
+# counts as NOT passing. The check cannot prove issuer identity.
 #
 # Credentials: the Alpaca key/secret are read from the existing backend container environment
 # (the platform's configuration) into this process's environment only, never printed, never
@@ -21,28 +22,28 @@ umask 022
 set +x
 
 MODE="${1:-}"
-CODE_SHA=d0a166f12024dd96892ed544245d1a577553989f
+CODE_SHA=567742649daedb56da17fb4ef5c2ae80458846d9
 IMAGE=trading-workbench-backend
 NAME=range002-run-2016q1-a4
-BUNDLE_TGZ=/tmp/s1/bundle7.tgz
-BUNDLE_TGZ_SHA=c97d55d0615801d80c98fcc11b03d7d604cf7af53e2108dd33086c63d7d92d92
+BUNDLE_TGZ=/tmp/s1/bundle8.tgz
+BUNDLE_TGZ_SHA=dbee51dbe5ccfef523035b50b0102c19cf86103c0ca3561ff781b7d2f0121779
 BUNDLE_DIR=/tmp/s1/bundle
 REL=docs/implementation/evidence/range_002
-SPEC_REL=$REL/RANGE-002_Screen_Spec_Frozen_2016Q1_v0.4.json
-SPEC_FILE_SHA=e460d8afc284279087d213390051f2dc6111be13ce6b73793051600003993974
-LEDGER_REL=$REL/RANGE-002_exposure_ledger_2026-10-13_rev4.json
-LEDGER_FILE_SHA=0649c7120d40413bf68a959a822186f27b835597edcc1842d26b4a3555469f0c
-RECORD_REL=$REL/RANGE-002_Owner_Instruction_Record_2026-10-13_rev4.md
-RECORD_FILE_SHA=864fbeb97199d379701c10d8126d97c2f13fb0621b439159f4a17324a667132d
+SPEC_REL=$REL/RANGE-002_Screen_Spec_Frozen_2016Q1_v0.5.json
+SPEC_FILE_SHA=f3d7a4dc03e7d676f107e87f6928c5c1b24ef5a09d89335290cb1317f6d28d5d
+LEDGER_REL=$REL/RANGE-002_exposure_ledger_2026-10-13_rev5.json
+LEDGER_FILE_SHA=58f3ddd13f1768df6309cbc9ac536c826fd6d2dc7a14601a28b28544fa4402ac
+RECORD_REL=$REL/RANGE-002_Owner_Instruction_Record_2026-10-13_rev5.md
+RECORD_FILE_SHA=9ced1413fd0eb618778ae864d6ac8133619ecc9548f4f11eca37dd92b7432bfd
 MANIFEST_REL=$REL/RANGE-002_governance_manifest.json
 MANIFEST_FILE_SHA=c9b7a4304f58890b73d75dcea3ddf660db749adab753acc07e22c37495c1cf89
 RUNNER_REL=apps/backend/scripts/research/range002/run_descriptive_screen.py
-RUNNER_FILE_SHA=3e63927e1332f39e26230dc965d05512b559767bdd951c52b19f4dfdad334c21
+RUNNER_FILE_SHA=9c61abd924c2f0845ebe4dc618bb90c4d49da35846dfb39011f0365981f420e5
 MAPPING_HOST=/opt/workbench/data/research/range002_run/symbol_mapping_2016q1_v3.json
 MAPPING_SHA=78a1f5756bef79c920b319f34ababb95438c00f63a7d4c3e11ce0d8edd94077d
 UNIVERSE_HOST=/opt/workbench/data/research/range002_s1/universe-2016q1-20261013/universe_symbols.txt
 UNIVERSE_SHA=d00c48a33d6a632a39742afb01782508367f1153b98c892576afd54b022bee5c
-EXPECTED_SPEC_SHA256=d209c14263aabcd7806f60e8aa809dd1e3f17777f30a5bd0ab7d5838ff21071e
+EXPECTED_SPEC_SHA256=84dc328eb4b063a500dedb72766450c366e779ba2c225284a77be37d54018e08
 RUN_DIR=/opt/workbench/data/research/range002_run
 STORE_HOST=$RUN_DIR/minute_bars_2016q1_a4.duckdb
 JOURNAL_HOST=$RUN_DIR/sip_journal_2016q1_a4.jsonl
@@ -136,7 +137,7 @@ launch() {
     --equity 100000 --tick 0.01 --code-sha "$CODE_SHA" \
     --out-dir /app/data/research/range002_run/out_2016q1_a4 \
     --raw-vendor-rows-attested \
-    --allow-sequential-pulls-ref "owner-instruction-2026-10-13:RANGE-002_Owner_Instruction_Record_2026-10-13_rev4.md" \
+    --allow-sequential-pulls-ref "owner-instruction-2026-10-13:RANGE-002_Owner_Instruction_Record_2026-10-13_rev5.md" \
     --delisting-action-value delisted \
     --fetch-bars \
     --fetch-universe-sha256 "$UNIVERSE_SHA" \
