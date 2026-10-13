@@ -1,0 +1,119 @@
+{
+  "schema_version": 1,
+  "decision": {
+    "decision_date": "2026-10-13",
+    "record_kind": "owner_instruction",
+    "minutes_path": "docs/implementation/evidence/range_002/RANGE-002_Owner_Instruction_Record_2026-10-13_rev5.md",
+    "minutes_sha256": "9ced1413fd0eb618778ae864d6ac8133619ecc9548f4f11eca37dd92b7432bfd"
+  },
+  "entries": [
+    {
+      "id": "probe-2026-10-12-availability",
+      "start": "2016-01-05",
+      "end": "2016-01-05",
+      "description": "2026-10-12 counts-and-timestamps-only SIP availability probe (32 requests, 10 large-cap symbols; also dates in 2014, 2015 and 4 dates per year 2016-2019 and 2021 outside this entry's single in-window date). No price or volume value was read.",
+      "source": "RANGE-002 A-SCREEN amendment v0.2 section 4",
+      "observed_by": "Claude Code session (owner-authorized)",
+      "kind": "return_blind_probe",
+      "probe_scope": "HTTP status codes, bar counts and bar timestamps only; no open/high/low/close/volume value was read into any printed or stored output"
+    },
+    {
+      "id": "probe-2026-10-13-mapping-day1",
+      "start": "2016-01-04",
+      "end": "2016-01-04",
+      "description": "return-blind mapping probe, 2016-01-04 09:30-10:30 ET, symbols APC, DD, EMC, MON, BRK.B (20 requests in total across both days, cap 40); result file sha256 bebf3d00a261b9fc51966f8fc16569b33da46f368262addb149906df6e8284de",
+      "source": "mapping_probe.py v1.0.0",
+      "observed_by": "Claude Code session (owner-authorized)",
+      "kind": "return_blind_probe",
+      "probe_scope": "HTTP status codes, bar counts and bar timestamps only; no open/high/low/close/volume value was read into any printed or stored output"
+    },
+    {
+      "id": "probe-2026-10-13-mapping-day2",
+      "start": "2016-03-31",
+      "end": "2016-03-31",
+      "description": "return-blind mapping probe, 2016-03-31 09:30-10:30 ET, same symbols and result file sha256 bebf3d00a261b9fc51966f8fc16569b33da46f368262addb149906df6e8284de",
+      "source": "mapping_probe.py v1.0.0",
+      "observed_by": "Claude Code session (owner-authorized)",
+      "kind": "return_blind_probe",
+      "probe_scope": "HTTP status codes, bar counts and bar timestamps only; no open/high/low/close/volume value was read into any printed or stored output"
+    },
+    {
+      "id": "acquisition-attempt-2-stored-not-viewed",
+      "start": "2016-01-04",
+      "end": "2016-03-31",
+      "description": "attempt 2 (run-000005) acquisition stored 240,059 SIP minute bars for 9 symbols (AAL, AAPL, ABBV, ADBE, AET, AGN, AIG, AMGN, AMZN) before aborting on a symbol mapping defect. The bars were stored by the governed fetch and never read by a strategy computation or printed; only counts, timestamps and journal metadata were observed. Listed for completeness and non-blocking on that basis; the store is kept as evidence and is not reused.",
+      "source": "governed run range002-run-000005 (aborted)",
+      "observed_by": "not viewed (stored only)",
+      "kind": "return_blind_probe",
+      "probe_scope": "acquisition stored the bars without any strategy computation; observed values were limited to counts, timestamps and journal metadata"
+    },
+    {
+      "id": "probe-2026-10-13-mapping-b-2016-01-04",
+      "start": "2016-01-04",
+      "end": "2016-01-04",
+      "description": "second return-blind mapping probe (28 requests in total, cap 60) for the 12 symbols whose 2016 request symbol differs from the vendor ticker; 2016-01-04; result file sha256 376d9423eb6601d9e7a10359caa9a800fce307bcf17e14dbb49d7cdd8b6ce9e7",
+      "source": "mapping_probe.py v1.0.0",
+      "observed_by": "Claude Code session (owner-authorized)",
+      "kind": "return_blind_probe",
+      "probe_scope": "HTTP status codes, bar counts and bar timestamps only; no open/high/low/close/volume value was read into any printed or stored output"
+    },
+    {
+      "id": "probe-2026-10-13-mapping-b-2016-01-14",
+      "start": "2016-01-14",
+      "end": "2016-01-14",
+      "description": "second return-blind mapping probe (28 requests in total, cap 60) for the 12 symbols whose 2016 request symbol differs from the vendor ticker; 2016-01-14 (ACE side of the CB boundary); result file sha256 376d9423eb6601d9e7a10359caa9a800fce307bcf17e14dbb49d7cdd8b6ce9e7",
+      "source": "mapping_probe.py v1.0.0",
+      "observed_by": "Claude Code session (owner-authorized)",
+      "kind": "return_blind_probe",
+      "probe_scope": "HTTP status codes, bar counts and bar timestamps only; no open/high/low/close/volume value was read into any printed or stored output"
+    },
+    {
+      "id": "probe-2026-10-13-mapping-b-2016-01-15",
+      "start": "2016-01-15",
+      "end": "2016-01-15",
+      "description": "second return-blind mapping probe (28 requests in total, cap 60) for the 12 symbols whose 2016 request symbol differs from the vendor ticker; 2016-01-15 (both sides of the CB boundary); result file sha256 376d9423eb6601d9e7a10359caa9a800fce307bcf17e14dbb49d7cdd8b6ce9e7",
+      "source": "mapping_probe.py v1.0.0",
+      "observed_by": "Claude Code session (owner-authorized)",
+      "kind": "return_blind_probe",
+      "probe_scope": "HTTP status codes, bar counts and bar timestamps only; no open/high/low/close/volume value was read into any printed or stored output"
+    },
+    {
+      "id": "probe-2026-10-13-mapping-b-2016-01-19",
+      "start": "2016-01-19",
+      "end": "2016-01-19",
+      "description": "second return-blind mapping probe (28 requests in total, cap 60) for the 12 symbols whose 2016 request symbol differs from the vendor ticker; 2016-01-19 (vendor change date); result file sha256 376d9423eb6601d9e7a10359caa9a800fce307bcf17e14dbb49d7cdd8b6ce9e7",
+      "source": "mapping_probe.py v1.0.0",
+      "observed_by": "Claude Code session (owner-authorized)",
+      "kind": "return_blind_probe",
+      "probe_scope": "HTTP status codes, bar counts and bar timestamps only; no open/high/low/close/volume value was read into any printed or stored output"
+    },
+    {
+      "id": "probe-2026-10-13-mapping-b-2016-03-31",
+      "start": "2016-03-31",
+      "end": "2016-03-31",
+      "description": "second return-blind mapping probe (28 requests in total, cap 60) for the 12 symbols whose 2016 request symbol differs from the vendor ticker; 2016-03-31; result file sha256 376d9423eb6601d9e7a10359caa9a800fce307bcf17e14dbb49d7cdd8b6ce9e7",
+      "source": "mapping_probe.py v1.0.0",
+      "observed_by": "Claude Code session (owner-authorized)",
+      "kind": "return_blind_probe",
+      "probe_scope": "HTTP status codes, bar counts and bar timestamps only; no open/high/low/close/volume value was read into any printed or stored output"
+    },
+    {
+      "id": "acquisition-attempt-3-stored-not-screened",
+      "start": "2016-01-04",
+      "end": "2016-03-31",
+      "description": "attempt 3 (run-000008) stored 3,050,783 SIP minute bars for 127 symbols and refused to screen on coverage 0.9503 < 0.98. No strategy computation ran. Observed: request, window and bar counts, timestamp-convention histograms, coverage counts and per-symbol day counts. The bars of renamed companies were requested under the wrong symbol; the store is kept unchanged as evidence (sha256 d559e3f0675f893a804d1808dc44e18d505e808e35fa8e229b366545db954334) and is not reused.",
+      "source": "governed run range002-run-000008 (aborted by the coverage gate)",
+      "observed_by": "not viewed (stored only)",
+      "kind": "return_blind_probe",
+      "probe_scope": "acquisition stored the bars without any strategy computation; observed values were limited to counts, timestamps and journal metadata"
+    },
+    {
+      "id": "viewed-2016q1-descriptive-diagnostic-attempt4",
+      "start": "2016-01-01",
+      "end": "2016-03-31",
+      "description": "ACTUAL exposure: the 2016-Q1 descriptive diagnostic (governed run range002-run-000011, attempt 4 of 5, COMPLETED 2026-10-13T17:29:09Z) VIEWED the SIP minute bars and ran the seven-candidate screen over 2016-01-01..2016-03-31 for the 127-symbol point-in-time universe; report sha256 44e712290fff3b278e84d1d3f6e043344eab37ef23961b0bb9fa88cac4da39c0. Exploratory, NON_INFERENTIAL_DESCRIPTIVE, signal_level. These dates are SEEN data and cannot be treated as unseen confirmation data by any later run.",
+      "source": "governed run range002-run-000011",
+      "observed_by": "Claude Code session on owner instruction; results private to Jay"
+    }
+  ]
+}
