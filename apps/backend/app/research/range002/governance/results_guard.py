@@ -228,6 +228,19 @@ _SCREEN_PROFILE_ALLOWED = frozenset(
     {
         (Phase.P2, Partition.REPLAY_RNG001),
         (Phase.P3A, Partition.DEVELOPMENT_SELECTION),
+        (Phase.ACQ, Partition.DEVELOPMENT_SELECTION),
+    }
+)
+#: The ONLY modules whose entry points accept an acquisition (phase ACQ) capability: the
+#: data layer (fetch, store, load, universe). The screen kernel, statistics and selection
+#: modules are not listed, so an acquisition capability can never screen, simulate or
+#: summarise: they refuse it by phase.
+_ACQUISITION_ACCEPTING_MODULES = frozenset(
+    {
+        "app.research.range002.data.alpaca_transport",
+        "app.research.range002.data.bar_loader",
+        "app.research.range002.data.fetch_adapter",
+        "app.research.range002.data.store_adapter",
     }
 )
 _ISSUE = object()  # module-private: only authorize() holds it
@@ -383,6 +396,7 @@ def requires_capability[**P, R](func: Callable[P, R]) -> Callable[P, R]:
     if "capability" not in params:
         raise TypeError(f"{func.__qualname__} must declare a 'capability' parameter")
     sig = inspect.signature(func)
+    accepts_acquisition = func.__module__ in _ACQUISITION_ACCEPTING_MODULES
 
     @functools.wraps(func)
     def wrapper(*args: P.args, **kwargs: P.kwargs) -> R:
@@ -390,7 +404,12 @@ def requires_capability[**P, R](func: Callable[P, R]) -> Callable[P, R]:
             bound = sig.bind_partial(*args, **kwargs)
         except TypeError as exc:
             raise InvalidCapabilityError(f"{func.__qualname__}: bad call: {exc}") from exc
-        require_capability(bound.arguments.get("capability"))
+        cap = require_capability(bound.arguments.get("capability"))
+        if cap.phase is Phase.ACQ and not accepts_acquisition:
+            raise InvalidCapabilityError(
+                f"{func.__qualname__}: an acquisition (ACQ) capability grants data access only; "
+                "it cannot be used for screening, simulation, statistics or selection"
+            )
         return func(*args, **kwargs)
 
     wrapper.__requires_capability__ = True  # type: ignore[attr-defined]
@@ -824,9 +843,9 @@ def authorize(
         date_range = requested_range
 
     # (c) exposure
-    citable = partition is not Partition.REPLAY_RNG001
+    citable = partition is not Partition.REPLAY_RNG001 and phase is not Phase.ACQ
     ledger_sha: str | None = None
-    if citable:
+    if citable or phase is Phase.ACQ:  # acquisition obeys the same exposure rules
         if date_range.overlaps(R2_EXCLUDED_WINDOW):
             raise ExposureOverlapError(
                 f"{date_range.as_dict()} overlaps the R2-excluded window "

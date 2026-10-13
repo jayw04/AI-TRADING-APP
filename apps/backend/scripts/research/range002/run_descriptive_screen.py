@@ -51,7 +51,7 @@ import json
 import sys
 from calendar import monthrange
 from dataclasses import dataclass
-from datetime import date
+from datetime import date, timedelta
 from pathlib import Path
 from typing import Any
 
@@ -140,6 +140,8 @@ NO_VERDICT_NOTE = (
 _PARTITIONS: dict[str, tuple[Phase, Partition]] = {
     "DEVELOPMENT_SELECTION": (Phase.P3A, Partition.DEVELOPMENT_SELECTION),
     "REPLAY_RNG001": (Phase.P2, Partition.REPLAY_RNG001),
+    # acquisition/validation only: no strategy capability, no attempt (see run(): ACQUISITION)
+    "ACQUISITION": (Phase.ACQ, Partition.DEVELOPMENT_SELECTION),
 }
 PARTITION_CHOICES = tuple(_PARTITIONS)
 
@@ -1117,6 +1119,82 @@ def _delisting_events(con: Any, action_values: tuple[str, ...]) -> dict[str, lis
     return out
 
 
+@dataclass(frozen=True)
+class _DataParams:
+    """The spec values acquisition validation reads: the feed/timestamp/basis tags the loader
+    checks and the opening-range window used only to COUNT present minutes. No strategy value
+    (entry, exits, costs, sizing) is read, and no ScreenParams exists in this mode."""
+
+    feed: str
+    bar_timestamp_convention: str
+    intraday_price_basis: str
+    or_start: Any
+    or_end: Any
+    or_max_gap_minutes: int
+
+
+def _data_params(draft: Any) -> _DataParams:
+    gap = draft.signal.or_completeness_rule
+    if type(gap) is not int or gap < 0:
+        raise DescriptiveRunRefusal("signal.or_completeness_rule must be a non-negative int")
+    return _DataParams(
+        feed=draft.data.feed,
+        bar_timestamp_convention=draft.execution.bar_timestamp_convention,
+        intraday_price_basis=draft.data.intraday_price_basis,
+        or_start=_hhmmss(draft.signal.or_start),
+        or_end=_hhmmss(draft.signal.or_end),
+        or_max_gap_minutes=gap,
+    )
+
+
+def _hhmmss(text: str) -> Any:
+    from datetime import time as _time
+
+    hh, mm, ss = (int(x) for x in text.split(":"))
+    return _time(hh, mm, ss)
+
+
+VALIDATION_SCHEMA = "range002.acquisition_validation.v1"
+STATUS_ACQ_VALIDATED = "ACQUISITION_VALIDATED"
+STATUS_ACQ_DEFECT = "ACQUISITION_VALIDATED_WITH_PREREQUISITE_DEFECT"
+
+
+def _check_acquisition_validation(
+    path: Path,
+    sha: str,
+    *,
+    spec_sha: str,
+    d0: date,
+    d1: date,
+    minute_bars: Path,
+    daily_snapshot: Path,
+    manifest_sha: str,
+) -> None:
+    """Pre-registry refusal: a revised (cost-aware) evaluation opens its attempt only on a
+    validated acquisition bound by hash to THIS spec, range, store, snapshot and manifest."""
+    raw = Path(path).read_bytes()
+    if hashlib.sha256(raw).hexdigest() != sha:
+        raise DescriptiveRunRefusal("acquisition-validation report sha256 differs; nothing opened")
+    v = json.loads(raw.decode("utf-8"))
+    problems: list[str] = []
+    if v.get("schema") != VALIDATION_SCHEMA:
+        problems.append("not an acquisition-validation report")
+    if v.get("spec_sha256") != spec_sha:
+        problems.append("spec differs")
+    if v.get("authorized_range") != {"start": d0.isoformat(), "end": d1.isoformat()}:
+        problems.append("range differs")
+    if v.get("minute_bars_sha256") != _path_digest(Path(minute_bars)):
+        problems.append("minute-bar store differs")
+    if v.get("daily_snapshot_sha256") != _path_digest(Path(daily_snapshot)):
+        problems.append("daily snapshot differs")
+    if v.get("snapshot_manifest_sha256") != manifest_sha:
+        problems.append("snapshot manifest differs")
+    if v.get("status") != STATUS_ACQ_VALIDATED or v.get("all_prerequisites_pass") is not True:
+        problems.append("prerequisites did not all pass; no performance attempt may be opened")
+    if problems:
+        raise DescriptiveRunRefusal("acquisition validation refused: " + "; ".join(problems))
+
+
 def run(
     *,
     spec_path: Path,
@@ -1145,6 +1223,8 @@ def run(
     statistics_config: dict[str, Any] | None = None,
     allow_sequential_pulls_ref: str | None = None,
     fetch_plan: FetchPlan | None = None,
+    acquisition_validation: Path | None = None,
+    acquisition_validation_sha256: str | None = None,
 ) -> RunOutcome:
     """Execute one authorized descriptive run. Raises on any refusal; never leaves a run OPEN."""
     d0, d1 = _parse_date(date_start, "date-start"), _parse_date(date_end, "date-end")  # type: ignore[arg-type]
@@ -1164,6 +1244,11 @@ def run(
         raw_vendor_rows_attested=raw_vendor_rows_attested,
     )
     phase, part = _PARTITIONS[partition]
+    acquisition_only = phase is Phase.ACQ
+    if acquisition_only and or_completeness_threshold is None:
+        raise DescriptiveRunRefusal(
+            "an acquisition validation must state --or-completeness-threshold (no default here)"
+        )
     out_dir = Path(out_dir)
     json_path, md_path = out_dir / "report.json", out_dir / "report.md"
     if json_path.exists() or md_path.exists():
@@ -1196,6 +1281,23 @@ def run(
     ledger = ExposureLedger.from_text(Path(exposure_ledger_path).read_text(encoding="utf-8"))
     registry = RunRegistry(Path(registry_path))
 
+    if phase is Phase.P3A and draft.signal.max_cost_to_risk is not None:
+        # the cost-aware revision may open an attempt only on a validated acquisition
+        if acquisition_validation is None or not acquisition_validation_sha256:
+            raise DescriptiveRunRefusal(
+                "a cost-aware (max_cost_to_risk) evaluation needs --acquisition-validation and "
+                "--acquisition-validation-sha256: no attempt was opened"
+            )
+        _check_acquisition_validation(
+            acquisition_validation,
+            acquisition_validation_sha256,
+            spec_sha=view.spec_sha256,
+            d0=d0,
+            d1=d1,
+            minute_bars=Path(minute_bars),
+            daily_snapshot=Path(daily_snapshot),
+            manifest_sha=manifest_sha,
+        )
     requested = DateRange(d0, d1)
     if requested.overlaps(view.partitions.holdout):
         raise DescriptiveRunRefusal("the requested range overlaps the holdout partition")
@@ -1224,7 +1326,9 @@ def run(
             exposure_ledger=ledger,
             requested_range=requested,
         )
-        params = extract_params(cap, draft)
+        # acquisition mode: the strategy parameter extraction is NOT available to an ACQ
+        # capability (it is refused by phase); only the data-only parameters are built
+        params: Any = _data_params(draft) if acquisition_only else extract_params(cap, draft)
         uparams = universe_params_from_draft(cap, draft)
         authorized = cap.date_range
         if authorized.overlaps(view.partitions.holdout):
@@ -1297,6 +1401,7 @@ def run(
                 }
             )
 
+        scopes_acq = sorted({b.scope for b in builds})
         acquisition: dict[str, Any] | None = None
         evidence_path: Path | None = None
         if fetch_plan is not None:
@@ -1354,17 +1459,97 @@ def run(
             acquisition["coverage_before_screening"] = cov_summary
             acquisition["missing_symbol_days"] = len(missing)
             acquisition["status"] = (
-                "COVERAGE_OK" if cov.meets_threshold else "COVERAGE_BELOW_THRESHOLD_SCREEN_REFUSED"
+                "COVERAGE_OK"
+                if cov.meets_threshold
+                else (
+                    "COVERAGE_BELOW_THRESHOLD"
+                    if acquisition_only
+                    else "COVERAGE_BELOW_THRESHOLD_SCREEN_REFUSED"
+                )
             )
             evidence_path.write_text(
                 json.dumps(acquisition, indent=2, sort_keys=True, default=str) + "\n",
                 encoding="utf-8",
             )
-            if not cov.meets_threshold:
+            if not cov.meets_threshold and not acquisition_only:
                 raise DataDefectError(
                     f"coverage {cov.coverage_rate:.4f} is below the threshold "
                     f"{coverage_threshold}: screening refused; see {evidence_path.name}"
                 )
+
+        if acquisition_only:
+            gate = or_completeness_gate(cov, or_completeness_threshold)
+            first_sep = daily_con.execute("SELECT min(date) FROM sep").fetchone()
+            need = authorized.start - timedelta(days=lookback_calendar_days)
+            have: Any = first_sep[0] if first_sep else None
+            have_d: Any = have.date() if hasattr(have, "date") else have
+            lookback_ok = have_d is not None and have_d <= need
+            binding = (acquisition or {}).get("binding", {})
+            unverified = (binding.get("symbol_mapping_by_provenance") or {}).get("UNVERIFIED")
+            pc = (acquisition or {}).get("price_consistency_check") or {}
+            prereq = {
+                "returned_coverage_meets_threshold": bool(cov.meets_threshold),
+                "or_completeness_gate_met": bool(gate.get("meets_threshold")),
+                "lookback_sufficient": bool(lookback_ok),
+                "identity_mapping_has_no_unverified": unverified == 0,
+                "price_consistency_no_symbol_over_limit": (
+                    pc.get("symbols_exceeding_fraction") == [] if pc else False
+                ),
+                "universe_scope_pit_full": scopes_acq == ["PIT_FULL"],
+            }
+            ok = all(prereq.values())
+            val = {
+                "schema": VALIDATION_SCHEMA,
+                "status": STATUS_ACQ_VALIDATED if ok else STATUS_ACQ_DEFECT,
+                "label": "ACQUISITION_VALIDATION_ONLY: no trade simulated, no performance computed",
+                "run": {"run_id": run_id, "phase": phase.value, "partition": part.value},
+                "spec_sha256": view.spec_sha256,
+                "authorized_range": authorized.as_dict(),
+                "daily_snapshot_sha256": _path_digest(Path(daily_snapshot)),
+                "snapshot_manifest_sha256": manifest_sha,
+                "minute_bars_sha256": _path_digest(Path(minute_bars)),
+                "code_sha": code_sha,
+                "all_prerequisites_pass": ok,
+                "prerequisites": prereq,
+                "coverage": {
+                    **dataclasses.asdict(cov),
+                    "by_year": {str(y): v for y, v in sorted(cov.by_year.items())},
+                },
+                "or_completeness_gate": gate,
+                "lookback": {
+                    "required_first_sep_date_at_or_before": need.isoformat(),
+                    "first_sep_date": have_d.isoformat() if have_d else None,
+                },
+                "universe_scopes": scopes_acq,
+                "universe_months": month_rows,
+                "acquisition": (
+                    {
+                        "evidence_file": evidence_path.name if evidence_path else None,
+                        "binding": binding,
+                        "actual": acquisition.get("actual") if acquisition else None,
+                        "convention_check": acquisition.get("convention_check")
+                        if acquisition
+                        else None,
+                        "price_consistency": _pc_summary(pc) if pc else None,
+                        "store_sha256": acquisition.get("store_sha256") if acquisition else None,
+                    }
+                    if acquisition is not None
+                    else None
+                ),
+                "strategy_results": "NOT COMPUTED (an acquisition capability cannot screen)",
+                "private": "US-sourced data: private to the owner (PU-1/PU-2)",
+            }
+            vpath = out_dir / "acquisition_validation.json"
+            out_dir.mkdir(parents=True, exist_ok=True)
+            vbytes = (json.dumps(val, indent=2, allow_nan=False, default=str) + "\n").encode()
+            with open(vpath, "xb") as fh:
+                written.append(vpath)
+                fh.write(vbytes)
+            write_sidecar(vpath, PU1_SOURCES)
+            written.append(sidecar_path(vpath))
+            vdigest = hashlib.sha256(vbytes).hexdigest()
+            registry.close_run(run_id, RunStatus.COMPLETED, vdigest)
+            return RunOutcome(run_id, str(val["status"]), vpath, vpath, vdigest, val, cap)
 
         screen = run_screen(cap, params, sessions, tick, equity)
         reconcile_funnel(cap, screen.funnel)
@@ -1589,6 +1774,8 @@ def _build_parser() -> argparse.ArgumentParser:
     req("--table-filter", required=True)
     req("--lookback-calendar-days", required=True, type=int)
     req("--coverage-threshold", required=True, type=float)
+    p.add_argument("--acquisition-validation", type=Path, default=None)
+    p.add_argument("--acquisition-validation-sha256", default=None)
     p.add_argument(
         "--or-completeness-threshold",
         type=float,
@@ -1737,6 +1924,8 @@ def main(argv: list[str] | None = None) -> int:
             lookback_calendar_days=a.lookback_calendar_days,
             coverage_threshold=a.coverage_threshold,
             or_completeness_threshold=a.or_completeness_threshold,
+            acquisition_validation=a.acquisition_validation,
+            acquisition_validation_sha256=a.acquisition_validation_sha256,
             equity=a.equity,
             tick=a.tick,
             code_sha=a.code_sha,
@@ -1756,7 +1945,7 @@ def main(argv: list[str] | None = None) -> int:
         f"{outcome.status} run={outcome.run_id} report={outcome.report_json} "
         f"sha256={outcome.report_sha256}"
     )
-    return EXIT_OK if outcome.status == STATUS_COMPLETE else EXIT_DEFECT
+    return EXIT_OK if outcome.status in (STATUS_COMPLETE, STATUS_ACQ_VALIDATED) else EXIT_DEFECT
 
 
 if __name__ == "__main__":

@@ -35,6 +35,11 @@ class Phase(StrEnum):
     #: Audit replay of an already COMPLETED run: reachable only through
     #: ``results_guard.authorize_audit_replay``; never counts as a strategy attempt.
     AUDIT = "AUDIT"
+    #: Acquisition / validation of approved data: fetch, store, validate coverage, mappings,
+    #: timestamps and integrity. Consumes NO P3A attempt and its capability is accepted only
+    #: by the data-layer entry points, never by the screen kernel (no trade simulation, no
+    #: performance, no candidate selection).
+    ACQ = "ACQ"
 
 
 #: Which partitions each phase may run on. One partition per phase by design.
@@ -45,6 +50,7 @@ PHASE_PARTITIONS: dict[Phase, frozenset[Partition]] = {
     Phase.P4: frozenset({Partition.HOLDOUT}),
     Phase.P5: frozenset({Partition.PAPER}),
     Phase.AUDIT: frozenset({Partition.DEVELOPMENT_SELECTION}),
+    Phase.ACQ: frozenset({Partition.DEVELOPMENT_SELECTION}),
 }
 
 DEVELOPMENT_PARTITIONS = frozenset(

@@ -20,12 +20,27 @@ from __future__ import annotations
 
 from collections.abc import Iterable, Mapping
 from datetime import date, datetime, time, timedelta
-from typing import Any
+from typing import Any, Protocol
 from zoneinfo import ZoneInfo
 
 from app.research.range002.governance.results_guard import requires_capability
 from app.research.range002.screen.errors import DataDefectError
-from app.research.range002.screen.types import Bar, ScreenParams, SessionBars
+from app.research.range002.screen.types import Bar, SessionBars
+
+
+class SessionLoadParams(Protocol):
+    """The only three spec values the loader reads (a ScreenParams satisfies it; so does
+    the data-only parameter set used by acquisition validation)."""
+
+    @property
+    def feed(self) -> str: ...
+
+    @property
+    def bar_timestamp_convention(self) -> str: ...
+
+    @property
+    def intraday_price_basis(self) -> str: ...
+
 
 _ET = ZoneInfo("America/New_York")
 _UTC = ZoneInfo("UTC")
@@ -46,7 +61,7 @@ def _minute_range(close: time) -> list[time]:
 def load_session(
     capability: object,
     con: Any,
-    params: ScreenParams,
+    params: SessionLoadParams,
     symbol: str,
     day: date,
     session_close: time,
@@ -136,7 +151,7 @@ def _permaticker_for(mapping: Mapping[tuple[str, date], str], sym: str, day: dat
 def load_sessions(
     capability: object,
     con: Any,
-    params: ScreenParams,
+    params: SessionLoadParams,
     expected: Iterable[tuple[str, date]],
     closes: Mapping[date, time],
     *,
