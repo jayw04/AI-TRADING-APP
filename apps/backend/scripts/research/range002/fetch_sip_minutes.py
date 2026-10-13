@@ -282,6 +282,9 @@ class RunConfig:
     store_path: Path | None
     journal_path: Path | None
     script_sha256: str
+    #: optional run binding (spec, baseline, universe, dates, sources, request cap) written
+    #: into the journal header: a resume under a different binding is refused
+    binding: dict[str, Any] | None = None
 
 
 def _now_utc() -> str:
@@ -300,6 +303,7 @@ def _header(cfg: RunConfig) -> dict[str, Any]:
         "feed": REQUIRED_FEED,
         "adjustment": REQUIRED_ADJUSTMENT,
         "limit": cfg.limit,
+        **({"binding": cfg.binding} if cfg.binding is not None else {}),
     }
 
 

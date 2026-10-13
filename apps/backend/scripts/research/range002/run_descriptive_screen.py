@@ -46,6 +46,7 @@ from __future__ import annotations
 import argparse
 import dataclasses
 import hashlib
+import importlib.util
 import json
 import sys
 from calendar import monthrange
@@ -468,6 +469,305 @@ def _render_md(rep: dict[str, Any]) -> str:
     return "\n".join(L)
 
 
+@dataclass(frozen=True)
+class FetchPlan:
+    """Opt-in: acquire the SIP minute bars INSIDE this governed run, with this run's capability.
+
+    One authorization, one attempt: the acquisition and the screen are the same run, so a fetch
+    never consumes an attempt of its own and a closed run's capability can neither fetch nor
+    screen. The universe fetched is the run's own monthly top-N union; ``universe_sha256`` binds
+    it to the list reviewed beforehand (``build_fetch_universe``)."""
+
+    universe_sha256: str
+    journal_path: Path
+    key_env: str
+    secret_env: str
+    requests_per_minute: int
+    max_requests: int
+    asof: str
+    authorization_id: str
+    permitted_use_ref: str
+    entitlement_ref: str
+    permission_basis_claimed: str
+    storage_permitted: bool
+    #: a store/journal left by an earlier run may be reused only with this explicit statement:
+    #: the re-run is a NEW governed attempt (it draws on the attempt budget again)
+    acknowledge_new_attempt_ref: str | None = None
+    limit: int = 10000
+    max_pages: int = 100
+    max_retries: int = 5
+    transport_factory: Any = None  # test seam: (capability, authorization) -> transport
+    environ: Any = None  # test seam
+
+
+def _fetch_module() -> Any:
+    name = "fetch_sip_minutes"
+    if name in sys.modules:
+        return sys.modules[name]
+    path = Path(__file__).resolve().parent / "fetch_sip_minutes.py"
+    spec = importlib.util.spec_from_file_location(name, path)
+    if spec is None or spec.loader is None:
+        raise DescriptiveRunRefusal(f"cannot load {path}")
+    mod = importlib.util.module_from_spec(spec)
+    sys.modules[name] = mod
+    spec.loader.exec_module(mod)
+    return mod
+
+
+def _symbols_sha256(symbols: list[str]) -> str:
+    """SHA-256 of the one-symbol-per-line list ``build_fetch_universe`` writes."""
+    return hashlib.sha256("".join(f"{s}\n" for s in symbols).encode("utf-8")).hexdigest()
+
+
+def _fetch_preflight(plan: FetchPlan, minute_bars: Path) -> None:
+    """Refusals that must happen BEFORE a run row exists, so a refusal consumes no attempt."""
+    if not plan.storage_permitted:
+        raise DescriptiveRunRefusal(
+            "fetch needs --fetch-storage-permitted (recorded, not verified)"
+        )
+    for name in ("key_env", "secret_env", "asof", "authorization_id", "permitted_use_ref",
+                 "entitlement_ref", "permission_basis_claimed"):  # fmt: skip
+        if not str(getattr(plan, name)).strip():
+            raise DescriptiveRunRefusal(f"fetch plan: {name} is empty")
+    if plan.requests_per_minute <= 0 or plan.max_requests <= 0 or plan.max_retries < 0:
+        raise DescriptiveRunRefusal(
+            "fetch plan: requests-per-minute and max-requests must be positive"
+        )
+    if len(plan.universe_sha256) != 64:
+        raise DescriptiveRunRefusal("fetch plan: universe sha256 must be 64 hex")
+    have_store, have_journal = Path(minute_bars).exists(), plan.journal_path.exists()
+    if have_store != have_journal:
+        raise DescriptiveRunRefusal(
+            "fetch: the minute store and its journal must both exist (resume) or both be absent"
+        )
+    if have_store and not (plan.acknowledge_new_attempt_ref or "").strip():
+        raise DescriptiveRunRefusal(
+            "fetch: a store/journal from an earlier run exists. Re-running is a NEW governed "
+            "attempt; pass --fetch-acknowledge-new-attempt-ref naming the recorded decision. "
+            "Nothing was opened and no attempt was consumed."
+        )
+
+
+def _verify_cache(store: Path, journal: Path) -> dict[str, Any]:
+    """Every journaled window must match the store exactly (rows, first and last timestamp), and
+    the store must hold nothing outside the journaled windows. Returns a summary or raises."""
+    lines = [
+        json.loads(ln) for ln in journal.read_text(encoding="utf-8").splitlines() if ln.strip()
+    ]
+    chunks = [r for r in lines if r.get("type") == "chunk"]
+    con = duckdb.connect(str(store), read_only=True)
+    try:
+        defects: list[str] = []
+        total = 0
+        for c in chunks:
+            lo, _, hi = c["chunk_key"].partition("|")
+            row = con.execute(
+                "SELECT COUNT(*), MIN(ts), MAX(ts) FROM minute_bars "
+                "WHERE symbol = ? AND ts >= CAST(? AS TIMESTAMP) AND ts < CAST(? AS TIMESTAMP)",
+                [c["symbol"], lo, hi],
+            ).fetchone()
+            assert row is not None
+            n, t0, t1 = row
+            total += int(n)
+            if int(n) != int(c["bars"]):
+                defects.append(f"{c['symbol']} {lo}: store {n} rows != journal {c['bars']}")
+            if c["bars"] and (
+                str(t0).replace(" ", "T") != c["min_ts_utc"].rstrip("Z")
+                or str(t1).replace(" ", "T") != c["max_ts_utc"].rstrip("Z")
+            ):
+                defects.append(f"{c['symbol']} {lo}: first/last timestamp differ from the journal")
+        stored_row = con.execute("SELECT COUNT(*) FROM minute_bars").fetchone()
+        stored = int(stored_row[0]) if stored_row else 0
+        if stored != total:
+            defects.append(f"store holds {stored} rows, journaled windows account for {total}")
+        bad_row = con.execute(
+            "SELECT COUNT(*) FROM minute_bars WHERE basis IS NULL OR basis <> 'raw'"
+        ).fetchone()
+        bad_basis = int(bad_row[0]) if bad_row else 0
+        if bad_basis:
+            defects.append(f"{bad_basis} stored rows are not basis 'raw'")
+        if defects:
+            raise DataDefectError("cached/acquired bars fail integrity: " + "; ".join(defects[:5]))
+        return {"windows": len(chunks), "rows": stored, "all_windows_match_journal": True}
+    finally:
+        con.close()
+
+
+def _acquire(
+    cap: Any,
+    plan: FetchPlan,
+    *,
+    builds: list[Any],
+    authorized: DateRange,
+    sessions_cal: Any,
+    view: Any,
+    code_sha: str,
+    manifest_sha: str,
+    minute_bars: Path,
+    run_id: str,
+    out_dir: Path,
+) -> tuple[dict[str, Any], Path]:
+    """Fetch inside the authorized run, then validate before anything is screened."""
+    from datetime import datetime, timedelta
+    from zoneinfo import ZoneInfo
+
+    from app.research.range002.data.alpaca_transport import AlpacaTransportConfig
+    from app.research.range002.data.fetch_adapter import (
+        REQUIRED_ADJUSTMENT,
+        REQUIRED_FEED,
+        FetchAuthorization,
+        fetch_symbol_window,
+        vendor_transport,
+    )
+    from app.research.range002.spec.hashing import file_sha256
+
+    fm = _fetch_module()
+    symbols = sorted({m.vendor_ticker for mb in builds for m in mb.universe.members})
+    got_sha = _symbols_sha256(symbols)
+    if got_sha != plan.universe_sha256:
+        raise DataDefectError(
+            f"the run's own monthly universe ({len(symbols)} symbols, sha256 {got_sha[:16]}) "
+            f"differs from the bound fetch universe (sha256 {plan.universe_sha256[:16]}); "
+            "nothing was requested"
+        )
+    d0, d1 = authorized.start, authorized.end
+    auth = FetchAuthorization(
+        plan.authorization_id, plan.permitted_use_ref, plan.entitlement_ref, plan.storage_permitted
+    )
+    binding = {
+        "spec_sha256": view.spec_sha256,
+        "baseline_id": view.baseline_id,
+        "strategy_version": view.strategy_version,
+        "date_from": d0.isoformat(),
+        "date_to": d1.isoformat(),
+        "universe_sha256": plan.universe_sha256,
+        "symbols": len(symbols),
+        "feed": REQUIRED_FEED,
+        "adjustment": REQUIRED_ADJUSTMENT,
+        "max_requests": plan.max_requests,
+        "requests_per_minute": plan.requests_per_minute,
+        "snapshot_manifest_sha256": manifest_sha,
+        "code_sha": code_sha,
+    }
+    if plan.transport_factory is not None:
+        transport = plan.transport_factory(cap, auth)
+    else:
+        transport = vendor_transport(
+            cap,
+            auth,
+            config=AlpacaTransportConfig(
+                key_env=plan.key_env,
+                secret_env=plan.secret_env,
+                requests_per_minute=plan.requests_per_minute,
+                max_retries=plan.max_retries,
+                max_requests=plan.max_requests,
+                environ=plan.environ,
+            ),
+        )
+    attempts = getattr(transport, "__dict__", {}).get("http_attempts", lambda: 0)
+    planned = fm.plan(symbols, d0, d1, plan.limit)  # an ESTIMATE; actuals are counted separately
+    evidence_path = out_dir / f"acquisition_evidence_{run_id}.json"
+    out_dir.mkdir(parents=True, exist_ok=True)
+
+    def write_evidence(doc: dict[str, Any]) -> None:
+        tmp = evidence_path.with_suffix(".tmp")
+        tmp.write_text(
+            json.dumps(doc, indent=2, sort_keys=True, default=str) + "\n", encoding="utf-8"
+        )
+        tmp.replace(evidence_path)
+
+    evidence: dict[str, Any] = {
+        "schema": "range002.acquisition_evidence.v1",
+        "run_id": run_id,
+        "binding": binding,
+        "planned_estimate": planned,
+        "actual": {"http_attempts": None, "bars_returned": None},
+        "probe": None,
+        "status": "STARTED",
+    }
+    write_evidence(evidence)
+    try:
+        resumed = Path(minute_bars).exists()
+        probe: dict[str, Any] | None = None
+        if not resumed:
+            # a small first request inside this authorized run: one symbol, thirty minutes at the
+            # open of the first session. It verifies the envelope, feed, timestamps and that the
+            # symbol has data BEFORE the bulk acquisition; it counts against the same cap.
+            first_day = sorted(sessions_cal)[0]
+            et = ZoneInfo("America/New_York")
+            lo = datetime.combine(first_day, datetime.min.time(), tzinfo=et).replace(
+                hour=9, minute=30
+            )
+            start = lo.astimezone(ZoneInfo("UTC")).replace(tzinfo=None)
+            end = start + timedelta(minutes=30)
+            res = fetch_symbol_window(
+                cap, transport, symbol=symbols[0], start_utc=start, end_utc=end,
+                feed=REQUIRED_FEED, adjustment=REQUIRED_ADJUSTMENT, asof=plan.asof,
+                limit=100, max_pages=1,
+            )  # fmt: skip
+            probe = {
+                "symbol": symbols[0],
+                "window_start_utc": start.isoformat() + "Z",
+                "bars": len(res.bars),
+                "first_bar_utc": res.bars[0].t.isoformat() + "Z" if res.bars else None,
+                "first_bar_is_0930_et": bool(res.bars and res.bars[0].t == start),
+                "http_attempts_after_probe": attempts(),
+            }
+            evidence["probe"] = probe
+            write_evidence(evidence)
+            if not res.bars:
+                raise DataDefectError(
+                    "first request returned no bars for the first symbol at the open of the first "
+                    "session: entitlement, availability or symbol mapping must be investigated; "
+                    "the bulk acquisition was not started"
+                )
+        cfg = fm.RunConfig(
+            mode="store",
+            symbols=tuple(symbols),
+            date_from=d0,
+            date_to=d1,
+            asof=plan.asof,
+            limit=plan.limit,
+            max_pages=plan.max_pages,
+            universe_sha256=plan.universe_sha256,
+            requests_per_minute=plan.requests_per_minute,
+            max_requests=plan.max_requests,
+            authorization=auth,
+            permission_basis_claimed=plan.permission_basis_claimed,
+            store_path=Path(minute_bars),
+            journal_path=plan.journal_path,
+            script_sha256=file_sha256(Path(fm.__file__)),
+            binding=binding,
+        )
+        fm.run_fetch(cap, transport, cfg, http_attempts=attempts)
+        cache = _verify_cache(Path(minute_bars), plan.journal_path)
+        lines = [
+            json.loads(ln)
+            for ln in plan.journal_path.read_text(encoding="utf-8").splitlines()
+            if ln.strip()
+        ]
+        chunks = [r for r in lines if r.get("type") == "chunk"]
+        days = [d for c in chunks for d in c.get("days", [])]
+        evidence["actual"] = {
+            "http_attempts": attempts(),
+            "http_requests_in_journal_windows": sum(int(c.get("http_requests", 0)) for c in chunks),
+            "bars_returned": sum(int(c["bars"]) for c in chunks),
+            "windows": len(chunks),
+            "resumed_from_existing_store": resumed,
+        }
+        evidence["convention_check"] = fm.convention_summary(days)
+        evidence["cache_integrity"] = cache
+        evidence["store_sha256"] = file_sha256(Path(minute_bars))
+        evidence["status"] = "ACQUIRED_VALIDATED"
+        write_evidence(evidence)
+    except BaseException as exc:
+        evidence["status"] = f"FAILED: {type(exc).__name__}"
+        evidence["actual"]["http_attempts"] = attempts()
+        write_evidence(evidence)
+        raise
+    return evidence, evidence_path
+
+
 def _count_by(items: Any) -> dict[str, int]:
     """Deterministic label -> count mapping (sorted keys) for the report."""
     out: dict[str, int] = {}
@@ -521,6 +821,7 @@ def run(
     provenance: dict[str, str] | None = None,
     statistics_config: dict[str, Any] | None = None,
     allow_sequential_pulls_ref: str | None = None,
+    fetch_plan: FetchPlan | None = None,
 ) -> RunOutcome:
     """Execute one authorized descriptive run. Raises on any refusal; never leaves a run OPEN."""
     d0, d1 = _parse_date(date_start, "date-start"), _parse_date(date_end, "date-end")  # type: ignore[arg-type]
@@ -544,9 +845,12 @@ def run(
     json_path, md_path = out_dir / "report.json", out_dir / "report.md"
     if json_path.exists() or md_path.exists():
         raise DescriptiveRunRefusal(f"{out_dir} already holds a report; never overwritten")
-    for p in (daily_snapshot, minute_bars, snapshot_manifest, exposure_ledger_path, spec_path):
+    required = (daily_snapshot, snapshot_manifest, exposure_ledger_path, spec_path)
+    for p in required if fetch_plan is not None else (*required, minute_bars):
         if not Path(p).exists():
             raise DescriptiveRunRefusal(f"{p} does not exist")
+    if fetch_plan is not None:
+        _fetch_preflight(fetch_plan, Path(minute_bars))
 
     # Everything that needs no registry row: spec (hash-bound decision), manifest, ledger.
     view, draft = _load_spec(Path(spec_path))
@@ -670,6 +974,22 @@ def run(
                 }
             )
 
+        acquisition: dict[str, Any] | None = None
+        evidence_path: Path | None = None
+        if fetch_plan is not None:
+            acquisition, evidence_path = _acquire(
+                cap,
+                fetch_plan,
+                builds=builds,
+                authorized=authorized,
+                sessions_cal=sessions_cal,
+                view=view,
+                code_sha=code_sha,
+                manifest_sha=manifest_sha,
+                minute_bars=Path(minute_bars),
+                run_id=run_id,
+                out_dir=out_dir,
+            )
         minute_con = duckdb.connect(str(minute_bars), read_only=True)
         to_load = [k for k in expected if k not in exclusions]
         sessions, missing = load_sessions(
@@ -701,6 +1021,25 @@ def run(
             raise FunnelMismatchError(
                 f"coverage observed {cov.observed} != loaded sessions {len(sessions)}"
             )
+        if acquisition is not None and evidence_path is not None:
+            # validate and REPORT coverage before anything is screened; a data defect
+            # refuses the screen (the run closes ABORTED, the evidence file is kept)
+            cov_summary = dataclasses.asdict(cov)
+            cov_summary["by_year"] = {str(y): v for y, v in sorted(cov.by_year.items())}
+            acquisition["coverage_before_screening"] = cov_summary
+            acquisition["missing_symbol_days"] = len(missing)
+            acquisition["status"] = (
+                "COVERAGE_OK" if cov.meets_threshold else "COVERAGE_BELOW_THRESHOLD_SCREEN_REFUSED"
+            )
+            evidence_path.write_text(
+                json.dumps(acquisition, indent=2, sort_keys=True, default=str) + "\n",
+                encoding="utf-8",
+            )
+            if not cov.meets_threshold:
+                raise DataDefectError(
+                    f"coverage {cov.coverage_rate:.4f} is below the threshold "
+                    f"{coverage_threshold}: screening refused; see {evidence_path.name}"
+                )
 
         screen = run_screen(cap, params, sessions, tick, equity)
         reconcile_funnel(cap, screen.funnel)
@@ -764,6 +1103,19 @@ def run(
                 "universe_scopes": scopes,
                 "exploratory": scopes != ["PIT_FULL"],
                 "provenance": dict(provenance or {}),
+                "acquisition": (
+                    {
+                        "evidence_file": evidence_path.name if evidence_path else None,
+                        "binding": acquisition["binding"],
+                        "planned_estimate": acquisition["planned_estimate"],
+                        "actual": acquisition["actual"],
+                        "probe": acquisition["probe"],
+                        "convention_check": acquisition.get("convention_check"),
+                        "store_sha256": acquisition.get("store_sha256"),
+                    }
+                    if acquisition is not None
+                    else None
+                ),
             },
             "universe_months": month_rows,
             "coverage": cov_dict,
@@ -917,6 +1269,26 @@ def _build_parser() -> argparse.ArgumentParser:
         help="no listing evidence is used: no symbol-day is excluded",
     )
     req("--provenance", action="append", default=[], metavar="KEY=VALUE")
+    req(
+        "--fetch-bars",
+        action="store_true",
+        help="acquire the SIP minute bars INSIDE this run with its capability (one attempt)",
+    )
+    req("--fetch-universe-sha256", default=None)
+    req("--fetch-journal", type=Path, default=None)
+    req("--fetch-key-env", default=None)
+    req("--fetch-secret-env", default=None)
+    req("--fetch-requests-per-minute", type=int, default=None)
+    req("--fetch-max-requests", type=int, default=None)
+    req("--fetch-asof", default=None)
+    req("--fetch-authorization-id", default=None)
+    req("--fetch-permitted-use-ref", default=None)
+    req("--fetch-entitlement-ref", default=None)
+    req("--fetch-permission-basis-claimed", default=None)
+    req("--fetch-storage-permitted", action="store_true")
+    req("--fetch-acknowledge-new-attempt-ref", default=None)
+    req("--fetch-limit", type=int, default=10000)
+    req("--fetch-max-pages", type=int, default=100)
     req("--statistics-config", type=Path, default=None)
     req("--dry-plan", action="store_true")
     return p
@@ -947,6 +1319,41 @@ def main(argv: list[str] | None = None) -> int:
             if a.statistics_config
             else None
         )
+        fetch_plan: FetchPlan | None = None
+        if a.fetch_bars:
+            need = {
+                "--fetch-universe-sha256": a.fetch_universe_sha256,
+                "--fetch-journal": a.fetch_journal,
+                "--fetch-key-env": a.fetch_key_env,
+                "--fetch-secret-env": a.fetch_secret_env,
+                "--fetch-requests-per-minute": a.fetch_requests_per_minute,
+                "--fetch-max-requests": a.fetch_max_requests,
+                "--fetch-asof": a.fetch_asof,
+                "--fetch-authorization-id": a.fetch_authorization_id,
+                "--fetch-permitted-use-ref": a.fetch_permitted_use_ref,
+                "--fetch-entitlement-ref": a.fetch_entitlement_ref,
+                "--fetch-permission-basis-claimed": a.fetch_permission_basis_claimed,
+            }
+            missing_args = [k for k, v in need.items() if v is None]
+            if missing_args:
+                raise DescriptiveRunRefusal(f"--fetch-bars needs {missing_args}")
+            fetch_plan = FetchPlan(
+                universe_sha256=a.fetch_universe_sha256,
+                journal_path=a.fetch_journal,
+                key_env=a.fetch_key_env,
+                secret_env=a.fetch_secret_env,
+                requests_per_minute=a.fetch_requests_per_minute,
+                max_requests=a.fetch_max_requests,
+                asof=a.fetch_asof,
+                authorization_id=a.fetch_authorization_id,
+                permitted_use_ref=a.fetch_permitted_use_ref,
+                entitlement_ref=a.fetch_entitlement_ref,
+                permission_basis_claimed=a.fetch_permission_basis_claimed,
+                storage_permitted=bool(a.fetch_storage_permitted),
+                acknowledge_new_attempt_ref=a.fetch_acknowledge_new_attempt_ref,
+                limit=a.fetch_limit,
+                max_pages=a.fetch_max_pages,
+            )
         outcome = run(
             spec_path=a.spec,
             registry_path=a.registry,
@@ -972,6 +1379,7 @@ def main(argv: list[str] | None = None) -> int:
             provenance=prov,
             statistics_config=stats,
             allow_sequential_pulls_ref=a.allow_sequential_pulls_ref,
+            fetch_plan=fetch_plan,
         )
     except Exception as exc:  # every refusal is reported, run already ABORTED
         print(f"REFUSED: {type(exc).__name__}: {exc}", file=sys.stderr)
