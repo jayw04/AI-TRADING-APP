@@ -91,12 +91,18 @@ def test_authorize_has_no_manifest_parameter() -> None:
     assert not any("manifest" in name for name in inspect.signature(authorize).parameters)
 
 
-def test_committed_unset_manifest_refuses_authorize_and_writes_nothing(tmp_path: Path) -> None:
+def test_committed_manifest_refuses_a_spec_with_another_genesis_and_writes_nothing(
+    tmp_path: Path,
+) -> None:
+    """The committed manifest now carries the owner-approved genesis (2026-10-13). A spec bound to
+    a different genesis id (here the synthetic one) is refused before any state is written."""
+    from app.research.range002.spec.manifest import ManifestGenesisMismatchError
+
     reg = new_registry(tmp_path / "runs.jsonl")
     rid = open_run(reg)
-    rg._MANIFEST_PATH = None  # production default: the committed manifest, which ships UNSET
+    rg._MANIFEST_PATH = None  # production default: the committed (owner-approved) manifest
     count = reg.count_records()
-    with pytest.raises(ManifestNotApprovedError):
+    with pytest.raises(ManifestGenesisMismatchError):
         auth(_spec(), reg, rid)
     assert reg.count_records() == count
 

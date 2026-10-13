@@ -70,12 +70,15 @@ def test_committed_manifest_exists_parses_and_state_is_consistent():
             m.require_genesis()
 
 
-def test_committed_manifest_is_unset_until_owner_approves():
-    """Pins the shipped state: a session must not approve a genesis or invent limits. When the
-    owner approves, this test is updated in the same reviewed change."""
+def test_committed_manifest_carries_the_owner_approved_values():
+    """Pins the shipped state. The owner's recorded instruction (2026-10-13) set the P3A limit to
+    3 (diagnostic subset + full development run + one defect-recovery attempt) and the P3B limit
+    to 1; the genesis id is READ BACK from RunRegistry.enroll_new on the research registry, never
+    typed. A session must not change these without a new recorded owner decision."""
     m = load_manifest()
-    assert m.approved_registry_genesis_id is None
-    assert (m.max_p3a_attempts, m.max_p3b_attempts) == (None, None)
+    assert m.approved_registry_genesis_id == "da2dd976-a5eb-496f-bd89-d37d860bc632"
+    assert (m.max_p3a_attempts, m.max_p3b_attempts) == (3, 1)
+    assert m.is_genesis_approved
 
 
 # ---- parsing --------------------------------------------------------------------------------
@@ -247,11 +250,12 @@ def test_freeze_refuses_when_manifest_missing(tmp_path, capsys):
     assert "manifest" in capsys.readouterr().err
 
 
-def test_freeze_refuses_with_the_committed_unset_manifest(tmp_path, capsys):
-    """The default (production) path is the committed, UNSET manifest: freezing must refuse."""
-    rc, out = _freeze_rc(tmp_path, None)
-    assert rc == 2 and not out.exists()
-    assert "no owner-approved registry genesis" in capsys.readouterr().err
+def test_committed_manifest_is_approved_so_the_production_path_does_not_refuse_it(tmp_path):
+    """The default (production) path now holds the owner-approved manifest, so the refusal for an
+    UNSET manifest no longer applies to it; that refusal stays covered below with unapproved
+    synthetic manifests."""
+    m = load_manifest()
+    assert m.require_genesis() == m.approved_registry_genesis_id
 
 
 def test_freeze_refuses_unapproved_genesis_and_null_limits(tmp_path):
