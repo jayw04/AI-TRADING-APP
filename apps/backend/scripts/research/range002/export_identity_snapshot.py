@@ -8,7 +8,7 @@
         [--no-sep-coverage] [--license-status UNKNOWN|PERSONAL|COMMERCIAL_OK] \\
         [--include-sep-daily --sep-date-from YYYY-MM-DD --sep-date-to YYYY-MM-DD \\
          --screen-start YYYY-MM-DD --required-lookback-trading-days N \\
-         --lookback-calendar-days L]
+         --lookback-calendar-days L --max-decision-gap-days G]
 
     python -I export_identity_snapshot.py --cleanup <export-id> --dest-root <dir> [--apply]
     python -I export_identity_snapshot.py --verify <export dir>
@@ -61,7 +61,7 @@ from typing import Any
 
 import duckdb
 
-SCRIPT_VERSION = "1.2.0"
+SCRIPT_VERSION = "1.3.0"
 MANIFEST_SCHEMA_VERSION = "range002.identity_export_manifest.v1"
 SIDECAR_SUFFIX = ".license.json"
 LICENSE_SOURCES = ["sharadar"]
@@ -446,6 +446,17 @@ def validate_manifest(manifest: dict[str, Any]) -> list[str]:
                 "planning_inputs"
             ].get("lookback_calendar_days"):
                 defects.append("planning_inputs missing for sep_daily export")
+            elif not manifest["planning_inputs"].get("max_decision_gap_days"):
+                defects.append("planning_inputs.max_decision_gap_days missing")
+            if isinstance(lb, dict):
+                for day in lb.get("decision_days", []):
+                    if day.get("gap_within_limit") is not True or not day.get(
+                        "max_decision_gap_days"
+                    ):
+                        defects.append(
+                            f"decision day {day.get('decision_day')}: gap_within_limit/"
+                            "max_decision_gap_days not recorded as passing"
+                        )
             if not manifest.get("report_files"):
                 defects.append("report_files missing for sep_daily export")
     return defects
@@ -660,22 +671,32 @@ def _sep_daily_config(
     screen_start: str | None,
     n_lookback: int | None,
     lookback_calendar_days: int | None = None,
+    max_decision_gap_days: int | None = None,
 ) -> dict[str, Any] | None:
     given = [
         x is not None
-        for x in (date_from, date_to, screen_start, n_lookback, lookback_calendar_days)
+        for x in (
+            date_from,
+            date_to,
+            screen_start,
+            n_lookback,
+            lookback_calendar_days,
+            max_decision_gap_days,
+        )
     ]
     if not include:
         if any(given):
             raise ExportRefused(
                 "--sep-date-from/--sep-date-to/--screen-start/--required-lookback-trading-days/"
-                "--lookback-calendar-days are only valid with --include-sep-daily"
+                "--lookback-calendar-days/--max-decision-gap-days are only valid with "
+                "--include-sep-daily"
             )
         return None
     if not all(given):
         raise ExportRefused(
             "--include-sep-daily requires --sep-date-from, --sep-date-to, --screen-start and "
-            "--required-lookback-trading-days and --lookback-calendar-days (no defaults)"
+            "--required-lookback-trading-days, --lookback-calendar-days and "
+            "--max-decision-gap-days (no defaults)"
         )
     parsed: dict[str, date] = {}
     for label, val in (("sep-date-from", date_from), ("sep-date-to", date_to),
@@ -700,8 +721,15 @@ def _sep_daily_config(
         or lookback_calendar_days < 1
     ):
         raise ExportRefused("--lookback-calendar-days must be an integer >= 1")
+    if (
+        max_decision_gap_days is None
+        or isinstance(max_decision_gap_days, bool)
+        or max_decision_gap_days < 1
+    ):
+        raise ExportRefused("--max-decision-gap-days must be an integer >= 1")
     return {
         "lookback_calendar_days": lookback_calendar_days,
+        "max_decision_gap_days": max_decision_gap_days,
         "from": str(date_from),
         "to": str(date_to),
         "screen_start": str(screen_start),
@@ -726,6 +754,7 @@ def run_export(
     screen_start: str | None = None,
     required_lookback_trading_days: int | None = None,
     lookback_calendar_days: int | None = None,
+    max_decision_gap_days: int | None = None,
     requested_tables: Iterable[str] = (),
 ) -> Path:
     for label, val in (
@@ -747,6 +776,7 @@ def run_export(
         screen_start,
         required_lookback_trading_days,
         lookback_calendar_days,
+        max_decision_gap_days,
     )
     if not dest_root.is_dir():
         raise ExportRefused(f"--dest-root {str(dest_root)!r} is not an existing directory")
@@ -923,6 +953,7 @@ def _build_into_staging(
             "universe.min_price": PLANNING_PINS["universe.min_price"],
             "min_price_note": "recorded for context; not used by the export",
             "lookback_calendar_days": sep_daily_cfg["lookback_calendar_days"],
+            "max_decision_gap_days": sep_daily_cfg["max_decision_gap_days"],
             "export_window": {"from": sep_daily_cfg["from"], "to": sep_daily_cfg["to"]},
             "screen_start": sep_daily_cfg["screen_start"],
             "evidence": PLANNING_PINS["evidence"],
@@ -992,6 +1023,7 @@ def lookback_structural(
     itself (history outside the slice never counts). ``src`` is a FROM-able SQL source."""
     need = int(cfg["required_lookback_trading_days"])
     span = int(cfg["lookback_calendar_days"])
+    max_gap = int(cfg["max_decision_gap_days"])
     months = _month_starts(date.fromisoformat(cfg["screen_start"]), date.fromisoformat(cfg["to"]))
     if not months:
         raise ExportRefused("no month start lies in [screen-start, sep-date-to]; no decision day")
@@ -1004,6 +1036,12 @@ def lookback_structural(
                 "the decision day is undefined (nothing exported)"
             )
         d = _as_date(row[0])
+        gap = (m - d).days
+        if gap > max_gap:
+            raise ExportRefused(
+                f"decision-day gap too large: decision day {d} (month start {m}): gap {gap} "
+                f"calendar days > maximum {max_gap} (data hole or short window; nothing exported)"
+            )
         start = d - timedelta(days=span)
         cnt = con.execute(
             f'SELECT COUNT(DISTINCT "date") FROM {src} '
@@ -1020,7 +1058,9 @@ def lookback_structural(
             {
                 "month_start": str(m),
                 "decision_day": str(d),
-                "decision_day_gap_calendar_days": (m - d).days,
+                "decision_day_gap_calendar_days": gap,
+                "max_decision_gap_days": max_gap,
+                "gap_within_limit": True,
                 "d_precedes_month_start": d < m,
                 "slice_start": str(start),
                 "slice_end": str(d),
@@ -1296,6 +1336,12 @@ def build_parser() -> argparse.ArgumentParser:
     ap.add_argument("--screen-start", help="YYYY-MM-DD first date of the screening quarter")
     ap.add_argument("--required-lookback-trading-days", type=int)
     ap.add_argument(
+        "--max-decision-gap-days",
+        type=int,
+        help="max calendar days between each decision day D and its month start; required "
+        "with --include-sep-daily",
+    )
+    ap.add_argument(
         "--lookback-calendar-days",
         type=int,
         help="runner slice length: [D - L, D]; required with --include-sep-daily",
@@ -1361,6 +1407,7 @@ def main(argv: list[str] | None = None) -> int:
             sep_date_to=a.sep_date_to, screen_start=a.screen_start,
             required_lookback_trading_days=a.required_lookback_trading_days,
             lookback_calendar_days=a.lookback_calendar_days,
+            max_decision_gap_days=a.max_decision_gap_days,
             requested_tables=a.table,
             license_status=a.license_status,
         )  # fmt: skip

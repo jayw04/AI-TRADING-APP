@@ -614,6 +614,7 @@ WINDOW = {
     "screen_start": "2016-01-01",
     "required_lookback_trading_days": 20,
     "lookback_calendar_days": 45,
+    "max_decision_gap_days": 7,
 }
 
 
@@ -712,7 +713,7 @@ def _bare_sep_store(path: Path, cols: str) -> Path:
     )
     con.execute(
         f"INSERT INTO sep SELECT {sel} "
-        "FROM range(DATE '2015-11-02', DATE '2016-02-01', INTERVAL 1 DAY) r(d)"
+        "FROM range(DATE '2015-11-02', DATE '2016-04-01', INTERVAL 1 DAY) r(d)"
     )
     con.close()
     return path
@@ -768,6 +769,8 @@ def test_lookback_boundary_is_exact_slice_count(hist: Path, dest: Path) -> None:
         (dict(WINDOW, screen_start="2015-11-02"), "screen-start"),
         (dict(WINDOW, required_lookback_trading_days=0), ">= 1"),
         (dict(WINDOW, lookback_calendar_days=0), "lookback-calendar-days"),
+        (dict(WINDOW, max_decision_gap_days=0), "max-decision-gap-days"),
+        ({k: v for k, v in WINDOW.items() if k != "max_decision_gap_days"}, "requires"),
         ({k: v for k, v in WINDOW.items() if k != "lookback_calendar_days"}, "requires"),
     ],
 )
@@ -869,7 +872,7 @@ def test_cli_sep_daily_end_to_end(hist: Path, dest: Path) -> None:
         "--permission-ref", PERM_REF, "--permission-scope", PERM_SCOPE,
         "--include-sep-daily", "--sep-date-from", "2015-11-02", "--sep-date-to", "2016-03-31",
         "--screen-start", "2016-01-01", "--required-lookback-trading-days", "20",
-        "--lookback-calendar-days", "45",
+        "--lookback-calendar-days", "45", "--max-decision-gap-days", "7",
     ]  # fmt: skip
     r = subprocess.run(cmd, capture_output=True, text=True)
     assert r.returncode == 0, r.stderr
@@ -992,3 +995,54 @@ def test_per_issuer_report_reasons_do_not_fail_or_change_rows(tmp_path: Path, de
     victims = ex.cleanup_export(dest, "exp-1", apply=True)
     assert any(v.name == "lookback_affected_issuers.json" for v in victims)
     assert not out.exists()
+
+
+# =============================================================== decision-day gap limit
+def test_gap_equal_to_limit_passes_and_is_recorded(hist: Path, dest: Path) -> None:
+    # the synthetic fixture has gaps 1, 3 (Fri 2016-01-29 -> Mon 2016-02-01) and 1
+    out = do_export(hist, dest, **dict(WINDOW, max_decision_gap_days=3))
+    m = manifest_of(out)
+    assert ex.validate_manifest(m) == []
+    assert m["planning_inputs"]["max_decision_gap_days"] == 3
+    days = m["sep_daily"]["lookback"]["decision_days"]
+    assert [d["decision_day_gap_calendar_days"] for d in days] == [1, 3, 1]
+    assert all(d["max_decision_gap_days"] == 3 and d["gap_within_limit"] is True for d in days)
+
+
+def test_gap_above_limit_refuses_and_publishes_nothing(hist: Path, dest: Path) -> None:
+    with pytest.raises(
+        ex.ExportRefused, match=r"decision-day gap too large.*2016-01-29.*2016-02-01"
+    ):
+        do_export(hist, dest, **dict(WINDOW, max_decision_gap_days=2))
+    assert not (dest / "exp-1").exists()
+    assert not list((dest / ".staging-exp-1").glob("*.parquet"))
+
+
+def test_data_hole_refuses_even_if_lookback_slice_would_pass(hist: Path, dest: Path) -> None:
+    con = duckdb.connect(str(hist))
+    con.execute("DELETE FROM sep WHERE date BETWEEN DATE '2016-01-18' AND DATE '2016-01-31'")
+    con.close()
+    with pytest.raises(ex.ExportRefused, match=r"gap 17 calendar days > maximum 7"):
+        do_export(hist, dest, **WINDOW)
+    assert not (dest / "exp-1").exists()
+    # the same hole with a limit large enough passes the gap rule and the slice rule
+    out = do_export(hist, dest, "wide", **dict(WINDOW, max_decision_gap_days=20))
+    assert manifest_of(out)["sep_daily"]["lookback"]["result"] == "PASS"
+
+
+def test_default_identity_only_run_unaffected_by_gap_flag_absence(hist: Path, dest: Path) -> None:
+    out = do_export(hist, dest)
+    m = manifest_of(out)
+    assert "planning_inputs" not in m and "sep_daily" not in m
+    with pytest.raises(ex.ExportRefused, match="only valid with --include-sep-daily"):
+        do_export(hist, dest, "x", max_decision_gap_days=7)
+
+
+def test_manifest_validation_requires_gap_fields(hist: Path, dest: Path) -> None:
+    m = manifest_of(do_export(hist, dest, **WINDOW))
+    bad = json.loads(json.dumps(m))
+    del bad["planning_inputs"]["max_decision_gap_days"]
+    assert any("max_decision_gap_days" in d for d in ex.validate_manifest(bad))
+    bad = json.loads(json.dumps(m))
+    bad["sep_daily"]["lookback"]["decision_days"][0]["gap_within_limit"] = False
+    assert ex.validate_manifest(bad)
