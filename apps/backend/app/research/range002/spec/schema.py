@@ -785,7 +785,39 @@ SCREEN_V2_UNMODELLED_SHA256 = "0298fe82ad0374a5139a0d739f49188081bf358a283edcb14
 # ``signal.max_cost_to_risk`` means "the legacy rule is disabled" (no value is ever defaulted). A v3
 # spec is the cost-aware revision: it must NAME the ceiling, so a v3 spec with the field absent or
 # null is an incomplete specification and cannot be frozen.
-SCREEN_V3_REQUIRED = tuple(sorted((*SCREEN_V2_REQUIRED, "signal.max_cost_to_risk")))
+# literal (a test asserts it is SCREEN_V2_REQUIRED plus exactly the ceiling, sorted)
+SCREEN_V3_REQUIRED = (
+    "costs.accounting_mode",
+    "costs.components",
+    "data.daily_price_basis",
+    "data.fetch_mode",
+    "data.intraday_price_basis",
+    "data.vendor",
+    "execution.bar_timestamp_convention",
+    "execution.crossed_before_arm_policy",
+    "exit.halfday_offset_min",
+    "exits.candidates",
+    "exits.selection.eligibility.min_pf",
+    "exits.selection.eligibility.min_trades",
+    "exits.selection.score",
+    "exits.selection.stop_test",
+    "exits.selection.tie_tolerance_r",
+    "fill.halt_policy",
+    "gates.basis",
+    "gates.trade_unit",
+    "governance.exposure_signed",
+    "governance.registry_genesis_id",
+    "p3.criteria",
+    "p3.max_p3a_attempts",
+    "p3.max_p3b_attempts",
+    "risk.per_trade_pct",
+    "risk.per_trade_unit",
+    "signal.max_cost_to_risk",
+    "signal.min_or_width_ticks",
+    "signal.or_completeness_rule",
+    "universe.category_map",
+    "universe.n",
+)
 SCREEN_V3_REQUIRED_SHA256 = "16fd7d9e60767391dc1757dde22985086dc6776bf05348424003b67353e0f185"
 
 
