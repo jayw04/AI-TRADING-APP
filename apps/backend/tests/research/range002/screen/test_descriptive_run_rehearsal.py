@@ -619,3 +619,12 @@ def test_reports_carry_pu1_footer_and_sidecars_and_json_bytes_are_unstamped(
         assert scope_of_file(artifact).blocks_presentation
         with pytest.raises(PersonalScopeBlocked):
             export_file_for_external_use(artifact, tmp_path / "out" / artifact.name)
+
+
+def test_category_exclusions_are_visible_by_label_not_silent(world: dict[str, Any]) -> None:
+    out = rds.run(**world["kwargs"])
+    for m in out.report["universe_months"]:
+        by_cat = m["not_common_stock_by_category"]
+        assert sum(by_cat.values()) == m["excluded_by_reason"].get("NOT_COMMON_STOCK", 0)
+        assert all("is not in the frozen category_map" in k for k in by_cat)
+        assert sum(m["excluded_by_reason"].values()) == m["excluded"]

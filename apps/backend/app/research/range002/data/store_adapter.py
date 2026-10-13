@@ -212,7 +212,7 @@ def load_listings(
         if p not in latest or first >= latest[p][0]:
             latest[p] = (first, category, last, _is_delisted(delisted))
     return tuple(
-        Listing(p, (cat or "") in common_stock_categories, last if gone else None)
+        Listing(p, (cat or "") in common_stock_categories, last if gone else None, cat or "")
         for p, (_, cat, last, gone) in sorted(latest.items())
     )
 

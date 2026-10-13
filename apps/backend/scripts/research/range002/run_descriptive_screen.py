@@ -461,6 +461,14 @@ def _render_md(rep: dict[str, Any]) -> str:
     return "\n".join(L)
 
 
+def _count_by(items: Any) -> dict[str, int]:
+    """Deterministic label -> count mapping (sorted keys) for the report."""
+    out: dict[str, int] = {}
+    for it in items:
+        out[str(it)] = out.get(str(it), 0) + 1
+    return dict(sorted(out.items()))
+
+
 def _delisting_events(con: Any, action_values: tuple[str, ...]) -> dict[str, list[date]]:
     """ACTIONS rows whose action is one of the EXPLICITLY supplied values, by ticker.
 
@@ -635,6 +643,12 @@ def run(
                     "members": len(u.members),
                     "below_cut": u.below_cut,
                     "excluded": len(u.excluded),
+                    # Visible, not silent: excluded listings by observed category label and by
+                    # reason, against the full listing population of this month.
+                    "excluded_by_reason": _count_by(e.reason for e in u.excluded),
+                    "not_common_stock_by_category": _count_by(
+                        e.detail for e in u.excluded if e.reason == "NOT_COMMON_STOCK"
+                    ),
                     "sessions": len(days),
                     "scope": mb.scope,
                     "identity_one_row_per_ticker": mb.identity.one_row_per_ticker,

@@ -81,6 +81,8 @@ class Listing:
     permaticker: str
     common_stock: bool
     last_price_date: date | None  # reporting label only; never used to select
+    #: the vendor category label as observed (reporting only; membership is ``common_stock``)
+    category: str = ""
 
 
 @dataclass(frozen=True)
@@ -183,7 +185,11 @@ def build_universe_month(
         last = rows[-1] if rows else None
         if not li.common_stock:
             excluded.append(
-                Exclusion(pid, NOT_COMMON_STOCK, "listing category is not common stock")
+                Exclusion(
+                    pid,
+                    NOT_COMMON_STOCK,
+                    f"listing category {li.category!r} is not in the frozen category_map",
+                )
             )
             continue
         if (
