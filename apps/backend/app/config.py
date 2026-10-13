@@ -259,6 +259,13 @@ class Settings(BaseSettings):
     # Separate from the factor-data store — the Research Engine is its own
     # subsystem (read-only-derived; never committed). Backend-relative.
     research_db_path: str = "data/research.duckdb"
+    # China A-share research subsystem (research-only; no broker, no scheduler). Its own store,
+    # raw-payload cache and credential file, so A-share data never shares a path with the US
+    # stores or accounts. The Tushare token is read from this FILE (outside the repo), never from
+    # an environment variable; a missing file only marks Tushare access unavailable.
+    cn_ashare_db_path: str = "data/cn_ashare.duckdb"
+    cn_ashare_cache_dir: str = "data/cn_ashare/cache"
+    cn_ashare_tushare_token_path: str = "~/.config/cn_ashare/tushare_token"
 
     # --- SEC EDGAR alternative data (corporate events; ADR 0027, DCAP-005) ---
     # EDGAR is free/public (no key). SEC fair-access requires a DESCRIPTIVE User-Agent

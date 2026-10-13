@@ -23,6 +23,7 @@ from app.api.v1 import (
     live_autodispatch,
     llm_opt_in,
     market_data,
+    markets,
     morning_brief,
     opportunities,
     ops,
@@ -52,6 +53,8 @@ api_router.include_router(audit.router)
 api_router.include_router(account.router)
 api_router.include_router(accounts.router)
 api_router.include_router(benchmarks.router)
+# Market-scoped research views (/markets/{market}/...); read-only, no broker or order path.
+api_router.include_router(markets.router)
 api_router.include_router(internal.router)
 api_router.include_router(orders.router)
 api_router.include_router(positions.router)
