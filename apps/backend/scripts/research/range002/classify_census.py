@@ -44,10 +44,25 @@ ACCOUNTED_EMPTY = "ACCOUNTED_FOR_EMPTY_SAME_PROVIDER"
 ACCOUNTED = (ACCOUNTED_POSITIVE, ACCOUNTED_EMPTY)
 
 
+def _record_matches(sample: dict[str, Any], rec: dict[str, Any]) -> bool:
+    """The probe record must describe exactly this manifest sample (ids alone are not trusted)."""
+    want = {
+        "symbol": sample.get("symbol"),
+        "request_symbol": sample.get("request_symbol"),
+        "asof": sample.get("asof"),
+        "day": sample.get("day"),
+        "interval_et": f"{sample.get('interval_start_et')}-{sample.get('interval_end_et')}",
+        "window_et": f"{sample.get('window_start_et')}-{sample.get('window_end_et')}",
+    }
+    return all(rec.get(k) == v for k, v in want.items() if v is not None and v != "None-None")
+
+
 def classify_sample(sample: dict[str, Any], rec: dict[str, Any] | None) -> dict[str, str]:
     """minute (HH:MM) -> class for every missing minute of one sample."""
     minutes = {m[:5] for m in sample["missing_minutes"]}
     if rec is None or not rec.get("complete") or rec.get("http_status") != 200:
+        return dict.fromkeys(minutes, UNRESOLVED_INCOMPLETE)
+    if not _record_matches(sample, rec):  # another symbol-day/interval: never applied
         return dict.fromkeys(minutes, UNRESOLVED_INCOMPLETE)
     per = rec.get("minutes", {})
     controls = [m[:5] for m in sample["control_minutes"]]
@@ -113,11 +128,15 @@ def _load_records(paths: list[Path]) -> dict[str, dict[str, Any]]:
     out: dict[str, dict[str, Any]] = {}
     for p in paths:
         text = p.read_text(encoding="utf-8")
+        seen_here: set[str] = set()
         if p.suffix == ".jsonl":
             recs = [json.loads(x) for x in text.splitlines() if x.strip()]
         else:
             recs = json.loads(text)["records"]
         for r in recs:
+            if r["id"] in out or r["id"] in seen_here:
+                raise SystemExit(f"duplicate probe record id {r['id']}: refused")
+            seen_here.add(r["id"])
             out[r["id"]] = r
     return out
 
@@ -130,6 +149,12 @@ def main() -> int:
     a = ap.parse_args()
     if a.out.exists():
         raise SystemExit(f"{a.out} exists; never overwritten")
+    man_sha = hashlib.sha256(a.manifest.read_bytes()).hexdigest()
+    for pth in a.probe:
+        if pth.suffix != ".jsonl":
+            bound = json.loads(pth.read_text(encoding="utf-8")).get("manifest_sha256")
+            if bound is not None and bound != man_sha:
+                raise SystemExit(f"{pth.name} was produced for another manifest: refused")
     res = classify(json.loads(a.manifest.read_text(encoding="utf-8")), _load_records(a.probe))
     res["manifest_sha256"] = hashlib.sha256(a.manifest.read_bytes()).hexdigest()
     res["probe_files_sha256"] = [hashlib.sha256(x.read_bytes()).hexdigest() for x in a.probe]

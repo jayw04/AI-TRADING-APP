@@ -129,44 +129,73 @@ def test_cost_aware_evaluation_needs_a_validated_bound_acquisition(
     assert RunRegistry(world["registry_path"]).runs() == ()  # nothing opened, no attempt
 
 
-def _passing_report(path: Path, tmp: Path, name: str, **change: Any) -> tuple[Path, str]:
-    """A self-consistent copy of a real acquisition report marked as passing (the synthetic world
-    has no fetch, so identity/price prerequisites cannot pass on their own)."""
+def _validated_acquisition(world: dict[str, Any], kw: dict[str, Any], tmp: Path, out: str) -> Any:
+    """A genuinely validated ACQ run: original acquisition evidence is carried (no fetch), so the
+    identity and price-consistency prerequisites come from that evidence."""
     import hashlib
 
-    doc = json.loads(path.read_text())
-    doc["status"] = rds.STATUS_ACQ_VALIDATED
-    doc["all_prerequisites_pass"] = True
-    doc.update(change)
-    out = tmp / name
-    out.write_text(json.dumps(doc))
-    return out, hashlib.sha256(out.read_bytes()).hexdigest()
+    from app.research.range002.spec.hashing import file_sha256
+
+    store: Path = world["kwargs"]["minute_bars"]
+    ev = {
+        "store_sha256": file_sha256(store),
+        "binding": {"symbol_mapping_by_provenance": {"UNVERIFIED": 0}},
+        "price_consistency_check": {
+            "check": "x",
+            "what_it_is_not": "x",
+            "tolerance": 0.05,
+            "max_mismatch_fraction": 0.1,
+            "fraction_definition": "x",
+            "totals": {},
+            "symbols_exceeding_fraction": [],
+            "per_symbol_not_passing": {},
+            "mismatching_days_on_a_corporate_action_day": 0,
+        },
+        "actual": {},
+    }
+    path = tmp / "orig_ev.json"
+    path.write_text(json.dumps(ev), encoding="utf-8")
+    return rds.run(
+        **dict(
+            kw,
+            partition="ACQUISITION",
+            or_completeness_threshold=0.5,
+            out_dir=tmp / out,
+            carry_acquisition_evidence=path,
+            carry_acquisition_evidence_sha256=hashlib.sha256(path.read_bytes()).hexdigest(),
+        )
+    )
 
 
 def test_validated_acquisition_unlocks_exactly_its_own_bindings(
     world: dict[str, Any], tmp_path: Path
 ) -> None:
+    import hashlib
+
     kw = _theta_world(world, tmp_path)
-    acq = rds.run(
-        **dict(kw, partition="ACQUISITION", or_completeness_threshold=0.5, out_dir=tmp_path / "a")
+    weak = rds.run(
+        **dict(kw, partition="ACQUISITION", or_completeness_threshold=0.5, out_dir=tmp_path / "w")
     )
-    assert acq.status == rds.STATUS_ACQ_DEFECT
-    # an acquisition that did not pass cannot unlock the attempt
+    assert weak.status == rds.STATUS_ACQ_DEFECT
     with pytest.raises(rds.DescriptiveRunRefusal, match="prerequisites"):
         rds.run(
             **dict(kw, out_dir=tmp_path / "p0"),
-            acquisition_validation=acq.report_json,
-            acquisition_validation_sha256=acq.report_sha256,
+            acquisition_validation=weak.report_json,
+            acquisition_validation_sha256=weak.report_sha256,
         )
-    # a report bound to another store / spec is refused before any registry row
-    for k, v in (("minute_bars_sha256", "0" * 64), ("spec_sha256", "1" * 64)):
-        p, sha = _passing_report(acq.report_json, tmp_path, f"bad_{k}.json", **{k: v})
-        with pytest.raises(rds.DescriptiveRunRefusal, match="refused"):
-            rds.run(
-                **dict(kw, out_dir=tmp_path / f"p_{k}"),
-                acquisition_validation=p,
-                acquisition_validation_sha256=sha,
-            )
+    acq = _validated_acquisition(world, kw, tmp_path, "a")
+    assert acq.status == rds.STATUS_ACQ_VALIDATED
+    # a hand-edited copy is not the registry's completed ACQ run (digest differs): refused
+    forged = json.loads(acq.report_json.read_text())
+    forged["spec_sha256"] = "1" * 64
+    fpath = tmp_path / "forged.json"
+    fpath.write_text(json.dumps(forged))
+    with pytest.raises(rds.DescriptiveRunRefusal, match="refused"):
+        rds.run(
+            **dict(kw, out_dir=tmp_path / "pf"),
+            acquisition_validation=fpath,
+            acquisition_validation_sha256=hashlib.sha256(fpath.read_bytes()).hexdigest(),
+        )
     with pytest.raises(rds.DescriptiveRunRefusal, match="sha256"):
         rds.run(
             **dict(kw, out_dir=tmp_path / "p2"),
@@ -174,12 +203,11 @@ def test_validated_acquisition_unlocks_exactly_its_own_bindings(
             acquisition_validation_sha256="0" * 64,
         )
     reg = RunRegistry(world["registry_path"])
-    assert [r.phase for r in reg.runs()] == [Phase.ACQ]  # only the ACQ row exists so far
-    good, gsha = _passing_report(acq.report_json, tmp_path, "good.json")
+    assert {r.phase for r in reg.runs()} == {Phase.ACQ}  # only ACQ rows exist so far
     out = rds.run(
         **dict(kw, out_dir=tmp_path / "p3"),
-        acquisition_validation=good,
-        acquisition_validation_sha256=gsha,
+        acquisition_validation=acq.report_json,
+        acquisition_validation_sha256=acq.report_sha256,
     )
     assert out.report["run"]["phase"] == "P3A"
     consumed = [

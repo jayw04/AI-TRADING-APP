@@ -1203,6 +1203,7 @@ def _check_policy_binding(
     carry_sha: str | None,
     linked_sha: str | None,
     acquisition_only: bool,
+    store_sha: str | None = None,
 ) -> None:
     """A spec that carries the adopted policy binds the exact census artefacts: a run that supplies
     anything else (or nothing) is refused before any registry row."""
@@ -1218,6 +1219,8 @@ def _check_policy_binding(
             bound.get("original_acquisition_evidence_sha256"),
         )
         want["linked original validation"] = (linked_sha, bound.get("linked_validation_sha256"))
+    if store_sha is not None:
+        want["minute-bar store"] = (store_sha, bound.get("minute_bars_store_sha256"))
     bad = [name for name, (got, exp) in want.items() if got != exp]
     if bad:
         raise DescriptiveRunRefusal(
@@ -1266,7 +1269,17 @@ def _load_no_trade_evidence(
         if smp is None:
             raise DescriptiveRunRefusal(f"classified sample {item['id']} is not in the manifest")
         day = date.fromisoformat(smp["day"])
+        if item.get("symbol") not in (None, smp["symbol"]) or item.get("day") not in (
+            None,
+            smp["day"],
+        ):
+            raise DescriptiveRunRefusal(f"classified sample {item['id']} differs from the manifest")
+        allowed = {m[:5] for m in smp["missing_minutes"]}
         for hhmm, klass in item["classes"].items():
+            if hhmm not in allowed:
+                raise DescriptiveRunRefusal(
+                    f"classified minute {hhmm} is not a missing minute of {item['id']}"
+                )
             n_total += 1
             if klass in ok_classes:
                 n_acc += 1
@@ -1322,6 +1335,9 @@ def _check_acquisition_validation(
     daily_snapshot: Path,
     manifest_sha: str,
     evidence_sha: str | None = None,
+    registry: RunRegistry | None = None,
+    tiers: str | None = None,
+    census_manifest_sha: str | None = None,
 ) -> None:
     """Pre-registry refusal: a revised (cost-aware) evaluation opens its attempt only on a
     validated acquisition bound by hash to THIS spec, range, store, snapshot and manifest."""
@@ -1344,6 +1360,20 @@ def _check_acquisition_validation(
         problems.append("snapshot manifest differs")
     if v.get("no_trade_evidence_sha256") != evidence_sha:
         problems.append("missing-minute evidence differs from the validated policy")
+    mp = v.get("missing_minute_policy") or {}
+    if evidence_sha is not None and (
+        mp.get("tiers") != tiers or mp.get("census_manifest_sha256") != census_manifest_sha
+    ):
+        problems.append("validated under another tier or census manifest")
+    if registry is not None:  # the report must be the registry's own completed ACQ run
+        row = registry.get_run(str((v.get("run") or {}).get("run_id")))
+        if (
+            row is None
+            or row.phase is not Phase.ACQ
+            or row.status is not RunStatus.COMPLETED
+            or row.audit_pack_sha256 != sha
+        ):
+            problems.append("not a completed ACQ run of this registry with this digest")
     if v.get("status") != STATUS_ACQ_VALIDATED or v.get("all_prerequisites_pass") is not True:
         problems.append("prerequisites did not all pass; no performance attempt may be opened")
     if problems:
@@ -1461,6 +1491,7 @@ def run(
             carry_sha=carry_acquisition_evidence_sha256,
             linked_sha=linked_validation_sha256,
             acquisition_only=acquisition_only,
+            store_sha=file_sha256(Path(minute_bars)) if Path(minute_bars).exists() else None,
         )
     manifest_bytes = Path(snapshot_manifest).read_bytes()
     try:
@@ -1498,7 +1529,20 @@ def run(
             daily_snapshot=Path(daily_snapshot),
             manifest_sha=manifest_sha,
             evidence_sha=no_trade_evidence_sha256 if ntm_info else None,
+            registry=RunRegistry(Path(registry_path)),
+            tiers=accounted_tiers,
+            census_manifest_sha=census_manifest_sha256,
         )
+        # 4. the validated store is the store that is screened: no fetch inside the evaluation
+        if fetch_plan is not None:
+            raise DescriptiveRunRefusal(
+                "a cost-aware evaluation may not fetch: it screens the validated store only"
+            )
+        # 7. missing-minute evidence is accepted here only under the spec-bound adopted policy
+        if no_trade_evidence is not None and policy_entry is None:
+            raise DescriptiveRunRefusal(
+                "missing-minute evidence needs the adopted policy carried inside the spec"
+            )
     requested = DateRange(d0, d1)
     if requested.overlaps(view.partitions.holdout):
         raise DescriptiveRunRefusal("the requested range overlaps the holdout partition")
@@ -1614,6 +1658,15 @@ def run(
             acquisition = json.loads(eraw.decode("utf-8"))
             if acquisition.get("store_sha256") != file_sha256(Path(minute_bars)):
                 raise DescriptiveRunRefusal("carried acquisition evidence is for another store")
+            eb = acquisition.get("binding") or {}
+            if (
+                eb.get("snapshot_manifest_sha256") not in (None, manifest_sha)
+                or eb.get("date_from") not in (None, d0.isoformat())
+                or eb.get("date_to") not in (None, d1.isoformat())
+            ):
+                raise DescriptiveRunRefusal(
+                    "carried acquisition evidence is bound to another snapshot manifest or range"
+                )
             acquisition["carried_from"] = {
                 "evidence_sha256": carry_acquisition_evidence_sha256,
                 "note": "original acquisition evidence preserved unchanged; no bar refetched",
@@ -1871,6 +1924,10 @@ def run(
                 "complete_count": cov.or_complete_count,
                 "of_observed": cov.or_complete_of_observed,
                 "of_expected": cov.or_complete_of_expected,
+                "valid_bar_or_count": valid_or,
+                "valid_bar_or_of_expected": (valid_or / cov.denominator)
+                if cov.denominator
+                else None,
             },
             "or_completeness_gate": or_gate,
             "funnel": {

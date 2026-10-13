@@ -196,9 +196,24 @@ def test_revalidation_carries_original_evidence_and_unlocks_the_evaluation_once(
     }
     epath = tmp_path / "orig_evidence.json"
     epath.write_text(json.dumps(original), encoding="utf-8")
+    vpath = tmp_path / "orig_validation.json"
+    vpath.write_text("{}", encoding="utf-8")
     ev = _evidence(world["tmp"], ACCOUNTED)
     payload = synth_payload(exits__candidates=copy.deepcopy(SEVEN))
     payload["signal"]["max_cost_to_risk"] = 0.10
+    payload["registration"]["related_programs"] = [
+        {
+            "relation": rds.ADOPTED_POLICY_RELATION,
+            "tiers": "positive",
+            "bound_artifacts": {
+                "census_classification_sha256": ev["no_trade_evidence_sha256"],
+                "census_manifest_sha256": ev["census_manifest_sha256"],
+                "original_acquisition_evidence_sha256": _sha(epath),
+                "linked_validation_sha256": _sha(vpath),
+                "minute_bars_store_sha256": file_sha256(store),
+            },
+        }
+    ]
     frozen = _freeze(tmp_path, payload, "frozen_theta.json")
     kw = _acq_kw(
         world,
@@ -207,12 +222,13 @@ def test_revalidation_carries_original_evidence_and_unlocks_the_evaluation_once(
         accounted_tiers="positive",
         carry_acquisition_evidence=epath,
         carry_acquisition_evidence_sha256=_sha(epath),
+        linked_validation=vpath,
+        linked_validation_sha256=_sha(vpath),
         **ev,
     )
     val = rds.run(**kw)
     assert val.status == rds.STATUS_ACQ_VALIDATED, val.report["prerequisites"]
     assert val.report["acquisition"]["store_sha256"] == original["store_sha256"]
-    # the evaluation refuses without the same evidence, accepts with it
     ekw = dict(
         world["kwargs"],
         spec_path=frozen,
@@ -221,16 +237,16 @@ def test_revalidation_carries_original_evidence_and_unlocks_the_evaluation_once(
         acquisition_validation_sha256=val.report_sha256,
         or_completeness_threshold=0.9,
     )
-    with pytest.raises(rds.DescriptiveRunRefusal, match="evidence differs"):
-        rds.run(**ekw)
+    with pytest.raises(rds.DescriptiveRunRefusal, match="binds the adopted"):
+        rds.run(**ekw)  # the evaluation must supply the same census artefacts
     out = rds.run(**ekw, **ev, accounted_tiers="positive")
     assert out.report["run"]["phase"] == "P3A"
     assert out.report["or_completeness_gate"]["accounted_minutes"]["minutes_accounted_applied"] == 1
-    # a carried evidence file for another store is refused
+    # carried evidence for another store is refused
     bad = dict(original, store_sha256="0" * 64)
     bpath = tmp_path / "bad_evidence.json"
     bpath.write_text(json.dumps(bad), encoding="utf-8")
-    with pytest.raises(rds.DescriptiveRunRefusal, match="another store"):
+    with pytest.raises(rds.DescriptiveRunRefusal):
         rds.run(
             **dict(
                 kw,
@@ -241,7 +257,9 @@ def test_revalidation_carries_original_evidence_and_unlocks_the_evaluation_once(
         )
 
 
-def _policy_spec(tmp: Path, ev: dict[str, Any], original_sha: str, linked_sha: str) -> Path:
+def _policy_spec(
+    tmp: Path, ev: dict[str, Any], original_sha: str, linked_sha: str, store_sha: str = ""
+) -> Path:
     payload = synth_payload(exits__candidates=copy.deepcopy(SEVEN))
     payload["registration"]["related_programs"] = [
         {
@@ -252,6 +270,7 @@ def _policy_spec(tmp: Path, ev: dict[str, Any], original_sha: str, linked_sha: s
                 "census_manifest_sha256": ev["census_manifest_sha256"],
                 "original_acquisition_evidence_sha256": original_sha,
                 "linked_validation_sha256": linked_sha,
+                "minute_bars_store_sha256": store_sha,
             },
         }
     ]
@@ -268,7 +287,7 @@ def test_spec_binds_the_exact_census_artefacts(world: dict[str, Any], tmp_path: 
     vpath = tmp_path / "orig_validation.json"
     vpath.write_text("{}", encoding="utf-8")
     ev = _evidence(world["tmp"], EMPTY)
-    spec = _policy_spec(tmp_path, ev, _sha(epath), _sha(vpath))
+    spec = _policy_spec(tmp_path, ev, _sha(epath), _sha(vpath), file_sha256(store))
     good = dict(
         spec_path=spec,
         accounted_tiers="both",

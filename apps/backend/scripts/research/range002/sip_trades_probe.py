@@ -73,6 +73,12 @@ BAR_RULE_SOURCE = (
 )
 
 
+#: Documented as NOT updating a minute bar's prices (B only on tapes A/B, handled below).
+BAR_NON_UPDATING_CODES = frozenset(
+    {"C", "G", "H", "I", "M", "N", "P", "Q", "R", "U", "V", "W", "Z", "4", "7", "9"}
+)
+
+
 def bar_eligible(codes: tuple[str, ...], tape: str | None) -> bool:
     """True when the trade can update a minute bar under the documented rule. A trade with no
     condition list is treated as eligible (it is not documented as excluded): the conservative
@@ -83,8 +89,10 @@ def bar_eligible(codes: tuple[str, ...], tape: str | None) -> bool:
         if c == "B":
             if tape != "C":
                 return False
-        elif c not in BAR_UPDATING_CODES:
+        elif c in BAR_NON_UPDATING_CODES:
             return False
+        # a code in NEITHER documented set is not assumed to be non-updating: the trade
+        # stays eligible, so the minute can never become 'accounted-for' on an unknown code
     return True
 
 

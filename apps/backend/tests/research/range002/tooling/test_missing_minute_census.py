@@ -104,6 +104,8 @@ def _sample(**over: Any) -> dict[str, Any]:
 def _rec(minutes: dict[str, dict[str, Any]], **over: Any) -> dict[str, Any]:
     r = {
         "id": "C1",
+        "symbol": "AAA",
+        "day": DAY,
         "complete": True,
         "http_status": 200,
         "timestamps_within_window": True,
@@ -148,8 +150,8 @@ def test_day_level_counts_separate_the_two_evidence_tiers() -> None:
     odd = dict(CTRL, **{"09:35": {"trades": 1, "eligible": 0, "codes": {"I": 1}}})
     recs = {
         "C1": _rec(CTRL, id="C1"),
-        "C2": _rec(odd, id="C2"),
-        "C3": {**_rec(CTRL, id="C3"), "complete": False},
+        "C2": _rec(odd, id="C2", symbol="BBB"),
+        "C3": {**_rec(CTRL, id="C3", symbol="CCC"), "complete": False},
     }
     res = cc.classify(manifest, recs)
     assert res["incomplete_member_days"] == 3
@@ -255,3 +257,15 @@ def test_throttle_spaces_requests(tmp_path: Path) -> None:
         requests_per_minute=120,
     )
     assert slept and all(abs(x - 0.5) < 1e-9 for x in slept)
+
+
+def test_record_for_another_symbol_day_is_never_applied() -> None:
+    wrong = _rec(CTRL, symbol="ZZZ")
+    assert cc.classify_sample(_sample(), wrong) == {"09:35": cc.UNRESOLVED_INCOMPLETE}
+    other_day = _rec(CTRL, day="2017-03-02")
+    assert cc.classify_sample(_sample(), other_day) == {"09:35": cc.UNRESOLVED_INCOMPLETE}
+
+
+def test_unknown_condition_code_never_accounts_for_a_minute() -> None:
+    assert sp.bar_eligible(("S",), "A") is True  # undocumented: stays eligible (conservative)
+    assert sp.bar_eligible(("I", "S"), "A") is False  # a documented non-updating code still wins
