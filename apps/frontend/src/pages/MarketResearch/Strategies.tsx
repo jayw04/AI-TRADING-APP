@@ -17,7 +17,7 @@ export default function StrategiesPage() {
     <div className="grid gap-4">
       <PageHeader title="Strategies · 策略">
         <p className="text-xs text-neutral-500 mt-1">
-          Research candidates, defined before any result. There is no activation, broker or order control here.
+          China registry. A US test or activation does not activate the China row. Research only — no broker or order control.
         </p>
       </PageHeader>
       <QueryState loading={q.isLoading} error={q.error} what="strategies" />
@@ -33,8 +33,18 @@ export default function StrategiesPage() {
                 </div>
                 <p className="mt-1 text-xs text-neutral-400">{c.hypothesis}</p>
                 <p className="text-xs text-neutral-500">
-                  {c.signal}; top {c.top_k}; {c.rebalance}
+                  {c.family ? `${c.family} · ` : ""}
+                  {c.version ? `v${c.version} · ` : ""}
+                  {c.signal}
+                  {c.rebalance ? `; ${c.rebalance}` : ""}
                 </p>
+                {c.source_us_code_path && (
+                  <p className="text-xs text-neutral-500">
+                    US source {c.source_us_strategy_id ?? "no row id"} · {c.source_us_code_path}
+                    {c.source_us_version ? ` · ${c.source_us_version}` : ""} · {c.equivalence}
+                  </p>
+                )}
+                {c.blocked_reason && <p className="mt-1 text-xs text-amber-300">{c.blocked_reason}</p>}
                 <p className="mt-1 text-xs text-neutral-500">
                   {c.last_run ? (
                     <>
