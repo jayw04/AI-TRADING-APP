@@ -46,14 +46,22 @@ class FetchError(RuntimeError):
 class BaostockFetcher:
     """Real vendor access.  Sleeps `throttle` seconds after every call; retries with re-login."""
 
-    def __init__(self, throttle: float = 0.05, retries: int = 4):
+    def __init__(
+        self,
+        throttle: float = 0.05,
+        retries: int = 4,
+        timeout: float = 120.0,
+        backoff: float = 2.0,
+        bs_module=None,
+    ):
         import socket
 
-        import baostock as bs
+        if bs_module is None:
+            import baostock as bs_module
 
         # a stalled connection must raise (and be retried after a fresh login), not hang for the rest of the pull
-        socket.setdefaulttimeout(120)
-        self.bs, self.throttle, self.retries = bs, throttle, retries
+        socket.setdefaulttimeout(timeout)
+        self.bs, self.throttle, self.retries, self.backoff = bs_module, throttle, retries, backoff
         self.calls = 0
         self._login()
 
@@ -80,7 +88,7 @@ class BaostockFetcher:
                 return rows
             except Exception as exc:  # network and vendor errors alike: back off, log in again
                 last = exc
-                time.sleep(min(30.0, 2.0 * 2**attempt))
+                time.sleep(min(30.0, self.backoff * 2**attempt))
                 try:
                     self.bs.logout()
                     self._login()

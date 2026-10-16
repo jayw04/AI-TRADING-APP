@@ -67,6 +67,7 @@ def main() -> None:
             "last_trading_day_vendor": r.delisted_date.date(),
             "last_trading_day_third_friday_rule": rule.date() if rule is not None else None,
             "vendor_matches_rule": bool(r.delisted_date == rule) if rule is not None else None,
+            "scheduled_future_listing": bool(r.listed_date > cal_through),
             "price_tick": r.price_tick,
             "underlying": r.underlying_symbol,
             "source_contract_fields": "gm get_symbol_infos(CFFEX stock-index futures)",
@@ -126,6 +127,7 @@ def main() -> None:
                         "oi_session": s.get(d),
                         "volume": h["volume"].get(d),
                         "expiry": r.delisted_date.date(),
+                        "in_cffex_calendar": d in sessions,
                     }
                 )
             got = set(h.index) | set(s.index)
