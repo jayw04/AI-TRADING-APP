@@ -56,6 +56,8 @@ def board_from_code(code: pd.Series) -> pd.Series:
 def load(args) -> tuple[pd.DataFrame, str]:
     if args.duckdb:
         import duckdb
+        import pull_guard  # recorded update 2 (2026-10-16): a pull store is readable only after gate-5 acceptance
+        pull_guard.require_accepted(args.duckdb)
         con = duckdb.connect(args.duckdb, read_only=True)
         df = con.execute(args.sql).df()
         src = f"duckdb:{args.duckdb} :: {args.sql}"

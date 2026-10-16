@@ -1,0 +1,4 @@
+# BREADTH-CN-001 research folder: pin line endings so file hashes are stable on every machine and in `git archive`.
+# (The repository root already pins eol=lf for text; this makes the folder self-describing and covers the CSV.)
+* text eol=lf
+*.csv text eol=lf

@@ -522,6 +522,56 @@ def verify_prices(store: str) -> dict:
     return out
 
 
+def promote(args: argparse.Namespace) -> dict:
+    """Acceptance of a pull store for breadth computation.  STRICT: gate 5 including the OHLC clause (no waiver exists
+    here), plus store integrity (no duplicates, every stock logged ok, all hashes recompute).  Writes the acceptance row
+    that pull_guard.require_accepted() checks - a failing row when anything is wrong."""
+    import pull_guard
+
+    v = verify_store(args.store)
+    px = verify_prices(args.store)
+    problems = []
+    if v["duplicate_date_code_rows"] or v["duplicate_factor_rows"]:
+        problems.append("duplicate rows")
+    if v["symbols_logged_error"] or not v["symbols_logged_ok"]:
+        problems.append("stocks not logged ok")
+    if (
+        v["symbol_hash_mismatch"]
+        or v["symbol_count_mismatch"]
+        or v["batch_hash_mismatch"]
+        or v["ohlc_hash_mismatch"]
+    ):
+        problems.append("hash or count mismatch")
+    if px["nonpositive_or_nonnumeric_close"] or px["nonpositive_or_nonnumeric_factor"]:
+        problems.append("non-positive prices or factors")
+    if not px["ohlc_evaluable"]:
+        problems.append("OHLC not evaluable (ohlc table absent or incomplete)")
+    else:
+        for k in (
+            "nonpositive_or_nonnumeric_ohlc",
+            "ohlc_violations",
+            "ohlc_close_differs_from_bars_close",
+            "bars_rows_without_ohlc_row",
+        ):
+            if px[k]:
+                problems.append(f"{k}={px[k]}")
+    con = duckdb.connect(args.store)
+    con.execute(
+        "create table if not exists acceptance (gate varchar, passed boolean, detail varchar, fingerprint varchar, ts varchar)"
+    )
+    con.execute(
+        "insert into acceptance values ('gate5', ?, ?, ?, ?)",
+        [
+            not problems,
+            json.dumps({"problems": problems, "prices": px}, default=str),
+            pull_guard.fingerprint(con),
+            _now(),
+        ],
+    )
+    con.close()
+    return {"accepted": not problems, "problems": problems, "prices": px}
+
+
 GATES_VERSION = "v1@36a07890 + amendment A (2026-10-16)"
 PER_SESSION_MIN = 0.99
 OVERALL_MIN = 0.995
@@ -574,6 +624,7 @@ def gates(args: argparse.Namespace) -> dict:
     unexplained = [k for k in whole if k not in expl]
     ok_symbols_complete = v["symbols_logged_ok"] == len(u) and v["symbols_logged_error"] == 0
     batches_expected = -(-len(u) // args.batch)
+    waive = bool(getattr(args, "waive_gate5_ohlc", False))
     ohlc_clean = px["ohlc_evaluable"] and not (
         px["nonpositive_or_nonnumeric_ohlc"]
         or px["ohlc_violations"]
@@ -629,10 +680,16 @@ def gates(args: argparse.Namespace) -> dict:
         "gate5_prices_and_ohlc": {
             **px,
             "ohlc_hash_mismatch": len(v["ohlc_hash_mismatch"]),
+            "waiver": (
+                "OHLC clause waived for the PILOT ONLY (owner, 2026-10-16); price and factor positivity still "
+                "enforced; the OHLC clause is a blocking acceptance gate on the full-pull output (promote)"
+                if waive
+                else ""
+            ),
             "pass": bool(
                 px["nonpositive_or_nonnumeric_close"] == 0
                 and px["nonpositive_or_nonnumeric_factor"] == 0
-                and ohlc_clean
+                and (ohlc_clean or waive)
             ),
             "note": ""
             if px["ohlc_evaluable"]
@@ -685,10 +742,17 @@ def main() -> None:
     sub.choices["gates"].add_argument(
         "--explanations-csv", help="key, reason, source for each whole-symbol miss"
     )
+    sub.choices["gates"].add_argument(
+        "--waive-gate5-ohlc",
+        action="store_true",
+        help="PILOT ONLY: skip the OHLC clause of gate 5 (promote has no such option)",
+    )
+    pr = sub.add_parser("promote", help="strict acceptance of a pull store for breadth computation")
+    pr.add_argument("--store", required=True)
     a = ap.parse_args()
-    if not (a.master_store or a.universe_csv):
+    if a.cmd != "promote" and not (a.master_store or a.universe_csv):
         ap.error("need --master-store or --universe-csv")
-    fn = {"pull": pull, "gates": gates, "ohlc": ohlc_supplement}[a.cmd]
+    fn = {"pull": pull, "gates": gates, "ohlc": ohlc_supplement, "promote": promote}[a.cmd]
     print(json.dumps(fn(a), indent=1, default=str))
 
 
