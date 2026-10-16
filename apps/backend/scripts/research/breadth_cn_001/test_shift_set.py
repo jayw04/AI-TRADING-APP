@@ -22,6 +22,18 @@ def test_properties() -> None:
     )
 
 
+def test_committed_file_matches_the_registered_digest() -> None:
+    f = Path(__file__).parent / "circular_shift_set_dev.csv"
+    shifts = [int(x) for x in f.read_text(encoding="utf-8").split()[1:]]
+    assert len(shifts) == 500 and shifts == S.shift_set(1756)
+    assert (
+        S.digest(shifts, 1756) == "dfc372393370c301a7b681fc657e7f8ef44b4120505997cd217cc7000fedc594"
+    )
+    print(
+        "ok committed shift file == regenerated set (L=1756, seed 20261016); digest as registered in SPEC A1"
+    )
+
+
 def test_rotation_preserves_the_setup_pattern() -> None:
     import numpy as np
 
@@ -43,5 +55,6 @@ def test_rotation_preserves_the_setup_pattern() -> None:
 
 if __name__ == "__main__":
     test_properties()
+    test_committed_file_matches_the_registered_digest()
     test_rotation_preserves_the_setup_pattern()
     print("ALL TESTS PASSED")
