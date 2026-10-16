@@ -33,7 +33,9 @@ from pathlib import Path
 import duckdb
 import pandas as pd
 
-A_SHARE_CODE = re.compile(r"^(600|601|603|605|688|000|001|002|003|300|301)\d{3}$")
+# prefix FAMILIES, not an enumeration: 60x SH main, 68x STAR (incl. 689 CDR), 00x SZ main, 30x ChiNext (incl. 302, e.g. 302132).
+# B-shares (900/200), indices and funds do not match.
+A_SHARE_CODE = re.compile(r"^(60|68|00|30)\d{4}$")
 BAR_FIELDS = "date,code,close,tradestatus,isST"
 SEP = "\x1f"
 
@@ -143,9 +145,9 @@ class FakeFetcher:
 
 # ---------------------------------------------------------------- universe
 def board_of(code6: str) -> str:
-    if code6.startswith("688"):
+    if code6.startswith("68"):
         return "STAR"
-    if code6.startswith(("300", "301")):
+    if code6.startswith("30"):
         return "CHINEXT"
     if code6.startswith("60"):
         return "SH_MAIN"
