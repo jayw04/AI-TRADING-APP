@@ -1,0 +1,12 @@
+# BREADTH-CN-001 research module: plotting dependency (not in apps/backend/pyproject.toml).
+# Exact pins = the versions the three suites were run with on 2026-10-16 (Python 3.12.10).
+# The backend environment already supplies pandas, numpy and duckdb; the suites passed there with
+#   pandas 2.3.3, numpy 2.2.6, duckdb 1.5.6
+# and also on the delivery author's pandas 3.0.5 / numpy 2.5.3 / duckdb 1.5.6.
+matplotlib==3.11.2
+contourpy==1.4.0
+cycler==0.12.1
+fonttools==4.67.0
+kiwisolver==1.5.1
+pillow==12.3.0
+pyparsing==3.3.3
