@@ -94,6 +94,10 @@ def test_values() -> None:
     assert get("margin_pct", "2017-09-18")["binding_for_ic"] == "N/A"  # IF/IH-only change
     assert get("tick_points", "2026-10-16")["value"] == "0.2"
     assert get("broker_addon_bp", "2016-10-17")["status"] == "ASSUMPTION"
+    assert (
+        get("broker_addon_bp", "2016-10-17")["value"] == "1"
+        and get("stress_run_cost_multiplier", "2016-10-17")["value"] == "2"
+    )
     fees = [
         x for x in rows if x["parameter"] == "close_today_fee_bp" and x["event_type"] == "change"
     ]
