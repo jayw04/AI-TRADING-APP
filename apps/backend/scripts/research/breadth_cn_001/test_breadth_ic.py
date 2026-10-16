@@ -3,10 +3,9 @@ Tests the plumbing, NOT the strategy: synthetic data carries no evidence about I
 import tempfile
 from pathlib import Path
 
+import breadth_ic as B
 import numpy as np
 import pandas as pd
-
-import breadth_ic as B
 
 RNG = np.random.default_rng(7)
 
@@ -74,7 +73,7 @@ def main():
     wk, mo = B.period_breadth(stocks, cfg, "W"), B.period_breadth(stocks, cfg, "M")
     assert len(wk) > 600 and len(mo) > 140
     print("breadth ok   daily", len(br), " weekly", len(wk), " monthly", len(mo),
-          " ratio range %.2f-%.2f" % (br.ratio.min(), br.ratio.max()))
+          f" ratio range {br.ratio.min():.2f}-{br.ratio.max():.2f}")
 
     # 2. no look-ahead: perturb everything after cutoff, setups before cutoff must not change
     cut = pd.Timestamp("2020-06-30")

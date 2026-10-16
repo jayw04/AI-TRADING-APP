@@ -1,15 +1,10 @@
 """Focused tests for the symbol-set coverage check in build_indicator.coverage_by_date.
-Run: python3 test_coverage_sets.py   (needs no breadth_ic: a stub module is injected)."""
-import sys
+Run from this folder: python3 test_coverage_sets.py   (imports the real breadth_ic; the earlier stub is no longer needed)."""
 import tempfile
-import types
 from pathlib import Path
 
-sys.modules.setdefault("breadth_ic", types.ModuleType("breadth_ic"))
-sys.path.insert(0, str(Path(__file__).parent))
-import pandas as pd
-
 import build_indicator as b
+import pandas as pd
 
 CAL = pd.bdate_range("2024-01-01", "2024-01-12")        # 10 sessions
 MASTER = pd.DataFrame({

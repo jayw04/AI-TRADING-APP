@@ -33,10 +33,9 @@ import json
 import re
 from pathlib import Path
 
+import breadth_ic as B
 import numpy as np
 import pandas as pd
-
-import breadth_ic as B
 
 NAME_EXCL = re.compile(r"^(\*?S?\*?ST|N|C)")     # ST, *ST, S*ST, SST, N新股, C次新(注册制前5日)
 

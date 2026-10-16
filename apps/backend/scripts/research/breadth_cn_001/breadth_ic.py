@@ -26,7 +26,7 @@ from __future__ import annotations
 import dataclasses
 import hashlib
 import json
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
 
 import numpy as np
@@ -236,7 +236,6 @@ def backtest(series: pd.DataFrame, windows: pd.DataFrame, cfg: Config) -> pd.Dat
     trades, pos = [], 0
     entry = None            # dict of open trade
     used_setups: set[int] = set()
-    pending = None          # ("open", side, setup_id) | ("close", reason)
 
     recs = s[["datetime", "date", "contract", "open", "close", "close_cont", "ma", "side", "setup_id"]] \
         .to_dict("records")
@@ -259,9 +258,7 @@ def backtest(series: pd.DataFrame, windows: pd.DataFrame, cfg: Config) -> pd.Dat
         above, below = r["close_cont"] > r["ma"], r["close_cont"] < r["ma"]
 
         order = None
-        if pos == 1 and below:
-            order = ("close", "stop")
-        elif pos == -1 and above:
+        if (pos == 1 and below) or (pos == -1 and above):
             order = ("close", "stop")
         if pos == 0 or (order is not None):
             sd, sid = int(r["side"]), int(r["setup_id"])
