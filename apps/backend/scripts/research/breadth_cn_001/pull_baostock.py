@@ -47,8 +47,12 @@ class BaostockFetcher:
     """Real vendor access.  Sleeps `throttle` seconds after every call; retries with re-login."""
 
     def __init__(self, throttle: float = 0.05, retries: int = 4):
+        import socket
+
         import baostock as bs
 
+        # a stalled connection must raise (and be retried after a fresh login), not hang for the rest of the pull
+        socket.setdefaulttimeout(120)
         self.bs, self.throttle, self.retries = bs, throttle, retries
         self.calls = 0
         self._login()
