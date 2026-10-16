@@ -48,7 +48,7 @@ def board_from_code(code: pd.Series) -> pd.Series:
     out[c.str.match(r"^60[0-9]")] = "SH_MAIN"
     out[c.str.match(r"^688|^689")] = "STAR"
     out[c.str.match(r"^(000|001|002|003)")] = "SZ_MAIN"
-    out[c.str.match(r"^(300|301)")] = "CHINEXT"
+    out[c.str.match(r"^30")] = "CHINEXT"  # 30x family: 300, 301 and 302 (e.g. 302132); was (300|301) - versioned fix 2026-10-16
     out[c.str.match(r"^(4|8|920)")] = "BSE"
     return out
 
